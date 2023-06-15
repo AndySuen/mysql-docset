@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>9.6 Query Attributes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="language-structure.html" title="Chapter 9 Language Structure" /><link rel="prev" href="expressions.html" title="9.5 Expressions" /><link rel="next" href="comments.html" title="9.7 Comments" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="query-attributes.html#query-attributes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="expressions.html">Previous <span class="navHint"> Expressions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="language-structure.html">Up <span class="navHint"> Language Structure </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="comments.html">Next <span class="navHint"> Comments </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="query-attributes"></a>9.6 Query Attributes</h2></div></div></div><a id="idm45828945207360" class="indexterm"></a><p>
+      The most visible part of an SQL statement is the text of the
+      statement. As of MySQL 8.0.23, clients can also define query
+      attributes that apply to the next statement sent to the server for
+      execution:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Attributes are defined prior to sending the statement.
+        </p></li><li class="listitem"><p>
+          Attributes exist until statement execution ends, at which
+          point the attribute set is cleared.
+        </p></li><li class="listitem"><p>
+          While attributes exist, they can be accessed on the server
+          side.
+        </p></li></ul></div><p>
+      Examples of the ways query attributes may be used:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          A web application produces pages that generate database
+          queries, and for each query must track the URL of the page
+          that generated it.
+        </p></li><li class="listitem"><p>
+          An application passes extra processing information with each
+          query, for use by a plugin such as an audit plugin or query
+          rewrite plugin.
+        </p></li></ul></div><p>
+      MySQL supports these capabilities without the use of workarounds
+      such as specially formatted comments included in query strings.
+      The remainder of this section describes how to use query attribute
+      support, including the prerequisites that must be satisfied.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="query-attributes.html#using-query-attributes" title="Defining and Accessing Query Attributes">Defining and Accessing Query Attributes</a></p></li><li class="listitem"><p><a class="xref" href="query-attributes.html#query-attributes-prerequisites" title="Prerequisites for Using Query Attributes">Prerequisites for Using Query Attributes</a></p></li><li class="listitem"><p><a class="xref" href="query-attributes.html#query-attribute-functions" title="Query Attribute Loadable Functions">Query Attribute Loadable Functions</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h3 class="title"><a id="using-query-attributes"></a>Defining and Accessing Query Attributes</h3></div></div></div><p>
+        Applications that use the MySQL C API define query attributes by
+        calling the <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-bind-param.html" target="_top"><code class="literal">mysql_bind_param()</code></a>
+        function. See <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-bind-param.html" target="_top">mysql_bind_param()</a>. Other MySQL
+        connectors may also provide query-attribute support. See the
+        documentation for individual connectors.
+      </p><p>
+        The <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client has a
+        <code class="literal">query_attributes</code> command that enables
+        defining up to 32 pairs of attribute names and values. See
+        <a class="xref" href="mysql-commands.html" title="4.5.1.2 mysql Client Commands">Section 4.5.1.2, “mysql Client Commands”</a>.
+      </p><p>
+        Query attribute names are transmitted using the character set
+        indicated by the
+        <a class="link" href="server-system-variables.html#sysvar_character_set_client"><code class="literal">character_set_client</code></a> system
+        variable.
+      </p><p>
+        To access query attributes within SQL statements for which
+        attributes have been defined, install the
+        <code class="literal">query_attributes</code> component as described in
+        <a class="xref" href="query-attributes.html#query-attributes-prerequisites" title="Prerequisites for Using Query Attributes">Prerequisites for Using Query Attributes</a>. The component
+        implements a
+        <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string()</code></a>
+        loadable function that takes an attribute name argument and
+        returns the attribute value as a string, or
+        <code class="literal">NULL</code> if the attribute does not exist. See
+        <a class="xref" href="query-attributes.html#query-attribute-functions" title="Query Attribute Loadable Functions">Query Attribute Loadable Functions</a>.
+      </p><p>
+        The following examples use the <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client
+        <code class="literal">query_attributes</code> command to define attribute
+        name/value pairs, and the
+        <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string()</code></a>
+        function to access attribute values by name.
+      </p><p>
+        This example defines two attributes named <code class="literal">n1</code>
+        and <code class="literal">n2</code>. The first <code class="literal">SELECT</code>
+        shows how to retrieve those attributes, and also demonstrates
+        that retrieving a nonexistent attribute (<code class="literal">n3</code>)
+        returns <code class="literal">NULL</code>. The second
+        <code class="literal">SELECT</code> shows that attributes do not persist
+        across statements.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>query_attributes n1 v1 n2 v2;</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+         <strong class="userinput"><code>mysql_query_attribute_string('n1') AS 'attr 1',</code></strong>
+         <strong class="userinput"><code>mysql_query_attribute_string('n2') AS 'attr 2',</code></strong>
+         <strong class="userinput"><code>mysql_query_attribute_string('n3') AS 'attr 3';</code></strong>
++--------+--------+--------+
+| attr 1 | attr 2 | attr 3 |
++--------+--------+--------+
+| v1     | v2     | NULL   |
++--------+--------+--------+
+
+mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+         <strong class="userinput"><code>mysql_query_attribute_string('n1') AS 'attr 1',</code></strong>
+         <strong class="userinput"><code>mysql_query_attribute_string('n2') AS 'attr 2';</code></strong>
++--------+--------+
+| attr 1 | attr 2 |
++--------+--------+
+| NULL   | NULL   |
++--------+--------+
+</pre><p>
+        As shown by the second <code class="literal">SELECT</code> statement,
+        attributes defined prior to a given statement are available only
+        to that statement and are cleared after the statement executes.
+        To use an attribute value across multiple statements, assign it
+        to a variable. The following example shows how to do this, and
+        illustrates that attribute values are available in subsequent
+        statements by means of the variables, but not by calling
+        <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string()</code></a>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>query_attributes n1 v1 n2 v2;</code></strong>
+mysql&gt; <strong class="userinput"><code>SET</code></strong>
+         <strong class="userinput"><code>@attr1 = mysql_query_attribute_string('n1'),</code></strong>
+         <strong class="userinput"><code>@attr2 = mysql_query_attribute_string('n2');</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+         <strong class="userinput"><code>@attr1, mysql_query_attribute_string('n1') AS 'attr 1',</code></strong>
+         <strong class="userinput"><code>@attr2, mysql_query_attribute_string('n2') AS 'attr 2';</code></strong>
++--------+--------+--------+--------+
+| @attr1 | attr 1 | @attr2 | attr 2 |
++--------+--------+--------+--------+
+| v1     | NULL   | v2     | NULL   |
++--------+--------+--------+--------+
+</pre><p>
+        Attributes can also be saved for later use by storing them in a
+        table:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t1 (c1 CHAR(20), c2 CHAR(20));</code></strong>
+
+mysql&gt; <strong class="userinput"><code>query_attributes n1 v1 n2 v2;</code></strong>
+mysql&gt; <strong class="userinput"><code>INSERT INTO t1 (c1, c2) VALUES(</code></strong>
+         <strong class="userinput"><code>mysql_query_attribute_string('n1'),</code></strong>
+         <strong class="userinput"><code>mysql_query_attribute_string('n2')</code></strong>
+       <strong class="userinput"><code>);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM t1;</code></strong>
++------+------+
+| c1   | c2   |
++------+------+
+| v1   | v2   |
++------+------+
+</pre><p>
+        Query attributes are subject to these limitations and
+        restrictions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If multiple attribute-definition operations occur prior to
+            sending a statement to the server for execution, the most
+            recent definition operation applies and replaces attributes
+            defined in earlier operations.
+          </p></li><li class="listitem"><p>
+            If multiple attributes are defined with the same name,
+            attempts to retrieve the attribute value have an undefined
+            result.
+          </p></li><li class="listitem"><p>
+            An attribute defined with an empty name cannot be retrieved
+            by name.
+          </p></li><li class="listitem"><p>
+            Attributes are not available to statements prepared with
+            <a class="link" href="prepare.html" title="13.5.1 PREPARE Statement"><code class="literal">PREPARE</code></a>.
+          </p></li><li class="listitem"><p>
+            The
+            <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string()</code></a>
+            function cannot be used in DDL statements.
+          </p></li><li class="listitem"><p>
+            Attributes are not replicated. Statements that invoke the
+            <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string()</code></a>
+            function will not get the same value on all servers.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h3 class="title"><a id="query-attributes-prerequisites"></a>Prerequisites for Using Query Attributes</h3></div></div></div><p>
+        To access query attributes within SQL statements for which
+        attributes have been defined, the
+        <code class="literal">query_attributes</code> component must be installed.
+        Do so using this statement:
+      </p><pre class="programlisting">INSTALL COMPONENT "file://component_query_attributes";
+</pre><p>
+        Component installation is a one-time operation that need not be
+        done per server startup. <a class="link" href="install-component.html" title="13.7.4.3 INSTALL COMPONENT Statement"><code class="literal">INSTALL
+        COMPONENT</code></a> loads the component, and also registers it
+        in the <code class="literal">mysql.component</code> system table to cause
+        it to be loaded during subsequent server startups.
+      </p><p>
+        The <code class="literal">query_attributes</code> component accesses query
+        attributes to implement a
+        <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string()</code></a>
+        function. See <a class="xref" href="query-attribute-components.html" title="5.5.4 Query Attribute Components">Section 5.5.4, “Query Attribute Components”</a>.
+      </p><p>
+        To uninstall the <code class="literal">query_attributes</code> component,
+        use this statement:
+      </p><pre class="programlisting">UNINSTALL COMPONENT "file://component_query_attributes";
+</pre><p>
+        <a class="link" href="uninstall-component.html" title="13.7.4.5 UNINSTALL COMPONENT Statement"><code class="literal">UNINSTALL COMPONENT</code></a> unloads the
+        component, and unregisters it from the
+        <code class="literal">mysql.component</code> system table to cause it not
+        to be loaded during subsequent server startups.
+      </p><p>
+        Because installing and uninstalling the
+        <code class="literal">query_attributes</code> component installs and
+        uninstalls the
+        <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string()</code></a>
+        function that the component implements, it is not necessary to
+        use <code class="literal">CREATE
+        FUNCTION</code> or
+        <code class="literal">DROP FUNCTION</code>
+        to do so.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h3 class="title"><a id="query-attribute-functions"></a>Query Attribute Loadable Functions</h3></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="function_mysql-query-attribute-string"></a>
+            <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string(<em class="replaceable"><code>name</code></em>)</code></a>
+          </p><a id="idm45828945117856" class="indexterm"></a><p>
+            Applications can define attributes that apply to the next
+            query sent to the server. The
+            <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string()</code></a>
+            function, available as of MySQL 8.0.23, returns an attribute
+            value as a string, given the attribute name. This function
+            enables a query to access and incorporate values of the
+            attributes that apply to it.
+          </p><p>
+            <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string()</code></a>
+            is installed by installing the
+            <code class="literal">query_attributes</code> component. See
+            <a class="xref" href="query-attributes.html" title="9.6 Query Attributes">Section 9.6, “Query Attributes”</a>, which also discusses the
+            purpose and use of query attributes.
+          </p><p>
+            Arguments:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <em class="replaceable"><code>name</code></em>: The attribute name.
+              </p></li></ul></div><p>
+            Return value:
+          </p><p>
+            Returns the attribute value as a string for success, or
+            <code class="literal">NULL</code> if the attribute does not exist.
+          </p><p>
+            Example:
+          </p><p>
+            The following example uses the <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a>
+            client <code class="literal">query_attributes</code> command to define
+            query attributes that can be retrieved by
+            <a class="link" href="query-attributes.html#function_mysql-query-attribute-string"><code class="literal">mysql_query_attribute_string()</code></a>.
+            The <code class="literal">SELECT</code> shows that retrieving a
+            nonexistent attribute (<code class="literal">n3</code>) returns
+            <code class="literal">NULL</code>.
+          </p><pre class="programlisting">mysql&gt; query_attributes n1 v1 n2 v2;
+mysql&gt; SELECT
+    -&gt;   mysql_query_attribute_string('n1') AS 'attr 1',
+    -&gt;   mysql_query_attribute_string('n2') AS 'attr 2',
+    -&gt;   mysql_query_attribute_string('n3') AS 'attr 3';
++--------+--------+--------+
+| attr 1 | attr 2 | attr 3 |
++--------+--------+--------+
+| v1     | v2     | NULL   |
++--------+--------+--------+
+</pre></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="expressions.html">Previous <span class="navHint"> Expressions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="language-structure.html">Up <span class="navHint"> Language Structure </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="comments.html">Next <span class="navHint"> Comments </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

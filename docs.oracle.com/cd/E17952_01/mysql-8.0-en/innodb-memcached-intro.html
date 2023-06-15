@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.20.2 InnoDB memcached Architecture</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-memcached.html" title="15.20 InnoDB memcached Plugin" /><link rel="prev" href="innodb-memcached-benefits.html" title="15.20.1 Benefits of the InnoDB memcached Plugin" /><link rel="next" href="innodb-memcached-setup.html" title="15.20.3 Setting Up the InnoDB memcached Plugin" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-memcached-intro.html#innodb-memcached-intro">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-memcached-benefits.html">Previous <span class="navHint"> Benefits of the InnoDB memcached Plugin </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-memcached.html">Up <span class="navHint"> InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-memcached-setup.html">Next <span class="navHint"> Setting Up the InnoDB memcached Plugin </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-memcached-intro"></a>15.20.2 InnoDB memcached Architecture</h3></div></div></div><a id="idm45828873119760" class="indexterm"></a><p>
+      The <code class="literal">InnoDB</code> <span class="command"><strong>memcached</strong></span> plugin
+      implements <span class="command"><strong>memcached</strong></span> as a MySQL plugin daemon
+      that accesses the <code class="literal">InnoDB</code> storage engine
+      directly, bypassing the MySQL SQL layer.
+    </p><p>
+      The following diagram illustrates how an application accesses data
+      through the <code class="literal">daemon_memcached</code> plugin, compared
+      with SQL.
+    </p><div class="figure"><a id="innodb-memcached-architecture-diagram"></a><p class="title"><strong>Figure 15.4 MySQL Server with Integrated <span class="command">memcached</span> Server</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/innodb_memcached2.png" width="476" height="526" alt="Shows an application accessing data in the InnoDB storage engine using both SQL and the memcached protocol. Using SQL, the application accesses data through the MySQL Server and Handler API. Using the memcached protocol, the application bypasses the MySQL Server, accessing data through the memcached plugin and InnoDB API. The memcached plugin is comprised of the innodb_memcache interface and optional local cache." /></div></div></div><br class="figure-break" /><p>
+      Features of the <code class="literal">daemon_memcached</code> plugin:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <span class="command"><strong>memcached</strong></span> as a daemon plugin of
+          <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>. Both <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> and
+          <span class="command"><strong>memcached</strong></span> run in the same process space,
+          with very low latency access to data.
+        </p></li><li class="listitem"><p>
+          Direct access to <code class="literal">InnoDB</code> tables, bypassing
+          the SQL parser, the optimizer, and even the Handler API layer.
+        </p></li><li class="listitem"><p>
+          Standard <span class="command"><strong>memcached</strong></span> protocols, including the
+          text-based protocol and the binary protocol. The
+          <code class="literal">daemon_memcached</code> plugin passes all 55
+          compatibility tests of the <span class="command"><strong>memcapable</strong></span>
+          command.
+        </p></li><li class="listitem"><p>
+          Multi-column support. You can map multiple columns into the
+          <span class="quote">“<span class="quote">value</span>”</span> part of the key-value store, with column
+          values delimited by a user-specified separator character.
+        </p></li><li class="listitem"><p>
+          By default, the <span class="command"><strong>memcached</strong></span> protocol is used
+          to read and write data directly to <code class="literal">InnoDB</code>,
+          letting MySQL manage in-memory caching using the
+          <code class="literal">InnoDB</code>
+          <a class="link" href="glossary.html#glos_buffer_pool" title="buffer pool">buffer pool</a>. The
+          default settings represent a combination of high reliability
+          and the fewest surprises for database applications. For
+          example, default settings avoid uncommitted data on the
+          database side, or stale data returned for
+          <span class="command"><strong>memcached</strong></span> <code class="literal">get</code> requests.
+        </p></li><li class="listitem"><p>
+          Advanced users can configure the system as a traditional
+          <span class="command"><strong>memcached</strong></span> server, with all data cached only
+          in the <span class="command"><strong>memcached</strong></span> engine (memory caching),
+          or use a combination of the
+          <span class="quote">“<span class="quote"><span class="command"><strong>memcached</strong></span> engine</span>”</span> (memory
+          caching) and the <code class="literal">InnoDB</code>
+          <span class="command"><strong>memcached</strong></span> engine (<code class="literal">InnoDB</code>
+          as back-end persistent storage).
+        </p></li></ul></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Control over how often data is passed back and forth between
+          <code class="literal">InnoDB</code> and <span class="command"><strong>memcached</strong></span>
+          operations through the
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_api_bk_commit_interval"><code class="literal">innodb_api_bk_commit_interval</code></a>,
+          <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_r_batch_size"><code class="literal">daemon_memcached_r_batch_size</code></a>,
+          and
+          <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+          configuration options. Batch size options default to a value
+          of 1 for maximum reliability.
+        </p></li><li class="listitem"><p>
+          The ability to specify <span class="command"><strong>memcached</strong></span> options
+          through the
+          <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_option"><code class="literal">daemon_memcached_option</code></a>
+          configuration parameter. For example, you can change the port
+          that <span class="command"><strong>memcached</strong></span> listens on, reduce the
+          maximum number of simultaneous connections, change the maximum
+          memory size for a key-value pair, or enable debugging messages
+          for the error log.
+        </p></li><li class="listitem"><p>
+          The <a class="link" href="innodb-parameters.html#sysvar_innodb_api_trx_level"><code class="literal">innodb_api_trx_level</code></a>
+          configuration option controls the transaction
+          <a class="link" href="glossary.html#glos_isolation_level" title="isolation level">isolation level</a> on
+          queries processed by <span class="command"><strong>memcached</strong></span>. Although
+          <span class="command"><strong>memcached</strong></span> has no concept of
+          <a class="link" href="glossary.html#glos_transaction" title="transaction">transactions</a>, you can
+          use this option to control how soon
+          <span class="command"><strong>memcached</strong></span> sees changes caused by SQL
+          statements issued on the table used by the
+          <span class="command"><strong>daemon_memcached</strong></span> plugin. By default,
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_api_trx_level"><code class="literal">innodb_api_trx_level</code></a> is set
+          to <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-uncommitted"><code class="literal">READ UNCOMMITTED</code></a>.
+        </p></li><li class="listitem"><p>
+          The <a class="link" href="innodb-parameters.html#sysvar_innodb_api_enable_mdl"><code class="literal">innodb_api_enable_mdl</code></a>
+          option can be used to lock the table at the MySQL level, so
+          that the mapped table cannot be dropped or altered by
+          <a class="link" href="glossary.html#glos_ddl" title="DDL">DDL</a> through the SQL interface.
+          Without the lock, the table can be dropped from the MySQL
+          layer, but kept in <code class="literal">InnoDB</code> storage until
+          <span class="command"><strong>memcached</strong></span> or some other user stops using
+          it. <span class="quote">“<span class="quote">MDL</span>”</span> stands for <span class="quote">“<span class="quote">metadata
+          locking</span>”</span>.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-memcached-benefits.html">Previous <span class="navHint"> Benefits of the InnoDB memcached Plugin </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-memcached.html">Up <span class="navHint"> InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-memcached-setup.html">Next <span class="navHint"> Setting Up the InnoDB memcached Plugin </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

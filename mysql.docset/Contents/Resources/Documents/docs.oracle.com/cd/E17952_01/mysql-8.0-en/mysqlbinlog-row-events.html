@@ -1,0 +1,263 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2863"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/4.6.9.2%C2%A0mysqlbinlog%20Row%20Event%20Display"></a><title>4.6.9.2&nbsp;mysqlbinlog Row Event Display</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"/><link rel="prev" href="mysqlbinlog-hexdump.html" title="4.6.9.1&nbsp;mysqlbinlog Hex Dump Format"/><link rel="next" href="mysqlbinlog-backup.html" title="4.6.9.3&nbsp;Using mysqlbinlog to Back Up Binary Log Files"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysqlbinlog-row-events.html#mysqlbinlog-row-events">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysqlbinlog-hexdump.html">Previous <span class="navHint"> mysqlbinlog Hex Dump Format </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysqlbinlog.html">Up <span class="navHint"> mysqlbinlog &mdash; Utility for Processing Binary Log Files </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysqlbinlog-backup.html">Next <span class="navHint"> Using mysqlbinlog to Back Up Binary Log Files </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2864"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/4.6.9.2%C2%A0mysqlbinlog%20Row%20Event%20Display"></a><h4 class="title"><a id="mysqlbinlog-row-events"></a>4.6.9.2&nbsp;mysqlbinlog Row Event Display</h4></div></div></div><a id="idm45829031658960" class="indexterm"></a><p>
+        The following examples illustrate how
+        <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> displays row events that specify
+        data modifications. These correspond to events with the
+        <code class="literal">WRITE_ROWS_EVENT</code>,
+        <code class="literal">UPDATE_ROWS_EVENT</code>, and
+        <code class="literal">DELETE_ROWS_EVENT</code> type codes. The
+        <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_base64-output"><code class="option">--base64-output=DECODE-ROWS</code></a>
+        and <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_verbose"><code class="option">--verbose</code></a> options may be
+        used to affect row event output.
+      </p><p>
+        Suppose that the server is using row-based binary logging and
+        that you execute the following sequence of statements:
+      </p><pre class="programlisting">CREATE TABLE t
+(
+  id   INT NOT NULL,
+  name VARCHAR(20) NOT NULL,
+  date DATE NULL
+) ENGINE = InnoDB;
+
+START TRANSACTION;
+INSERT INTO t VALUES(1, &#39;apple&#39;, NULL);
+UPDATE t SET name = &#39;pear&#39;, date = &#39;2009-01-01&#39; WHERE id = 1;
+DELETE FROM t WHERE id = 1;
+COMMIT;
+</pre><p>
+        By default, <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> displays row events
+        encoded as base-64 strings using
+        <a class="link" href="binlog.html" title="13.7.8.1&nbsp;BINLOG Statement"><code class="literal">BINLOG</code></a> statements. Omitting
+        extraneous lines, the output for the row events produced by the
+        preceding statement sequence looks like this:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog <em class="replaceable"><code>log_file</code></em></code></strong>
+...
+# at 218
+#080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
+
+BINLOG &#39;
+fAS3SBMBAAAALAAAANoAAAAAABEAAAAAAAAABHRlc3QAAXQAAwMPCgIUAAQ=
+fAS3SBcBAAAAKAAAAAIBAAAQABEAAAAAAAEAA//8AQAAAAVhcHBsZQ==
+&#39;/*!*/;
+...
+# at 302
+#080828 15:03:08 server id 1  end_log_pos 356   Update_rows: table id 17 flags: STMT_END_F
+
+BINLOG &#39;
+fAS3SBMBAAAALAAAAC4BAAAAABEAAAAAAAAABHRlc3QAAXQAAwMPCgIUAAQ=
+fAS3SBgBAAAANgAAAGQBAAAQABEAAAAAAAEAA////AEAAAAFYXBwbGX4AQAAAARwZWFyIbIP
+&#39;/*!*/;
+...
+# at 400
+#080828 15:03:08 server id 1  end_log_pos 442   Delete_rows: table id 17 flags: STMT_END_F
+
+BINLOG &#39;
+fAS3SBMBAAAALAAAAJABAAAAABEAAAAAAAAABHRlc3QAAXQAAwMPCgIUAAQ=
+fAS3SBkBAAAAKgAAALoBAAAQABEAAAAAAAEAA//4AQAAAARwZWFyIbIP
+&#39;/*!*/;
+</pre><p>
+        To see the row events as comments in the form of
+        <span class="quote">&ldquo;<span class="quote">pseudo-SQL</span>&rdquo;</span> statements, run
+        <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> with the
+        <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_verbose"><code class="option">--verbose</code></a> or
+        <code class="option">-v</code> option. This output level also shows table
+        partition information where applicable. The output contains
+        lines beginning with <code class="literal">###</code>:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog -v <em class="replaceable"><code>log_file</code></em></code></strong>
+...
+# at 218
+#080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
+
+BINLOG &#39;
+fAS3SBMBAAAALAAAANoAAAAAABEAAAAAAAAABHRlc3QAAXQAAwMPCgIUAAQ=
+fAS3SBcBAAAAKAAAAAIBAAAQABEAAAAAAAEAA//8AQAAAAVhcHBsZQ==
+&#39;/*!*/;
+### INSERT INTO test.t
+### SET
+###   @1=1
+###   @2=&#39;apple&#39;
+###   @3=NULL
+...
+# at 302
+#080828 15:03:08 server id 1  end_log_pos 356   Update_rows: table id 17 flags: STMT_END_F
+
+BINLOG &#39;
+fAS3SBMBAAAALAAAAC4BAAAAABEAAAAAAAAABHRlc3QAAXQAAwMPCgIUAAQ=
+fAS3SBgBAAAANgAAAGQBAAAQABEAAAAAAAEAA////AEAAAAFYXBwbGX4AQAAAARwZWFyIbIP
+&#39;/*!*/;
+### UPDATE test.t
+### WHERE
+###   @1=1
+###   @2=&#39;apple&#39;
+###   @3=NULL
+### SET
+###   @1=1
+###   @2=&#39;pear&#39;
+###   @3=&#39;2009:01:01&#39;
+...
+# at 400
+#080828 15:03:08 server id 1  end_log_pos 442   Delete_rows: table id 17 flags: STMT_END_F
+
+BINLOG &#39;
+fAS3SBMBAAAALAAAAJABAAAAABEAAAAAAAAABHRlc3QAAXQAAwMPCgIUAAQ=
+fAS3SBkBAAAAKgAAALoBAAAQABEAAAAAAAEAA//4AQAAAARwZWFyIbIP
+&#39;/*!*/;
+### DELETE FROM test.t
+### WHERE
+###   @1=1
+###   @2=&#39;pear&#39;
+###   @3=&#39;2009:01:01&#39;
+</pre><p>
+        Specify <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_verbose"><code class="option">--verbose</code></a> or
+        <code class="option">-v</code> twice to also display data types and some
+        metadata for each column, and informational log events such as
+        row query log events if the
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_rows_query_log_events"><code class="literal">binlog_rows_query_log_events</code></a>
+        system variable is set to <code class="literal">TRUE</code>. The output
+        contains an additional comment following each column change:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog -vv <em class="replaceable"><code>log_file</code></em></code></strong>
+...
+# at 218
+#080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
+
+BINLOG &#39;
+fAS3SBMBAAAALAAAANoAAAAAABEAAAAAAAAABHRlc3QAAXQAAwMPCgIUAAQ=
+fAS3SBcBAAAAKAAAAAIBAAAQABEAAAAAAAEAA//8AQAAAAVhcHBsZQ==
+&#39;/*!*/;
+### INSERT INTO test.t
+### SET
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=&#39;apple&#39; /* VARSTRING(20) meta=20 nullable=0 is_null=0 */
+###   @3=NULL /* VARSTRING(20) meta=0 nullable=1 is_null=1 */
+...
+# at 302
+#080828 15:03:08 server id 1  end_log_pos 356   Update_rows: table id 17 flags: STMT_END_F
+
+BINLOG &#39;
+fAS3SBMBAAAALAAAAC4BAAAAABEAAAAAAAAABHRlc3QAAXQAAwMPCgIUAAQ=
+fAS3SBgBAAAANgAAAGQBAAAQABEAAAAAAAEAA////AEAAAAFYXBwbGX4AQAAAARwZWFyIbIP
+&#39;/*!*/;
+### UPDATE test.t
+### WHERE
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=&#39;apple&#39; /* VARSTRING(20) meta=20 nullable=0 is_null=0 */
+###   @3=NULL /* VARSTRING(20) meta=0 nullable=1 is_null=1 */
+### SET
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=&#39;pear&#39; /* VARSTRING(20) meta=20 nullable=0 is_null=0 */
+###   @3=&#39;2009:01:01&#39; /* DATE meta=0 nullable=1 is_null=0 */
+...
+# at 400
+#080828 15:03:08 server id 1  end_log_pos 442   Delete_rows: table id 17 flags: STMT_END_F
+
+BINLOG &#39;
+fAS3SBMBAAAALAAAAJABAAAAABEAAAAAAAAABHRlc3QAAXQAAwMPCgIUAAQ=
+fAS3SBkBAAAAKgAAALoBAAAQABEAAAAAAAEAA//4AQAAAARwZWFyIbIP
+&#39;/*!*/;
+### DELETE FROM test.t
+### WHERE
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=&#39;pear&#39; /* VARSTRING(20) meta=20 nullable=0 is_null=0 */
+###   @3=&#39;2009:01:01&#39; /* DATE meta=0 nullable=1 is_null=0 */
+</pre><p>
+        You can tell <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> to suppress the
+        <a class="link" href="binlog.html" title="13.7.8.1&nbsp;BINLOG Statement"><code class="literal">BINLOG</code></a> statements for row events
+        by using the
+        <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_base64-output"><code class="option">--base64-output=DECODE-ROWS</code></a>
+        option. This is similar to
+        <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_base64-output"><code class="option">--base64-output=NEVER</code></a> but
+        does not exit with an error if a row event is found. The
+        combination of
+        <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_base64-output"><code class="option">--base64-output=DECODE-ROWS</code></a>
+        and <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_verbose"><code class="option">--verbose</code></a> provides a
+        convenient way to see row events only as SQL statements:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog -v --base64-output=DECODE-ROWS <em class="replaceable"><code>log_file</code></em></code></strong>
+...
+# at 218
+#080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
+### INSERT INTO test.t
+### SET
+###   @1=1
+###   @2=&#39;apple&#39;
+###   @3=NULL
+...
+# at 302
+#080828 15:03:08 server id 1  end_log_pos 356   Update_rows: table id 17 flags: STMT_END_F
+### UPDATE test.t
+### WHERE
+###   @1=1
+###   @2=&#39;apple&#39;
+###   @3=NULL
+### SET
+###   @1=1
+###   @2=&#39;pear&#39;
+###   @3=&#39;2009:01:01&#39;
+...
+# at 400
+#080828 15:03:08 server id 1  end_log_pos 442   Delete_rows: table id 17 flags: STMT_END_F
+### DELETE FROM test.t
+### WHERE
+###   @1=1
+###   @2=&#39;pear&#39;
+###   @3=&#39;2009:01:01&#39;
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          You should not suppress <a class="link" href="binlog.html" title="13.7.8.1&nbsp;BINLOG Statement"><code class="literal">BINLOG</code></a>
+          statements if you intend to re-execute
+          <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> output.
+        </p></div><p>
+        The SQL statements produced by
+        <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_verbose"><code class="option">--verbose</code></a> for row events are
+        much more readable than the corresponding
+        <a class="link" href="binlog.html" title="13.7.8.1&nbsp;BINLOG Statement"><code class="literal">BINLOG</code></a> statements. However, they
+        do not correspond exactly to the original SQL statements that
+        generated the events. The following limitations apply:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The original column names are lost and replaced by
+            <code class="literal">@<em class="replaceable"><code>N</code></em></code>, where
+            <em class="replaceable"><code>N</code></em> is a column number.
+          </p></li><li class="listitem"><p>
+            Character set information is not available in the binary
+            log, which affects string column display:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                There is no distinction made between corresponding
+                binary and nonbinary string types
+                (<a class="link" href="binary-varbinary.html" title="11.3.3&nbsp;The BINARY and VARBINARY Types"><code class="literal">BINARY</code></a> and
+                <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a>,
+                <a class="link" href="binary-varbinary.html" title="11.3.3&nbsp;The BINARY and VARBINARY Types"><code class="literal">VARBINARY</code></a> and
+                <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>,
+                <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">BLOB</code></a> and
+                <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">TEXT</code></a>). The output uses a
+                data type of <code class="literal">STRING</code> for fixed-length
+                strings and <code class="literal">VARSTRING</code> for
+                variable-length strings.
+              </p></li><li class="listitem"><p>
+                For multibyte character sets, the maximum number of
+                bytes per character is not present in the binary log, so
+                the length for string types is displayed in bytes rather
+                than in characters. For example,
+                <code class="literal">STRING(4)</code> is used as the data type
+                for values from either of these column types:
+              </p><pre class="programlisting">CHAR(4) CHARACTER SET latin1
+CHAR(2) CHARACTER SET ucs2
+</pre></li><li class="listitem"><p>
+                Due to the storage format for events of type
+                <code class="literal">UPDATE_ROWS_EVENT</code>,
+                <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> statements are
+                displayed with the <code class="literal">WHERE</code> clause
+                preceding the <code class="literal">SET</code> clause.
+              </p></li></ul></div></li></ul></div><p>
+        Proper interpretation of row events requires the information
+        from the format description event at the beginning of the binary
+        log. Because <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> does not know in
+        advance whether the rest of the log contains row events, by
+        default it displays the format description event using a
+        <a class="link" href="binlog.html" title="13.7.8.1&nbsp;BINLOG Statement"><code class="literal">BINLOG</code></a> statement in the initial
+        part of the output.
+      </p><p>
+        If the binary log is known not to contain any events requiring a
+        <a class="link" href="binlog.html" title="13.7.8.1&nbsp;BINLOG Statement"><code class="literal">BINLOG</code></a> statement (that is, no row
+        events), the
+        <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_base64-output"><code class="option">--base64-output=NEVER</code></a> option
+        can be used to prevent this header from being written.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysqlbinlog-hexdump.html">Previous <span class="navHint"> mysqlbinlog Hex Dump Format </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysqlbinlog.html">Up <span class="navHint"> mysqlbinlog &mdash; Utility for Processing Binary Log Files </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysqlbinlog-backup.html">Next <span class="navHint"> Using mysqlbinlog to Back Up Binary Log Files </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

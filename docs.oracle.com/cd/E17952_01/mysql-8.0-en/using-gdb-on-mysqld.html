@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.9.1.4 Debugging mysqld under gdb</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="debugging-server.html" title="5.9.1 Debugging a MySQL Server" /><link rel="prev" href="making-windows-dumps.html" title="5.9.1.3 Using WER with PDB to create a Windows crashdump" /><link rel="next" href="using-stack-trace.html" title="5.9.1.5 Using a Stack Trace" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="using-gdb-on-mysqld.html#using-gdb-on-mysqld">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="making-windows-dumps.html">Previous <span class="navHint"> Using WER with PDB to create a Windows crashdump </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="debugging-server.html">Up <span class="navHint"> Debugging a MySQL Server </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="using-stack-trace.html">Next <span class="navHint"> Using a Stack Trace </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="using-gdb-on-mysqld"></a>5.9.1.4 Debugging mysqld under gdb</h4></div></div></div><a id="idm45828981388432" class="indexterm"></a><p>
+        On most systems you can also start <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+        from <span class="command"><strong>gdb</strong></span> to get more information if
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> crashes.
+      </p><p>
+        With some older <span class="command"><strong>gdb</strong></span> versions on Linux you
+        must use <code class="literal">run --one-thread</code> if you want to be
+        able to debug <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> threads. In this case,
+        you can only have one thread active at a time.
+      </p><p>
+        NPTL threads (the new thread library on Linux) may cause
+        problems while running <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> under
+        <span class="command"><strong>gdb</strong></span>. Some symptoms are:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> hangs during startup (before it
+            writes <code class="literal">ready for connections</code>).
+          </p></li><li class="listitem"><p>
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> crashes during a
+            <code class="literal">pthread_mutex_lock()</code> or
+            <code class="literal">pthread_mutex_unlock()</code> call.
+          </p></li></ul></div><p>
+        In this case, you should set the following environment variable
+        in the shell before starting <span class="command"><strong>gdb</strong></span>:
+      </p><pre class="programlisting">LD_ASSUME_KERNEL=2.4.1
+export LD_ASSUME_KERNEL
+</pre><p>
+        When running <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> under
+        <span class="command"><strong>gdb</strong></span>, you should disable the stack trace with
+        <a class="link" href="server-options.html#option_mysqld_skip-stack-trace"><code class="option">--skip-stack-trace</code></a> to be able to
+        catch segfaults within <span class="command"><strong>gdb</strong></span>.
+      </p><a id="idm45828981364848" class="indexterm"></a><p>
+        Use the <a class="link" href="server-options.html#option_mysqld_gdb"><code class="option">--gdb</code></a> option to
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> to install an interrupt handler for
+        <code class="literal">SIGINT</code> (needed to stop
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> with <code class="literal">^C</code> to set
+        breakpoints) and disable stack tracing and core file handling.
+      </p><p>
+        It is very hard to debug MySQL under <span class="command"><strong>gdb</strong></span> if
+        you do a lot of new connections the whole time as
+        <span class="command"><strong>gdb</strong></span> does not free the memory for old threads.
+        You can avoid this problem by starting <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+        with <a class="link" href="server-system-variables.html#sysvar_thread_cache_size"><code class="literal">thread_cache_size</code></a> set to a
+        value equal to <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a>
+        + 1. In most cases just using
+        <a class="link" href="server-system-variables.html#sysvar_thread_cache_size"><code class="option">--thread_cache_size=5'</code></a> helps a
+        lot!
+      </p><p>
+        If you want to get a core dump on Linux if
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> dies with a SIGSEGV signal, you can
+        start <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> with the
+        <a class="link" href="server-options.html#option_mysqld_core-file"><code class="option">--core-file</code></a> option. This core
+        file can be used to make a backtrace that may help you find out
+        why <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> died:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>gdb mysqld core</code></strong>
+gdb&gt;   backtrace full
+gdb&gt;   quit
+</pre><p>
+        See <a class="xref" href="crashing.html" title="B.3.3.3 What to Do If MySQL Keeps Crashing">Section B.3.3.3, “What to Do If MySQL Keeps Crashing”</a>.
+      </p><p>
+        If you are using <span class="command"><strong>gdb</strong></span> on Linux, you should
+        install a <code class="filename">.gdb</code> file, with the following
+        information, in your current directory:
+      </p><pre class="programlisting">set print sevenbit off
+handle SIGUSR1 nostop noprint
+handle SIGUSR2 nostop noprint
+handle SIGWAITING nostop noprint
+handle SIGLWP nostop noprint
+handle SIGPIPE nostop
+handle SIGALRM nostop
+handle SIGHUP nostop
+handle SIGTERM nostop noprint
+</pre><p>
+        Here is an example how to debug <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>gdb /usr/local/libexec/mysqld</code></strong>
+gdb&gt; run
+...
+backtrace full # Do this when mysqld crashes
+</pre><p>
+        Include the preceding output in a bug report, which you can file
+        using the instructions in <a class="xref" href="bug-reports.html" title="1.5 How to Report Bugs or Problems">Section 1.5, “How to Report Bugs or Problems”</a>.
+      </p><p>
+        If <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> hangs, you can try to use some
+        system tools like <code class="literal">strace</code> or
+        <code class="literal">/usr/proc/bin/pstack</code> to examine where
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> has hung.
+      </p><pre class="programlisting">strace /tmp/log libexec/mysqld
+</pre><a id="idm45828981330112" class="indexterm"></a><a id="idm45828981329040" class="indexterm"></a><a id="idm45828981327968" class="indexterm"></a><a id="idm45828981326880" class="indexterm"></a><p>
+        If you are using the Perl <code class="literal">DBI</code> interface, you
+        can turn on debugging information by using the
+        <code class="literal">trace</code> method or by setting the
+        <code class="literal">DBI_TRACE</code> environment variable.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="making-windows-dumps.html">Previous <span class="navHint"> Using WER with PDB to create a Windows crashdump </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="debugging-server.html">Up <span class="navHint"> Debugging a MySQL Server </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="using-stack-trace.html">Next <span class="navHint"> Using a Stack Trace </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.5.5 Bulk Data Loading for InnoDB Tables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="optimizing-innodb.html" title="8.5 Optimizing for InnoDB Tables" /><link rel="prev" href="optimizing-innodb-logging.html" title="8.5.4 Optimizing InnoDB Redo Logging" /><link rel="next" href="optimizing-innodb-queries.html" title="8.5.6 Optimizing InnoDB Queries" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="optimizing-innodb-bulk-data-loading.html#optimizing-innodb-bulk-data-loading">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="optimizing-innodb-logging.html">Previous <span class="navHint"> Optimizing InnoDB Redo Logging </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="optimizing-innodb.html">Up <span class="navHint"> Optimizing for InnoDB Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="optimizing-innodb-queries.html">Next <span class="navHint"> Optimizing InnoDB Queries </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="optimizing-innodb-bulk-data-loading"></a>8.5.5 Bulk Data Loading for InnoDB Tables</h3></div></div></div><a id="idm45828952919584" class="indexterm"></a><p>
+        These performance tips supplement the general guidelines for
+        fast inserts in <a class="xref" href="insert-optimization.html" title="8.2.5.1 Optimizing INSERT Statements">Section 8.2.5.1, “Optimizing INSERT Statements”</a>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            When importing data into <code class="literal">InnoDB</code>, turn off
+            autocommit mode, because it performs a log flush to disk for
+            every insert. To disable autocommit during your import
+            operation, surround it with
+            <a class="link" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">SET
+            autocommit</code></a> and
+            <a class="link" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">COMMIT</code></a> statements:
+          </p><pre class="programlisting">SET autocommit=0;
+<em class="replaceable"><code>... SQL import statements ...</code></em>
+COMMIT;
+</pre><p>
+            The <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> option
+            <a class="link" href="mysqldump.html#option_mysqldump_opt"><code class="option">--opt</code></a> creates dump files
+            that are fast to import into an <code class="literal">InnoDB</code>
+            table, even without wrapping them with the
+            <a class="link" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">SET
+            autocommit</code></a> and
+            <a class="link" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">COMMIT</code></a> statements.
+          </p></li><li class="listitem"><p>
+            If you have <code class="literal">UNIQUE</code> constraints on
+            secondary keys, you can speed up table imports by
+            temporarily turning off the uniqueness checks during the
+            import session:
+          </p><pre class="programlisting">SET unique_checks=0;
+<em class="replaceable"><code>... SQL import statements ...</code></em>
+SET unique_checks=1;
+</pre><p>
+            For big tables, this saves a lot of disk I/O because
+            <code class="literal">InnoDB</code> can use its change buffer to write
+            secondary index records in a batch. Be certain that the data
+            contains no duplicate keys.
+          </p></li><li class="listitem"><p>
+            If you have <code class="literal">FOREIGN KEY</code> constraints in
+            your tables, you can speed up table imports by turning off
+            the foreign key checks for the duration of the import
+            session:
+          </p><pre class="programlisting">SET foreign_key_checks=0;
+<em class="replaceable"><code>... SQL import statements ...</code></em>
+SET foreign_key_checks=1;
+</pre><p>
+            For big tables, this can save a lot of disk I/O.
+          </p></li><li class="listitem"><p>
+            Use the multiple-row <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+            syntax to reduce communication overhead between the client
+            and the server if you need to insert many rows:
+          </p><pre class="programlisting">INSERT INTO yourtable VALUES (1,2), (5,5), ...;
+</pre><p>
+            This tip is valid for inserts into any table, not just
+            <code class="literal">InnoDB</code> tables.
+          </p></li><li class="listitem"><p>
+            When doing bulk inserts into tables with auto-increment
+            columns, set
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a> to
+            2 (interleaved) instead of 1 (consecutive). See
+            <a class="xref" href="innodb-auto-increment-handling.html" title="15.6.1.6 AUTO_INCREMENT Handling in InnoDB">Section 15.6.1.6, “AUTO_INCREMENT Handling in InnoDB”</a> for
+            details.
+          </p></li><li class="listitem"><p>
+            When performing bulk inserts, it is faster to insert rows in
+            <code class="literal">PRIMARY KEY</code> order.
+            <code class="literal">InnoDB</code> tables use a
+            <a class="link" href="glossary.html#glos_clustered_index" title="clustered index">clustered index</a>,
+            which makes it relatively fast to use data in the order of
+            the <code class="literal">PRIMARY KEY</code>. Performing bulk inserts
+            in <code class="literal">PRIMARY KEY</code> order is particularly
+            important for tables that do not fit entirely within the
+            buffer pool.
+          </p></li><li class="listitem"><p>
+            For optimal performance when loading data into an
+            <code class="literal">InnoDB</code> <code class="literal">FULLTEXT</code> index,
+            follow this set of steps:
+          </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                Define a column <code class="literal">FTS_DOC_ID</code> at table
+                creation time, of type <code class="literal">BIGINT UNSIGNED NOT
+                NULL</code>, with a unique index named
+                <code class="literal">FTS_DOC_ID_INDEX</code>. For example:
+              </p><pre class="programlisting">CREATE TABLE t1 (
+FTS_DOC_ID BIGINT unsigned NOT NULL AUTO_INCREMENT,
+title varchar(255) NOT NULL DEFAULT '',
+text mediumtext NOT NULL,
+PRIMARY KEY (`FTS_DOC_ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX on t1(FTS_DOC_ID);
+</pre></li><li class="listitem"><p>
+                Load the data into the table.
+              </p></li><li class="listitem"><p>
+                Create the <code class="literal">FULLTEXT</code> index after the
+                data is loaded.
+              </p></li></ol></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              When adding <code class="literal">FTS_DOC_ID</code> column at table
+              creation time, ensure that the
+              <code class="literal">FTS_DOC_ID</code> column is updated when the
+              <code class="literal">FULLTEXT</code> indexed column is updated, as
+              the <code class="literal">FTS_DOC_ID</code> must increase
+              monotonically with each
+              <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> or
+              <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>. If you choose not
+              to add the <code class="literal">FTS_DOC_ID</code> at table creation
+              time and have <code class="literal">InnoDB</code> manage DOC IDs for
+              you, <code class="literal">InnoDB</code> adds the
+              <code class="literal">FTS_DOC_ID</code> as a hidden column with the
+              next <a class="link" href="create-index.html" title="13.1.15 CREATE INDEX Statement"><code class="literal">CREATE
+              FULLTEXT INDEX</code></a> call. This approach, however,
+              requires a table rebuild which can impact performance.
+            </p></div></li><li class="listitem"><p>
+            If loading data into a <span class="emphasis"><em>new</em></span> MySQL
+            instance, consider disabling redo logging using
+            <a class="link" href="alter-instance.html" title="13.1.5 ALTER INSTANCE Statement"><code class="literal">ALTER
+            INSTANCE {ENABLE|DISABLE} INNODB REDO_LOG</code></a> syntax.
+            Disabling redo logging helps speed up data loading by
+            avoiding redo log writes. For more information, see
+            <a class="xref" href="innodb-redo-log.html#innodb-disable-redo-logging" title="Disabling Redo Logging">Disabling Redo Logging</a>.
+          </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+              This feature is intended only for loading data into a new
+              MySQL instance. <span class="emphasis"><em>Do not disable redo logging on a
+              production system.</em></span> It is permitted to shutdown
+              and restart the server while redo logging is disabled, but
+              an unexpected server stoppage while redo logging is
+              disabled can cause data loss and instance corruption.
+            </p></div></li><li class="listitem"><p>
+            Use MySQL Shell to import data. MySQL Shell's parallel
+            table import utility <code class="literal">util.importTable()</code>
+            provides rapid data import to a MySQL relational table for
+            large data files. MySQL Shell's dump loading utility
+            <code class="literal">util.loadDump()</code> also offers parallel load
+            capabilities. See <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-shell-utilities.html" target="_top">MySQL Shell Utilities</a>.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimizing-innodb-logging.html">Previous <span class="navHint"> Optimizing InnoDB Redo Logging </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimizing-innodb.html">Up <span class="navHint"> Optimizing for InnoDB Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="optimizing-innodb-queries.html">Next <span class="navHint"> Optimizing InnoDB Queries </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

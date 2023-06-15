@@ -1,0 +1,405 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2930"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.8%C2%A0Nested%20Join%20Optimization"></a><title>8.2.1.8&nbsp;Nested Join Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="nested-loop-joins.html" title="8.2.1.7&nbsp;Nested-Loop Join Algorithms"/><link rel="next" href="outer-join-optimization.html" title="8.2.1.9&nbsp;Outer Join Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="nested-join-optimization.html#nested-join-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="nested-loop-joins.html">Previous <span class="navHint"> Nested-Loop Join Algorithms </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="outer-join-optimization.html">Next <span class="navHint"> Outer Join Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2929"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.8%C2%A0Nested%20Join%20Optimization"></a><h4 class="title"><a id="nested-join-optimization"></a>8.2.1.8&nbsp;Nested Join Optimization</h4></div></div></div><p>
+          The syntax for expressing joins permits nested joins. The
+          following discussion refers to the join syntax described in
+          <a class="xref" href="join.html" title="13.2.13.2&nbsp;JOIN Clause">Section&nbsp;13.2.13.2, &ldquo;JOIN Clause&rdquo;</a>.
+        </p><p>
+          The syntax of <em class="replaceable"><code>table_factor</code></em> is
+          extended in comparison with the SQL Standard. The latter
+          accepts only <em class="replaceable"><code>table_reference</code></em>, not a
+          list of them inside a pair of parentheses. This is a
+          conservative extension if we consider each comma in a list of
+          <em class="replaceable"><code>table_reference</code></em> items as equivalent
+          to an inner join. For example:
+        </p><pre class="programlisting">SELECT * FROM t1 LEFT JOIN (t2, t3, t4)
+                 ON (t2.a=t1.a AND t3.b=t1.b AND t4.c=t1.c)
+</pre><p>
+          Is equivalent to:
+        </p><pre class="programlisting">SELECT * FROM t1 LEFT JOIN (t2 CROSS JOIN t3 CROSS JOIN t4)
+                 ON (t2.a=t1.a AND t3.b=t1.b AND t4.c=t1.c)
+</pre><p>
+          In MySQL, <code class="literal">CROSS JOIN</code> is syntactically
+          equivalent to <code class="literal">INNER JOIN</code>; they can replace
+          each other. In standard SQL, they are not equivalent.
+          <code class="literal">INNER JOIN</code> is used with an
+          <code class="literal">ON</code> clause; <code class="literal">CROSS JOIN</code> is
+          used otherwise.
+        </p><p>
+          In general, parentheses can be ignored in join expressions
+          containing only inner join operations. Consider this join
+          expression:
+        </p><pre class="programlisting">t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.b=t3.b OR t2.b IS NULL)
+   ON t1.a=t2.a
+</pre><p>
+          After removing parentheses and grouping operations to the
+          left, that join expression transforms into this expression:
+        </p><pre class="programlisting">(t1 LEFT JOIN t2 ON t1.a=t2.a) LEFT JOIN t3
+    ON t2.b=t3.b OR t2.b IS NULL
+</pre><p>
+          Yet, the two expressions are not equivalent. To see this,
+          suppose that the tables <code class="literal">t1</code>,
+          <code class="literal">t2</code>, and <code class="literal">t3</code> have the
+          following state:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Table <code class="literal">t1</code> contains rows
+              <code class="literal">(1)</code>, <code class="literal">(2)</code>
+            </p></li><li class="listitem"><p>
+              Table <code class="literal">t2</code> contains row
+              <code class="literal">(1,101)</code>
+            </p></li><li class="listitem"><p>
+              Table <code class="literal">t3</code> contains row
+              <code class="literal">(101)</code>
+            </p></li></ul></div><p>
+          In this case, the first expression returns a result set
+          including the rows <code class="literal">(1,1,101,101)</code>,
+          <code class="literal">(2,NULL,NULL,NULL)</code>, whereas the second
+          expression returns the rows <code class="literal">(1,1,101,101)</code>,
+          <code class="literal">(2,NULL,NULL,101)</code>:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+       <strong class="userinput"><code>FROM t1</code></strong>
+            <strong class="userinput"><code>LEFT JOIN</code></strong>
+            <strong class="userinput"><code>(t2 LEFT JOIN t3 ON t2.b=t3.b OR t2.b IS NULL)</code></strong>
+            <strong class="userinput"><code>ON t1.a=t2.a;</code></strong>
++------+------+------+------+
+| a    | a    | b    | b    |
++------+------+------+------+
+|    1 |    1 |  101 |  101 |
+|    2 | NULL | NULL | NULL |
++------+------+------+------+
+
+mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+       <strong class="userinput"><code>FROM (t1 LEFT JOIN t2 ON t1.a=t2.a)</code></strong>
+            <strong class="userinput"><code>LEFT JOIN t3</code></strong>
+            <strong class="userinput"><code>ON t2.b=t3.b OR t2.b IS NULL;</code></strong>
++------+------+------+------+
+| a    | a    | b    | b    |
++------+------+------+------+
+|    1 |    1 |  101 |  101 |
+|    2 | NULL | NULL |  101 |
++------+------+------+------+
+</pre><p>
+          In the following example, an outer join operation is used
+          together with an inner join operation:
+        </p><pre class="programlisting">t1 LEFT JOIN (t2, t3) ON t1.a=t2.a
+</pre><p>
+          That expression cannot be transformed into the following
+          expression:
+        </p><pre class="programlisting">t1 LEFT JOIN t2 ON t1.a=t2.a, t3
+</pre><p>
+          For the given table states, the two expressions return
+          different sets of rows:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+       <strong class="userinput"><code>FROM t1 LEFT JOIN (t2, t3) ON t1.a=t2.a;</code></strong>
++------+------+------+------+
+| a    | a    | b    | b    |
++------+------+------+------+
+|    1 |    1 |  101 |  101 |
+|    2 | NULL | NULL | NULL |
++------+------+------+------+
+
+mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+       <strong class="userinput"><code>FROM t1 LEFT JOIN t2 ON t1.a=t2.a, t3;</code></strong>
++------+------+------+------+
+| a    | a    | b    | b    |
++------+------+------+------+
+|    1 |    1 |  101 |  101 |
+|    2 | NULL | NULL |  101 |
++------+------+------+------+
+</pre><p>
+          Therefore, if we omit parentheses in a join expression with
+          outer join operators, we might change the result set for the
+          original expression.
+        </p><p>
+          More exactly, we cannot ignore parentheses in the right
+          operand of the left outer join operation and in the left
+          operand of a right join operation. In other words, we cannot
+          ignore parentheses for the inner table expressions of outer
+          join operations. Parentheses for the other operand (operand
+          for the outer table) can be ignored.
+        </p><p>
+          The following expression:
+        </p><pre class="programlisting">(t1,t2) LEFT JOIN t3 ON P(t2.b,t3.b)
+</pre><p>
+          Is equivalent to this expression for any tables
+          <code class="literal">t1,t2,t3</code> and any condition
+          <code class="literal">P</code> over attributes <code class="literal">t2.b</code>
+          and <code class="literal">t3.b</code>:
+        </p><pre class="programlisting">t1, t2 LEFT JOIN t3 ON P(t2.b,t3.b)
+</pre><p>
+          Whenever the order of execution of join operations in a join
+          expression (<em class="replaceable"><code>joined_table</code></em>) is not
+          from left to right, we talk about nested joins. Consider the
+          following queries:
+        </p><pre class="programlisting">SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.b=t3.b) ON t1.a=t2.a
+  WHERE t1.a &gt; 1
+
+SELECT * FROM t1 LEFT JOIN (t2, t3) ON t1.a=t2.a
+  WHERE (t2.b=t3.b OR t2.b IS NULL) AND t1.a &gt; 1
+</pre><p>
+          Those queries are considered to contain these nested joins:
+        </p><pre class="programlisting">t2 LEFT JOIN t3 ON t2.b=t3.b
+t2, t3
+</pre><p>
+          In the first query, the nested join is formed with a left join
+          operation. In the second query, it is formed with an inner
+          join operation.
+        </p><p>
+          In the first query, the parentheses can be omitted: The
+          grammatical structure of the join expression dictates the same
+          order of execution for join operations. For the second query,
+          the parentheses cannot be omitted, although the join
+          expression here can be interpreted unambiguously without them.
+          In our extended syntax, the parentheses in <code class="literal">(t2,
+          t3)</code> of the second query are required, although
+          theoretically the query could be parsed without them: We still
+          would have unambiguous syntactical structure for the query
+          because <code class="literal">LEFT JOIN</code> and <code class="literal">ON</code>
+          play the role of the left and right delimiters for the
+          expression <code class="literal">(t2,t3)</code>.
+        </p><p>
+          The preceding examples demonstrate these points:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              For join expressions involving only inner joins (and not
+              outer joins), parentheses can be removed and joins
+              evaluated left to right. In fact, tables can be evaluated
+              in any order.
+            </p></li><li class="listitem"><p>
+              The same is not true, in general, for outer joins or for
+              outer joins mixed with inner joins. Removal of parentheses
+              may change the result.
+            </p></li></ul></div><a id="idm45828956345200" class="indexterm"></a><a id="idm45828956343712" class="indexterm"></a><p>
+          Queries with nested outer joins are executed in the same
+          pipeline manner as queries with inner joins. More exactly, a
+          variation of the nested-loop join algorithm is exploited.
+          Recall the algorithm by which the nested-loop join executes a
+          query (see <a class="xref" href="nested-loop-joins.html" title="8.2.1.7&nbsp;Nested-Loop Join Algorithms">Section&nbsp;8.2.1.7, &ldquo;Nested-Loop Join Algorithms&rdquo;</a>). Suppose that
+          a join query over 3 tables <code class="literal">T1,T2,T3</code> has
+          this form:
+        </p><pre class="programlisting">SELECT * FROM T1 INNER JOIN T2 ON P1(T1,T2)
+                 INNER JOIN T3 ON P2(T2,T3)
+  WHERE P(T1,T2,T3)
+</pre><p>
+          Here, <code class="literal">P1(T1,T2)</code> and
+          <code class="literal">P2(T3,T3)</code> are some join conditions (on
+          expressions), whereas <code class="literal">P(T1,T2,T3)</code> is a
+          condition over columns of tables <code class="literal">T1,T2,T3</code>.
+        </p><p>
+          The nested-loop join algorithm would execute this query in the
+          following manner:
+        </p><pre class="programlisting">FOR each row t1 in T1 {
+  FOR each row t2 in T2 such that P1(t1,t2) {
+    FOR each row t3 in T3 such that P2(t2,t3) {
+      IF P(t1,t2,t3) {
+         t:=t1||t2||t3; OUTPUT t;
+      }
+    }
+  }
+}
+</pre><p>
+          The notation <code class="literal">t1||t2||t3</code> indicates a row
+          constructed by concatenating the columns of rows
+          <code class="literal">t1</code>, <code class="literal">t2</code>, and
+          <code class="literal">t3</code>. In some of the following examples,
+          <code class="literal">NULL</code> where a table name appears means a row
+          in which <code class="literal">NULL</code> is used for each column of
+          that table. For example, <code class="literal">t1||t2||NULL</code>
+          indicates a row constructed by concatenating the columns of
+          rows <code class="literal">t1</code> and <code class="literal">t2</code>, and
+          <code class="literal">NULL</code> for each column of
+          <code class="literal">t3</code>. Such a row is said to be
+          <code class="literal">NULL</code>-complemented.
+        </p><a id="idm45828956325296" class="indexterm"></a><p>
+          Now consider a query with nested outer joins:
+        </p><pre class="programlisting">SELECT * FROM T1 LEFT JOIN
+              (T2 LEFT JOIN T3 ON P2(T2,T3))
+              ON P1(T1,T2)
+  WHERE P(T1,T2,T3)
+</pre><p>
+          For this query, modify the nested-loop pattern to obtain:
+        </p><pre class="programlisting">FOR each row t1 in T1 {
+  BOOL f1:=FALSE;
+  FOR each row t2 in T2 such that P1(t1,t2) {
+    BOOL f2:=FALSE;
+    FOR each row t3 in T3 such that P2(t2,t3) {
+      IF P(t1,t2,t3) {
+        t:=t1||t2||t3; OUTPUT t;
+      }
+      f2=TRUE;
+      f1=TRUE;
+    }
+    IF (!f2) {
+      IF P(t1,t2,NULL) {
+        t:=t1||t2||NULL; OUTPUT t;
+      }
+      f1=TRUE;
+    }
+  }
+  IF (!f1) {
+    IF P(t1,NULL,NULL) {
+      t:=t1||NULL||NULL; OUTPUT t;
+    }
+  }
+}
+</pre><p>
+          In general, for any nested loop for the first inner table in
+          an outer join operation, a flag is introduced that is turned
+          off before the loop and is checked after the loop. The flag is
+          turned on when for the current row from the outer table a
+          match from the table representing the inner operand is found.
+          If at the end of the loop cycle the flag is still off, no
+          match has been found for the current row of the outer table.
+          In this case, the row is complemented by
+          <code class="literal">NULL</code> values for the columns of the inner
+          tables. The result row is passed to the final check for the
+          output or into the next nested loop, but only if the row
+          satisfies the join condition of all embedded outer joins.
+        </p><p>
+          In the example, the outer join table expressed by the
+          following expression is embedded:
+        </p><pre class="programlisting">(T2 LEFT JOIN T3 ON P2(T2,T3))
+</pre><p>
+          For the query with inner joins, the optimizer could choose a
+          different order of nested loops, such as this one:
+        </p><pre class="programlisting">FOR each row t3 in T3 {
+  FOR each row t2 in T2 such that P2(t2,t3) {
+    FOR each row t1 in T1 such that P1(t1,t2) {
+      IF P(t1,t2,t3) {
+         t:=t1||t2||t3; OUTPUT t;
+      }
+    }
+  }
+}
+</pre><p>
+          For queries with outer joins, the optimizer can choose only
+          such an order where loops for outer tables precede loops for
+          inner tables. Thus, for our query with outer joins, only one
+          nesting order is possible. For the following query, the
+          optimizer evaluates two different nestings. In both nestings,
+          <code class="literal">T1</code> must be processed in the outer loop
+          because it is used in an outer join. <code class="literal">T2</code> and
+          <code class="literal">T3</code> are used in an inner join, so that join
+          must be processed in the inner loop. However, because the join
+          is an inner join, <code class="literal">T2</code> and
+          <code class="literal">T3</code> can be processed in either order.
+        </p><pre class="programlisting">SELECT * T1 LEFT JOIN (T2,T3) ON P1(T1,T2) AND P2(T1,T3)
+  WHERE P(T1,T2,T3)
+</pre><p>
+          One nesting evaluates <code class="literal">T2</code>, then
+          <code class="literal">T3</code>:
+        </p><pre class="programlisting">FOR each row t1 in T1 {
+  BOOL f1:=FALSE;
+  FOR each row t2 in T2 such that P1(t1,t2) {
+    FOR each row t3 in T3 such that P2(t1,t3) {
+      IF P(t1,t2,t3) {
+        t:=t1||t2||t3; OUTPUT t;
+      }
+      f1:=TRUE
+    }
+  }
+  IF (!f1) {
+    IF P(t1,NULL,NULL) {
+      t:=t1||NULL||NULL; OUTPUT t;
+    }
+  }
+}
+</pre><p>
+          The other nesting evaluates <code class="literal">T3</code>, then
+          <code class="literal">T2</code>:
+        </p><pre class="programlisting">FOR each row t1 in T1 {
+  BOOL f1:=FALSE;
+  FOR each row t3 in T3 such that P2(t1,t3) {
+    FOR each row t2 in T2 such that P1(t1,t2) {
+      IF P(t1,t2,t3) {
+        t:=t1||t2||t3; OUTPUT t;
+      }
+      f1:=TRUE
+    }
+  }
+  IF (!f1) {
+    IF P(t1,NULL,NULL) {
+      t:=t1||NULL||NULL; OUTPUT t;
+    }
+  }
+}
+</pre><p>
+          When discussing the nested-loop algorithm for inner joins, we
+          omitted some details whose impact on the performance of query
+          execution may be huge. We did not mention so-called
+          <span class="quote">&ldquo;<span class="quote">pushed-down</span>&rdquo;</span> conditions. Suppose that our
+          <code class="literal">WHERE</code> condition
+          <code class="literal">P(T1,T2,T3)</code> can be represented by a
+          conjunctive formula:
+        </p><pre class="programlisting">P(T1,T2,T2) = C1(T1) AND C2(T2) AND C3(T3).
+</pre><p>
+          In this case, MySQL actually uses the following nested-loop
+          algorithm for the execution of the query with inner joins:
+        </p><pre class="programlisting">FOR each row t1 in T1 such that C1(t1) {
+  FOR each row t2 in T2 such that P1(t1,t2) AND C2(t2)  {
+    FOR each row t3 in T3 such that P2(t2,t3) AND C3(t3) {
+      IF P(t1,t2,t3) {
+         t:=t1||t2||t3; OUTPUT t;
+      }
+    }
+  }
+}
+</pre><p>
+          You see that each of the conjuncts <code class="literal">C1(T1)</code>,
+          <code class="literal">C2(T2)</code>, <code class="literal">C3(T3)</code> are
+          pushed out of the most inner loop to the most outer loop where
+          it can be evaluated. If <code class="literal">C1(T1)</code> is a very
+          restrictive condition, this condition pushdown may greatly
+          reduce the number of rows from table <code class="literal">T1</code>
+          passed to the inner loops. As a result, the execution time for
+          the query may improve immensely.
+        </p><p>
+          For a query with outer joins, the <code class="literal">WHERE</code>
+          condition is to be checked only after it has been found that
+          the current row from the outer table has a match in the inner
+          tables. Thus, the optimization of pushing conditions out of
+          the inner nested loops cannot be applied directly to queries
+          with outer joins. Here we must introduce conditional
+          pushed-down predicates guarded by the flags that are turned on
+          when a match has been encountered.
+        </p><p>
+          Recall this example with outer joins:
+        </p><pre class="programlisting">P(T1,T2,T3)=C1(T1) AND C(T2) AND C3(T3)
+</pre><p>
+          For that example, the nested-loop algorithm using guarded
+          pushed-down conditions looks like this:
+        </p><pre class="programlisting">FOR each row t1 in T1 such that C1(t1) {
+  BOOL f1:=FALSE;
+  FOR each row t2 in T2
+      such that P1(t1,t2) AND (f1?C2(t2):TRUE) {
+    BOOL f2:=FALSE;
+    FOR each row t3 in T3
+        such that P2(t2,t3) AND (f1&amp;&amp;f2?C3(t3):TRUE) {
+      IF (f1&amp;&amp;f2?TRUE:(C2(t2) AND C3(t3))) {
+        t:=t1||t2||t3; OUTPUT t;
+      }
+      f2=TRUE;
+      f1=TRUE;
+    }
+    IF (!f2) {
+      IF (f1?TRUE:C2(t2) &amp;&amp; P(t1,t2,NULL)) {
+        t:=t1||t2||NULL; OUTPUT t;
+      }
+      f1=TRUE;
+    }
+  }
+  IF (!f1 &amp;&amp; P(t1,NULL,NULL)) {
+      t:=t1||NULL||NULL; OUTPUT t;
+  }
+}
+</pre><p>
+          In general, pushed-down predicates can be extracted from join
+          conditions such as <code class="literal">P1(T1,T2)</code> and
+          <code class="literal">P(T2,T3)</code>. In this case, a pushed-down
+          predicate is guarded also by a flag that prevents checking the
+          predicate for the <code class="literal">NULL</code>-complemented row
+          generated by the corresponding outer join operation.
+        </p><p>
+          Access by key from one inner table to another in the same
+          nested join is prohibited if it is induced by a predicate from
+          the <code class="literal">WHERE</code> condition.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="nested-loop-joins.html">Previous <span class="navHint"> Nested-Loop Join Algorithms </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="outer-join-optimization.html">Next <span class="navHint"> Outer Join Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

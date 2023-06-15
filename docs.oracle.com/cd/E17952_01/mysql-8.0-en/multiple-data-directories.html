@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.8.1 Setting Up Multiple Data Directories</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="multiple-servers.html" title="5.8 Running Multiple MySQL Instances on One Machine" /><link rel="prev" href="multiple-servers.html" title="5.8 Running Multiple MySQL Instances on One Machine" /><link rel="next" href="multiple-windows-servers.html" title="5.8.2 Running Multiple MySQL Instances on Windows" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="multiple-data-directories.html#multiple-data-directories">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="multiple-servers.html">Previous <span class="navHint"> Running Multiple MySQL Instances on One Machine </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="multiple-servers.html">Up <span class="navHint"> Running Multiple MySQL Instances on One Machine </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="multiple-windows-servers.html">Next <span class="navHint"> Running Multiple MySQL Instances on Windows </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="multiple-data-directories"></a>5.8.1 Setting Up Multiple Data Directories</h3></div></div></div><p>
+      Each MySQL Instance on a machine should have its own data
+      directory. The location is specified using the
+      <a class="link" href="server-system-variables.html#sysvar_datadir"><code class="option">--datadir=<em class="replaceable"><code>dir_name</code></em></code></a>
+      option.
+    </p><p>
+      There are different methods of setting up a data directory for a
+      new instance:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Create a new data directory.
+        </p></li><li class="listitem"><p>
+          Copy an existing data directory.
+        </p></li></ul></div><p>
+      The following discussion provides more detail about each method.
+    </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+        Normally, you should never have two servers that update data in
+        the same databases. This may lead to unpleasant surprises if
+        your operating system does not support fault-free system
+        locking. If (despite this warning) you run multiple servers
+        using the same data directory and they have logging enabled, you
+        must use the appropriate options to specify log file names that
+        are unique to each server. Otherwise, the servers try to log to
+        the same files.
+      </p><p>
+        Even when the preceding precautions are observed, this kind of
+        setup works only with <code class="literal">MyISAM</code> and
+        <code class="literal">MERGE</code> tables, and not with any of the other
+        storage engines. Also, this warning against sharing a data
+        directory among servers always applies in an NFS environment.
+        Permitting multiple MySQL servers to access a common data
+        directory over NFS is a <span class="emphasis"><em>very bad idea</em></span>. The
+        primary problem is that NFS is the speed bottleneck. It is not
+        meant for such use. Another risk with NFS is that you must
+        devise a way to ensure that two or more servers do not interfere
+        with each other. Usually NFS file locking is handled by the
+        <code class="literal">lockd</code> daemon, but at the moment there is no
+        platform that performs locking 100% reliably in every situation.
+      </p></div><h4><a id="idm45828981703072"></a>Create a New Data Directory</h4><p>
+      With this method, the data directory is in the same state as when
+      you first install MySQL, and has the default set of MySQL accounts
+      and no user data.
+    </p><p>
+      On Unix, initialize the data directory. See
+      <a class="xref" href="postinstallation.html" title="2.9 Postinstallation Setup and Testing">Section 2.9, “Postinstallation Setup and Testing”</a>.
+    </p><p>
+      On Windows, the data directory is included in the MySQL
+      distribution:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          MySQL Zip archive distributions for Windows contain an
+          unmodified data directory. You can unpack such a distribution
+          into a temporary location, then copy it
+          <code class="filename">data</code> directory to where you are setting
+          up the new instance.
+        </p></li><li class="listitem"><p>
+          Windows MSI package installers create and set up the data
+          directory that the installed server uses, but also create a
+          pristine <span class="quote">“<span class="quote">template</span>”</span> data directory named
+          <code class="filename">data</code> under the installation directory.
+          After an installation has been performed using an MSI package,
+          the template data directory can be copied to set up additional
+          MySQL instances.
+        </p></li></ul></div><h4><a id="idm45828981695680"></a>Copy an Existing Data Directory</h4><a id="idm45828981694960" class="indexterm"></a><p>
+      With this method, any MySQL accounts or user data present in the
+      data directory are carried over to the new data directory.
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Stop the existing MySQL instance using the data directory.
+          This must be a clean shutdown so that the instance flushes any
+          pending changes to disk.
+        </p></li><li class="listitem"><p>
+          Copy the data directory to the location where the new data
+          directory should be.
+        </p></li><li class="listitem"><p>
+          Copy the <code class="filename">my.cnf</code> or
+          <code class="filename">my.ini</code> option file used by the existing
+          instance. This serves as a basis for the new instance.
+        </p></li><li class="listitem"><p>
+          Modify the new option file so that any pathnames referring to
+          the original data directory refer to the new data directory.
+          Also, modify any other options that must be unique per
+          instance, such as the TCP/IP port number and the log files.
+          For a list of parameters that must be unique per instance, see
+          <a class="xref" href="multiple-servers.html" title="5.8 Running Multiple MySQL Instances on One Machine">Section 5.8, “Running Multiple MySQL Instances on One Machine”</a>.
+        </p></li><li class="listitem"><p>
+          Start the new instance, telling it to use the new option file.
+        </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="multiple-servers.html">Previous <span class="navHint"> Running Multiple MySQL Instances on One Machine </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="multiple-servers.html">Up <span class="navHint"> Running Multiple MySQL Instances on One Machine </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="multiple-windows-servers.html">Next <span class="navHint"> Running Multiple MySQL Instances on Windows </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.1.3 Server Configuration Validation</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysqld-server.html" title="5.1 The MySQL Server" /><link rel="prev" href="server-configuration-defaults.html" title="5.1.2 Server Configuration Defaults" /><link rel="next" href="server-option-variable-reference.html" title="5.1.4 Server Option, System Variable, and Status Variable Reference" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="server-configuration-validation.html#server-configuration-validation">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="server-configuration-defaults.html">Previous <span class="navHint"> Server Configuration Defaults </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysqld-server.html">Up <span class="navHint"> The MySQL Server </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="server-option-variable-reference.html">Next <span class="navHint"> Server Option, System Variable, and Status Variable Reference </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="server-configuration-validation"></a>5.1.3 Server Configuration Validation</h3></div></div></div><p>
+      As of MySQL 8.0.16, MySQL Server supports a
+      <a class="link" href="server-options.html#option_mysqld_validate-config"><code class="option">--validate-config</code></a> option that
+      enables the startup configuration to be checked for problems
+      without running the server in normal operational mode:
+    </p><pre class="programlisting">mysqld --validate-config
+</pre><p>
+      If no errors are found, the server terminates with an exit code of
+      0. If an error is found, the server displays a diagnostic message
+      and terminates with an exit code of 1. For example:
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqld --validate-config --no-such-option</code></strong>
+2018-11-05T17:50:12.738919Z 0 [ERROR] [MY-000068] [Server] unknown
+option '--no-such-option'.
+2018-11-05T17:50:12.738962Z 0 [ERROR] [MY-010119] [Server] Aborting
+</pre><p>
+      The server terminates as soon as any error is found. For
+      additional checks to occur, correct the initial problem and run
+      the server with <a class="link" href="server-options.html#option_mysqld_validate-config"><code class="option">--validate-config</code></a>
+      again.
+    </p><p>
+      For the preceding example, where use of
+      <a class="link" href="server-options.html#option_mysqld_validate-config"><code class="option">--validate-config</code></a> results in
+      display of an error message, the server exit code is 1. Warning
+      and information messages may also be displayed, depending on the
+      <a class="link" href="server-system-variables.html#sysvar_log_error_verbosity"><code class="literal">log_error_verbosity</code></a> value, but do
+      not produce immediate validation termination or an exit code of 1.
+      For example, this command produces multiple warnings, both of
+      which are displayed. But no error occurs, so the exit code is 0:
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqld --validate-config --log_error_verbosity=2</code></strong>
+         <strong class="userinput"><code>--read-only=s --transaction_read_only=s</code></strong>
+2018-11-05T15:43:18.445863Z 0 [Warning] [MY-000076] [Server] option
+'read_only': boolean value 's' was not recognized. Set to OFF.
+2018-11-05T15:43:18.445882Z 0 [Warning] [MY-000076] [Server] option
+'transaction-read-only': boolean value 's' was not recognized. Set to OFF.
+</pre><p>
+      This command produces the same warnings, but also an error, so the
+      error message is displayed along with the warnings and the exit
+      code is 1:
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqld --validate-config --log_error_verbosity=2</code></strong>
+         <strong class="userinput"><code>--no-such-option --read-only=s --transaction_read_only=s</code></strong>
+2018-11-05T15:43:53.152886Z 0 [Warning] [MY-000076] [Server] option
+'read_only': boolean value 's' was not recognized. Set to OFF.
+2018-11-05T15:43:53.152913Z 0 [Warning] [MY-000076] [Server] option
+'transaction-read-only': boolean value 's' was not recognized. Set to OFF.
+2018-11-05T15:43:53.164889Z 0 [ERROR] [MY-000068] [Server] unknown
+option '--no-such-option'.
+2018-11-05T15:43:53.165053Z 0 [ERROR] [MY-010119] [Server] Aborting
+</pre><p>
+      The scope of the <a class="link" href="server-options.html#option_mysqld_validate-config"><code class="option">--validate-config</code></a>
+      option is limited to configuration checking that the server can
+      perform without undergoing its normal startup process. As such,
+      the configuration check does not initialize storage engines and
+      other plugins, components, and so forth, and does not validate
+      options associated with those uninitialized subsystems.
+    </p><p>
+      <a class="link" href="server-options.html#option_mysqld_validate-config"><code class="option">--validate-config</code></a> can be used any
+      time, but is particularly useful after an upgrade, to check
+      whether any options previously used with the older server are
+      considered by the upgraded server to be deprecated or obsolete.
+      For example, the <code class="literal">tx_read_only</code> system variable
+      was deprecated in MySQL 5.7 and removed in 8.0. Suppose that a
+      MySQL 5.7 server was run using that system variable in its
+      <code class="filename">my.cnf</code> file and then upgraded to MySQL 8.0.
+      Running the upgraded server with
+      <a class="link" href="server-options.html#option_mysqld_validate-config"><code class="option">--validate-config</code></a> to check the
+      configuration produces this result:
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqld --validate-config</code></strong>
+2018-11-05T10:40:02.712141Z 0 [ERROR] [MY-000067] [Server] unknown variable
+'tx_read_only=ON'.
+2018-11-05T10:40:02.712178Z 0 [ERROR] [MY-010119] [Server] Aborting
+</pre><p>
+      <a class="link" href="server-options.html#option_mysqld_validate-config"><code class="option">--validate-config</code></a> can be used with
+      the <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a> option to
+      validate only the options in a specific file:
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqld --defaults-file=./my.cnf-test --validate-config</code></strong>
+2018-11-05T10:40:02.712141Z 0 [ERROR] [MY-000067] [Server] unknown variable
+'tx_read_only=ON'.
+2018-11-05T10:40:02.712178Z 0 [ERROR] [MY-010119] [Server] Aborting
+</pre><p>
+      Remember that <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a>, if
+      specified, must be the first option on the command line.
+      (Executing the preceding example with the option order reversed
+      produces a message that
+      <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a> itself is
+      unknown.)
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="server-configuration-defaults.html">Previous <span class="navHint"> Server Configuration Defaults </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysqld-server.html">Up <span class="navHint"> The MySQL Server </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="server-option-variable-reference.html">Next <span class="navHint"> Server Option, System Variable, and Status Variable Reference </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

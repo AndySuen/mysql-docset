@@ -1,0 +1,129 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1568"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.20.6.3%C2%A0Tuning%20InnoDB%20memcached%20Plugin%20Performance"></a><title>15.20.6.3&nbsp;Tuning InnoDB memcached Plugin Performance</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-memcached-developing.html" title="15.20.6&nbsp;Writing Applications for the InnoDB memcached Plugin"/><link rel="prev" href="innodb-memcached-porting-memcached.html" title="15.20.6.2&nbsp;Adapting a memcached Application for the InnoDB memcached Plugin"/><link rel="next" href="innodb-memcached-txn.html" title="15.20.6.4&nbsp;Controlling Transactional Behavior of the InnoDB memcached Plugin"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-memcached-tuning.html#innodb-memcached-tuning">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-memcached-porting-memcached.html">Previous <span class="navHint"> Adapting a memcached Application for the InnoDB memcached Plugin </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-memcached-developing.html">Up <span class="navHint"> Writing Applications for the InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-memcached-txn.html">Next <span class="navHint"> Controlling Transactional Behavior of the InnoDB memcached Plugin </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1567"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/15.20.6.3%C2%A0Tuning%20InnoDB%20memcached%20Plugin%20Performance"></a><h4 class="title"><a id="innodb-memcached-tuning"></a>15.20.6.3&nbsp;Tuning InnoDB memcached Plugin Performance</h4></div></div></div><p>
+        Because using <code class="literal">InnoDB</code> in combination with
+        <span class="command"><strong>memcached</strong></span> involves writing all data to disk,
+        whether immediately or sometime later, raw performance is
+        expected to be somewhat slower than using
+        <span class="command"><strong>memcached</strong></span> by itself. When using the
+        <code class="literal">InnoDB</code> <span class="command"><strong>memcached</strong></span> plugin,
+        focus tuning goals for <span class="command"><strong>memcached</strong></span> operations
+        on achieving better performance than equivalent SQL operations.
+      </p><p>
+        Benchmarks suggest that queries and
+        <a class="link" href="glossary.html#glos_dml" title="DML">DML</a> operations (inserts,
+        updates, and deletes) that use the <span class="command"><strong>memcached</strong></span>
+        interface are faster than traditional SQL. DML operations
+        typically see a larger improvements. Therefore, consider
+        adapting write-intensive applications to use the
+        <span class="command"><strong>memcached</strong></span> interface first. Also consider
+        prioritizing adaptation of write-intensive applications that use
+        fast, lightweight mechanisms that lack reliability.
+      </p><h5><a id="idm45828872434368"></a>Adapting SQL Queries</h5><p>
+        The types of queries that are most suited to simple
+        <code class="literal">GET</code> requests are those with a single clause
+        or a set of <code class="literal">AND</code> conditions in the
+        <code class="literal">WHERE</code> clause:
+      </p><pre class="programlisting">SQL:
+SELECT col FROM tbl WHERE key = &#39;key_value&#39;;
+
+memcached:
+get key_value
+
+SQL:
+SELECT col FROM tbl WHERE col1 = val1 and col2 = val2 and col3 = val3;
+
+memcached:
+# Since you must always know these 3 values to look up the key,
+# combine them into a unique string and use that as the key
+# for all ADD, SET, and GET operations.
+key_value = val1 + &#34;:&#34; + val2 + &#34;:&#34; + val3
+get key_value
+
+SQL:
+SELECT &#39;key exists!&#39; FROM tbl
+  WHERE EXISTS (SELECT col1 FROM tbl WHERE KEY = &#39;key_value&#39;) LIMIT 1;
+
+memcached:
+# Test for existence of key by asking for its value and checking if the call succeeds,
+# ignoring the value itself. For existence checking, you typically only store a very
+# short value such as &#34;1&#34;.
+get key_value
+</pre><h5><a id="idm45828872429424"></a>Using System Memory</h5><p>
+        For best performance, deploy the
+        <code class="literal">daemon_memcached</code> plugin on machines that are
+        configured as typical database servers, where the majority of
+        system RAM is devoted to the <code class="literal">InnoDB</code>
+        <a class="link" href="glossary.html#glos_buffer_pool" title="buffer pool">buffer pool</a>, through the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_buffer_pool_size"><code class="literal">innodb_buffer_pool_size</code></a>
+        configuration option. For systems with multi-gigabyte buffer
+        pools, consider raising the value of
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_buffer_pool_instances"><code class="literal">innodb_buffer_pool_instances</code></a>
+        for maximum throughput when most operations involve data that is
+        already cached in memory.
+      </p><h5><a id="idm45828872423168"></a>Reducing Redundant I/O</h5><p>
+        <code class="literal">InnoDB</code> has a number of settings that let you
+        choose the balance between high reliability, in case of a crash,
+        and the amount of I/O overhead during high write workloads. For
+        example, consider setting the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite"><code class="literal">innodb_doublewrite</code></a> to
+        <code class="literal">0</code> and
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_flush_log_at_trx_commit"><code class="literal">innodb_flush_log_at_trx_commit</code></a>
+        to <code class="literal">2</code>. Measure performance with different
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_flush_method"><code class="literal">innodb_flush_method</code></a> settings.
+      </p><p>
+        For other ways to reduce or tune I/O for table operations, see
+        <a class="xref" href="optimizing-innodb-diskio.html" title="8.5.8&nbsp;Optimizing InnoDB Disk I/O">Section&nbsp;8.5.8, &ldquo;Optimizing InnoDB Disk I/O&rdquo;</a>.
+      </p><h5><a id="idm45828872414720"></a>Reducing Transactional Overhead</h5><p>
+        A default value of 1 for
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_r_batch_size"><code class="literal">daemon_memcached_r_batch_size</code></a>
+        and
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+        is intended for maximum reliability of results and safety of
+        stored or updated data.
+      </p><p>
+        Depending on the type of application, you might increase one or
+        both of these settings to reduce the overhead of frequent
+        <a class="link" href="glossary.html#glos_commit" title="commit">commit</a> operations. On a busy
+        system, you might increase
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_r_batch_size"><code class="literal">daemon_memcached_r_batch_size</code></a>,
+        knowing that changes to data made through SQL may not become
+        visible to <span class="command"><strong>memcached</strong></span> immediately (that is,
+        until <em class="replaceable"><code>N</code></em> more <code class="literal">get</code>
+        operations are processed). When processing data where every
+        write operation must be reliably stored, leave
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+        set to <code class="literal">1</code>. Increase the setting when
+        processing large numbers of updates intended only for
+        statistical analysis, where losing the last
+        <em class="replaceable"><code>N</code></em> updates in an unexpected exit is an
+        acceptable risk.
+      </p><p>
+        For example, imagine a system that monitors traffic crossing a
+        busy bridge, recording data for approximately 100,000 vehicles
+        each day. If the application counts different types of vehicles
+        to analyze traffic patterns, changing
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+        from <code class="literal">1</code> to <code class="literal">100</code> reduces I/O
+        overhead for commit operations by 99%. In case of an outage, a
+        maximum of 100 records are lost, which may be an acceptable
+        margin of error. If instead the application performed automated
+        toll collection for each car, you would set
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+        to <code class="literal">1</code> to ensure that each toll record is
+        immediately saved to disk.
+      </p><p>
+        Because of the way <code class="literal">InnoDB</code> organizes
+        <span class="command"><strong>memcached</strong></span> key values on disk, if you have a
+        large number of keys to create, it may be faster to sort the
+        data items by key value in the application and
+        <code class="literal">add</code> them in sorted order, rather than create
+        keys in arbitrary order.
+      </p><p>
+        The <span class="command"><strong>memslap</strong></span> command, which is part of the
+        regular <span class="command"><strong>memcached</strong></span> distribution but not
+        included with the <code class="literal">daemon_memcached</code> plugin,
+        can be useful for benchmarking different configurations. It can
+        also be used to generate sample key-value pairs to use in your
+        own benchmarks.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-memcached-porting-memcached.html">Previous <span class="navHint"> Adapting a memcached Application for the InnoDB memcached Plugin </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-memcached-developing.html">Up <span class="navHint"> Writing Applications for the InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-memcached-txn.html">Next <span class="navHint"> Controlling Transactional Behavior of the InnoDB memcached Plugin </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

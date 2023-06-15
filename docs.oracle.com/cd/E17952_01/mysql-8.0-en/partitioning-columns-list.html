@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>24.2.3.2 LIST COLUMNS partitioning</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="partitioning-columns.html" title="24.2.3 COLUMNS Partitioning" /><link rel="prev" href="partitioning-columns-range.html" title="24.2.3.1 RANGE COLUMNS partitioning" /><link rel="next" href="partitioning-hash.html" title="24.2.4 HASH Partitioning" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partitioning-columns-list.html#partitioning-columns-list">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="partitioning-columns-range.html">Previous <span class="navHint"> RANGE COLUMNS partitioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="partitioning-columns.html">Up <span class="navHint"> COLUMNS Partitioning </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="partitioning-hash.html">Next <span class="navHint"> HASH Partitioning </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="partitioning-columns-list"></a>24.2.3.2 LIST COLUMNS partitioning</h4></div></div></div><p>
+          MySQL 8.0 provides support for <code class="literal">LIST
+          COLUMNS</code> partitioning. This is a variant of
+          <code class="literal">LIST</code> partitioning that enables the use of
+          multiple columns as partition keys, and for columns of data
+          types other than integer types to be used as partitioning
+          columns; you can use string types,
+          <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a>, and
+          <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATETIME</code></a> columns. (For more
+          information about permitted data types for
+          <code class="literal">COLUMNS</code> partitioning columns, see
+          <a class="xref" href="partitioning-columns.html" title="24.2.3 COLUMNS Partitioning">Section 24.2.3, “COLUMNS Partitioning”</a>.)
+        </p><p>
+          Suppose that you have a business that has customers in 12
+          cities which, for sales and marketing purposes, you organize
+          into 4 regions of 3 cities each as shown in the following
+          table:
+        </p><div class="informaltable"><table summary="The example described in the preceding text of a business with four sales and marketing regions, with each region having three cities."><col style="width: 50%" /><col style="width: 50%" /><thead><tr>
+              <th>Region</th>
+              <th>Cities</th>
+            </tr></thead><tbody><tr>
+              <td>1</td>
+              <td>Oskarshamn, Högsby, Mönsterås</td>
+            </tr><tr>
+              <td>2</td>
+              <td>Vimmerby, Hultsfred, Västervik</td>
+            </tr><tr>
+              <td>3</td>
+              <td>Nässjö, Eksjö, Vetlanda</td>
+            </tr><tr>
+              <td>4</td>
+              <td>Uppvidinge, Alvesta, Växjo</td>
+            </tr></tbody></table></div><p>
+          With <code class="literal">LIST COLUMNS</code> partitioning, you can
+          create a table for customer data that assigns a row to any of
+          4 partitions corresponding to these regions based on the name
+          of the city where a customer resides, as shown here:
+        </p><pre class="programlisting">CREATE TABLE customers_1 (
+    first_name VARCHAR(25),
+    last_name VARCHAR(25),
+    street_1 VARCHAR(30),
+    street_2 VARCHAR(30),
+    city VARCHAR(15),
+    renewal DATE
+)
+PARTITION BY LIST COLUMNS(city) (
+    PARTITION pRegion_1 VALUES IN('Oskarshamn', 'Högsby', 'Mönsterås'),
+    PARTITION pRegion_2 VALUES IN('Vimmerby', 'Hultsfred', 'Västervik'),
+    PARTITION pRegion_3 VALUES IN('Nässjö', 'Eksjö', 'Vetlanda'),
+    PARTITION pRegion_4 VALUES IN('Uppvidinge', 'Alvesta', 'Växjo')
+);
+</pre><p>
+          As with partitioning by <code class="literal">RANGE COLUMNS</code>, you
+          do not need to use expressions in the
+          <code class="literal">COLUMNS()</code> clause to convert column values
+          into integers. (In fact, the use of expressions other than
+          column names is not permitted with
+          <code class="literal">COLUMNS()</code>.)
+        </p><p>
+          It is also possible to use <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a>
+          and <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATETIME</code></a> columns, as shown
+          in the following example that uses the same name and columns
+          as the <code class="literal">customers_1</code> table shown previously,
+          but employs <code class="literal">LIST COLUMNS</code> partitioning based
+          on the <code class="literal">renewal</code> column to store rows in one
+          of 4 partitions depending on the week in February 2010 the
+          customer's account is scheduled to renew:
+        </p><pre class="programlisting">CREATE TABLE customers_2 (
+    first_name VARCHAR(25),
+    last_name VARCHAR(25),
+    street_1 VARCHAR(30),
+    street_2 VARCHAR(30),
+    city VARCHAR(15),
+    renewal DATE
+)
+PARTITION BY LIST COLUMNS(renewal) (
+    PARTITION pWeek_1 VALUES IN('2010-02-01', '2010-02-02', '2010-02-03',
+        '2010-02-04', '2010-02-05', '2010-02-06', '2010-02-07'),
+    PARTITION pWeek_2 VALUES IN('2010-02-08', '2010-02-09', '2010-02-10',
+        '2010-02-11', '2010-02-12', '2010-02-13', '2010-02-14'),
+    PARTITION pWeek_3 VALUES IN('2010-02-15', '2010-02-16', '2010-02-17',
+        '2010-02-18', '2010-02-19', '2010-02-20', '2010-02-21'),
+    PARTITION pWeek_4 VALUES IN('2010-02-22', '2010-02-23', '2010-02-24',
+        '2010-02-25', '2010-02-26', '2010-02-27', '2010-02-28')
+);
+</pre><p>
+          This works, but becomes cumbersome to define and maintain if
+          the number of dates involved grows very large; in such cases,
+          it is usually more practical to employ
+          <code class="literal">RANGE</code> or <code class="literal">RANGE COLUMNS</code>
+          partitioning instead. In this case, since the column we wish
+          to use as the partitioning key is a
+          <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a> column, we use
+          <code class="literal">RANGE COLUMNS</code> partitioning, as shown here:
+        </p><pre class="programlisting">CREATE TABLE customers_3 (
+    first_name VARCHAR(25),
+    last_name VARCHAR(25),
+    street_1 VARCHAR(30),
+    street_2 VARCHAR(30),
+    city VARCHAR(15),
+    renewal DATE
+)
+PARTITION BY RANGE COLUMNS(renewal) (
+    PARTITION pWeek_1 VALUES LESS THAN('2010-02-09'),
+    PARTITION pWeek_2 VALUES LESS THAN('2010-02-15'),
+    PARTITION pWeek_3 VALUES LESS THAN('2010-02-22'),
+    PARTITION pWeek_4 VALUES LESS THAN('2010-03-01')
+);
+</pre><p>
+          See <a class="xref" href="partitioning-columns-range.html" title="24.2.3.1 RANGE COLUMNS partitioning">Section 24.2.3.1, “RANGE COLUMNS partitioning”</a>, for more
+          information.
+        </p><p>
+          In addition (as with <code class="literal">RANGE COLUMNS</code>
+          partitioning), you can use multiple columns in the
+          <code class="literal">COLUMNS()</code> clause.
+        </p><p>
+          See <a class="xref" href="create-table.html" title="13.1.20 CREATE TABLE Statement">Section 13.1.20, “CREATE TABLE Statement”</a>, for additional information
+          about <code class="literal">PARTITION BY LIST COLUMNS()</code> syntax.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partitioning-columns-range.html">Previous <span class="navHint"> RANGE COLUMNS partitioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="partitioning-columns.html">Up <span class="navHint"> COLUMNS Partitioning </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="partitioning-hash.html">Next <span class="navHint"> HASH Partitioning </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

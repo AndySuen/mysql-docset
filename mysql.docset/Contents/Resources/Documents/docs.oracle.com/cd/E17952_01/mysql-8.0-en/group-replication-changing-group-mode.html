@@ -1,0 +1,82 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-989"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.5.1.2%C2%A0Changing%20a%20Group%27s%20Mode"></a><title>18.5.1.2&nbsp;Changing a Group&#39;s Mode</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-configuring-online-group.html" title="18.5.1&nbsp;Configuring an Online Group"/><link rel="prev" href="group-replication-changing-primary-member.html" title="18.5.1.1&nbsp;Changing a Group&#39;s Primary Member"/><link rel="next" href="group-replication-group-write-consensus.html" title="18.5.1.3&nbsp;Using Group Replication Group Write Consensus"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-changing-group-mode.html#group-replication-changing-group-mode">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-changing-primary-member.html">Previous <span class="navHint"> Changing a Group&#39;s Primary Member </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-configuring-online-group.html">Up <span class="navHint"> Configuring an Online Group </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-group-write-consensus.html">Next <span class="navHint"> Using Group Replication Group Write Consensus </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-990"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/18.5.1.2%C2%A0Changing%20a%20Group%27s%20Mode"></a><h4 class="title"><a id="group-replication-changing-group-mode"></a>18.5.1.2&nbsp;Changing a Group&#39;s Mode</h4></div></div></div><a id="idm45828854523584" class="indexterm"></a><p>
+        This section explains how to change the mode which a group is
+        running in, either single or multi-primary. The functions used
+        to change a group&#39;s mode can be run on any member.
+      </p><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-switch-to-single"></a>Changing to Single-Primary Mode</h5></div></div></div><a id="idm45828854520336" class="indexterm"></a><a id="idm45828854518832" class="indexterm"></a><a id="idm45828854517712" class="indexterm"></a><a id="idm45828854516224" class="indexterm"></a><p>
+          Use the
+          <a class="link" href="group-replication-functions-for-mode.html#function_group-replication-switch-to-single-primary-mode"><code class="literal">group_replication_switch_to_single_primary_mode()</code></a>
+          function to change a group running in multi-primary mode to
+          single-primary mode by issuing:
+        </p><pre class="programlisting"><strong class="userinput"><code>SELECT group_replication_switch_to_single_primary_mode()</code></strong>
+</pre><p>
+          When you change to single-primary mode, strict consistency
+          checks are also disabled on all group members, as required in
+          single-primary mode
+          (<a class="link" href="group-replication-options.html#sysvar_group_replication_enforce_update_everywhere_checks"><code class="literal">group_replication_enforce_update_everywhere_checks=OFF</code></a>).
+        </p><p>
+          If no string is passed in, the election of the new primary in
+          the resulting single-primary group follows the election
+          policies described in
+          <a class="xref" href="group-replication-single-primary-mode.html" title="18.1.3.1&nbsp;Single-Primary Mode">Section&nbsp;18.1.3.1, &ldquo;Single-Primary Mode&rdquo;</a>. To
+          override the election process and configure a specific member
+          of the multi-primary group as the new primary in the process,
+          get the <a class="link" href="replication-options.html#sysvar_server_uuid"><code class="literal">server_uuid</code></a> of the
+          member and pass it to <a class="link" href="group-replication-functions-for-mode.html#function_group-replication-switch-to-single-primary-mode"><code class="literal">
+          group_replication_switch_to_single_primary_mode()</code></a>.
+          For example, issue:
+        </p><pre class="programlisting"><strong class="userinput"><code>SELECT group_replication_switch_to_single_primary_mode(<em class="replaceable"><code>member_uuid</code></em>);</code></strong>
+</pre><p>
+          If you invoke the function on a member running a MySQL Server
+          version from 8.0.17, and all members are running MySQL Server
+          version 8.0.17 or higher, you can only specify a new primary
+          member that is running the lowest MySQL Server version in the
+          group, based on the patch version. This safeguard is applied
+          to ensure the group maintains compatibility with new
+          functions. If you do not specify a new primary member, the
+          election process considers the patch version of the group
+          members.
+        </p><p>
+          If any member is running a MySQL Server version between MySQL
+          8.0.13 and MySQL 8.0.16, this safeguard is not enforced for
+          the group and you can specify any new primary member, but it
+          is recommended to select a primary that is running the lowest
+          MySQL Server version in the group. If you do not specify a new
+          primary member, the election process considers only the major
+          version of the group members.
+        </p><p>
+          While the action runs, you can check its progress by issuing:
+        </p><pre class="programlisting"><strong class="userinput"><code>SELECT event_name, work_completed, work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE &#34;%stage/group_rpl%&#34;;</code></strong>
++----------------------------------------------------------------------------+----------------+----------------+
+| event_name                                                                 | work_completed | work_estimated |
++----------------------------------------------------------------------------+----------------+----------------+
+| stage/group_rpl/Primary Switch: waiting for pending transactions to finish |              4 |             20 |
++----------------------------------------------------------------------------+----------------+----------------+
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-switch-to-multi"></a>Changing to Multi-Primary Mode</h5></div></div></div><a id="idm45828854497504" class="indexterm"></a><a id="idm45828854496000" class="indexterm"></a><a id="idm45828854494880" class="indexterm"></a><a id="idm45828854493392" class="indexterm"></a><p>
+          Use the
+          <a class="link" href="group-replication-functions-for-mode.html#function_group-replication-switch-to-multi-primary-mode"><code class="literal">group_replication_switch_to_multi_primary_mode()</code></a>
+          function to change a group running in single-primary mode to
+          multi-primary mode by issuing:
+        </p><pre class="programlisting"><strong class="userinput"><code>SELECT group_replication_switch_to_multi_primary_mode()</code></strong>
+</pre><p>
+          After some coordinated group operations to ensure the safety
+          and consistency of your data, all members which belong to the
+          group become primaries.
+        </p><p>
+          When you change a group that was running in single-primary
+          mode to run in multi-primary mode, members running MySQL
+          8.0.17 or higher are automatically placed in read-only mode if
+          they are running a higher MySQL server version than the lowest
+          version present in the group. Members running MySQL 8.0.16 or
+          lower do not carry out this check, and are always placed in
+          read-write mode.
+        </p><p>
+          While the action runs, you can check its progress by issuing:
+        </p><pre class="programlisting">SELECT event_name, work_completed, work_estimated FROM performance_schema.events_stages_current WHERE event_name LIKE &#34;%stage/group_rpl%&#34;;
++----------------------------------------------------------------------+----------------+----------------+
+| event_name                                                           | work_completed | work_estimated |
++----------------------------------------------------------------------+----------------+----------------+
+| stage/group_rpl/Multi-primary Switch: applying buffered transactions |              0 |              1 |
++----------------------------------------------------------------------+----------------+----------------+
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-changing-primary-member.html">Previous <span class="navHint"> Changing a Group&#39;s Primary Member </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-configuring-online-group.html">Up <span class="navHint"> Configuring an Online Group </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-group-write-consensus.html">Next <span class="navHint"> Using Group Replication Group Write Consensus </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

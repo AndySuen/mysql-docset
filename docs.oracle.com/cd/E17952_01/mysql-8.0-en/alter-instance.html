@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.1.5 ALTER INSTANCE Statement</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="sql-data-definition-statements.html" title="13.1 Data Definition Statements" /><link rel="prev" href="alter-function.html" title="13.1.4 ALTER FUNCTION Statement" /><link rel="next" href="alter-logfile-group.html" title="13.1.6 ALTER LOGFILE GROUP Statement" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="alter-instance.html#alter-instance">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="alter-function.html">Previous <span class="navHint"> ALTER FUNCTION Statement </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="sql-data-definition-statements.html">Up <span class="navHint"> Data Definition Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="alter-logfile-group.html">Next <span class="navHint"> ALTER LOGFILE GROUP Statement </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="alter-instance"></a>13.1.5 ALTER INSTANCE Statement</h3></div></div></div><a id="idm45828916236336" class="indexterm"></a><pre class="programlisting">ALTER INSTANCE <em class="replaceable"><code>instance_action</code></em>
+
+<em class="replaceable"><code>instance_action</code></em>: {
+  | {ENABLE|DISABLE} INNODB REDO_LOG
+  | ROTATE INNODB MASTER KEY
+  | ROTATE BINLOG MASTER KEY
+  | RELOAD TLS
+      [FOR CHANNEL {mysql_main | mysql_admin}]
+      [NO ROLLBACK ON ERROR]
+  | RELOAD KEYRING
+}
+</pre><p>
+      <code class="literal">ALTER INSTANCE</code> defines actions applicable to a
+      MySQL server instance. The statement supports these actions:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="alter-instance-enable-disable-innodb-redo-log"></a>
+          <code class="literal">ALTER INSTANCE {ENABLE | DISABLE} INNODB
+          REDO_LOG</code>
+        </p><p>
+          This action enables or disables <code class="literal">InnoDB</code> redo
+          logging. Redo logging is enabled by default. This feature is
+          intended only for loading data into a new MySQL instance. The
+          statement is not written to the binary log. This action was
+          introduced in MySQL 8.0.21.
+        </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+            <span class="emphasis"><em>Do not disable redo logging on a production
+            system.</em></span> While it is permitted to shut down and
+            restart the server while redo logging is disabled, an
+            unexpected server stoppage while redo logging is disabled
+            can cause data loss and instance corruption.
+          </p></div><p>
+          An <a class="link" href="alter-instance.html" title="13.1.5 ALTER INSTANCE Statement"><code class="literal">ALTER
+          INSTANCE [ENABLE|DISABLE] INNODB REDO_LOG</code></a> operation
+          requires an exclusive backup lock, which prevents other
+          <a class="link" href="alter-instance.html" title="13.1.5 ALTER INSTANCE Statement"><code class="literal">ALTER INSTANCE</code></a> operations from
+          executing concurrently. Other <a class="link" href="alter-instance.html" title="13.1.5 ALTER INSTANCE Statement"><code class="literal">ALTER
+          INSTANCE</code></a> operations must wait for the lock to be
+          released before executing.
+        </p><p>
+          For more information, see
+          <a class="xref" href="innodb-redo-log.html#innodb-disable-redo-logging" title="Disabling Redo Logging">Disabling Redo Logging</a>.
+        </p></li><li class="listitem"><p><a id="alter-instance-rotate-innodb-master-key"></a>
+          <code class="literal">ALTER INSTANCE ROTATE INNODB MASTER KEY</code>
+        </p><p>
+          This action rotates the master encryption key used for
+          <code class="literal">InnoDB</code> tablespace encryption. Key rotation
+          requires the
+          <a class="link" href="privileges-provided.html#priv_encryption-key-admin"><code class="literal">ENCRYPTION_KEY_ADMIN</code></a> or
+          <a class="link" href="privileges-provided.html#priv_super"><code class="literal">SUPER</code></a> privilege. To perform
+          this action, a keyring plugin must be installed and
+          configured. For instructions, see <a class="xref" href="keyring.html" title="6.4.4 The MySQL Keyring">Section 6.4.4, “The MySQL Keyring”</a>.
+        </p><p>
+          <code class="literal">ALTER INSTANCE ROTATE INNODB MASTER KEY</code>
+          supports concurrent DML. However, it cannot be run
+          concurrently with
+          <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE ...
+          ENCRYPTION</code></a> or
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE ...
+          ENCRYPTION</code></a> operations, and locks are taken to
+          prevent conflicts that could arise from concurrent execution
+          of these statements. If one of the conflicting statements is
+          running, it must complete before another can proceed.
+        </p><p>
+          <code class="literal">ALTER INSTANCE ROTATE INNODB MASTER KEY</code>
+          statements are written to the binary log so that they can be
+          executed on replicated servers.
+        </p><p>
+          For additional <code class="literal">ALTER INSTANCE ROTATE INNODB MASTER
+          KEY</code> usage information, see
+          <a class="xref" href="innodb-data-encryption.html" title="15.13 InnoDB Data-at-Rest Encryption">Section 15.13, “InnoDB Data-at-Rest Encryption”</a>.
+        </p></li><li class="listitem"><p><a id="alter-instance-rotate-binlog-master-key"></a>
+          <code class="literal">ALTER INSTANCE ROTATE BINLOG MASTER KEY</code>
+        </p><p>
+          This action rotates the binary log master key used for binary
+          log encryption. Key rotation for the binary log master key
+          requires the
+          <a class="link" href="privileges-provided.html#priv_binlog-encryption-admin"><code class="literal">BINLOG_ENCRYPTION_ADMIN</code></a> or
+          <a class="link" href="privileges-provided.html#priv_super"><code class="literal">SUPER</code></a> privilege. The statement
+          cannot be used if the
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_encryption"><code class="literal">binlog_encryption</code></a> system
+          variable is set to <code class="literal">OFF</code>. To perform this
+          action, a keyring plugin must be installed and configured. For
+          instructions, see <a class="xref" href="keyring.html" title="6.4.4 The MySQL Keyring">Section 6.4.4, “The MySQL Keyring”</a>.
+        </p><p>
+          <code class="literal">ALTER INSTANCE ROTATE BINLOG MASTER KEY</code>
+          actions are not written to the binary log and are not executed
+          on replicas. Binary log master key rotation can therefore be
+          carried out in replication environments including a mix of
+          MySQL versions. To schedule regular rotation of the binary log
+          master key on all applicable source and replica servers, you
+          can enable the MySQL Event Scheduler on each server and issue
+          the <code class="literal">ALTER INSTANCE ROTATE BINLOG MASTER KEY</code>
+          statement using a <a class="link" href="create-event.html" title="13.1.13 CREATE EVENT Statement"><code class="literal">CREATE EVENT</code></a>
+          statement. If you rotate the binary log master key because you
+          suspect that the current or any of the previous binary log
+          master keys might have been compromised, issue the statement
+          on every applicable source and replica server, which enables
+          you to verify immediate compliance.
+        </p><p>
+          For additional <code class="literal">ALTER INSTANCE ROTATE BINLOG MASTER
+          KEY</code> usage information, including what to do if the
+          process does not complete correctly or is interrupted by an
+          unexpected server halt, see
+          <a class="xref" href="replication-binlog-encryption.html" title="17.3.2 Encrypting Binary Log Files and Relay Log Files">Section 17.3.2, “Encrypting Binary Log Files and Relay Log Files”</a>.
+        </p></li><li class="listitem"><p><a id="alter-instance-reload-tls"></a>
+          <code class="literal">ALTER INSTANCE RELOAD TLS</code>
+        </p><p>
+          This action reconfigures a TLS context from the current values
+          of the system variables that define the context. It also
+          updates the status variables that reflect the active context
+          values. This action requires the
+          <a class="link" href="privileges-provided.html#priv_connection-admin"><code class="literal">CONNECTION_ADMIN</code></a> privilege. For
+          additional information about reconfiguring the TLS context,
+          including which system and status variables are
+          context-related, see
+          <a class="xref" href="using-encrypted-connections.html#using-encrypted-connections-server-side-runtime-configuration" title="Server-Side Runtime Configuration and Monitoring for Encrypted Connections">Server-Side Runtime Configuration and Monitoring for Encrypted
+        Connections</a>.
+        </p><p>
+          By default, the statement reloads the TLS context for the main
+          connection interface. If the <code class="literal">FOR CHANNEL</code>
+          clause (available as of MySQL 8.0.21) is given, the statement
+          reloads the TLS context for the named channel:
+          <code class="literal">mysql_main</code> for the main connection
+          interface, <code class="literal">mysql_admin</code> for the
+          administrative connection interface. For information about the
+          different interfaces, see
+          <a class="xref" href="connection-interfaces.html" title="5.1.12.1 Connection Interfaces">Section 5.1.12.1, “Connection Interfaces”</a>. The updated TLS
+          context properties are exposed in the Performance Schema
+          <a class="link" href="performance-schema-tls-channel-status-table.html" title="27.12.21.8 The tls_channel_status Table"><code class="literal">tls_channel_status</code></a> table. See
+          <a class="xref" href="performance-schema-tls-channel-status-table.html" title="27.12.21.8 The tls_channel_status Table">Section 27.12.21.8, “The tls_channel_status Table”</a>.
+        </p><p>
+          Updating the TLS context for the main interface may also
+          affect the administrative interface because unless some
+          nondefault TLS value is configured for that interface, it uses
+          the same TLS context as the main interface.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            When you reload the TLS context, OpenSSL reloads the file
+            containing the CRL (certificate revocation list) as part of
+            the process. If the CRL file is large, the server allocates
+            a large chunk of memory (ten times the file size), which is
+            doubled while the new instance is being loaded and the old
+            one has not yet been released. The process resident memory
+            is not immediately reduced after a large allocation is
+            freed, so if you issue the <code class="literal">ALTER INSTANCE RELOAD
+            TLS</code> statement repeatedly with a large CRL file,
+            the process resident memory usage may grow as a result of
+            this.
+          </p></div><p>
+          By default, the <code class="literal">RELOAD TLS</code> action rolls
+          back with an error and has no effect if the configuration
+          values do not permit creation of the new TLS context. The
+          previous context values continue to be used for new
+          connections. If the optional <code class="literal">NO ROLLBACK ON
+          ERROR</code> clause is given and the new context cannot be
+          created, rollback does not occur. Instead, a warning is
+          generated and encryption is disabled for new connections on
+          the interface to which the statement applies.
+        </p><p>
+          <code class="literal">ALTER INSTANCE RELOAD TLS</code> statements are
+          not written to the binary log (and thus are not replicated).
+          TLS configuration is local and depends on local files not
+          necessarily present on all servers involved.
+        </p></li><li class="listitem"><p><a id="alter-instance-reload-keyring"></a>
+          <code class="literal">ALTER INSTANCE RELOAD KEYRING</code>
+        </p><p>
+          If a keyring component is installed, this action tells the
+          component to re-read its configuration file and reinitialize
+          any keyring in-memory data. If you modify the component
+          configuration at runtime, the new configuration does not take
+          effect until you perform this action. Keyring reloading
+          requires the
+          <a class="link" href="privileges-provided.html#priv_encryption-key-admin"><code class="literal">ENCRYPTION_KEY_ADMIN</code></a> privilege.
+          This action was added in MySQL 8.0.24.
+        </p><p>
+          This action enables reconfiguring only the currently installed
+          keyring component. It does not enable changing which component
+          is installed. For example, if you change the configuration for
+          the installed keyring component, <a class="link" href="alter-instance.html#alter-instance-reload-keyring"><code class="literal">ALTER
+          INSTANCE RELOAD KEYRING</code></a> causes the new configuration
+          to take effect. On the other hand, if you change the keyring
+          component named in the server manifest file,
+          <a class="link" href="alter-instance.html#alter-instance-reload-keyring"><code class="literal">ALTER INSTANCE RELOAD KEYRING</code></a>
+          has no effect and the current component remains installed.
+        </p><p>
+          <code class="literal">ALTER INSTANCE RELOAD KEYRING</code> statements
+          are not written to the binary log (and thus are not
+          replicated).
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="alter-function.html">Previous <span class="navHint"> ALTER FUNCTION Statement </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sql-data-definition-statements.html">Up <span class="navHint"> Data Definition Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="alter-logfile-group.html">Next <span class="navHint"> ALTER LOGFILE GROUP Statement </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

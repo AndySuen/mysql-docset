@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>12.20.3 Window Function Frame Specification</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="window-functions.html" title="12.20 Window Functions" /><link rel="prev" href="window-functions-usage.html" title="12.20.2 Window Function Concepts and Syntax" /><link rel="next" href="window-functions-named-windows.html" title="12.20.4 Named Windows" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="window-functions-frames.html#window-functions-frames">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="window-functions-usage.html">Previous <span class="navHint"> Window Function Concepts and Syntax </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="window-functions.html">Up <span class="navHint"> Window Functions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="window-functions-named-windows.html">Next <span class="navHint"> Named Windows </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="window-functions-frames"></a>12.20.3 Window Function Frame Specification</h3></div></div></div><a id="idm45828918634272" class="indexterm"></a><p>
+        The definition of a window used with a window function can
+        include a frame clause. A frame is a subset of the current
+        partition and the frame clause specifies how to define the
+        subset.
+      </p><p>
+        Frames are determined with respect to the current row, which
+        enables a frame to move within a partition depending on the
+        location of the current row within its partition. Examples:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            By defining a frame to be all rows from the partition start
+            to the current row, you can compute running totals for each
+            row.
+          </p></li><li class="listitem"><p>
+            By defining a frame as extending
+            <em class="replaceable"><code>N</code></em> rows on either side of the
+            current row, you can compute rolling averages.
+          </p></li></ul></div><p>
+        The following query demonstrates the use of moving frames to
+        compute running totals within each group of time-ordered
+        <code class="literal">level</code> values, as well as rolling averages
+        computed from the current row and the rows that immediately
+        precede and follow it:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+         <strong class="userinput"><code>time, subject, val,</code></strong>
+         <strong class="userinput"><code>SUM(val) OVER (PARTITION BY subject ORDER BY time</code></strong>
+                        <strong class="userinput"><code>ROWS UNBOUNDED PRECEDING)</code></strong>
+           <strong class="userinput"><code>AS running_total,</code></strong>
+         <strong class="userinput"><code>AVG(val) OVER (PARTITION BY subject ORDER BY time</code></strong>
+                        <strong class="userinput"><code>ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING)</code></strong>
+           <strong class="userinput"><code>AS running_average</code></strong>
+       <strong class="userinput"><code>FROM observations;</code></strong>
++----------+---------+------+---------------+-----------------+
+| time     | subject | val  | running_total | running_average |
++----------+---------+------+---------------+-----------------+
+| 07:00:00 | st113   |   10 |            10 |          9.5000 |
+| 07:15:00 | st113   |    9 |            19 |         14.6667 |
+| 07:30:00 | st113   |   25 |            44 |         18.0000 |
+| 07:45:00 | st113   |   20 |            64 |         22.5000 |
+| 07:00:00 | xh458   |    0 |             0 |          5.0000 |
+| 07:15:00 | xh458   |   10 |            10 |          5.0000 |
+| 07:30:00 | xh458   |    5 |            15 |         15.0000 |
+| 07:45:00 | xh458   |   30 |            45 |         20.0000 |
+| 08:00:00 | xh458   |   25 |            70 |         27.5000 |
++----------+---------+------+---------------+-----------------+
+</pre><p>
+        For the <code class="literal">running_average</code> column, there is no
+        frame row preceding the first one or following the last. In
+        these cases, <a class="link" href="aggregate-functions.html#function_avg"><code class="literal">AVG()</code></a> computes the
+        average of the rows that are available.
+      </p><p>
+        Aggregate functions used as window functions operate on rows in
+        the current row frame, as do these nonaggregate window
+        functions:
+      </p><pre class="programlisting">FIRST_VALUE()
+LAST_VALUE()
+NTH_VALUE()
+</pre><p>
+        Standard SQL specifies that window functions that operate on the
+        entire partition should have no frame clause. MySQL permits a
+        frame clause for such functions but ignores it. These functions
+        use the entire partition even if a frame is specified:
+      </p><pre class="programlisting">CUME_DIST()
+DENSE_RANK()
+LAG()
+LEAD()
+NTILE()
+PERCENT_RANK()
+RANK()
+ROW_NUMBER()
+</pre><p>
+        The frame clause, if given, has this syntax:
+      </p><pre class="programlisting"><em class="replaceable"><code>frame_clause</code></em>:
+    <em class="replaceable"><code>frame_units</code></em> <em class="replaceable"><code>frame_extent</code></em>
+
+<em class="replaceable"><code>frame_units</code></em>:
+    {ROWS | RANGE}
+</pre><p>
+        In the absence of a frame clause, the default frame depends on
+        whether an <code class="literal">ORDER BY</code> clause is present, as
+        described later in this section.
+      </p><p>
+        The <em class="replaceable"><code>frame_units</code></em> value indicates the
+        type of relationship between the current row and frame rows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">ROWS</code>: The frame is defined by beginning
+            and ending row positions. Offsets are differences in row
+            numbers from the current row number.
+          </p></li><li class="listitem"><p>
+            <code class="literal">RANGE</code>: The frame is defined by rows
+            within a value range. Offsets are differences in row values
+            from the current row value.
+          </p></li></ul></div><p>
+        The <em class="replaceable"><code>frame_extent</code></em> value indicates the
+        start and end points of the frame. You can specify just the
+        start of the frame (in which case the current row is implicitly
+        the end) or use <code class="literal">BETWEEN</code> to specify both frame
+        endpoints:
+      </p><pre class="programlisting"><em class="replaceable"><code>frame_extent</code></em>:
+    {<em class="replaceable"><code>frame_start</code></em> | <em class="replaceable"><code>frame_between</code></em>}
+
+<em class="replaceable"><code>frame_between</code></em>:
+    BETWEEN <em class="replaceable"><code>frame_start</code></em> AND <em class="replaceable"><code>frame_end</code></em>
+
+<em class="replaceable"><code>frame_start</code></em>, <em class="replaceable"><code>frame_end</code></em>: {
+    CURRENT ROW
+  | UNBOUNDED PRECEDING
+  | UNBOUNDED FOLLOWING
+  | <em class="replaceable"><code>expr</code></em> PRECEDING
+  | <em class="replaceable"><code>expr</code></em> FOLLOWING
+}
+</pre><p>
+        With <code class="literal">BETWEEN</code> syntax,
+        <em class="replaceable"><code>frame_start</code></em> must not occur later than
+        <em class="replaceable"><code>frame_end</code></em>.
+      </p><p>
+        The permitted <em class="replaceable"><code>frame_start</code></em> and
+        <em class="replaceable"><code>frame_end</code></em> values have these meanings:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">CURRENT ROW</code>: For <code class="literal">ROWS</code>,
+            the bound is the current row. For <code class="literal">RANGE</code>,
+            the bound is the peers of the current row.
+          </p></li><li class="listitem"><p>
+            <code class="literal">UNBOUNDED PRECEDING</code>: The bound is the
+            first partition row.
+          </p></li><li class="listitem"><p>
+            <code class="literal">UNBOUNDED FOLLOWING</code>: The bound is the
+            last partition row.
+          </p></li><li class="listitem"><p>
+            <code class="literal"><em class="replaceable"><code>expr</code></em>
+            PRECEDING</code>: For <code class="literal">ROWS</code>, the bound
+            is <em class="replaceable"><code>expr</code></em> rows before the current
+            row. For <code class="literal">RANGE</code>, the bound is the rows
+            with values equal to the current row value minus
+            <em class="replaceable"><code>expr</code></em>; if the current row value is
+            <code class="literal">NULL</code>, the bound is the peers of the row.
+          </p><p>
+            For <code class="literal"><em class="replaceable"><code>expr</code></em>
+            PRECEDING</code> (and
+            <code class="literal"><em class="replaceable"><code>expr</code></em>
+            FOLLOWING</code>), <em class="replaceable"><code>expr</code></em> can be
+            a <code class="literal">?</code> parameter marker (for use in a
+            prepared statement), a nonnegative numeric literal, or a
+            temporal interval of the form <code class="literal">INTERVAL
+            <em class="replaceable"><code>val</code></em>
+            <em class="replaceable"><code>unit</code></em></code>. For
+            <code class="literal">INTERVAL</code> expressions,
+            <em class="replaceable"><code>val</code></em> specifies nonnegative
+            interval value, and <em class="replaceable"><code>unit</code></em> is a
+            keyword indicating the units in which the value should be
+            interpreted. (For details about the permitted
+            <em class="replaceable"><code>units</code></em> specifiers, see the
+            description of the <a class="link" href="date-and-time-functions.html#function_date-add"><code class="literal">DATE_ADD()</code></a>
+            function in <a class="xref" href="date-and-time-functions.html" title="12.7 Date and Time Functions">Section 12.7, “Date and Time Functions”</a>.)
+          </p><p>
+            <code class="literal">RANGE</code> on a numeric or temporal
+            <em class="replaceable"><code>expr</code></em> requires <code class="literal">ORDER
+            BY</code> on a numeric or temporal expression,
+            respectively.
+          </p><p>
+            Examples of valid <code class="literal"><em class="replaceable"><code>expr</code></em>
+            PRECEDING</code> and
+            <code class="literal"><em class="replaceable"><code>expr</code></em> FOLLOWING</code>
+            indicators:
+          </p><pre class="programlisting">10 PRECEDING
+INTERVAL 5 DAY PRECEDING
+5 FOLLOWING
+INTERVAL '2:30' MINUTE_SECOND FOLLOWING
+</pre></li><li class="listitem"><p>
+            <code class="literal"><em class="replaceable"><code>expr</code></em>
+            FOLLOWING</code>: For <code class="literal">ROWS</code>, the bound
+            is <em class="replaceable"><code>expr</code></em> rows after the current
+            row. For <code class="literal">RANGE</code>, the bound is the rows
+            with values equal to the current row value plus
+            <em class="replaceable"><code>expr</code></em>; if the current row value is
+            <code class="literal">NULL</code>, the bound is the peers of the row.
+          </p><p>
+            For permitted values of <em class="replaceable"><code>expr</code></em>, see
+            the description of <code class="literal"><em class="replaceable"><code>expr</code></em>
+            PRECEDING</code>.
+          </p></li></ul></div><p>
+        The following query demonstrates
+        <a class="link" href="window-function-descriptions.html#function_first-value"><code class="literal">FIRST_VALUE()</code></a>,
+        <a class="link" href="window-function-descriptions.html#function_last-value"><code class="literal">LAST_VALUE()</code></a>, and two instances
+        of <a class="link" href="window-function-descriptions.html#function_nth-value"><code class="literal">NTH_VALUE()</code></a>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+         <strong class="userinput"><code>time, subject, val,</code></strong>
+         <strong class="userinput"><code>FIRST_VALUE(val)  OVER w AS 'first',</code></strong>
+         <strong class="userinput"><code>LAST_VALUE(val)   OVER w AS 'last',</code></strong>
+         <strong class="userinput"><code>NTH_VALUE(val, 2) OVER w AS 'second',</code></strong>
+         <strong class="userinput"><code>NTH_VALUE(val, 4) OVER w AS 'fourth'</code></strong>
+       <strong class="userinput"><code>FROM observations</code></strong>
+       <strong class="userinput"><code>WINDOW w AS (PARTITION BY subject ORDER BY time</code></strong>
+                    <strong class="userinput"><code>ROWS UNBOUNDED PRECEDING);</code></strong>
++----------+---------+------+-------+------+--------+--------+
+| time     | subject | val  | first | last | second | fourth |
++----------+---------+------+-------+------+--------+--------+
+| 07:00:00 | st113   |   10 |    10 |   10 |   NULL |   NULL |
+| 07:15:00 | st113   |    9 |    10 |    9 |      9 |   NULL |
+| 07:30:00 | st113   |   25 |    10 |   25 |      9 |   NULL |
+| 07:45:00 | st113   |   20 |    10 |   20 |      9 |     20 |
+| 07:00:00 | xh458   |    0 |     0 |    0 |   NULL |   NULL |
+| 07:15:00 | xh458   |   10 |     0 |   10 |     10 |   NULL |
+| 07:30:00 | xh458   |    5 |     0 |    5 |     10 |   NULL |
+| 07:45:00 | xh458   |   30 |     0 |   30 |     10 |     30 |
+| 08:00:00 | xh458   |   25 |     0 |   25 |     10 |     30 |
++----------+---------+------+-------+------+--------+--------+
+</pre><p>
+        Each function uses the rows in the current frame, which, per the
+        window definition shown, extends from the first partition row to
+        the current row. For the
+        <a class="link" href="window-function-descriptions.html#function_nth-value"><code class="literal">NTH_VALUE()</code></a> calls, the current
+        frame does not always include the requested row; in such cases,
+        the return value is <code class="literal">NULL</code>.
+      </p><p>
+        In the absence of a frame clause, the default frame depends on
+        whether an <code class="literal">ORDER BY</code> clause is present:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            With <code class="literal">ORDER BY</code>: The default frame includes
+            rows from the partition start through the current row,
+            including all peers of the current row (rows equal to the
+            current row according to the <code class="literal">ORDER BY</code>
+            clause). The default is equivalent to this frame
+            specification:
+          </p><pre class="programlisting">RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+</pre></li><li class="listitem"><p>
+            Without <code class="literal">ORDER BY</code>: The default frame
+            includes all partition rows (because, without <code class="literal">ORDER
+            BY</code>, all partition rows are peers). The default is
+            equivalent to this frame specification:
+          </p><pre class="programlisting">RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+</pre></li></ul></div><p>
+        Because the default frame differs depending on presence or
+        absence of <code class="literal">ORDER BY</code>, adding <code class="literal">ORDER
+        BY</code> to a query to get deterministic results may change
+        the results. (For example, the values produced by
+        <a class="link" href="aggregate-functions.html#function_sum"><code class="literal">SUM()</code></a> might change.) To obtain
+        the same results but ordered per <code class="literal">ORDER BY</code>,
+        provide an explicit frame specification to be used regardless of
+        whether <code class="literal">ORDER BY</code> is present.
+      </p><p>
+        The meaning of a frame specification can be nonobvious when the
+        current row value is <code class="literal">NULL</code>. Assuming that to
+        be the case, these examples illustrate how various frame
+        specifications apply:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">ORDER BY X ASC RANGE BETWEEN 10 FOLLOWING AND 15
+            FOLLOWING</code>
+          </p><p>
+            The frame starts at <code class="literal">NULL</code> and stops at
+            <code class="literal">NULL</code>, thus includes only rows with value
+            <code class="literal">NULL</code>.
+          </p></li><li class="listitem"><p>
+            <code class="literal">ORDER BY X ASC RANGE BETWEEN 10 FOLLOWING AND
+            UNBOUNDED FOLLOWING</code>
+          </p><p>
+            The frame starts at <code class="literal">NULL</code> and stops at the
+            end of the partition. Because an <code class="literal">ASC</code> sort
+            puts <code class="literal">NULL</code> values first, the frame is the
+            entire partition.
+          </p></li><li class="listitem"><p>
+            <code class="literal">ORDER BY X DESC RANGE BETWEEN 10 FOLLOWING AND
+            UNBOUNDED FOLLOWING</code>
+          </p><p>
+            The frame starts at <code class="literal">NULL</code> and stops at the
+            end of the partition. Because a <code class="literal">DESC</code> sort
+            puts <code class="literal">NULL</code> values last, the frame is only
+            the <code class="literal">NULL</code> values.
+          </p></li><li class="listitem"><p>
+            <code class="literal">ORDER BY X ASC RANGE BETWEEN 10 PRECEDING AND
+            UNBOUNDED FOLLOWING</code>
+          </p><p>
+            The frame starts at <code class="literal">NULL</code> and stops at the
+            end of the partition. Because an <code class="literal">ASC</code> sort
+            puts <code class="literal">NULL</code> values first, the frame is the
+            entire partition.
+          </p></li><li class="listitem"><p>
+            <code class="literal">ORDER BY X ASC RANGE BETWEEN 10 PRECEDING AND 10
+            FOLLOWING</code>
+          </p><p>
+            The frame starts at <code class="literal">NULL</code> and stops at
+            <code class="literal">NULL</code>, thus includes only rows with value
+            <code class="literal">NULL</code>.
+          </p></li><li class="listitem"><p>
+            <code class="literal">ORDER BY X ASC RANGE BETWEEN 10 PRECEDING AND 1
+            PRECEDING</code>
+          </p><p>
+            The frame starts at <code class="literal">NULL</code> and stops at
+            <code class="literal">NULL</code>, thus includes only rows with value
+            <code class="literal">NULL</code>.
+          </p></li><li class="listitem"><p>
+            <code class="literal">ORDER BY X ASC RANGE BETWEEN UNBOUNDED PRECEDING
+            AND 10 FOLLOWING</code>
+          </p><p>
+            The frame starts at the beginning of the partition and stops
+            at rows with value <code class="literal">NULL</code>. Because an
+            <code class="literal">ASC</code> sort puts <code class="literal">NULL</code>
+            values first, the frame is only the <code class="literal">NULL</code>
+            values.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="window-functions-usage.html">Previous <span class="navHint"> Window Function Concepts and Syntax </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="window-functions.html">Up <span class="navHint"> Window Functions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="window-functions-named-windows.html">Next <span class="navHint"> Named Windows </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,194 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4359"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/28.4.2.1%C2%A0The%20sys_config%20Table"></a><title>28.4.2.1&nbsp;The sys_config Table</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="sys-schema-tables.html" title="28.4.2&nbsp;sys Schema Tables and Triggers"/><link rel="prev" href="sys-schema-tables.html" title="28.4.2&nbsp;sys Schema Tables and Triggers"/><link rel="next" href="sys-sys-config-insert-set-user.html" title="28.4.2.2&nbsp;The sys_config_insert_set_user Trigger"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="sys-sys-config.html#sys-sys-config">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="sys-schema-tables.html">Previous <span class="navHint"> sys Schema Tables and Triggers </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="sys-schema-tables.html">Up <span class="navHint"> sys Schema Tables and Triggers </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="sys-sys-config-insert-set-user.html">Next <span class="navHint"> The sys_config_insert_set_user Trigger </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-4358"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/28.4.2.1%C2%A0The%20sys_config%20Table"></a><h4 class="title"><a id="sys-sys-config"></a>28.4.2.1&nbsp;The sys_config Table</h4></div></div></div><a id="idm45828780912224" class="indexterm"></a><a id="idm45828780910736" class="indexterm"></a><p>
+          This table contains <a class="link" href="sys-schema.html" title="Chapter&nbsp;28&nbsp;MySQL sys Schema"><code class="literal">sys</code></a> schema
+          configuration options, one row per option. Configuration
+          changes made by updating this table persist across client
+          sessions and server restarts.
+        </p><p>
+          The <a class="link" href="sys-sys-config.html" title="28.4.2.1&nbsp;The sys_config Table"><code class="literal">sys_config</code></a> table has these
+          columns:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">variable</code>
+            </p><p>
+              The configuration option name.
+            </p></li><li class="listitem"><p>
+              <code class="literal">value</code>
+            </p><p>
+              The configuration option value.
+            </p></li><li class="listitem"><p>
+              <code class="literal">set_time</code>
+            </p><p>
+              The timestamp of the most recent modification to the row.
+            </p></li><li class="listitem"><p>
+              <code class="literal">set_by</code>
+            </p><p>
+              The account that made the most recent modification to the
+              row. The value is <code class="literal">NULL</code> if the row has
+              not been changed since the
+              <a class="link" href="sys-schema.html" title="Chapter&nbsp;28&nbsp;MySQL sys Schema"><code class="literal">sys</code></a> schema was installed.
+            </p></li></ul></div><p>
+          As an efficiency measure to minimize the number of direct
+          reads from the <a class="link" href="sys-sys-config.html" title="28.4.2.1&nbsp;The sys_config Table"><code class="literal">sys_config</code></a> table,
+          <a class="link" href="sys-schema.html" title="Chapter&nbsp;28&nbsp;MySQL sys Schema"><code class="literal">sys</code></a> schema functions that use a
+          value from this table check for a user-defined variable with a
+          corresponding name, which is the user-defined variable having
+          the same name plus a <code class="literal">@sys.</code> prefix. (For
+          example, the variable corresponding to the
+          <code class="literal">diagnostics.include_raw</code> option is
+          <code class="literal">@sys.diagnostics.include_raw</code>.) If the
+          user-defined variable exists in the current session and is
+          non-<code class="literal">NULL</code>, the function uses its value in
+          preference to the value in the
+          <a class="link" href="sys-sys-config.html" title="28.4.2.1&nbsp;The sys_config Table"><code class="literal">sys_config</code></a> table. Otherwise, the
+          function reads and uses the value from the table. In the
+          latter case, the calling function conventionally also sets the
+          corresponding user-defined variable to the table value so that
+          further references to the configuration option within the same
+          session use the variable and need not read the table again.
+        </p><p>
+          For example, the <code class="literal">statement_truncate_len</code>
+          option controls the maximum length of statements returned by
+          the <a class="link" href="sys-format-statement.html" title="28.4.5.5&nbsp;The format_statement() Function"><code class="literal">format_statement()</code></a> function.
+          The default is 64. To temporarily change the value to 32 for
+          your current session, set the corresponding
+          <code class="literal">@sys.statement_truncate_len</code> user-defined
+          variable:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @stmt = &#39;SELECT variable, value, set_time, set_by FROM sys_config&#39;;</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT sys.format_statement(@stmt);</code></strong>
++----------------------------------------------------------+
+| sys.format_statement(@stmt)                              |
++----------------------------------------------------------+
+| SELECT variable, value, set_time, set_by FROM sys_config |
++----------------------------------------------------------+
+mysql&gt; <strong class="userinput"><code>SET @sys.statement_truncate_len = 32;</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT sys.format_statement(@stmt);</code></strong>
++-----------------------------------+
+| sys.format_statement(@stmt)       |
++-----------------------------------+
+| SELECT variabl ... ROM sys_config |
++-----------------------------------+
+</pre><p>
+          Subsequent invocations of
+          <a class="link" href="sys-format-statement.html" title="28.4.5.5&nbsp;The format_statement() Function"><code class="literal">format_statement()</code></a> within the
+          session continue to use the user-defined variable value (32),
+          rather than the value stored in the table (64).
+        </p><p>
+          To stop using the user-defined variable and revert to using
+          the value in the table, set the variable to
+          <code class="literal">NULL</code> within your session:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @sys.statement_truncate_len = NULL;</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT sys.format_statement(@stmt);</code></strong>
++----------------------------------------------------------+
+| sys.format_statement(@stmt)                              |
++----------------------------------------------------------+
+| SELECT variable, value, set_time, set_by FROM sys_config |
++----------------------------------------------------------+
+</pre><p>
+          Alternatively, end your current session (causing the
+          user-defined variable to no longer exist) and begin a new
+          session.
+        </p><p>
+          The conventional relationship just described between options
+          in the <a class="link" href="sys-sys-config.html" title="28.4.2.1&nbsp;The sys_config Table"><code class="literal">sys_config</code></a> table and
+          user-defined variables can be exploited to make temporary
+          configuration changes that end when your session ends.
+          However, if you set a user-defined variable and then
+          subsequently change the corresponding table value within the
+          same session, the changed table value is not used in that
+          session as long as the user-defined variable exists with a
+          non-<code class="literal">NULL</code> value. (The changed table value
+          <span class="emphasis"><em>is</em></span> used in other sessions in which the
+          user-defined variable is not assigned.)
+        </p><p>
+          The following list describes the options in the
+          <a class="link" href="sys-sys-config.html" title="28.4.2.1&nbsp;The sys_config Table"><code class="literal">sys_config</code></a> table and the
+          corresponding user-defined variables:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">diagnostics.allow_i_s_tables</code>,
+              <code class="literal">@sys.diagnostics.allow_i_s_tables</code>
+            </p><p>
+              If this option is <code class="literal">ON</code>, the
+              <a class="link" href="sys-diagnostics.html" title="28.4.4.2&nbsp;The diagnostics() Procedure"><code class="literal">diagnostics()</code></a> procedure is
+              permitted to perform table scans on the Information Schema
+              <a class="link" href="information-schema-tables-table.html" title="26.3.38&nbsp;The INFORMATION_SCHEMA TABLES Table"><code class="literal">TABLES</code></a> table. This can be
+              expensive if there are many tables. The default is
+              <code class="literal">OFF</code>.
+            </p></li><li class="listitem"><p>
+              <code class="literal">diagnostics.include_raw</code>,
+              <code class="literal">@sys.diagnostics.include_raw</code>
+            </p><p>
+              If this option is <code class="literal">ON</code>, the
+              <a class="link" href="sys-diagnostics.html" title="28.4.4.2&nbsp;The diagnostics() Procedure"><code class="literal">diagnostics()</code></a> procedure
+              includes the raw output from querying the
+              <a class="link" href="sys-metrics.html" title="28.4.3.21&nbsp;The metrics View"><code class="literal">metrics</code></a> view. The default is
+              <code class="literal">OFF</code>.
+            </p></li><li class="listitem"><p>
+              <code class="literal">ps_thread_trx_info.max_length</code>,
+              <code class="literal">@sys.ps_thread_trx_info.max_length</code>
+            </p><p>
+              The maximum length for JSON output produced by the
+              <a class="link" href="sys-ps-thread-trx-info.html" title="28.4.5.17&nbsp;The ps_thread_trx_info() Function"><code class="literal">ps_thread_trx_info()</code></a>
+              function. The default is 65535.
+            </p></li><li class="listitem"><p>
+              <code class="literal">statement_performance_analyzer.limit</code>,
+              <code class="literal">@sys.statement_performance_analyzer.limit</code>
+            </p><p>
+              The maximum number of rows to return for views that have
+              no built-in limit. (For example, the
+              <a class="link" href="sys-statements-with-runtimes-in-95th-percentile.html" title="28.4.3.38&nbsp;The statements_with_runtimes_in_95th_percentile and x$statements_with_runtimes_in_95th_percentile Views"><code class="literal">statements_with_runtimes_in_95th_percentile</code></a>
+              view has a built-in limit in the sense that it returns
+              only statements with average execution time in the 95th
+              percentile.) The default is 100.
+            </p></li><li class="listitem"><p>
+              <code class="literal">statement_performance_analyzer.view</code>,
+              <code class="literal">@sys.statement_performance_analyzer.view</code>
+            </p><p>
+              The custom query or view to be used by the
+              <a class="link" href="sys-statement-performance-analyzer.html" title="28.4.4.25&nbsp;The statement_performance_analyzer() Procedure"><code class="literal">statement_performance_analyzer()</code></a>
+              procedure (which is itself invoked by the
+              <a class="link" href="sys-diagnostics.html" title="28.4.4.2&nbsp;The diagnostics() Procedure"><code class="literal">diagnostics()</code></a> procedure). If
+              the option value contains a space, it is interpreted as a
+              query. Otherwise, it must be the name of an existing view
+              that queries the Performance Schema
+              <a class="link" href="performance-schema-statement-summary-tables.html" title="27.12.20.3&nbsp;Statement Summary Tables"><code class="literal">events_statements_summary_by_digest</code></a>
+              table. There cannot be any <code class="literal">LIMIT</code> clause
+              in the query or view definition if the
+              <code class="literal">statement_performance_analyzer.limit</code>
+              configuration option is greater than 0. The default is
+              <code class="literal">NULL</code> (no custom view defined).
+            </p></li><li class="listitem"><p>
+              <code class="literal">statement_truncate_len</code>,
+              <code class="literal">@sys.statement_truncate_len</code>
+            </p><p>
+              The maximum length of statements returned by the
+              <a class="link" href="sys-format-statement.html" title="28.4.5.5&nbsp;The format_statement() Function"><code class="literal">format_statement()</code></a> function.
+              Longer statements are truncated to this length. The
+              default is 64.
+            </p></li></ul></div><p>
+          Other options can be added to the
+          <a class="link" href="sys-sys-config.html" title="28.4.2.1&nbsp;The sys_config Table"><code class="literal">sys_config</code></a> table. For example,
+          the <a class="link" href="sys-diagnostics.html" title="28.4.4.2&nbsp;The diagnostics() Procedure"><code class="literal">diagnostics()</code></a> and
+          <a class="link" href="sys-execute-prepared-stmt.html" title="28.4.4.3&nbsp;The execute_prepared_stmt() Procedure"><code class="literal">execute_prepared_stmt()</code></a>
+          procedures use the <code class="literal">debug</code> option if it
+          exists, but this option is not part of the
+          <a class="link" href="sys-sys-config.html" title="28.4.2.1&nbsp;The sys_config Table"><code class="literal">sys_config</code></a> table by default
+          because debug output normally is enabled only temporarily, by
+          setting the corresponding <code class="literal">@sys.debug</code>
+          user-defined variable. To enable debug output without having
+          to set that variable in individual sessions, add the option to
+          the table:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO sys.sys_config (variable, value) VALUES(&#39;debug&#39;, &#39;ON&#39;);</code></strong>
+</pre><p>
+          To change the debug setting in the table, do two things.
+          First, modify the value in the table itself:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE sys.sys_config</code></strong>
+       <strong class="userinput"><code>SET value = &#39;OFF&#39;</code></strong>
+       <strong class="userinput"><code>WHERE variable = &#39;debug&#39;;</code></strong>
+</pre><p>
+          Second, to also ensure that procedure invocations within the
+          current session use the changed value from the table, set the
+          corresponding user-defined variable to
+          <code class="literal">NULL</code>:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @sys.debug = NULL;</code></strong>
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="sys-schema-tables.html">Previous <span class="navHint"> sys Schema Tables and Triggers </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sys-schema-tables.html">Up <span class="navHint"> sys Schema Tables and Triggers </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="sys-sys-config-insert-set-user.html">Next <span class="navHint"> The sys_config_insert_set_user Trigger </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

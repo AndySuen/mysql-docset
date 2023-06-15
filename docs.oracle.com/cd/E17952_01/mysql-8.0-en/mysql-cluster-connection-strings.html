@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.4.3.3 NDB Cluster Connection Strings</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-config-file.html" title="23.4.3 NDB Cluster Configuration Files" /><link rel="prev" href="mysql-cluster-config-starting.html" title="23.4.3.2 Recommended Starting Configuration for NDB Cluster" /><link rel="next" href="mysql-cluster-computer-definition.html" title="23.4.3.4 Defining Computers in an NDB Cluster" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-connection-strings.html#mysql-cluster-connection-strings">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-config-starting.html">Previous <span class="navHint"> Recommended Starting Configuration for NDB Cluster </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-config-file.html">Up <span class="navHint"> NDB Cluster Configuration Files </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-computer-definition.html">Next <span class="navHint"> Defining Computers in an NDB Cluster </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-cluster-connection-strings"></a>23.4.3.3 NDB Cluster Connection Strings</h4></div></div></div><a id="idm45828840399136" class="indexterm"></a><a id="idm45828840397648" class="indexterm"></a><p>
+        With the exception of the NDB Cluster management server
+        (<a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a>), each node that is part of an NDB
+        Cluster requires a <span class="firstterm">connection
+        string</span> that points to the management server's
+        location. This connection string is used in establishing a
+        connection to the management server as well as in performing
+        other tasks depending on the node's role in the cluster. The
+        syntax for a connection string is as follows:
+      </p><pre class="programlisting">[nodeid=<em class="replaceable"><code>node_id</code></em>, ]<em class="replaceable"><code>host-definition</code></em>[, <em class="replaceable"><code>host-definition</code></em>[, ...]]
+
+<em class="replaceable"><code>host-definition</code></em>:
+    <em class="replaceable"><code>host_name</code></em>[:<em class="replaceable"><code>port_number</code></em>]
+</pre><p>
+        <code class="literal">node_id</code> is an integer greater than or equal
+        to 1 which identifies a node in <code class="filename">config.ini</code>.
+        <em class="replaceable"><code>host_name</code></em> is a string representing a
+        valid Internet host name or IP address.
+        <em class="replaceable"><code>port_number</code></em> is an integer referring
+        to a TCP/IP port number.
+      </p><pre class="programlisting">example 1 (long):    "nodeid=2,myhost1:1100,myhost2:1100,198.51.100.3:1200"
+example 2 (short):   "myhost1"
+</pre><p>
+        <code class="literal">localhost:1186</code> is used as the default
+        connection string value if none is provided. If
+        <em class="replaceable"><code>port_num</code></em> is omitted from the
+        connection string, the default port is 1186. This port should
+        always be available on the network because it has been assigned
+        by IANA for this purpose (see
+        <a class="ulink" href="http://www.iana.org/assignments/port-numbers" target="_top">http://www.iana.org/assignments/port-numbers</a> for
+        details).
+      </p><p>
+        By listing multiple host definitions, it is possible to
+        designate several redundant management servers. An NDB Cluster
+        data or API node attempts to contact successive management
+        servers on each host in the order specified, until a successful
+        connection has been established.
+      </p><p>
+        It is also possible to specify in a connection string one or
+        more bind addresses to be used by nodes having multiple network
+        interfaces for connecting to management servers. A bind address
+        consists of a hostname or network address and an optional port
+        number. This enhanced syntax for connection strings is shown
+        here:
+      </p><pre class="programlisting">[nodeid=<em class="replaceable"><code>node_id</code></em>, ]
+    [bind-address=<em class="replaceable"><code>host-definition</code></em>, ]
+    <em class="replaceable"><code>host-definition</code></em>[; bind-address=<em class="replaceable"><code>host-definition</code></em>]
+    <em class="replaceable"><code>host-definition</code></em>[; bind-address=<em class="replaceable"><code>host-definition</code></em>]
+    [, ...]]
+
+<em class="replaceable"><code>host-definition</code></em>:
+    <em class="replaceable"><code>host_name</code></em>[:<em class="replaceable"><code>port_number</code></em>]
+</pre><p>
+        If a single bind address is used in the connection string
+        <span class="emphasis"><em>prior</em></span> to specifying any management hosts,
+        then this address is used as the default for connecting to any
+        of them (unless overridden for a given management server; see
+        later in this section for an example). For example, the
+        following connection string causes the node to use
+        <code class="literal">198.51.100.242</code> regardless of the management
+        server to which it connects:
+      </p><pre class="programlisting">bind-address=198.51.100.242, poseidon:1186, perch:1186
+</pre><p>
+        If a bind address is specified <span class="emphasis"><em>following</em></span> a
+        management host definition, then it is used only for connecting
+        to that management node. Consider the following connection
+        string:
+      </p><pre class="programlisting">poseidon:1186;bind-address=localhost, perch:1186;bind-address=198.51.100.242
+</pre><p>
+        In this case, the node uses <code class="literal">localhost</code> to
+        connect to the management server running on the host named
+        <code class="literal">poseidon</code> and
+        <code class="literal">198.51.100.242</code> to connect to the management
+        server running on the host named <code class="literal">perch</code>.
+      </p><p>
+        You can specify a default bind address and then override this
+        default for one or more specific management hosts. In the
+        following example, <code class="literal">localhost</code> is used for
+        connecting to the management server running on host
+        <code class="literal">poseidon</code>; since
+        <code class="literal">198.51.100.242</code> is specified first (before any
+        management server definitions), it is the default bind address
+        and so is used for connecting to the management servers on hosts
+        <code class="literal">perch</code> and <code class="literal">orca</code>:
+      </p><pre class="programlisting">bind-address=198.51.100.242,poseidon:1186;bind-address=localhost,perch:1186,orca:2200
+</pre><p>
+        There are a number of different ways to specify the connection
+        string:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Each executable has its own command-line option which
+            enables specifying the management server at startup. (See
+            the documentation for the respective executable.)
+          </p></li><li class="listitem"><p>
+            It is also possible to set the connection string for all
+            nodes in the cluster at once by placing it in a
+            <code class="literal">[mysql_cluster]</code> section in the management
+            server's <code class="filename">my.cnf</code> file.
+          </p></li><li class="listitem"><p>
+            For backward compatibility, two other options are available,
+            using the same syntax:
+          </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                Set the <code class="envar">NDB_CONNECTSTRING</code> environment
+                variable to contain the connection string.
+              </p></li><li class="listitem"><p>
+                Write the connection string for each executable into a
+                text file named <code class="filename">Ndb.cfg</code> and place
+                this file in the executable's startup directory.
+              </p></li></ol></div><p>
+            However, these are now deprecated and should not be used for
+            new installations.
+          </p></li></ul></div><p>
+        The recommended method for specifying the connection string is
+        to set it on the command line or in the
+        <code class="filename">my.cnf</code> file for each executable.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-config-starting.html">Previous <span class="navHint"> Recommended Starting Configuration for NDB Cluster </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-config-file.html">Up <span class="navHint"> NDB Cluster Configuration Files </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-computer-definition.html">Next <span class="navHint"> Defining Computers in an NDB Cluster </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

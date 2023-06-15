@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.9.1.3 Using WER with PDB to create a Windows crashdump</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="debugging-server.html" title="5.9.1 Debugging a MySQL Server" /><link rel="prev" href="making-trace-files.html" title="5.9.1.2 Creating Trace Files" /><link rel="next" href="using-gdb-on-mysqld.html" title="5.9.1.4 Debugging mysqld under gdb" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="making-windows-dumps.html#making-windows-dumps">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="making-trace-files.html">Previous <span class="navHint"> Creating Trace Files </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="debugging-server.html">Up <span class="navHint"> Debugging a MySQL Server </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="using-gdb-on-mysqld.html">Next <span class="navHint"> Debugging mysqld under gdb </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="making-windows-dumps"></a>5.9.1.3 Using WER with PDB to create a Windows crashdump</h4></div></div></div><p>
+        Program Database files (with suffix <code class="filename">pdb</code>)
+        are included in the <span class="bold"><strong>ZIP Archive Debug
+        Binaries &amp; Test Suite</strong></span> distribution of MySQL.
+        These files provide information for debugging your MySQL
+        installation in the event of a problem. This is a separate
+        download from the standard MSI or Zip file.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          The PDB files are available in a separate file labeled "ZIP
+          Archive Debug Binaries &amp; Test Suite".
+        </p></div><p>
+        The PDB file contains more detailed information about
+        <code class="literal">mysqld</code> and other tools that enables more
+        detailed trace and dump files to be created. You can use these
+        with <span class="command"><strong>WinDbg</strong></span> or Visual Studio to debug
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>.
+      </p><p>
+        For more information on PDB files, see
+        <a class="ulink" href="http://support.microsoft.com/kb/121366/" target="_top">Microsoft
+        Knowledge Base Article 121366</a>. For more information on
+        the debugging options available, see
+        <a class="ulink" href="http://www.microsoft.com/whdc/devtools/debugging/default.mspx" target="_top">Debugging
+        Tools for Windows</a>.
+      </p><p>
+        To use WinDbg, either install the full Windows Driver Kit (WDK)
+        or install the standalone version.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          The <code class="filename">.exe</code> and <code class="filename">.pdb</code>
+          files must be an exact match (both version number and MySQL
+          server edition); otherwise, or WinDBG complains while
+          attempting to load the symbols.
+        </p></div><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            To generate a minidump <code class="filename">mysqld.dmp</code>,
+            enable the <a class="link" href="server-options.html#option_mysqld_core-file"><code class="option">core-file</code></a> option
+            under the [mysqld] section in <code class="filename">my.ini</code>.
+            Restart the MySQL server after making these changes.
+          </p></li><li class="listitem"><p>
+            Create a directory to store the generated files, such as
+            <code class="filename">c:\symbols</code>
+          </p></li><li class="listitem"><p>
+            Determine the path to your <span class="command"><strong>windbg.exe</strong></span>
+            executable using the Find GUI or from the command line, for
+            example: <code class="literal">dir /s /b windbg.exe</code> -- a common
+            default is <span class="emphasis"><em>C:\Program Files\Debugging Tools for
+            Windows (x64)\windbg.exe</em></span>
+          </p></li><li class="listitem"><p>
+            Launch <code class="filename">windbg.exe</code> giving it the paths
+            to <code class="filename">mysqld.exe</code>,
+            <code class="filename">mysqld.pdb</code>,
+            <code class="filename">mysqld.dmp</code>, and the source code.
+            Alternatively, pass in each path from the WinDbg GUI. For
+            example:
+          </p><pre class="programlisting">windbg.exe -i "C:\mysql-8.0.33-winx64\bin\"^
+ -z "C:\mysql-8.0.33-winx64\data\mysqld.dmp"^
+ -srcpath "E:\ade\mysql_archives\8.0\8.0.33\mysql-8.0.33"^
+ -y "C:\mysql-8.0.33-winx64\bin;SRV*c:\symbols*http://msdl.microsoft.com/download/symbols"^
+ -v -n -c "!analyze -vvvvv"
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              The <code class="literal">^</code> character and newline are removed
+              by the Windows command line processor, so be sure the
+              spaces remain intact.
+            </p></div></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="making-trace-files.html">Previous <span class="navHint"> Creating Trace Files </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="debugging-server.html">Up <span class="navHint"> Debugging a MySQL Server </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="using-gdb-on-mysqld.html">Next <span class="navHint"> Debugging mysqld under gdb </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

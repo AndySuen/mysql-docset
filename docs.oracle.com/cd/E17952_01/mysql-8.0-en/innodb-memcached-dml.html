@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.20.6.5 Adapting DML Statements to memcached Operations</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-memcached-developing.html" title="15.20.6 Writing Applications for the InnoDB memcached Plugin" /><link rel="prev" href="innodb-memcached-txn.html" title="15.20.6.4 Controlling Transactional Behavior of the InnoDB memcached Plugin" /><link rel="next" href="innodb-memcached-ddl.html" title="15.20.6.6 Performing DML and DDL Statements on the Underlying InnoDB Table" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-memcached-dml.html#innodb-memcached-dml">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-memcached-txn.html">Previous <span class="navHint"> Controlling Transactional Behavior of the InnoDB memcached Plugin </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-memcached-developing.html">Up <span class="navHint"> Writing Applications for the InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-memcached-ddl.html">Next <span class="navHint"> Performing DML and DDL Statements on the Underlying InnoDB Table </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-dml"></a>15.20.6.5 Adapting DML Statements to memcached Operations</h4></div></div></div><p>
+        Benchmarks suggest that the <code class="literal">daemon_memcached</code>
+        plugin speeds up <a class="link" href="glossary.html#glos_dml" title="DML">DML</a> operations
+        (inserts, updates, and deletes) more than it speeds up queries.
+        Therefore, consider focussing initial development efforts on
+        write-intensive applications that are I/O-bound, and look for
+        opportunities to use MySQL with the
+        <code class="literal">daemon_memcached</code> plugin for new
+        write-intensive applications.
+      </p><p>
+        Single-row DML statements are the easiest types of statements to
+        turn into <code class="literal">memcached</code> operations.
+        <code class="literal">INSERT</code> becomes <code class="literal">add</code>,
+        <code class="literal">UPDATE</code> becomes <code class="literal">set</code>,
+        <code class="literal">incr</code> or <code class="literal">decr</code>, and
+        <code class="literal">DELETE</code> becomes <code class="literal">delete</code>.
+        These operations are guaranteed to only affect one row when
+        issued through the <span class="command"><strong>memcached</strong></span> interface,
+        because the <em class="replaceable"><code>key</code></em> is unique within the
+        table.
+      </p><p>
+        In the following SQL examples, <code class="literal">t1</code> refers to
+        the table used for <span class="command"><strong>memcached</strong></span> operations,
+        based on the configuration in the
+        <code class="literal">innodb_memcache.containers</code> table.
+        <code class="literal">key</code> refers to the column listed under
+        <code class="literal">key_columns</code>, and <code class="literal">val</code>
+        refers to the column listed under
+        <code class="literal">value_columns</code>.
+
+</p><pre class="programlisting">INSERT INTO t1 (key,val) VALUES (<em class="replaceable"><code>some_key</code></em>,<em class="replaceable"><code>some_value</code></em>);
+SELECT val FROM t1 WHERE key = <em class="replaceable"><code>some_key</code></em>;
+UPDATE t1 SET val = <em class="replaceable"><code>new_value</code></em> WHERE key = <em class="replaceable"><code>some_key</code></em>;
+UPDATE t1 SET val = val + x WHERE key = <em class="replaceable"><code>some_key</code></em>;
+DELETE FROM t1 WHERE key = <em class="replaceable"><code>some_key</code></em>;
+</pre><p>
+      </p><p>
+        The following <a class="link" href="truncate-table.html" title="13.1.37 TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a> and
+        <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> statements, which remove
+        all rows from the table, correspond to the
+        <code class="literal">flush_all</code> operation, where
+        <code class="literal">t1</code> is configured as the table for
+        <span class="command"><strong>memcached</strong></span> operations, as in the previous
+        example.
+      </p><pre class="programlisting">TRUNCATE TABLE t1;
+DELETE FROM t1;
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-memcached-txn.html">Previous <span class="navHint"> Controlling Transactional Behavior of the InnoDB memcached Plugin </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-memcached-developing.html">Up <span class="navHint"> Writing Applications for the InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-memcached-ddl.html">Next <span class="navHint"> Performing DML and DDL Statements on the Underlying InnoDB Table </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

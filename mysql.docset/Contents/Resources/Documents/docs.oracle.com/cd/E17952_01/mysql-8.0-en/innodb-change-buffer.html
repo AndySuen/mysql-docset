@@ -1,0 +1,252 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1417"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.5.2%C2%A0Change%20Buffer"></a><title>15.5.2&nbsp;Change Buffer</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-in-memory-structures.html" title="15.5&nbsp;InnoDB In-Memory Structures"/><link rel="prev" href="innodb-buffer-pool.html" title="15.5.1&nbsp;Buffer Pool"/><link rel="next" href="innodb-adaptive-hash.html" title="15.5.3&nbsp;Adaptive Hash Index"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-change-buffer.html#innodb-change-buffer">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-buffer-pool.html">Previous <span class="navHint"> Buffer Pool </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-in-memory-structures.html">Up <span class="navHint"> InnoDB In-Memory Structures </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-adaptive-hash.html">Next <span class="navHint"> Adaptive Hash Index </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-change-buffer"></a>15.5.2&nbsp;Change Buffer</h3></div></div></div><a id="idm45828892398256" class="indexterm"></a><a id="idm45828892396768" class="indexterm"></a><p>
+    The change buffer is a special data structure that caches changes to
+    <a class="link" href="glossary.html#glos_secondary_index" title="secondary index">secondary index</a> pages
+    when those pages are not in the
+    <a class="link" href="glossary.html#glos_buffer_pool" title="buffer pool">buffer pool</a>. The buffered
+    changes, which may result from
+    <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a>,
+    <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a>, or
+    <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> operations (DML), are merged
+    later when the pages are loaded into the buffer pool by other read
+    operations.
+  </p><div class="figure"><a id="innodb-change-buffer-diagram"></a><p class="title"><strong>Figure&nbsp;15.3&nbsp;Change Buffer</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/innodb-change-buffer.png" width="581" height="408" alt="Content is described in the surrounding text."/></div></div></div><br class="figure-break"/><p>
+    Unlike <a class="link" href="glossary.html#glos_clustered_index" title="clustered index">clustered
+    indexes</a>, secondary indexes are usually nonunique, and inserts
+    into secondary indexes happen in a relatively random order.
+    Similarly, deletes and updates may affect secondary index pages that
+    are not adjacently located in an index tree. Merging cached changes
+    at a later time, when affected pages are read into the buffer pool
+    by other operations, avoids substantial random access I/O that would
+    be required to read secondary index pages into the buffer pool from
+    disk.
+  </p><p>
+    Periodically, the purge operation that runs when the system is
+    mostly idle, or during a slow shutdown, writes the updated index
+    pages to disk. The purge operation can write disk blocks for a
+    series of index values more efficiently than if each value were
+    written to disk immediately.
+  </p><p>
+    Change buffer merging may take several hours when there are many
+    affected rows and numerous secondary indexes to update. During this
+    time, disk I/O is increased, which can cause a significant slowdown
+    for disk-bound queries. Change buffer merging may also continue to
+    occur after a transaction is committed, and even after a server
+    shutdown and restart (see <a class="xref" href="forcing-innodb-recovery.html" title="15.21.3&nbsp;Forcing InnoDB Recovery">Section&nbsp;15.21.3, &ldquo;Forcing InnoDB Recovery&rdquo;</a>
+    for more information).
+  </p><p>
+    In memory, the change buffer occupies part of the buffer pool. On
+    disk, the change buffer is part of the system tablespace, where
+    index changes are buffered when the database server is shut down.
+  </p><p>
+    The type of data cached in the change buffer is governed by the
+    <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffering"><code class="literal">innodb_change_buffering</code></a> variable.
+    For more information, see
+    <a class="xref" href="innodb-change-buffer.html#innodb-change-buffer-configuration" title="Configuring Change Buffering">Configuring Change Buffering</a>. You can also
+    configure the maximum change buffer size. For more information, see
+    <a class="xref" href="innodb-change-buffer.html#innodb-change-buffer-maximum-size" title="Configuring the Change Buffer Maximum Size">Configuring the Change Buffer Maximum Size</a>.
+  </p><p>
+    Change buffering is not supported for a secondary index if the index
+    contains a descending index column or if the primary key includes a
+    descending index column.
+  </p><p>
+    For answers to frequently asked questions about the change buffer,
+    see <a class="xref" href="faqs-innodb-change-buffer.html" title="A.16&nbsp;MySQL 8.0 FAQ: InnoDB Change Buffer">Section&nbsp;A.16, &ldquo;MySQL 8.0 FAQ: InnoDB Change Buffer&rdquo;</a>.
+  </p><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1414"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Configuring%20Change%20Buffering"></a><h4 class="title"><a id="innodb-change-buffer-configuration"></a>Configuring Change Buffering</h4></div></div></div><a id="idm45828892371856" class="indexterm"></a><a id="idm45828892370784" class="indexterm"></a><a id="idm45828892369296" class="indexterm"></a><p>
+      When <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a>,
+      <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a>, and
+      <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> operations are performed on
+      a table, the values of indexed columns (particularly the values of
+      secondary keys) are often in an unsorted order, requiring
+      substantial I/O to bring secondary indexes up to date. The
+      <a class="link" href="glossary.html#glos_change_buffer" title="change buffer">change buffer</a> caches
+      changes to secondary index entries when the relevant
+      <a class="link" href="glossary.html#glos_page" title="page">page</a> is not in the
+      <a class="link" href="glossary.html#glos_buffer_pool" title="buffer pool">buffer pool</a>, thus avoiding
+      expensive I/O operations by not immediately reading in the page
+      from disk. The buffered changes are merged when the page is loaded
+      into the buffer pool, and the updated page is later flushed to
+      disk. The <code class="literal">InnoDB</code> main thread merges buffered
+      changes when the server is nearly idle, and during a
+      <a class="link" href="glossary.html#glos_slow_shutdown" title="slow shutdown">slow shutdown</a>.
+    </p><p>
+      Because it can result in fewer disk reads and writes, change
+      buffering is most valuable for workloads that are I/O-bound; for
+      example, applications with a high volume of DML operations such as
+      bulk inserts benefit from change buffering.
+    </p><p>
+      However, the change buffer occupies a part of the buffer pool,
+      reducing the memory available to cache data pages. If the working
+      set almost fits in the buffer pool, or if your tables have
+      relatively few secondary indexes, it may be useful to disable
+      change buffering. If the working data set fits entirely within the
+      buffer pool, change buffering does not impose extra overhead,
+      because it only applies to pages that are not in the buffer pool.
+    </p><p>
+      The <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffering"><code class="literal">innodb_change_buffering</code></a>
+      variable controls the extent to which <code class="literal">InnoDB</code>
+      performs change buffering. You can enable or disable buffering for
+      inserts, delete operations (when index records are initially
+      marked for deletion) and purge operations (when index records are
+      physically deleted). An update operation is a combination of an
+      insert and a delete. The default
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffering"><code class="literal">innodb_change_buffering</code></a> value is
+      <code class="literal">all</code>.
+    </p><p>
+      Permitted <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffering"><code class="literal">innodb_change_buffering</code></a>
+      values include:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <span class="bold"><strong><code class="literal">all</code></strong></span>
+        </p><p>
+          The default value: buffer inserts, delete-marking operations,
+          and purges.
+        </p></li><li class="listitem"><p>
+          <span class="bold"><strong><code class="literal">none</code></strong></span>
+        </p><p>
+          Do not buffer any operations.
+        </p></li><li class="listitem"><p>
+          <span class="bold"><strong><code class="literal">inserts</code></strong></span>
+        </p><p>
+          Buffer insert operations.
+        </p></li><li class="listitem"><p>
+          <span class="bold"><strong><code class="literal">deletes</code></strong></span>
+        </p><p>
+          Buffer delete-marking operations.
+        </p></li><li class="listitem"><p>
+          <span class="bold"><strong><code class="literal">changes</code></strong></span>
+        </p><p>
+          Buffer both inserts and delete-marking operations.
+        </p></li><li class="listitem"><p>
+          <span class="bold"><strong><code class="literal">purges</code></strong></span>
+        </p><p>
+          Buffer the physical deletion operations that happen in the
+          background.
+        </p></li></ul></div><p>
+      You can set the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffering"><code class="literal">innodb_change_buffering</code></a> variable
+      in the MySQL option file (<code class="literal">my.cnf</code> or
+      <code class="literal">my.ini</code>) or change it dynamically with the
+      <a class="link" href="set-variable.html" title="13.7.6.1&nbsp;SET Syntax for Variable Assignment"><code class="literal">SET GLOBAL</code></a>
+      statement, which requires privileges sufficient to set global
+      system variables. See
+      <a class="xref" href="system-variable-privileges.html" title="5.1.9.1&nbsp;System Variable Privileges">Section&nbsp;5.1.9.1, &ldquo;System Variable Privileges&rdquo;</a>. Changing the setting
+      affects the buffering of new operations; the merging of existing
+      buffered entries is not affected.
+    </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1415"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Configuring%20the%20Change%20Buffer%20Maximum%20Size"></a><h4 class="title"><a id="innodb-change-buffer-maximum-size"></a>Configuring the Change Buffer Maximum Size</h4></div></div></div><p>
+      The <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffer_max_size"><code class="literal">innodb_change_buffer_max_size</code></a>
+      variable permits configuring the maximum size of the change buffer
+      as a percentage of the total size of the buffer pool. By default,
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffer_max_size"><code class="literal">innodb_change_buffer_max_size</code></a> is
+      set to 25. The maximum setting is 50.
+    </p><p>
+      Consider increasing
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffer_max_size"><code class="literal">innodb_change_buffer_max_size</code></a> on
+      a MySQL server with heavy insert, update, and delete activity,
+      where change buffer merging does not keep pace with new change
+      buffer entries, causing the change buffer to reach its maximum
+      size limit.
+    </p><p>
+      Consider decreasing
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffer_max_size"><code class="literal">innodb_change_buffer_max_size</code></a> on
+      a MySQL server with static data used for reporting, or if the
+      change buffer consumes too much of the memory space shared with
+      the buffer pool, causing pages to age out of the buffer pool
+      sooner than desired.
+    </p><p>
+      Test different settings with a representative workload to
+      determine an optimal configuration. The
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffer_max_size"><code class="literal">innodb_change_buffer_max_size</code></a>
+      variable is dynamic, which permits modifying the setting without
+      restarting the server.
+    </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1416"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Monitoring%20the%20Change%20Buffer"></a><h4 class="title"><a id="innodb-change-buffer-monitoring"></a>Monitoring the Change Buffer</h4></div></div></div><a id="idm45828892319744" class="indexterm"></a><a id="idm45828892318256" class="indexterm"></a><p>
+      The following options are available for change buffer monitoring:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">InnoDB</code> Standard Monitor output includes
+          change buffer status information. To view monitor data, issue
+          the <code class="literal">SHOW ENGINE INNODB STATUS</code> statement.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW ENGINE INNODB STATUS\G</code></strong>
+</pre><p>
+          Change buffer status information is located under the
+          <code class="literal">INSERT BUFFER AND ADAPTIVE HASH INDEX</code>
+          heading and appears similar to the following:
+        </p><pre class="programlisting">-------------------------------------
+INSERT BUFFER AND ADAPTIVE HASH INDEX
+-------------------------------------
+Ibuf: size 1, free list len 0, seg size 2, 0 merges
+merged operations:
+ insert 0, delete mark 0, delete 0
+discarded operations:
+ insert 0, delete mark 0, delete 0
+Hash table size 4425293, used cells 32, node heap has 1 buffer(s)
+13577.57 hash searches/s, 202.47 non-hash searches/s
+</pre><p>
+          For more information, see
+          <a class="xref" href="innodb-standard-monitor.html" title="15.17.3&nbsp;InnoDB Standard Monitor and Lock Monitor Output">Section&nbsp;15.17.3, &ldquo;InnoDB Standard Monitor and Lock Monitor Output&rdquo;</a>.
+        </p></li><li class="listitem"><p>
+          The Information Schema
+          <a class="link" href="information-schema-innodb-metrics-table.html" title="26.4.21&nbsp;The INFORMATION_SCHEMA INNODB_METRICS Table"><code class="literal">INNODB_METRICS</code></a> table provides
+          most of the data points found in <code class="literal">InnoDB</code>
+          Standard Monitor output plus other data points. To view change
+          buffer metrics and a description of each, issue the following
+          query:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT NAME, COMMENT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME LIKE &#39;%ibuf%&#39;\G</code></strong>
+</pre><p>
+          See <a class="xref" href="innodb-information-schema-metrics-table.html" title="15.15.6&nbsp;InnoDB INFORMATION_SCHEMA Metrics Table">Section&nbsp;15.15.6, &ldquo;InnoDB INFORMATION_SCHEMA Metrics Table&rdquo;</a>.
+        </p></li><li class="listitem"><p>
+          The Information Schema
+          <a class="link" href="information-schema-innodb-buffer-page-table.html" title="26.4.2&nbsp;The INFORMATION_SCHEMA INNODB_BUFFER_PAGE Table"><code class="literal">INNODB_BUFFER_PAGE</code></a> table provides
+          metadata about each page in the buffer pool, including change
+          buffer index and change buffer bitmap pages. Change buffer
+          pages are identified by <code class="literal">PAGE_TYPE</code>.
+          <code class="literal">IBUF_INDEX</code> is the page type for change
+          buffer index pages, and <code class="literal">IBUF_BITMAP</code> is the
+          page type for change buffer bitmap pages.
+        </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+            Querying the <a class="link" href="information-schema-innodb-buffer-page-table.html" title="26.4.2&nbsp;The INFORMATION_SCHEMA INNODB_BUFFER_PAGE Table"><code class="literal">INNODB_BUFFER_PAGE</code></a>
+            table can introduce significant performance overhead. To
+            avoid impacting performance, reproduce the issue you want to
+            investigate on a test instance and run your queries on the
+            test instance.
+          </p></div><p>
+          For example, you can query the
+          <a class="link" href="information-schema-innodb-buffer-page-table.html" title="26.4.2&nbsp;The INFORMATION_SCHEMA INNODB_BUFFER_PAGE Table"><code class="literal">INNODB_BUFFER_PAGE</code></a> table to
+          determine the approximate number of
+          <code class="literal">IBUF_INDEX</code> and
+          <code class="literal">IBUF_BITMAP</code> pages as a percentage of total
+          buffer pool pages.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT (SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE</code></strong>
+       <strong class="userinput"><code>WHERE PAGE_TYPE LIKE &#39;IBUF%&#39;) AS change_buffer_pages,</code></strong>
+       <strong class="userinput"><code>(SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE) AS total_pages,</code></strong>
+       <strong class="userinput"><code>(SELECT ((change_buffer_pages/total_pages)*100))</code></strong>
+       <strong class="userinput"><code>AS change_buffer_page_percentage;</code></strong>
++---------------------+-------------+-------------------------------+
+| change_buffer_pages | total_pages | change_buffer_page_percentage |
++---------------------+-------------+-------------------------------+
+|                  25 |        8192 |                        0.3052 |
++---------------------+-------------+-------------------------------+
+</pre><p>
+          For information about other data provided by the
+          <a class="link" href="information-schema-innodb-buffer-page-table.html" title="26.4.2&nbsp;The INFORMATION_SCHEMA INNODB_BUFFER_PAGE Table"><code class="literal">INNODB_BUFFER_PAGE</code></a> table, see
+          <a class="xref" href="information-schema-innodb-buffer-page-table.html" title="26.4.2&nbsp;The INFORMATION_SCHEMA INNODB_BUFFER_PAGE Table">Section&nbsp;26.4.2, &ldquo;The INFORMATION_SCHEMA INNODB_BUFFER_PAGE Table&rdquo;</a>.
+          For related usage information, see
+          <a class="xref" href="innodb-information-schema-buffer-pool-tables.html" title="15.15.5&nbsp;InnoDB INFORMATION_SCHEMA Buffer Pool Tables">Section&nbsp;15.15.5, &ldquo;InnoDB INFORMATION_SCHEMA Buffer Pool Tables&rdquo;</a>.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="performance-schema.html" title="Chapter&nbsp;27&nbsp;MySQL Performance Schema">Performance Schema</a>
+          provides change buffer mutex wait instrumentation for advanced
+          performance monitoring. To view change buffer instrumentation,
+          issue the following query:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE &#39;%wait/synch/mutex/innodb/ibuf%&#39;;</code></strong>
++-------------------------------------------------------+---------+-------+
+| NAME                                                  | ENABLED | TIMED |
++-------------------------------------------------------+---------+-------+
+| wait/synch/mutex/innodb/ibuf_bitmap_mutex             | YES     | YES   |
+| wait/synch/mutex/innodb/ibuf_mutex                    | YES     | YES   |
+| wait/synch/mutex/innodb/ibuf_pessimistic_insert_mutex | YES     | YES   |
++-------------------------------------------------------+---------+-------+
+</pre><p>
+          For information about monitoring <code class="literal">InnoDB</code>
+          mutex waits, see
+          <a class="xref" href="monitor-innodb-mutex-waits-performance-schema.html" title="15.16.2&nbsp;Monitoring InnoDB Mutex Waits Using Performance Schema">Section&nbsp;15.16.2, &ldquo;Monitoring InnoDB Mutex Waits Using Performance Schema&rdquo;</a>.
+        </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-buffer-pool.html">Previous <span class="navHint"> Buffer Pool </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-in-memory-structures.html">Up <span class="navHint"> InnoDB In-Memory Structures </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-adaptive-hash.html">Next <span class="navHint"> Adaptive Hash Index </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

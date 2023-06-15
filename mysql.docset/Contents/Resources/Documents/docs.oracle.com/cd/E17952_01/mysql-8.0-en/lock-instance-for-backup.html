@@ -1,0 +1,67 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1880"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/13.3.5%C2%A0LOCK%20INSTANCE%20FOR%20BACKUP%20and%20UNLOCK%20INSTANCE%20Statements"></a><title>13.3.5&nbsp;LOCK INSTANCE FOR BACKUP and UNLOCK INSTANCE Statements</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="sql-transactional-statements.html" title="13.3&nbsp;Transactional and Locking Statements"/><link rel="prev" href="savepoint.html" title="13.3.4&nbsp;SAVEPOINT, ROLLBACK TO SAVEPOINT, and RELEASE SAVEPOINT Statements"/><link rel="next" href="lock-tables.html" title="13.3.6&nbsp;LOCK TABLES and UNLOCK TABLES Statements"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="lock-instance-for-backup.html#lock-instance-for-backup">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="savepoint.html">Previous <span class="navHint"> SAVEPOINT, ROLLBACK TO SAVEPOINT, and RELEASE SAVEPOINT Statements </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="sql-transactional-statements.html">Up <span class="navHint"> Transactional and Locking Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="lock-tables.html">Next <span class="navHint"> LOCK TABLES and UNLOCK TABLES Statements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="lock-instance-for-backup"></a>13.3.5&nbsp;LOCK INSTANCE FOR BACKUP and UNLOCK INSTANCE Statements</h3></div></div></div><a id="idm45828904979872" class="indexterm"></a><a id="idm45828904978832" class="indexterm"></a><pre class="programlisting">LOCK INSTANCE FOR BACKUP
+
+UNLOCK INSTANCE
+</pre><p>
+      <code class="literal">LOCK INSTANCE FOR BACKUP</code> acquires an
+      instance-level <span class="emphasis"><em>backup lock</em></span> that permits DML
+      during an online backup while preventing operations that could
+      result in an inconsistent snapshot.
+    </p><p>
+      Executing the <code class="literal">LOCK INSTANCE FOR BACKUP</code>
+      statement requires the <a class="link" href="privileges-provided.html#priv_backup-admin"><code class="literal">BACKUP_ADMIN</code></a>
+      privilege. The <a class="link" href="privileges-provided.html#priv_backup-admin"><code class="literal">BACKUP_ADMIN</code></a>
+      privilege is automatically granted to users with the
+      <a class="link" href="privileges-provided.html#priv_reload"><code class="literal">RELOAD</code></a> privilege when performing an
+      in-place upgrade to MySQL 8.0 from an earlier
+      version.
+    </p><p>
+      Multiple sessions can hold a backup lock simultaneously.
+    </p><p>
+      <code class="literal">UNLOCK INSTANCE</code> releases a backup lock held by
+      the current session. A backup lock held by a session is also
+      released if the session is terminated.
+    </p><p>
+      <code class="literal">LOCK INSTANCE FOR BACKUP</code> prevents files from
+      being created, renamed, or removed. <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR
+      TABLE</code></a> <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a>,
+      <a class="link" href="optimize-table.html" title="13.7.3.4&nbsp;OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a>, and account
+      management statements are blocked. See
+      <a class="xref" href="account-management-statements.html" title="13.7.1&nbsp;Account Management Statements">Section&nbsp;13.7.1, &ldquo;Account Management Statements&rdquo;</a>. Operations that
+      modify <code class="literal">InnoDB</code> files that are not recorded in
+      the <code class="literal">InnoDB</code> redo log are also blocked.
+    </p><p>
+      <code class="literal">LOCK INSTANCE FOR BACKUP</code> permits DDL operations
+      that only affect user-created temporary tables. In effect, files
+      that belong to user-created temporary tables can be created,
+      renamed, or removed while a backup lock is held. Creation of
+      binary log files is also permitted.
+    </p><p>
+      <a class="link" href="purge-binary-logs.html" title="13.4.1.1&nbsp;PURGE BINARY LOGS Statement"><code class="literal">PURGE BINARY LOGS</code></a> should not be
+      issued while a <a class="link" href="lock-instance-for-backup.html" title="13.3.5&nbsp;LOCK INSTANCE FOR BACKUP and UNLOCK INSTANCE Statements"><code class="literal">LOCK INSTANCE FOR
+      BACKUP</code></a> statement is in effect for the instance, because
+      it contravenes the rules of the backup lock by removing files from
+      the server. From MySQL 8.0.28, this is disallowed.
+    </p><p>
+      A backup lock acquired by <code class="literal">LOCK INSTANCE FOR
+      BACKUP</code> is independent of transactional locks and locks
+      taken by
+      <a class="link" href="flush.html#flush-tables-with-read-lock-with-list"><code class="literal">FLUSH
+      TABLES <em class="replaceable"><code>tbl_name</code></em> [,
+      <em class="replaceable"><code>tbl_name</code></em>] ... WITH READ LOCK</code></a>,
+      and the following sequences of statements are permitted:
+    </p><pre class="programlisting">LOCK INSTANCE FOR BACKUP;
+FLUSH TABLES <em class="replaceable"><code>tbl_name</code></em> [, <em class="replaceable"><code>tbl_name</code></em>] ... WITH READ LOCK;
+UNLOCK TABLES;
+UNLOCK INSTANCE;
+</pre><pre class="programlisting">FLUSH TABLES <em class="replaceable"><code>tbl_name</code></em> [, <em class="replaceable"><code>tbl_name</code></em>] ... WITH READ LOCK;
+LOCK INSTANCE FOR BACKUP;
+UNLOCK INSTANCE;
+UNLOCK TABLES;
+</pre><p>
+      The <a class="link" href="server-system-variables.html#sysvar_lock_wait_timeout"><code class="literal">lock_wait_timeout</code></a> setting
+      defines the amount of time that a <code class="literal">LOCK INSTANCE FOR
+      BACKUP</code> statement waits to acquire a lock before giving
+      up.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="savepoint.html">Previous <span class="navHint"> SAVEPOINT, ROLLBACK TO SAVEPOINT, and RELEASE SAVEPOINT Statements </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sql-transactional-statements.html">Up <span class="navHint"> Transactional and Locking Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="lock-tables.html">Next <span class="navHint"> LOCK TABLES and UNLOCK TABLES Statements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

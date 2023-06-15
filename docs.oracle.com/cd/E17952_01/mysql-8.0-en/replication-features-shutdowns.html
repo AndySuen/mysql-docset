@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.5.1.28 Replication and Source or Replica Shutdowns</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-features.html" title="17.5.1 Replication Features and Issues" /><link rel="prev" href="replication-features-row-searches.html" title="17.5.1.27 Replication and Row Searches" /><link rel="next" href="replication-features-errors.html" title="17.5.1.29 Replica Errors During Replication" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-shutdowns.html#replication-features-shutdowns">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-features-row-searches.html">Previous <span class="navHint"> Replication and Row Searches </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-features-errors.html">Next <span class="navHint"> Replica Errors During Replication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-features-shutdowns"></a>17.5.1.28 Replication and Source or Replica Shutdowns</h4></div></div></div><a id="idm45828856296800" class="indexterm"></a><a id="idm45828856295312" class="indexterm"></a><a id="idm45828856293824" class="indexterm"></a><a id="idm45828856292336" class="indexterm"></a><p>
+        It is safe to shut down a replication source server and restart
+        it later. When a replica loses its connection to the source, the
+        replica tries to reconnect immediately and retries periodically
+        if that fails. The default is to retry every 60 seconds. This
+        may be changed with the <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION
+        SOURCE TO</code></a> statement (from MySQL 8.0.23) or
+        <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement
+        (before MySQL 8.0.23). A replica also is able to deal with
+        network connectivity outages. However, the replica notices the
+        network outage only after receiving no data from the source for
+        <a class="link" href="replication-options-replica.html#sysvar_replica_net_timeout"><code class="literal">replica_net_timeout</code></a> or
+        <a class="link" href="replication-options-replica.html#sysvar_slave_net_timeout"><code class="literal">slave_net_timeout</code></a> seconds. If
+        your outages are short, you may want to decrease the value of
+        <a class="link" href="replication-options-replica.html#sysvar_replica_net_timeout"><code class="literal">replica_net_timeout</code></a> or
+        <a class="link" href="replication-options-replica.html#sysvar_slave_net_timeout"><code class="literal">slave_net_timeout</code></a>. See
+        <a class="xref" href="replication-solutions-unexpected-replica-halt.html" title="17.4.2 Handling an Unexpected Halt of a Replica">Section 17.4.2, “Handling an Unexpected Halt of a Replica”</a>.
+      </p><p>
+        An unclean shutdown (for example, a crash) on the source side
+        can result in the source's binary log having a final position
+        less than the most recent position read by the replica, due to
+        the source's binary log file not being flushed. This can cause
+        the replica not to be able to replicate when the source comes
+        back up. Setting <a class="link" href="replication-options-binary-log.html#sysvar_sync_binlog"><code class="literal">sync_binlog=1</code></a>
+        in the source server's <code class="filename">my.cnf</code> file helps to
+        minimize this problem because it causes the source to flush its
+        binary log more frequently. For the greatest possible durability
+        and consistency in a replication setup using
+        <code class="literal">InnoDB</code> with transactions, you should also set
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_flush_log_at_trx_commit"><code class="literal">innodb_flush_log_at_trx_commit=1</code></a>.
+        With this setting, the contents of the <code class="literal">InnoDB</code>
+        redo log buffer are written out to the log file at each
+        transaction commit and the log file is flushed to disk. Note
+        that the durability of transactions is still not guaranteed with
+        this setting, because operating systems or disk hardware may
+        tell <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> that the flush-to-disk operation
+        has taken place, even though it has not.
+      </p><p>
+        Shutting down a replica cleanly is safe because it keeps track
+        of where it left off. However, be careful that the replica does
+        not have temporary tables open; see
+        <a class="xref" href="replication-features-temptables.html" title="17.5.1.31 Replication and Temporary Tables">Section 17.5.1.31, “Replication and Temporary Tables”</a>. Unclean
+        shutdowns might produce problems, especially if the disk cache
+        was not flushed to disk before the problem occurred:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For transactions, the replica commits and then updates
+            <code class="filename">relay-log.info</code>. If an unexpected exit
+            occurs between these two operations, relay log processing
+            proceeds further than the information file indicates and the
+            replica re-executes the events from the last transaction in
+            the relay log after it has been restarted.
+          </p></li><li class="listitem"><p>
+            A similar problem can occur if the replica updates
+            <code class="filename">relay-log.info</code> but the server host
+            crashes before the write has been flushed to disk. To
+            minimize the chance of this occurring, set
+            <a class="link" href="replication-options-replica.html#sysvar_sync_relay_log_info"><code class="literal">sync_relay_log_info=1</code></a> in
+            the replica <code class="filename">my.cnf</code> file. Setting
+            <a class="link" href="replication-options-replica.html#sysvar_sync_relay_log_info"><code class="literal">sync_relay_log_info</code></a> to 0
+            causes no writes to be forced to disk and the server relies
+            on the operating system to flush the file from time to time.
+          </p></li></ul></div><p>
+        The fault tolerance of your system for these types of problems
+        is greatly increased if you have a good uninterruptible power
+        supply.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-row-searches.html">Previous <span class="navHint"> Replication and Row Searches </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-errors.html">Next <span class="navHint"> Replica Errors During Replication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

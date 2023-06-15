@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>4.10 Unix Signal Handling in MySQL</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="programs.html" title="Chapter 4 MySQL Programs" /><link rel="prev" href="environment-variables.html" title="4.9 Environment Variables" /><link rel="next" href="server-administration.html" title="Chapter 5 MySQL Server Administration" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="unix-signal-response.html#unix-signal-response">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="environment-variables.html">Previous <span class="navHint"> Environment Variables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="programs.html">Up <span class="navHint"> MySQL Programs </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="server-administration.html">Next <span class="navHint"> MySQL Server Administration </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="unix-signal-response"></a>4.10 Unix Signal Handling in MySQL</h2></div></div></div><a id="idm45829030720528" class="indexterm"></a><a id="idm45829030719488" class="indexterm"></a><p>
+      On Unix and Unix-like systems, a process can be the recipient of
+      signals sent to it by the <code class="literal">root</code> system account
+      or the system account that owns the process. Signals can be sent
+      using the <a class="link" href="kill.html" title="13.7.8.4 KILL Statement"><span class="command"><strong>kill</strong></span></a> command. Some command
+      interpreters associate certain key sequences with signals, such as
+      <span class="keycap"><strong>Control+C</strong></span> to send a <code class="literal">SIGINT</code>
+      signal. This section describes how the MySQL server and client
+      programs respond to signals.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="unix-signal-response.html#server-signal-response" title="Server Response to Signals">Server Response to Signals</a></p></li><li class="listitem"><p><a class="xref" href="unix-signal-response.html#client-signal-response" title="Client Response to Signals">Client Response to Signals</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h3 class="title"><a id="server-signal-response"></a>Server Response to Signals</h3></div></div></div><a id="idm45829030710720" class="indexterm"></a><a id="idm45829030709264" class="indexterm"></a><a id="idm45829030707776" class="indexterm"></a><a id="idm45829030706288" class="indexterm"></a><a id="idm45829030704800" class="indexterm"></a><a id="idm45829030703312" class="indexterm"></a><p>
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> responds to signals as follows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">SIGTERM</code> causes the server to shut down.
+            This is like executing a
+            <a class="link" href="shutdown.html" title="13.7.8.9 SHUTDOWN Statement"><code class="literal">SHUTDOWN</code></a> statement without
+            having to connect to the server (which for shutdown requires
+            an account that has the
+            <a class="link" href="privileges-provided.html#priv_shutdown"><code class="literal">SHUTDOWN</code></a> privilege).
+          </p></li><li class="listitem"><p>
+            <code class="literal">SIGHUP</code> causes the server to reload the
+            grant tables and to flush tables, logs, the thread cache,
+            and the host cache. These actions are like various forms of
+            the <a class="link" href="flush.html" title="13.7.8.3 FLUSH Statement"><code class="literal">FLUSH</code></a> statement. Sending
+            the signal enables the flush operations to be performed
+            without having to connect to the server, which requires a
+            MySQL account that has privileges sufficient for those
+            operations. Prior to MySQL 8.0.20, the server also writes a
+            status report to the error log that has this format:
+          </p><pre class="programlisting">Status information:
+
+Current dir: /var/mysql/data/
+Running threads: 4  Stack size: 262144
+Current locks:
+lock: 0x7f742c02c0e0:
+
+lock: 0x2cee2a20:
+:
+lock: 0x207a080:
+
+Key caches:
+default
+Buffer_size:       8388608
+Block_size:           1024
+Division_limit:        100
+Age_limit:             300
+blocks used:             4
+not flushed:             0
+w_requests:              0
+writes:                  0
+r_requests:              8
+reads:                   4
+
+handler status:
+read_key:           13
+read_next:           4
+read_rnd             0
+read_first:         13
+write:               1
+delete               0
+update:              0
+
+Table status:
+Opened tables:        121
+Open tables:          114
+Open files:            18
+Open streams:           0
+
+Memory status:
+&lt;malloc version="1"&gt;
+&lt;heap nr="0"&gt;
+&lt;sizes&gt;
+  &lt;size from="17" to="32" total="32" count="1"/&gt;
+  &lt;size from="33" to="48" total="96" count="2"/&gt;
+  &lt;size from="33" to="33" total="33" count="1"/&gt;
+  &lt;size from="97" to="97" total="6014" count="62"/&gt;
+  &lt;size from="113" to="113" total="904" count="8"/&gt;
+  &lt;size from="193" to="193" total="193" count="1"/&gt;
+  &lt;size from="241" to="241" total="241" count="1"/&gt;
+  &lt;size from="609" to="609" total="609" count="1"/&gt;
+  &lt;size from="16369" to="16369" total="49107" count="3"/&gt;
+  &lt;size from="24529" to="24529" total="98116" count="4"/&gt;
+  &lt;size from="32689" to="32689" total="32689" count="1"/&gt;
+  &lt;unsorted from="241" to="7505" total="7746" count="2"/&gt;
+&lt;/sizes&gt;
+&lt;total type="fast" count="3" size="128"/&gt;
+&lt;total type="rest" count="84" size="195652"/&gt;
+&lt;system type="current" size="690774016"/&gt;
+&lt;system type="max" size="690774016"/&gt;
+&lt;aspace type="total" size="690774016"/&gt;
+&lt;aspace type="mprotect" size="690774016"/&gt;
+&lt;/heap&gt;
+:
+&lt;total type="fast" count="85" size="5520"/&gt;
+&lt;total type="rest" count="116" size="316820"/&gt;
+&lt;total type="mmap" count="82" size="939954176"/&gt;
+&lt;system type="current" size="695717888"/&gt;
+&lt;system type="max" size="695717888"/&gt;
+&lt;aspace type="total" size="695717888"/&gt;
+&lt;aspace type="mprotect" size="695717888"/&gt;
+&lt;/malloc&gt;
+
+Events status:
+LLA = Last Locked At  LUA = Last Unlocked At
+WOC = Waiting On Condition  DL = Data Locked
+
+Event scheduler status:
+State      : INITIALIZED
+Thread id  : 0
+LLA        : n/a:0
+LUA        : n/a:0
+WOC        : NO
+Workers    : 0
+Executed   : 0
+Data locked: NO
+
+Event queue status:
+Element count   : 0
+Data locked     : NO
+Attempting lock : NO
+LLA             : init_queue:95
+LUA             : init_queue:103
+WOC             : NO
+Next activation : never
+</pre></li><li class="listitem"><p>
+            As of MySQL 8.0.19, <code class="literal">SIGUSR1</code> causes the
+            server to flush the error log, general query log, and slow
+            query log. One use for <code class="literal">SIGUSR1</code> is to
+            implement log rotation without having to connect to the
+            server, which requires a MySQL account that has privileges
+            sufficient for those operations. For information about log
+            rotation, see <a class="xref" href="log-file-maintenance.html" title="5.4.6 Server Log Maintenance">Section 5.4.6, “Server Log Maintenance”</a>.
+          </p><p>
+            The server response to <code class="literal">SIGUSR1</code> is a
+            subset of the response to <code class="literal">SIGHUP</code>,
+            enabling <code class="literal">SIGUSR1</code> to be used as a more
+            <span class="quote">“<span class="quote">lightweight</span>”</span> signal that flushes certain logs
+            without the other <code class="literal">SIGHUP</code> effects such as
+            flushing the thread and host caches and writing a status
+            report to the error log.
+          </p></li><li class="listitem"><p>
+            <code class="literal">SIGINT</code> normally is ignored by the server.
+            Starting the server with the
+            <a class="link" href="server-options.html#option_mysqld_gdb"><code class="option">--gdb</code></a> option installs an
+            interrupt handler for <code class="literal">SIGINT</code> for
+            debugging purposes. See
+            <a class="xref" href="using-gdb-on-mysqld.html" title="5.9.1.4 Debugging mysqld under gdb">Section 5.9.1.4, “Debugging mysqld under gdb”</a>.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h3 class="title"><a id="client-signal-response"></a>Client Response to Signals</h3></div></div></div><a id="idm45829030675424" class="indexterm"></a><a id="idm45829030673968" class="indexterm"></a><a id="idm45829030672480" class="indexterm"></a><a id="idm45829030670992" class="indexterm"></a><p>
+        MySQL client programs respond to signals as follows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client interprets
+            <code class="literal">SIGINT</code> (typically the result of typing
+            <span class="keycap"><strong>Control+C</strong></span>) as instruction to interrupt the
+            current statement if there is one, or to cancel any partial
+            input line otherwise. This behavior can be disabled using
+            the <a class="link" href="mysql-command-options.html#option_mysql_sigint-ignore"><code class="option">--sigint-ignore</code></a> option to
+            ignore <code class="literal">SIGINT</code> signals.
+          </p></li><li class="listitem"><p>
+            Client programs that use the MySQL client library block
+            <code class="literal">SIGPIPE</code> signals by default. These
+            variations are possible:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                Client can install their own <code class="literal">SIGPIPE</code>
+                handler to override the default behavior. See
+                <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/c-api-threaded-clients.html" target="_top">Writing C API Threaded Client Programs</a>.
+              </p></li><li class="listitem"><p>
+                Clients can prevent installation of
+                <code class="literal">SIGPIPE</code> handlers by specifying the
+                <code class="literal">CLIENT_IGNORE_SIGPIPE</code> option to
+                <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-real-connect.html" target="_top"><code class="literal">mysql_real_connect()</code></a> at
+                connect time. See <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-real-connect.html" target="_top">mysql_real_connect()</a>.
+              </p></li></ul></div></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="environment-variables.html">Previous <span class="navHint"> Environment Variables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="programs.html">Up <span class="navHint"> MySQL Programs </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="server-administration.html">Next <span class="navHint"> MySQL Server Administration </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

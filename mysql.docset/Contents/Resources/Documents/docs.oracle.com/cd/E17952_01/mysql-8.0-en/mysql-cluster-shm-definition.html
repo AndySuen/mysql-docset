@@ -1,0 +1,601 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2496"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.4.3.12%C2%A0NDB%20Cluster%20Shared-Memory%20Connections"></a><title>23.4.3.12&nbsp;NDB Cluster Shared-Memory Connections</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-config-file.html" title="23.4.3&nbsp;NDB Cluster Configuration Files"/><link rel="prev" href="mysql-cluster-tcp-definition-direct.html" title="23.4.3.11&nbsp;NDB Cluster TCP/IP Connections Using Direct Connections"/><link rel="next" href="mysql-cluster-data-node-memory-management.html" title="23.4.3.13&nbsp;Data Node Memory Management"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-shm-definition.html#mysql-cluster-shm-definition">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-tcp-definition-direct.html">Previous <span class="navHint"> NDB Cluster TCP/IP Connections Using Direct Connections </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-config-file.html">Up <span class="navHint"> NDB Cluster Configuration Files </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-data-node-memory-management.html">Next <span class="navHint"> Data Node Memory Management </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2497"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/23.4.3.12%C2%A0NDB%20Cluster%20Shared-Memory%20Connections"></a><h4 class="title"><a id="mysql-cluster-shm-definition"></a>23.4.3.12&nbsp;NDB Cluster Shared-Memory Connections</h4></div></div></div><a id="idm45828828835232" class="indexterm"></a><a id="idm45828828833840" class="indexterm"></a><a id="idm45828828832448" class="indexterm"></a><a id="idm45828828831056" class="indexterm"></a><p>
+        Communications between NDB cluster nodes are normally handled
+        using TCP/IP. The shared memory (SHM) transporter is
+        distinguished by the fact that signals are transmitted by
+        writing in memory rather than on a socket. The shared-memory
+        transporter (SHM) can improve performance by negating up to 20%
+        of the overhead required by a TCP connection when running an API
+        node (usually an SQL node) and a data node together on the same
+        host. You can enable a shared memory connection in either of the
+        two ways listed here:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            By setting the
+            <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-useshm"><code class="literal">UseShm</code></a> data node
+            configuration parameter to <code class="literal">1</code>, and setting
+            <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-hostname"><code class="literal">HostName</code></a> for the
+            data node and
+            <a class="link" href="mysql-cluster-api-definition.html#ndbparam-api-hostname"><code class="literal">HostName</code></a> for the API
+            node to the same value.
+          </p></li><li class="listitem"><p>
+            By using <code class="literal">[shm]</code> sections in the cluster
+            configuration file, each containing settings for
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-nodeid1"><code class="literal">NodeId1</code></a> and
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-nodeid2"><code class="literal">NodeId2</code></a>. This method
+            is described in more detail later in this section.
+          </p></li></ul></div><p>
+        Suppose a cluster is running a data node which has node ID 1 and
+        an SQL node having node ID 51 on the same host computer at
+        10.0.0.1. To enable an SHM connection between these two nodes,
+        all that is necessary is to insure that the following entries
+        are included in the cluster configuration file:
+      </p><pre class="programlisting">[ndbd]
+NodeId=1
+HostName=10.0.0.1
+UseShm=1
+
+[mysqld]
+NodeId=51
+HostName=10.0.0.1
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          The two entries just shown are in addition to any other
+          entries and parameter settings needed by the cluster. A more
+          complete example is shown later in this section.
+        </p></div><p>
+        Before starting data nodes that use SHM connections, it is also
+        necessary to make sure that the operating system on each
+        computer hosting such a data node has sufficient memory
+        allocated to shared memory segments. See the documentation for
+        your operating platform for information regarding this. In
+        setups where multiple hosts are each running a data node and an
+        API node, it is possible to enable shared memory on all such
+        hosts by setting <code class="literal">UseShm</code> in the <code class="literal">[ndbd
+        default]</code> section of the configuration file. This is
+        shown in the example later in this section.
+      </p><p>
+        While not strictly required, tuning for all SHM connections in
+        the cluster can be done by setting one or more of the following
+        parameters in the <code class="literal">[shm default]</code> section of
+        the cluster configuration (<code class="filename">config.ini</code>)
+        file:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-shmsize"><code class="literal">ShmSize</code></a>: Shared
+            memory size
+          </p></li><li class="listitem"><p>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-shmspintime"><code class="literal">ShmSpinTime</code></a>: Time in
+            &micro;s to spin before sleeping
+          </p></li><li class="listitem"><p>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-sendbuffermemory"><code class="literal">SendBufferMemory</code></a>:
+            Size of buffer for signals sent from this node, in bytes.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-sendsignalid"><code class="literal">SendSignalId</code></a>:
+            Indicates that a signal ID is included in each signal sent
+            through the transporter.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-checksum"><code class="literal">Checksum</code></a>: Indicates
+            that a checksum is included in each signal sent through the
+            transporter.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-presendchecksum"><code class="literal">PreSendChecksum</code></a>:
+            Checks of the checksum are made prior to sending the signal;
+            Checksum must also be enabled for this to work
+          </p></li></ul></div><p>
+        This example shows a simple setup with SHM connections defined
+        on multiple hosts, in an NDB Cluster using 3 computers listed
+        here by host name, hosting the node types shown:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            <code class="literal">10.0.0.0</code>: The management server
+          </p></li><li class="listitem"><p>
+            <code class="literal">10.0.0.1</code>: A data node and an SQL node
+          </p></li><li class="listitem"><p>
+            <code class="literal">10.0.0.2</code>: A data node and an SQL node
+          </p></li></ol></div><p>
+        In this scenario, each data node communicates with both the
+        management server and the other data node using TCP
+        transporters; each SQL node uses a shared memory transporter to
+        communicate with the data nodes that is local to it, and a TCP
+        transporter to communicate with the remote data node. A basic
+        configuration reflecting this setup is enabled by the config.ini
+        file whose contents are shown here:
+      </p><pre class="programlisting">[ndbd default]
+DataDir=<em class="replaceable"><code>/path/to/datadir</code></em>
+UseShm=1
+
+[shm default]
+ShmSize=8M
+ShmSpintime=200
+SendBufferMemory=4M
+
+[tcp default]
+SendBufferMemory=8M
+
+[ndb_mgmd]
+NodeId=49
+Hostname=10.0.0.0
+DataDir=<em class="replaceable"><code>/path/to/datadir</code></em>
+
+[ndbd]
+NodeId=1
+Hostname=10.0.0.1
+DataDir=<em class="replaceable"><code>/path/to/datadir</code></em>
+
+[ndbd]
+NodeId=2
+Hostname=10.0.0.2
+DataDir=<em class="replaceable"><code>/path/to/datadir</code></em>
+
+[mysqld]
+NodeId=51
+Hostname=10.0.0.1
+
+[mysqld]
+NodeId=52
+Hostname=10.0.0.2
+
+[api]
+[api]
+</pre><p>
+        Parameters affecting all shared memory transporters are set in
+        the <code class="literal">[shm default]</code> section; these can be
+        overridden on a per-connection basis in one or more
+        <code class="literal">[shm]</code> sections. Each such section must be
+        associated with a given SHM connection using
+        <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-nodeid1"><code class="literal">NodeId1</code></a> and
+        <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-nodeid2"><code class="literal">NodeId2</code></a>; the values
+        required for these parameters are the node IDs of the two nodes
+        connected by the transporter. You can also identify the nodes by
+        host name using <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-hostname1"><code class="literal">HostName1</code></a>
+        and <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-hostname2"><code class="literal">HostName2</code></a>, but these
+        parameters are not required.
+      </p><p>
+        The API nodes for which no host names are set use the TCP
+        transporter to communicate with data nodes independent of the
+        hosts on which they are started; the parameters and values set
+        in the <code class="literal">[tcp default]</code> section of the
+        configuration file apply to all TCP transporters in the cluster.
+      </p><p>
+        For optimum performance, you can define a spin time for the SHM
+        transporter (<a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-shmspintime"><code class="literal">ShmSpinTime</code></a>
+        parameter); this affects both the data node receiver thread and
+        the poll owner (receive thread or user thread) in
+        <code class="literal">NDB</code>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="ndbparam-shm-checksum"></a>
+            <code class="literal">Checksum</code>
+          </p><a id="idm45828828781232" class="indexterm"></a><div class="informaltable"><a id="checksum-shm-table"></a><table frame="box" rules="all" width="35%" summary="Checksum shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>boolean</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>true</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>true, false</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            This parameter is a boolean
+            (<code class="literal">Y</code>/<code class="literal">N</code>) parameter which
+            is disabled by default. When it is enabled, checksums for
+            all messages are calculated before being placed in the send
+            buffer.
+          </p><p>
+            This feature prevents messages from being corrupted while
+            waiting in the send buffer. It also serves as a check
+            against data being corrupted during transport.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-group"></a>
+            <code class="literal">Group</code>
+          </p><a id="idm45828828760672" class="indexterm"></a><div class="informaltable"><a id="group-shm-table"></a><table frame="box" rules="all" width="35%" summary="Group shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>unsigned</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>35</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>0 - 200</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            Determines the group proximity; a smaller value is
+            interpreted as being closer. The default value is sufficient
+            for most conditions.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-hostname1"></a>
+            <code class="literal">HostName1</code>
+          </p><a id="idm45828828742000" class="indexterm"></a><div class="informaltable"><a id="hostname1-shm-table"></a><table frame="box" rules="all" width="35%" summary="HostName1 shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>name or IP address</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>[...]</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>...</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            The <code class="literal">HostName1</code> and
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-hostname2"><code class="literal">HostName2</code></a> parameters
+            can be used to specify specific network interfaces to be
+            used for a given SHM connection between two nodes. The
+            values used for these parameters can be host names or IP
+            addresses.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-hostname2"></a>
+            <code class="literal">HostName2</code>
+          </p><a id="idm45828828721616" class="indexterm"></a><div class="informaltable"><a id="hostname2-shm-table"></a><table frame="box" rules="all" width="35%" summary="HostName2 shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>name or IP address</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>[...]</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>...</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            The <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-hostname1"><code class="literal">HostName1</code></a> and
+            <code class="literal">HostName2</code> parameters can be used to
+            specify specific network interfaces to be used for a given
+            SHM connection between two nodes. The values used for these
+            parameters can be host names or IP addresses.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-nodeid1"></a>
+            <code class="literal">NodeId1</code>
+          </p><a id="idm45828828701248" class="indexterm"></a><a id="idm45828828700240" class="indexterm"></a><div class="informaltable"><a id="nodeid1-shm-table"></a><table frame="box" rules="all" width="35%" summary="NodeId1 shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>numeric</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>[none]</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>1 - 255</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            To identify a connection between two nodes it is necessary
+            to provide node identifiers for each of them, as
+            <code class="literal">NodeId1</code> and
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-nodeid2"><code class="literal">NodeId2</code></a>.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-nodeid2"></a>
+            <code class="literal">NodeId2</code>
+          </p><a id="idm45828828679584" class="indexterm"></a><a id="idm45828828678576" class="indexterm"></a><div class="informaltable"><a id="nodeid2-shm-table"></a><table frame="box" rules="all" width="35%" summary="NodeId2 shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>numeric</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>[none]</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>1 - 255</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            To identify a connection between two nodes it is necessary
+            to provide node identifiers for each of them, as
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-nodeid1"><code class="literal">NodeId1</code></a> and
+            <code class="literal">NodeId2</code>.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-nodeidserver"></a>
+            <code class="literal">NodeIdServer</code>
+          </p><a id="idm45828828657920" class="indexterm"></a><div class="informaltable"><a id="nodeidserver-shm-table"></a><table frame="box" rules="all" width="35%" summary="NodeIdServer shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>numeric</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>[none]</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>1 - 63</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            Identify the server end of a shared memory connection. By
+            default, this is the node ID of the data node.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-overloadlimit"></a>
+            <code class="literal">OverloadLimit</code>
+          </p><a id="idm45828828639264" class="indexterm"></a><div class="informaltable"><a id="overloadlimit-shm-table"></a><table frame="box" rules="all" width="35%" summary="OverloadLimit shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>bytes</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>0</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>0 - 4294967039 (0xFFFFFEFF)</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            When more than this many unsent bytes are in the send
+            buffer, the connection is considered overloaded. See
+            <a class="xref" href="mysql-cluster-config-send-buffers.html" title="23.4.3.14&nbsp;Configuring NDB Cluster Send Buffer Parameters">Section&nbsp;23.4.3.14, &ldquo;Configuring NDB Cluster Send Buffer Parameters&rdquo;</a>, and
+            <a class="xref" href="mysql-cluster-ndbinfo-transporters.html" title="23.6.16.64&nbsp;The ndbinfo transporters Table">Section&nbsp;23.6.16.64, &ldquo;The ndbinfo transporters Table&rdquo;</a>, for
+            more information.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-presendchecksum"></a>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-presendchecksum"><code class="literal">PreSendChecksum</code></a>
+          </p><a id="idm45828828619248" class="indexterm"></a><div class="informaltable"><a id="presendchecksum-shm-table"></a><table frame="box" rules="all" width="35%" summary="PreSendChecksum shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>boolean</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>false</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>true, false</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            If this parameter and
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-checksum"><code class="literal">Checksum</code></a> are both
+            enabled, perform pre-send checksum checks, and check all SHM
+            signals between nodes for errors. Has no effect if
+            <code class="literal">Checksum</code> is not also enabled.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-sendbuffermemory"></a>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-sendbuffermemory"><code class="literal">SendBufferMemory</code></a>
+          </p><a id="idm45828828598592" class="indexterm"></a><div class="informaltable"><a id="sendbuffermemory-shm-table"></a><table frame="box" rules="all" width="35%" summary="SendBufferMemory shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>integer</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>2M</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>256K - 4294967039 (0xFFFFFEFF)</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            Size (in bytes) of the shared memory buffer for signals sent
+            from this node using a shared memory connection.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-sendsignalid"></a>
+            <code class="literal">SendSignalId</code>
+          </p><a id="idm45828828579936" class="indexterm"></a><div class="informaltable"><a id="sendsignalid-shm-table"></a><table frame="box" rules="all" width="35%" summary="SendSignalId shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>boolean</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>false</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>true, false</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            To retrace the path of a distributed message, it is
+            necessary to provide each message with a unique identifier.
+            Setting this parameter to <code class="literal">Y</code> causes these
+            message IDs to be transported over the network as well. This
+            feature is disabled by default in production builds, and
+            enabled in <code class="literal">-debug</code> builds.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-shmkey"></a>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-shmkey"><code class="literal">ShmKey</code></a>
+          </p><a id="idm45828828559440" class="indexterm"></a><div class="informaltable"><a id="shmkey-shm-table"></a><table frame="box" rules="all" width="35%" summary="ShmKey shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>unsigned</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>0</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>0 - 4294967039 (0xFFFFFEFF)</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            When setting up shared memory segments, a node ID, expressed
+            as an integer, is used to identify uniquely the shared
+            memory segment to use for the communication. There is no
+            default value. If
+            <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-useshm"><code class="literal">UseShm</code></a> is enabled,
+            the shared memory key is calculated automatically by
+            <code class="literal">NDB</code>.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-shmsize"></a>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-shmsize"><code class="literal">ShmSize</code></a>
+          </p><a id="idm45828828538592" class="indexterm"></a><div class="informaltable"><a id="shmsize-shm-table"></a><table frame="box" rules="all" width="35%" summary="ShmSize shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>bytes</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>4M</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>64K - 4294967039 (0xFFFFFEFF)</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            Each SHM connection has a shared memory segment where
+            messages between nodes are placed by the sender and read by
+            the reader. The size of this segment is defined by
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-shmsize"><code class="literal">ShmSize</code></a>. The default
+            value is 4MB.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-shmspintime"></a>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-shmspintime"><code class="literal">ShmSpinTime</code></a>
+          </p><a id="idm45828828518512" class="indexterm"></a><div class="informaltable"><a id="shmspintime-shm-table"></a><table frame="box" rules="all" width="35%" summary="ShmSpinTime shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>integer</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>0</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>0 - 2000</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            When receiving, the time to wait before sleeping, in
+            microseconds.
+          </p></li><li class="listitem"><p><a id="ndbparam-shm-signum"></a>
+            <a class="link" href="mysql-cluster-shm-definition.html#ndbparam-shm-signum"><code class="literal">SigNum</code></a>
+          </p><a id="idm45828828499536" class="indexterm"></a><div class="informaltable"><a id="signum-shm-table"></a><table frame="box" rules="all" width="35%" summary="Signum shared memory configuration parameter type and value information"><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><tbody><tr>
+                <th>Version (or later)</th>
+                <td>NDB 8.0.13</td>
+              </tr><tr>
+                <th>Type or units</th>
+                <td>unsigned</td>
+              </tr><tr>
+                <th>Default</th>
+                <td>[...]</td>
+              </tr><tr>
+                <th>Range</th>
+                <td>0 - 4294967039 (0xFFFFFEFF)</td>
+              </tr><tr>
+                <th>Deprecated</th>
+                <td>Yes (in NDB 7.6)</td>
+              </tr><tr>
+                <th>Restart Type</th>
+                <td><p>
+                    <span class="bold"><strong>Node Restart:
+                    </strong></span>Requires a
+                    <a class="link" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">rolling
+                    restart</a> of the cluster. (NDB 8.0.13)
+                  </p></td>
+              </tr></tbody></table></div><p>
+            This parameter was used formerly to override operating
+            system signal numbers; in NDB 8.0, it is no longer used, and
+            any setting for it is ignored.
+          </p></li></ul></div><p><a id="mysql-cluster-shm-definition-restart-types"></a><strong>Restart types.&nbsp;</strong>
+          Information about the restart types used by the parameter
+          descriptions in this section is shown in the following table:
+        </p><div class="table"><a id="idm45828828478560"></a><p class="title"><strong>Table&nbsp;23.22&nbsp;NDB Cluster restart types</strong></p><div class="table-contents"><table summary="NDB Cluster restart types"><colgroup><col style="width: 10%"/><col style="width: 30%"/><col style="width: 60%"/></colgroup><thead><tr>
+            <th scope="col">Symbol</th>
+            <th scope="col">Restart Type</th>
+            <th scope="col">Description</th>
+          </tr></thead><tbody><tr>
+            <th scope="row">N</th>
+            <td>Node</td>
+            <td>The parameter can be updated using a rolling restart (see
+              <a class="xref" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">Section&nbsp;23.6.5, &ldquo;Performing a Rolling Restart of an NDB Cluster&rdquo;</a>)</td>
+          </tr><tr>
+            <th scope="row">S</th>
+            <td>System</td>
+            <td>All cluster nodes must be shut down completely, then restarted, to
+              effect a change in this parameter</td>
+          </tr><tr>
+            <th scope="row">I</th>
+            <td>Initial</td>
+            <td>Data nodes must be restarted using the
+              <a class="link" href="mysql-cluster-programs-ndbd.html#option_ndbd_initial"><code class="option">--initial</code></a> option</td>
+          </tr></tbody></table></div></div><br class="table-break"/></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-tcp-definition-direct.html">Previous <span class="navHint"> NDB Cluster TCP/IP Connections Using Direct Connections </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-config-file.html">Up <span class="navHint"> NDB Cluster Configuration Files </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-data-node-memory-management.html">Next <span class="navHint"> Data Node Memory Management </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

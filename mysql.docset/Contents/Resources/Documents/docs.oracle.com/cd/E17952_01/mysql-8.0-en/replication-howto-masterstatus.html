@@ -1,0 +1,84 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3628"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.1.2.4%C2%A0Obtaining%20the%20Replication%20Source%20Binary%20Log%20Coordinates"></a><title>17.1.2.4&nbsp;Obtaining the Replication Source Binary Log Coordinates</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-howto.html" title="17.1.2&nbsp;Setting Up Binary Log File Position Based Replication"/><link rel="prev" href="replication-howto-repuser.html" title="17.1.2.3&nbsp;Creating a User for Replication"/><link rel="next" href="replication-snapshot-method.html" title="17.1.2.5&nbsp;Choosing a Method for Data Snapshots"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-howto-masterstatus.html#replication-howto-masterstatus">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-howto-repuser.html">Previous <span class="navHint"> Creating a User for Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-howto.html">Up <span class="navHint"> Setting Up Binary Log File Position Based Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-snapshot-method.html">Next <span class="navHint"> Choosing a Method for Data Snapshots </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3627"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.1.2.4%C2%A0Obtaining%20the%20Replication%20Source%20Binary%20Log%20Coordinates"></a><h4 class="title"><a id="replication-howto-masterstatus"></a>17.1.2.4&nbsp;Obtaining the Replication Source Binary Log Coordinates</h4></div></div></div><p>
+        To configure the replica to start the replication process at the
+        correct point, you need to note the source&#39;s current coordinates
+        within its binary log.
+      </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+          This procedure uses <a class="link" href="flush.html#flush-tables-with-read-lock"><code class="literal">FLUSH TABLES WITH
+          READ LOCK</code></a>, which blocks
+          <a class="link" href="commit.html" title="13.3.1&nbsp;START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">COMMIT</code></a> operations for
+          <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> tables.
+        </p></div><p>
+        If you are planning to shut down the source to create a data
+        snapshot, you can optionally skip this procedure and instead
+        store a copy of the binary log index file along with the data
+        snapshot. In that situation, the source creates a new binary log
+        file on restart. The source binary log coordinates where the
+        replica must start the replication process are therefore the
+        start of that new file, which is the next binary log file on the
+        source following after the files that are listed in the copied
+        binary log index file.
+      </p><p>
+        To obtain the source binary log coordinates, follow these steps:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Start a session on the source by connecting to it with the
+            command-line client, and flush all tables and block write
+            statements by executing the <a class="link" href="flush.html#flush-tables-with-read-lock"><code class="literal">FLUSH
+            TABLES WITH READ LOCK</code></a> statement:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>FLUSH TABLES WITH READ LOCK;</code></strong>
+</pre><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+              Leave the client from which you issued the
+              <a class="link" href="flush.html#flush-tables"><code class="literal">FLUSH TABLES</code></a> statement
+              running so that the read lock remains in effect. If you
+              exit the client, the lock is released.
+            </p></div></li><li class="listitem"><p>
+            In a different session on the source, use the
+            <a class="link" href="show-master-status.html" title="13.7.7.23&nbsp;SHOW MASTER STATUS Statement"><code class="literal">SHOW MASTER STATUS</code></a> statement
+            to determine the current binary log file name and position:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW MASTER STATUS\G</code></strong>
+*************************** 1. row ***************************
+             File: mysql-bin.000003
+         Position: 73
+     Binlog_Do_DB: test
+ Binlog_Ignore_DB: manual, mysql
+Executed_Gtid_Set: 3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5
+1 row in set (0.00 sec)
+</pre><p>
+            The <code class="literal">File</code> column shows the name of the log
+            file and the <code class="literal">Position</code> column shows the
+            position within the file. In this example, the binary log
+            file is <code class="literal">mysql-bin.000003</code> and the position
+            is 73. Record these values. You need them later when you are
+            setting up the replica. They represent the replication
+            coordinates at which the replica should begin processing new
+            updates from the source.
+          </p><p>
+            If the source has been running previously with binary
+            logging disabled, the log file name and position values
+            displayed by <a class="link" href="show-master-status.html" title="13.7.7.23&nbsp;SHOW MASTER STATUS Statement"><code class="literal">SHOW MASTER
+            STATUS</code></a> or <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump
+            --master-data</strong></span></a> are empty. In that case, the values
+            that you need to use later when specifying the source&#39;s
+            binary log file and position are the empty string
+            (<code class="literal">&#39;&#39;</code>) and <code class="literal">4</code>.
+          </p></li></ol></div><p>
+        You now have the information you need to enable the replica to
+        start reading from the source&#39;s binary log in the correct place
+        to start replication.
+      </p><p>
+        The next step depends on whether you have existing data on the
+        source. Choose one of the following options:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If you have existing data that needs be to synchronized with
+            the replica before you start replication, leave the client
+            running so that the lock remains in place. This prevents any
+            further changes being made, so that the data copied to the
+            replica is in synchrony with the source. Proceed to
+            <a class="xref" href="replication-snapshot-method.html" title="17.1.2.5&nbsp;Choosing a Method for Data Snapshots">Section&nbsp;17.1.2.5, &ldquo;Choosing a Method for Data Snapshots&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            If you are setting up a new source and replica combination,
+            you can exit the first session to release the read lock. See
+            <a class="xref" href="replication-setup-replicas.html#replication-howto-newservers" title="17.1.2.6.1&nbsp;Setting Up Replication with New Source and Replicas">Section&nbsp;17.1.2.6.1, &ldquo;Setting Up Replication with New Source and Replicas&rdquo;</a> for how to
+            proceed.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-howto-repuser.html">Previous <span class="navHint"> Creating a User for Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-howto.html">Up <span class="navHint"> Setting Up Binary Log File Position Based Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-snapshot-method.html">Next <span class="navHint"> Choosing a Method for Data Snapshots </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

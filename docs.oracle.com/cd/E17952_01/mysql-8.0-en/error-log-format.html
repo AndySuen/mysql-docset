@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.4.2.9 Error Log Output Format</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="error-log.html" title="5.4.2 The Error Log" /><link rel="prev" href="error-log-syslog.html" title="5.4.2.8 Error Logging to the System Log" /><link rel="next" href="error-log-rotation.html" title="5.4.2.10 Error Log File Flushing and Renaming" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="error-log-format.html#error-log-format">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="error-log-syslog.html">Previous <span class="navHint"> Error Logging to the System Log </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="error-log.html">Up <span class="navHint"> The Error Log </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="error-log-rotation.html">Next <span class="navHint"> Error Log File Flushing and Renaming </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="error-log-format"></a>5.4.2.9 Error Log Output Format</h4></div></div></div><p>
+        Each error log sink (writer) component has a characteristic
+        output format it uses to write messages to its destination, but
+        other factors may influence the content of the messages:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The information available to the log sink. If a log filter
+            component executed prior to execution of the sink component
+            removes a log event field, that field is not available for
+            writing. For information about log filtering, see
+            <a class="xref" href="error-log-filtering.html" title="5.4.2.4 Types of Error Log Filtering">Section 5.4.2.4, “Types of Error Log Filtering”</a>.
+          </p></li><li class="listitem"><p>
+            The information relevant to the log sink. Not every sink
+            writes all fields available in error events.
+          </p></li><li class="listitem"><p>
+            System variables may affect log sinks. See
+            <a class="xref" href="error-log-format.html#error-log-format-system-variables" title="System Variables That Affect Error Log Format">System Variables That Affect Error Log Format</a>.
+          </p></li></ul></div><p>
+        For names and descriptions of the fields in error events, see
+        <a class="xref" href="error-log-event-fields.html" title="5.4.2.3 Error Event Fields">Section 5.4.2.3, “Error Event Fields”</a>. For all log sinks, the
+        thread ID included in error log messages is that of the thread
+        within <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> responsible for writing the
+        message. This ID indicates which part of the server produced the
+        message, and is consistent with general query log and slow query
+        log messages, which include the connection thread ID.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="error-log-format.html#error-log-format-output-format-for-log-sink-internal" title="log_sink_internal Output Format">log_sink_internal Output Format</a></p></li><li class="listitem"><p><a class="xref" href="error-log-format.html#error-log-format-output-format-for-log-sink-json" title="log_sink_json Output Format">log_sink_json Output Format</a></p></li><li class="listitem"><p><a class="xref" href="error-log-format.html#error-log-format-output-format-for-log-sink-syseventlog" title="log_sink_syseventlog Output Format">log_sink_syseventlog Output Format</a></p></li><li class="listitem"><p><a class="xref" href="error-log-format.html#error-log-format-output-format-for-early-logging" title="Early-Startup Logging Output Format">Early-Startup Logging Output Format</a></p></li><li class="listitem"><p><a class="xref" href="error-log-format.html#error-log-format-system-variables" title="System Variables That Affect Error Log Format">System Variables That Affect Error Log Format</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="error-log-format-output-format-for-log-sink-internal"></a>log_sink_internal Output Format</h5></div></div></div><p>
+          The internal log sink produces traditional error log output.
+          For example:
+        </p><pre class="programlisting">2020-08-06T14:25:02.835618Z 0 [Note] [MY-012487] [InnoDB] DDL log recovery : begin
+2020-08-06T14:25:02.936146Z 0 [Warning] [MY-010068] [Server] CA certificate /var/mysql/sslinfo/cacert.pem is self signed.
+2020-08-06T14:25:02.963127Z 0 [Note] [MY-010253] [Server] IPv6 is available.
+2020-08-06T14:25:03.109022Z 5 [Note] [MY-010051] [Server] Event Scheduler: scheduler thread started with id 5
+</pre><p>
+          Traditional-format messages have these fields:
+        </p><pre class="programlisting">time thread [label] [err_code] [subsystem] msg
+</pre><p>
+          The <code class="literal">[</code> and <code class="literal">]</code> square
+          bracket characters are literal characters in the message
+          format. They do not indicate that fields are optional.
+        </p><p>
+          The <code class="literal">label</code> value corresponds to the string
+          form of the <code class="literal">prio</code> error event priority
+          field.
+        </p><p>
+          The <code class="literal">[err_code]</code> and
+          <code class="literal">[subsystem]</code> fields were added in MySQL 8.0.
+          They are missing from logs generated by older servers. Log
+          parsers can treat these fields as parts of the message text
+          that is present only for logs written by servers recent enough
+          to include them. Parsers must treat the
+          <code class="literal">err_code</code> part of
+          <code class="literal">[err_code]</code> indicators as a string value,
+          not a number, because values such as
+          <code class="literal">MY-012487</code> and <code class="literal">MY-010051</code>
+          contain nonnumeric characters.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="error-log-format-output-format-for-log-sink-json"></a>log_sink_json Output Format</h5></div></div></div><p>
+          The JSON-format log sink produces messages as JSON objects
+          that contain key-value pairs. For example:
+        </p><pre class="programlisting">{
+  "prio": 3,
+  "err_code": 10051,
+  "source_line": 561,
+  "source_file": "event_scheduler.cc",
+  "function": "run",
+  "msg": "Event Scheduler: scheduler thread started with id 5",
+  "time": "2020-08-06T14:25:03.109022Z",
+  "ts": 1596724012005,
+  "thread": 5,
+  "err_symbol": "ER_SCHEDULER_STARTED",
+  "SQL_state": "HY000",
+  "subsystem": "Server",
+  "buffered": 1596723903109022,
+  "label": "Note"
+}
+</pre><p>
+          The message shown is reformatted for readability. Events
+          written to the error log appear one message per line.
+        </p><a id="idm45828985988224" class="indexterm"></a><p>
+          The <code class="literal">ts</code> (timestamp) key was added in MySQL
+          8.0.20 and is unique to the JSON-format log sink. The value is
+          an integer indicating milliseconds since the epoch
+          (<code class="literal">'1970-01-01 00:00:00'</code> UTC).
+        </p><p>
+          The <code class="literal">ts</code> and <code class="literal">buffered</code>
+          values are Unix timestamp values and can be converted using
+          <code class="literal">FROM_UNIXTIME()</code> and an
+          appropriate divisor:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET time_zone = '+00:00';</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT FROM_UNIXTIME(1596724012005/1000.0);</code></strong>
++-------------------------------------+
+| FROM_UNIXTIME(1596724012005/1000.0) |
++-------------------------------------+
+| 2020-08-06 14:26:52.0050            |
++-------------------------------------+
+mysql&gt; <strong class="userinput"><code>SELECT FROM_UNIXTIME(1596723903109022/1000000.0);</code></strong>
++-------------------------------------------+
+| FROM_UNIXTIME(1596723903109022/1000000.0) |
++-------------------------------------------+
+| 2020-08-06 14:25:03.1090                  |
++-------------------------------------------+
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="error-log-format-output-format-for-log-sink-syseventlog"></a>log_sink_syseventlog Output Format</h5></div></div></div><p>
+          The system log sink produces output that conforms to the
+          system log format used on the local platform.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="error-log-format-output-format-for-early-logging"></a>Early-Startup Logging Output Format</h5></div></div></div><p>
+          The server generates some error log messages before startup
+          options have been processed, and thus before it knows error
+          log settings such as the
+          <a class="link" href="server-system-variables.html#sysvar_log_error_verbosity"><code class="literal">log_error_verbosity</code></a> and
+          <a class="link" href="server-system-variables.html#sysvar_log_timestamps"><code class="literal">log_timestamps</code></a> system
+          variable values, and before it knows which log components are
+          to be used. The server handles error log messages that are
+          generated early in the startup process as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Prior to MySQL 8.0.14, the server generates messages with
+              the default timestamp, format, and verbosity level, and
+              buffers them. After the startup options are processed and
+              the error log configuration is known, the server flushes
+              the buffered messages. Because these early messages use
+              the default log configuration, they may differ from what
+              is specified by the startup options. Also, the early
+              messages are not flushed to log sinks other than the
+              default. For example, logging to the JSON sink does not
+              include these early messages because they are not in JSON
+              format.
+            </p></li><li class="listitem"><p>
+              As of MySQL 8.0.14, the server buffers log events rather
+              than formatted log messages. This enables it to
+              retroactively apply configuration settings to those events
+              after the settings are known, with the result that flushed
+              messages use the configured settings, not the defaults.
+              Also, messages are flushed to all configured sinks, not
+              just the default sink.
+            </p><p>
+              If a fatal error occurs before log configuration is known
+              and the server must exit, the server formats buffered
+              messages using the logging defaults so they are not lost.
+              If no fatal error occurs but startup is excessively slow
+              prior to processing startup options, the server
+              periodically formats and flushes buffered messages using
+              the logging defaults so as not to appear unresponsive.
+              Although this behavior is similar to pre-8.0.14 behavior
+              in that the defaults are used, it is preferable to losing
+              messages when exceptional conditions occur.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="error-log-format-system-variables"></a>System Variables That Affect Error Log Format</h5></div></div></div><p>
+          The <a class="link" href="server-system-variables.html#sysvar_log_timestamps"><code class="literal">log_timestamps</code></a> system
+          variable controls the time zone of timestamps in messages
+          written to the error log (as well as to general query log and
+          slow query log files). The server applies
+          <a class="link" href="server-system-variables.html#sysvar_log_timestamps"><code class="literal">log_timestamps</code></a> to error
+          events before they reach any log sink; it thus affects error
+          message output from all sinks.
+        </p><p>
+          Permitted <a class="link" href="server-system-variables.html#sysvar_log_timestamps"><code class="literal">log_timestamps</code></a>
+          values are <code class="literal">UTC</code> (the default) and
+          <code class="literal">SYSTEM</code> (the local system time zone).
+          Timestamps are written using ISO 8601 / RFC 3339 format:
+          <code class="literal"><em class="replaceable"><code>YYYY-MM-DD</code></em>T<em class="replaceable"><code>hh:mm:ss.uuuuuu</code></em></code>
+          plus a tail value of <code class="literal">Z</code> signifying Zulu time
+          (UTC) or <code class="literal">±hh:mm</code> (an offset that
+          indicates the local system time zone adjustment relative to
+          UTC). For example:
+        </p><pre class="programlisting">2020-08-07T15:02:00.832521Z            (UTC)
+2020-08-07T10:02:00.832521-05:00       (SYSTEM)
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="error-log-syslog.html">Previous <span class="navHint"> Error Logging to the System Log </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="error-log.html">Up <span class="navHint"> The Error Log </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="error-log-rotation.html">Next <span class="navHint"> Error Log File Flushing and Renaming </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

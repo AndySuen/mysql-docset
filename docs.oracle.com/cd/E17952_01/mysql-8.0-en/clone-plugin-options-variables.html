@@ -1,0 +1,533 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.6.7.13 Clone System Variables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="clone-plugin.html" title="5.6.7 The Clone Plugin" /><link rel="prev" href="clone-plugin-option-variable-reference.html" title="5.6.7.12 Clone System Variable Reference" /><link rel="next" href="clone-plugin-limitations.html" title="5.6.7.14 Clone Plugin Limitations" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="clone-plugin-options-variables.html#clone-plugin-options-variables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="clone-plugin-option-variable-reference.html">Previous <span class="navHint"> Clone System Variable Reference </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="clone-plugin.html">Up <span class="navHint"> The Clone Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="clone-plugin-limitations.html">Next <span class="navHint"> Clone Plugin Limitations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="clone-plugin-options-variables"></a>5.6.7.13 Clone System Variables</h4></div></div></div><p>
+        This section describes the system variables that control
+        operation of the clone plugin. If values specified at startup
+        are incorrect, the clone plugin may fail to initialize properly
+        and the server does not load it. In this case, the server may
+        also produce error messages for other clone settings because it
+        does not recognize them.
+      </p><p>
+        Each system variable has a default value. System variables can
+        be set at server startup using options on the command line or in
+        an option file. They can be changed dynamically at runtime using
+        the <a class="link" href="set.html" title="11.3.6 The SET Type"><code class="literal">SET</code></a> statement, which enables
+        you to modify operation of the server without having to stop and
+        restart it.
+      </p><p>
+        Setting a global system variable runtime value normally requires
+        the <a class="link" href="privileges-provided.html#priv_system-variables-admin"><code class="literal">SYSTEM_VARIABLES_ADMIN</code></a>
+        privilege (or the deprecated
+        <a class="link" href="privileges-provided.html#priv_super"><code class="literal">SUPER</code></a> privilege). For more
+        information, see <a class="xref" href="system-variable-privileges.html" title="5.1.9.1 System Variable Privileges">Section 5.1.9.1, “System Variable Privileges”</a>.
+      </p><p>
+        Clone variables are configured on the recipient MySQL server
+        instance where the cloning operation is executed.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="sysvar_clone_autotune_concurrency"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_autotune_concurrency"><code class="literal">clone_autotune_concurrency</code></a>
+          </p><a id="idm45828982671536" class="indexterm"></a><a id="idm45828982670432" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_autotune_concurrency"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-autotune-concurrency</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_autotune_concurrency">clone_autotune_concurrency</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">ON</code></td>
+</tr></tbody></table></div><p>
+            When
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_autotune_concurrency"><code class="literal">clone_autotune_concurrency</code></a>
+            is enabled (the default), additional threads for remote
+            cloning operations are spawned dynamically to optimize data
+            transfer speed. The setting is applicable to recipient MySQL
+            server instance only.
+          </p><p>
+            During a cloning operation, the number of threads increases
+            incrementally toward a target of double the current thread
+            count. The effect on the data transfer speed is evaluated at
+            each increment. The process either continues or stops
+            according to the following rules:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                If the data transfer speed degrades more than 5% with an
+                incremental increase, the process stops.
+              </p></li><li class="listitem"><p>
+                If there is at least a 5% improvement after reaching 25%
+                of the target, the process continues. Otherwise, the
+                process stops.
+              </p></li><li class="listitem"><p>
+                If there is at least a 10% improvement after reaching
+                50% of the target, the process continues. Otherwise, the
+                process stops.
+              </p></li><li class="listitem"><p>
+                If there is at least a 25% improvement after reaching
+                the target, the process continues toward a new target of
+                double the current thread count. Otherwise, the process
+                stops.
+              </p></li></ul></div><p>
+            The autotuning process does not support decreasing the
+            number of threads.
+          </p><p>
+            The <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_concurrency"><code class="literal">clone_max_concurrency</code></a>
+            variable defines the maximum number of threads that can be
+            spawned.
+          </p><p>
+            If
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_autotune_concurrency"><code class="literal">clone_autotune_concurrency</code></a>
+            is disabled,
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_concurrency"><code class="literal">clone_max_concurrency</code></a>
+            defines the number of threads spawned for a remote cloning
+            operation.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_buffer_size"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_buffer_size"><code class="literal">clone_buffer_size</code></a>
+          </p><a id="idm45828982631904" class="indexterm"></a><a id="idm45828982630864" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_buffer_size"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-buffer-size</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_buffer_size">clone_buffer_size</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Integer</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">4194304</code></td>
+</tr><tr><th>Minimum Value</th>
+<td><code class="literal">1048576</code></td>
+</tr><tr><th>Maximum Value</th>
+<td><code class="literal">268435456</code></td>
+</tr><tr><th>Unit</th>
+<td>bytes</td>
+</tr></tbody></table></div><p>
+            Defines the size of the intermediate buffer used when
+            transferring data during a local cloning operation. The
+            default value is 4 mebibytes (MiB). A larger buffer size may
+            permit I/O device drivers to fetch data in parallel, which
+            can improve cloning performance.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_block_ddl"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_block_ddl"><code class="literal">clone_block_ddl</code></a>
+          </p><a id="idm45828982597088" class="indexterm"></a><a id="idm45828982596000" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_block_ddl"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-block-ddl</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.27</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_block_ddl">clone_block_ddl</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">OFF</code></td>
+</tr></tbody></table></div><p>
+            Enables an exclusive backup lock on the donor MySQL Server
+            instance during a cloning operation, which blocks concurrent
+            DDL operations on the donor. See
+            <a class="xref" href="clone-plugin-concurrent-ddl.html" title="5.6.7.4 Cloning and Concurrent DDL">Section 5.6.7.4, “Cloning and Concurrent DDL”</a>.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_delay_after_data_drop"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_delay_after_data_drop"><code class="literal">clone_delay_after_data_drop</code></a>
+          </p><a id="idm45828982568576" class="indexterm"></a><a id="idm45828982567472" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_delay_after_data_drop"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-delay-after-data-drop</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.29</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_delay_after_data_drop">clone_delay_after_data_drop</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Integer</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">0</code></td>
+</tr><tr><th>Minimum Value</th>
+<td><code class="literal">0</code></td>
+</tr><tr><th>Maximum Value</th>
+<td><code class="literal">3600</code></td>
+</tr><tr><th>Unit</th>
+<td>bytes</td>
+</tr></tbody></table></div><p>
+            Specifies a delay period immediately after removing existing
+            data on the recipient MySQL Server instance at the start of
+            a remote cloning operation. The delay is intended to provide
+            enough time for the file system on the recipient host to
+            free space before data is cloned from the donor MySQL Server
+            instance. Certain file systems such as VxFS free space
+            asynchronously in a background process. On these file
+            systems, cloning data too soon after dropping existing data
+            can result in clone operation failures due to insufficient
+            space. The maximum delay period is 3600 seconds (1 hour).
+            The default setting is 0 (no delay).
+          </p><p>
+            This variable is applicable to remote cloning operation only
+            and is configured on the recipient MySQL Server instance.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_ddl_timeout"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ddl_timeout"><code class="literal">clone_ddl_timeout</code></a>
+          </p><a id="idm45828982533440" class="indexterm"></a><a id="idm45828982532400" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_ddl_timeout"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-ddl-timeout</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ddl_timeout">clone_ddl_timeout</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Integer</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">300</code></td>
+</tr><tr><th>Minimum Value</th>
+<td><code class="literal">0</code></td>
+</tr><tr><th>Maximum Value</th>
+<td><code class="literal">2592000</code></td>
+</tr><tr><th>Unit</th>
+<td>seconds</td>
+</tr></tbody></table></div><p>
+            The time in seconds that a cloning operation waits for a
+            backup lock. The backup lock blocks concurrent DDL when
+            executing a cloning operation. This setting is applied on
+            both the donor and recipient MySQL server instances.
+          </p><p>
+            A setting of 0 means that the cloning operation does not
+            wait for a backup lock. In this case, executing a concurrent
+            DDL operation can cause the cloning operation to fail.
+          </p><p>
+            Prior to MySQL 8.0.27, the backup lock blocks concurrent DDL
+            operations on both the donor and recipient during a cloning
+            operation, and a cloning operation cannot proceed until
+            current DDL operations finish. As of MySQL 8.0.27,
+            concurrent DDL is permitted on the donor during a cloning
+            operation if
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_block_ddl"><code class="literal">clone_block_ddl</code></a> variable is
+            set to <code class="literal">OFF</code> (the default). In this case,
+            the cloning operation does not have to wait for a backup
+            lock on the donor. See
+            <a class="xref" href="clone-plugin-concurrent-ddl.html" title="5.6.7.4 Cloning and Concurrent DDL">Section 5.6.7.4, “Cloning and Concurrent DDL”</a>.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_donor_timeout_after_network_failure"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_donor_timeout_after_network_failure"><code class="literal">clone_donor_timeout_after_network_failure</code></a>
+          </p><a id="idm45828982494400" class="indexterm"></a><a id="idm45828982493296" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_donor_timeout_after_network_failure"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-donor-timeout-after-network-failure</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.24</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_donor_timeout_after_network_failure">clone_donor_timeout_after_network_failure</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Integer</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">5</code></td>
+</tr><tr><th>Minimum Value</th>
+<td><code class="literal">0</code></td>
+</tr><tr><th>Maximum Value</th>
+<td><code class="literal">30</code></td>
+</tr><tr><th>Unit</th>
+<td>minutes</td>
+</tr></tbody></table></div><p>
+            Defines the amount of time in minutes the donor allows for
+            the recipient to reconnect and restart a cloning operation
+            after a network failure. For more information, see
+            <a class="xref" href="clone-plugin-failure-handling.html" title="5.6.7.9 Remote Cloning Operation Failure Handling">Section 5.6.7.9, “Remote Cloning Operation Failure Handling”</a>.
+          </p><p>
+            This variable is set on the donor MySQL server instance.
+            Setting it on the recipient MySQL server instance has no
+            effect.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_enable_compression"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_enable_compression"><code class="literal">clone_enable_compression</code></a>
+          </p><a id="idm45828982458144" class="indexterm"></a><a id="idm45828982457040" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_enable_compression"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-enable-compression</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_enable_compression">clone_enable_compression</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">OFF</code></td>
+</tr></tbody></table></div><p>
+            Enables compression of data at the network layer during a
+            remote cloning operation. Compression saves network
+            bandwidth at the cost of CPU. Enabling compression may
+            improve the data transfer rate. This setting is only applied
+            on the recipient MySQL server instance.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_max_concurrency"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_concurrency"><code class="literal">clone_max_concurrency</code></a>
+          </p><a id="idm45828982430144" class="indexterm"></a><a id="idm45828982429104" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_max_concurrency"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-max-concurrency</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_concurrency">clone_max_concurrency</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Integer</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">16</code></td>
+</tr><tr><th>Minimum Value</th>
+<td><code class="literal">1</code></td>
+</tr><tr><th>Maximum Value</th>
+<td><code class="literal">128</code></td>
+</tr><tr><th>Unit</th>
+<td>threads</td>
+</tr></tbody></table></div><p>
+            Defines the maximum number of concurrent threads for a
+            remote cloning operation. The default value is 16. A greater
+            number of threads can improve cloning performance but also
+            reduces the number of permitted simultaneous client
+            connections, which can affect the performance of existing
+            client connections. This setting is only applied on the
+            recipient MySQL server instance.
+          </p><p>
+            If
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_autotune_concurrency"><code class="literal">clone_autotune_concurrency</code></a>
+            is enabled (the default),
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_concurrency"><code class="literal">clone_max_concurrency</code></a> is
+            the maximum number of threads that can be dynamically
+            spawned for a remote cloning operation. If
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_autotune_concurrency"><code class="literal">clone_autotune_concurrency</code></a>
+            is disabled,
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_concurrency"><code class="literal">clone_max_concurrency</code></a>
+            defines the number of threads spawned for a remote cloning
+            operation.
+          </p><p>
+            A minimum data transfer rate of 1 mebibyte (MiB) per thread
+            is recommended for remote cloning operations. The data
+            transfer rate for a remote cloning operation is controlled
+            by the
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_data_bandwidth"><code class="literal">clone_max_data_bandwidth</code></a>
+            variable.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_max_data_bandwidth"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_data_bandwidth"><code class="literal">clone_max_data_bandwidth</code></a>
+          </p><a id="idm45828982387488" class="indexterm"></a><a id="idm45828982386384" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_max_data_bandwidth"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-max-data-bandwidth</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_data_bandwidth">clone_max_data_bandwidth</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Integer</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">0</code></td>
+</tr><tr><th>Minimum Value</th>
+<td><code class="literal">0</code></td>
+</tr><tr><th>Maximum Value</th>
+<td><code class="literal">1048576</code></td>
+</tr><tr><th>Unit</th>
+<td>miB/second</td>
+</tr></tbody></table></div><p>
+            Defines the maximum data transfer rate in mebibytes (MiB)
+            per second for a remote cloning operation. This variable
+            helps manage the performance impact of a cloning operation.
+            A limit should be set only when donor disk I/O bandwidth is
+            saturated, affecting performance. A value of 0 means
+            <span class="quote">“<span class="quote">unlimited</span>”</span>, which permits cloning operations
+            to run at the highest possible data transfer rate. This
+            setting is only applicable to the recipient MySQL server
+            instance.
+          </p><p>
+            The minimum data transfer rate is 1 MiB per second, per
+            thread. For example, if there are 8 threads, the minimum
+            transfer rate is 8 MiB per second. The
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_concurrency"><code class="literal">clone_max_concurrency</code></a>
+            variable controls the maximum number threads spawned for a
+            remote cloning operation.
+          </p><p>
+            The requested data transfer rate specified by
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_data_bandwidth"><code class="literal">clone_max_data_bandwidth</code></a>
+            may differ from the actual data transfer rate reported by
+            the <code class="literal">DATA_SPEED</code> column in the
+            <code class="literal">performance_schema.clone_progress</code> table.
+            If your cloning operation is not achieving the desired data
+            transfer rate and you have available bandwidth, check I/O
+            usage on the recipient and donor. If there is underutilized
+            bandwidth, I/O is the next mostly likely bottleneck.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_max_network_bandwidth"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_network_bandwidth"><code class="literal">clone_max_network_bandwidth</code></a>
+          </p><a id="idm45828982346320" class="indexterm"></a><a id="idm45828982345216" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_max_network_bandwidth"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-max-network-bandwidth</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_max_network_bandwidth">clone_max_network_bandwidth</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Integer</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">0</code></td>
+</tr><tr><th>Minimum Value</th>
+<td><code class="literal">0</code></td>
+</tr><tr><th>Maximum Value</th>
+<td><code class="literal">1048576</code></td>
+</tr><tr><th>Unit</th>
+<td>miB/second</td>
+</tr></tbody></table></div><p>
+            Specifies the maximum approximate network transfer rate in
+            mebibytes (MiB) per second for a remote cloning operation.
+            This variable can be used to manage the performance impact
+            of a cloning operation on network bandwidth. It should be
+            set only when network bandwidth is saturated, affecting
+            performance on the donor instance. A value of 0 means
+            <span class="quote">“<span class="quote">unlimited</span>”</span>, which permits cloning at the
+            highest possible data transfer rate over the network,
+            providing the best performance. This setting is only
+            applicable to the recipient MySQL server instance.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_ssl_ca"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_ca"><code class="literal">clone_ssl_ca</code></a>
+          </p><a id="idm45828982310672" class="indexterm"></a><a id="idm45828982309584" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_ssl_ca"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-ssl-ca=file_name</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.14</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_ca">clone_ssl_ca</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>File name</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">empty string</code></td>
+</tr></tbody></table></div><p>
+            Specifies the path to the certificate authority (CA) file.
+            Used to configure an encrypted connection for a remote
+            cloning operation. This setting configured on the recipient
+            and used when connecting to the donor.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_ssl_cert"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_cert"><code class="literal">clone_ssl_cert</code></a>
+          </p><a id="idm45828982282832" class="indexterm"></a><a id="idm45828982281744" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_ssl_cert"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-ssl-cert=file_name</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.14</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_cert">clone_ssl_cert</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>File name</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">empty string</code></td>
+</tr></tbody></table></div><p>
+            Specifies the path to the public key certificate. Used to
+            configure an encrypted connection for a remote cloning
+            operation. This setting configured on the recipient and used
+            when connecting to the donor.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_ssl_key"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_key"><code class="literal">clone_ssl_key</code></a>
+          </p><a id="idm45828982255008" class="indexterm"></a><a id="idm45828982253920" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_ssl_key"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-ssl-key=file_name</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.14</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_key">clone_ssl_key</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>File name</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">empty string</code></td>
+</tr></tbody></table></div><p>
+            Specifies the path to the private key file. Used to
+            configure an encrypted connection for a remote cloning
+            operation. This setting configured on the recipient and used
+            when connecting to the donor.
+          </p></li><li class="listitem"><p><a id="sysvar_clone_valid_donor_list"></a>
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_valid_donor_list"><code class="literal">clone_valid_donor_list</code></a>
+          </p><a id="idm45828982227072" class="indexterm"></a><a id="idm45828982226032" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for clone_valid_donor_list"><col style="width: 30%" /><col style="width: 70%" /><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--clone-valid-donor-list=value</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="clone-plugin-options-variables.html#sysvar_clone_valid_donor_list">clone_valid_donor_list</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>Yes</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>String</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">NULL</code></td>
+</tr></tbody></table></div><p>
+            Defines valid donor host addresses for remote cloning
+            operations. This setting is applied on the recipient MySQL
+            server instance. A comma-separated list of values is
+            permitted in the following format:
+            <span class="quote">“<span class="quote"><code class="literal">HOST1:PORT1,HOST2:PORT2,HOST3:PORT3</code></span>”</span>.
+            Spaces are not permitted.
+          </p><p>
+            The <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_valid_donor_list"><code class="literal">clone_valid_donor_list</code></a>
+            variable adds a layer of security by providing control over
+            the sources of cloned data. The privilege required to
+            configure
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_valid_donor_list"><code class="literal">clone_valid_donor_list</code></a> is
+            different from the privilege required to execute remote
+            cloning operations, which permits assigning those
+            responsibilities to different roles. Configuring
+            <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_valid_donor_list"><code class="literal">clone_valid_donor_list</code></a>
+            requires the
+            <a class="link" href="privileges-provided.html#priv_system-variables-admin"><code class="literal">SYSTEM_VARIABLES_ADMIN</code></a>
+            privilege, whereas executing a remote cloning operation
+            requires the <a class="link" href="privileges-provided.html#priv_clone-admin"><code class="literal">CLONE_ADMIN</code></a>
+            privilege.
+          </p><p>
+            Internet Protocol version 6 (IPv6) address format is not
+            supported. Internet Protocol version 6 (IPv6) address format
+            is not supported. An alias to the IPv6 address can be used
+            instead. An IPv4 address can be used as is.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="clone-plugin-option-variable-reference.html">Previous <span class="navHint"> Clone System Variable Reference </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="clone-plugin.html">Up <span class="navHint"> The Clone Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="clone-plugin-limitations.html">Next <span class="navHint"> Clone Plugin Limitations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

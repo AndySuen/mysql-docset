@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>18.7.6.2 Reducing the cache size</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="group-replication-performance-xcom-cache.html" title="18.7.6 XCom Cache Management" /><link rel="prev" href="group-replication-performance-xcom-cache-increase.html" title="18.7.6.1 Increasing the cache size" /><link rel="next" href="group-replication-responses-failure.html" title="18.7.7 Responses to Failure Detection and Network Partitioning" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-performance-xcom-cache-reduce.html#group-replication-performance-xcom-cache-reduce">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-replication-performance-xcom-cache-increase.html">Previous <span class="navHint"> Increasing the cache size </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="group-replication-performance-xcom-cache.html">Up <span class="navHint"> XCom Cache Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-responses-failure.html">Next <span class="navHint"> Responses to Failure Detection and Network Partitioning </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="group-replication-performance-xcom-cache-reduce"></a>18.7.6.2 Reducing the cache size</h4></div></div></div><p>
+        The minimum setting for the XCom message cache size is 1 GB up
+        to MySQL 8.0.20. From MySQL 8.0.21, the minimum setting is
+        134217728 bytes (128 MB), which enables deployment on a host
+        that has a restricted amount of available memory. Having a very
+        low
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_message_cache_size"><code class="literal">group_replication_message_cache_size</code></a>
+        setting is not recommended if the host is on an unstable
+        network, because a smaller message cache makes it harder for
+        group members to reconnect after a transient loss of
+        connectivity.
+      </p><p>
+        If a reconnecting member cannot retrieve all the messages it
+        needs from the XCom message cache, the member must leave the
+        group and rejoin it, in order to retrieve the missing
+        transactions from another member's binary log using distributed
+        recovery. From MySQL 8.0.21, a member that has left a group
+        makes three auto-rejoin attempts by default, so the process of
+        rejoining the group can still take place without operator
+        intervention. However, rejoining using distributed recovery is a
+        significantly longer and more complex process than retrieving
+        messages from an XCom message cache, so the member takes longer
+        to become available and the performance of the group can be
+        impacted. On a stable network, which minimizes the frequency and
+        duration of transient losses of connectivity for members, the
+        frequency of this occurrence should also be minimized, so the
+        group might be able to tolerate a smaller XCom message cache
+        size without a significant impact on its performance.
+      </p><p>
+        If you are considering reducing the cache size limit, you can
+        query the Performance Schema table
+        <a class="link" href="performance-schema-memory-summary-tables.html" title="27.12.20.10 Memory Summary Tables"><code class="literal">memory_summary_global_by_event_name</code></a>
+        using the following statement:
+      </p><pre class="programlisting">SELECT * FROM performance_schema.memory_summary_global_by_event_name
+  WHERE EVENT_NAME LIKE 'memory/group_rpl/GCS_XCom::xcom_cache';
+</pre><p>
+        This returns memory usage statistics for the message cache,
+        including the current number of cached entries and current size
+        of the cache. If you reduce the cache size limit, XCom removes
+        the oldest entries that have been decided and delivered until
+        the current size is below the limit. XCom might temporarily
+        exceed the cache size limit while this removal process is
+        ongoing.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-performance-xcom-cache-increase.html">Previous <span class="navHint"> Increasing the cache size </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-performance-xcom-cache.html">Up <span class="navHint"> XCom Cache Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-responses-failure.html">Next <span class="navHint"> Responses to Failure Detection and Network Partitioning </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

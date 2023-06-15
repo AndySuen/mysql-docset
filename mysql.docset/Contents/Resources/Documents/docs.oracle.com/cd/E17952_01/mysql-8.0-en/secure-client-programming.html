@@ -1,0 +1,155 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3867"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/6.1.7%C2%A0Client%20Programming%20Security%20Guidelines"></a><title>6.1.7&nbsp;Client Programming Security Guidelines</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="general-security-issues.html" title="6.1&nbsp;General Security Issues"/><link rel="prev" href="load-data-local-security.html" title="6.1.6&nbsp;Security Considerations for LOAD DATA LOCAL"/><link rel="next" href="access-control.html" title="6.2&nbsp;Access Control and Account Management"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="secure-client-programming.html#secure-client-programming">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="load-data-local-security.html">Previous <span class="navHint"> Security Considerations for LOAD DATA LOCAL </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="general-security-issues.html">Up <span class="navHint"> General Security Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="access-control.html">Next <span class="navHint"> Access Control and Account Management </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="secure-client-programming"></a>6.1.7&nbsp;Client Programming Security Guidelines</h3></div></div></div><p>
+      Client applications that access MySQL should use the following
+      guidelines to avoid interpreting external data incorrectly or
+      exposing sensitive information.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="secure-client-programming.html#client-external-data-handling" title="Handle External Data Properly">Handle External Data Properly</a></p></li><li class="listitem"><p><a class="xref" href="secure-client-programming.html#client-mysql-error-handling" title="Handle MySQL Error Messages Properly">Handle MySQL Error Messages Properly</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3868"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Handle%20External%20Data%20Properly"></a><h4 class="title"><a id="client-external-data-handling"></a>Handle External Data Properly</h4></div></div></div><p>
+        Applications that access MySQL should not trust any data entered
+        by users, who can try to trick your code by entering special or
+        escaped character sequences in Web forms, URLs, or whatever
+        application you have built. Be sure that your application
+        remains secure if a user tries to perform SQL injection by
+        entering something like <code class="literal">; DROP DATABASE
+        mysql;</code> into a form. This is an extreme example, but
+        large security leaks and data loss might occur as a result of
+        hackers using similar techniques, if you do not prepare for
+        them.
+      </p><a id="idm45828980011280" class="indexterm"></a><a id="idm45828980010208" class="indexterm"></a><p>
+        A common mistake is to protect only string data values. Remember
+        to check numeric data as well. If an application generates a
+        query such as <code class="literal">SELECT * FROM table WHERE
+        ID=234</code> when a user enters the value
+        <code class="literal">234</code>, the user can enter the value
+        <code class="literal">234 OR 1=1</code> to cause the application to
+        generate the query <code class="literal">SELECT * FROM table WHERE ID=234 OR
+        1=1</code>. As a result, the server retrieves every row in
+        the table. This exposes every row and causes excessive server
+        load. The simplest way to protect from this type of attack is to
+        use single quotation marks around the numeric constants:
+        <code class="literal">SELECT * FROM table WHERE ID=&#39;234&#39;</code>. If the
+        user enters extra information, it all becomes part of the
+        string. In a numeric context, MySQL automatically converts this
+        string to a number and strips any trailing nonnumeric characters
+        from it.
+      </p><p>
+        Sometimes people think that if a database contains only publicly
+        available data, it need not be protected. This is incorrect.
+        Even if it is permissible to display any row in the database,
+        you should still protect against denial of service attacks (for
+        example, those that are based on the technique in the preceding
+        paragraph that causes the server to waste resources). Otherwise,
+        your server becomes unresponsive to legitimate users.
+      </p><p>
+        Checklist:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Enable strict SQL mode to tell the server to be more
+            restrictive of what data values it accepts. See
+            <a class="xref" href="sql-mode.html" title="5.1.11&nbsp;Server SQL Modes">Section&nbsp;5.1.11, &ldquo;Server SQL Modes&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            Try to enter single and double quotation marks
+            (<code class="literal">&#39;</code> and <code class="literal">&#34;</code>) in all of
+            your Web forms. If you get any kind of MySQL error,
+            investigate the problem right away.
+          </p></li><li class="listitem"><p>
+            Try to modify dynamic URLs by adding <code class="literal">%22</code>
+            (<code class="literal">&#34;</code>), <code class="literal">%23</code>
+            (<code class="literal">#</code>), and <code class="literal">%27</code>
+            (<code class="literal">&#39;</code>) to them.
+          </p></li><li class="listitem"><p>
+            Try to modify data types in dynamic URLs from numeric to
+            character types using the characters shown in the previous
+            examples. Your application should be safe against these and
+            similar attacks.
+          </p></li><li class="listitem"><p>
+            Try to enter characters, spaces, and special symbols rather
+            than numbers in numeric fields. Your application should
+            remove them before passing them to MySQL or else generate an
+            error. Passing unchecked values to MySQL is very dangerous!
+          </p></li><li class="listitem"><p>
+            Check the size of data before passing it to MySQL.
+          </p></li><li class="listitem"><p>
+            Have your application connect to the database using a user
+            name different from the one you use for administrative
+            purposes. Do not give your applications any access
+            privileges they do not need.
+          </p></li></ul></div><p>
+        Many application programming interfaces provide a means of
+        escaping special characters in data values. Properly used, this
+        prevents application users from entering values that cause the
+        application to generate statements that have a different effect
+        than you intend:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            MySQL SQL statements: Use SQL prepared statements and accept
+            data values only by means of placeholders; see
+            <a class="xref" href="sql-prepared-statements.html" title="13.5&nbsp;Prepared Statements">Section&nbsp;13.5, &ldquo;Prepared Statements&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            MySQL C API: Use the
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-real-escape-string-quote.html" target="_top"><code class="literal">mysql_real_escape_string_quote()</code></a>
+            API call. Alternatively, use the C API prepared statement
+            interface and accept data values only by means of
+            placeholders; see
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/c-api-prepared-statement-interface.html" target="_top">C API Prepared Statement Interface</a>.
+          </p></li><li class="listitem"><p>
+            MySQL++: Use the <code class="literal">escape</code> and
+            <code class="literal">quote</code> modifiers for query streams.
+          </p></li><li class="listitem"><p>
+            PHP: Use either the <code class="literal">mysqli</code> or
+            <code class="literal">pdo_mysql</code> extensions, and not the older
+            <code class="literal">ext/mysql</code> extension. The preferred API&#39;s
+            support the improved MySQL authentication protocol and
+            passwords, as well as prepared statements with placeholders.
+            See also <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/apis-php-en/" target="_top">MySQL and PHP</a>.
+          </p><p>
+            If the older <code class="literal">ext/mysql</code> extension must be
+            used, then for escaping use the
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-real-escape-string-quote.html" target="_top"><code class="literal">mysql_real_escape_string_quote()</code></a>
+            function and not
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-escape-string.html" target="_top"><code class="literal">mysql_escape_string()</code></a> or
+            <code class="function">addslashes()</code> because only
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-real-escape-string-quote.html" target="_top"><code class="literal">mysql_real_escape_string_quote()</code></a>
+            is character set-aware; the other functions can be
+            <span class="quote">&ldquo;<span class="quote">bypassed</span>&rdquo;</span> when using (invalid) multibyte
+            character sets.
+          </p></li><li class="listitem"><p>
+            Perl DBI: Use placeholders or the <code class="literal">quote()</code>
+            method.
+          </p></li><li class="listitem"><p>
+            Java JDBC: Use a <code class="literal">PreparedStatement</code> object
+            and placeholders.
+          </p></li></ul></div><p>
+        Other programming interfaces might have similar capabilities.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3869"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Handle%20MySQL%20Error%20Messages%20Properly"></a><h4 class="title"><a id="client-mysql-error-handling"></a>Handle MySQL Error Messages Properly</h4></div></div></div><a id="idm45828979965408" class="indexterm"></a><a id="idm45828979964320" class="indexterm"></a><p>
+        It is the application&#39;s responsibility to intercept errors that
+        occur as a result of executing SQL statements with the MySQL
+        database server and handle them appropriately.
+      </p><p>
+        The information returned in a MySQL error is not gratuitous
+        because that information is key in debugging MySQL using
+        applications. It would be nearly impossible, for example, to
+        debug a common 10-way join <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>
+        statement without providing information regarding which
+        databases, tables, and other objects are involved with problems.
+        Thus, MySQL errors must sometimes necessarily contain references
+        to the names of those objects.
+      </p><p>
+        A simple but insecure approach for an application when it
+        receives such an error from MySQL is to intercept it and display
+        it verbatim to the client. However, revealing error information
+        is a known application vulnerability type
+        (<a class="ulink" href="http://cwe.mitre.org/data/definitions/209.html" target="_top">CWE-209</a>)
+        and the application developer must ensure the application does
+        not have this vulnerability.
+      </p><p>
+        For example, an application that displays a message such as this
+        exposes both a database name and a table name to clients, which
+        is information a client might attempt to exploit:
+      </p><pre class="programlisting">ERROR 1146 (42S02): Table &#39;mydb.mytable&#39; doesn&#39;t exist
+</pre><p>
+        Instead, the proper behavior for an application when it receives
+        such an error from MySQL is to log appropriate information,
+        including the error information, to a secure audit location only
+        accessible to trusted personnel. The application can return
+        something more generic such as <span class="quote">&ldquo;<span class="quote">Internal Error</span>&rdquo;</span> to
+        the user.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="load-data-local-security.html">Previous <span class="navHint"> Security Considerations for LOAD DATA LOCAL </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="general-security-issues.html">Up <span class="navHint"> General Security Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="access-control.html">Next <span class="navHint"> Access Control and Account Management </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

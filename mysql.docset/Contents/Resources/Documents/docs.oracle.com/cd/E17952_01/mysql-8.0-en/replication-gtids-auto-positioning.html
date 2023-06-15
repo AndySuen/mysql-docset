@@ -1,0 +1,150 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3609"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.1.3.3%C2%A0GTID%20Auto-Positioning"></a><title>17.1.3.3&nbsp;GTID Auto-Positioning</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-gtids.html" title="17.1.3&nbsp;Replication with Global Transaction Identifiers"/><link rel="prev" href="replication-gtids-lifecycle.html" title="17.1.3.2&nbsp;GTID Life Cycle"/><link rel="next" href="replication-gtids-howto.html" title="17.1.3.4&nbsp;Setting Up Replication Using GTIDs"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-gtids-auto-positioning.html#replication-gtids-auto-positioning">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-gtids-lifecycle.html">Previous <span class="navHint"> GTID Life Cycle </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-gtids-howto.html">Next <span class="navHint"> Setting Up Replication Using GTIDs </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3608"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.1.3.3%C2%A0GTID%20Auto-Positioning"></a><h4 class="title"><a id="replication-gtids-auto-positioning"></a>17.1.3.3&nbsp;GTID Auto-Positioning</h4></div></div></div><a id="idm45828868704976" class="indexterm"></a><p>
+      GTIDs replace the file-offset pairs previously required to
+      determine points for starting, stopping, or resuming the flow of
+      data between source and replica. When GTIDs are in use, all the
+      information that the replica needs for synchronizing with the
+      source is obtained directly from the replication data stream.
+    </p><p>
+      To start a replica using GTID-based replication, you need to
+      enable the <code class="literal">SOURCE_AUTO_POSITION</code> |
+      <code class="literal">MASTER_AUTO_POSITION</code> option in the
+      <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>
+      statement (from MySQL 8.0.23) or <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE
+      MASTER TO</code></a> statement (before MySQL 8.0.23). The
+      alternative <code class="literal">SOURCE_LOG_FILE</code> |
+      <code class="literal">MASTER_LOG_FILE</code> and
+      <code class="literal">SOURCE_LOG_POS</code> |
+      <code class="literal">MASTER_LOG_POS</code> options specify the name of the
+      log file and the starting position within the file, but with GTIDs
+      the replica does not need this nonlocal data.. For full
+      instructions to configure and start sources and replicas using
+      GTID-based replication, see
+      <a class="xref" href="replication-gtids-howto.html" title="17.1.3.4&nbsp;Setting Up Replication Using GTIDs">Section&nbsp;17.1.3.4, &ldquo;Setting Up Replication Using GTIDs&rdquo;</a>.
+    </p><p>
+      The <code class="literal">SOURCE_AUTO_POSITION</code> |
+      <code class="literal">MASTER_AUTO_POSITION</code> option is disabled by
+      default. If multi-source replication is enabled on the replica,
+      you need to set the option for each applicable replication
+      channel. Disabling the <code class="literal">SOURCE_AUTO_POSITION</code> |
+      <code class="literal">MASTER_AUTO_POSITION</code> option again makes the
+      replica revert to file-based replication, in which case you must
+      also specify one or both of the <code class="literal">SOURCE_LOG_FILE</code>
+      | <code class="literal">MASTER_LOG_FILE</code> or
+      <code class="literal">SOURCE_LOG_POS</code> |
+      <code class="literal">MASTER_LOG_POS</code> options.
+    </p><p>
+      When a replica has GTIDs enabled
+      (<a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">GTID_MODE=ON</code></a>,
+      <code class="literal">ON_PERMISSIVE,</code> or
+      <code class="literal">OFF_PERMISSIVE</code> ) and the
+      <code class="literal">MASTER_AUTO_POSITION</code> option enabled,
+      auto-positioning is activated for connection to the source. The
+      source must have <a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">GTID_MODE=ON</code></a> set
+      in order for the connection to succeed. In the initial handshake,
+      the replica sends a GTID set containing the transactions that it
+      has already received, committed, or both. This GTID set is equal
+      to the union of the set of GTIDs in the
+      <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> system variable
+      (<code class="literal">@@GLOBAL.gtid_executed</code>), and the set of GTIDs
+      recorded in the Performance Schema
+      <a class="link" href="performance-schema-replication-connection-status-table.html" title="27.12.11.2&nbsp;The replication_connection_status Table"><code class="literal">replication_connection_status</code></a> table
+      as received transactions (the result of the statement
+      <code class="literal">SELECT RECEIVED_TRANSACTION_SET FROM
+      PERFORMANCE_SCHEMA.replication_connection_status</code>).
+    </p><p>
+      The source responds by sending all transactions recorded in its
+      binary log whose GTID is not included in the GTID set sent by the
+      replica. To do this, the source first identifies the appropriate
+      binary log file to begin working with, by checking the
+      <code class="literal">Previous_gtids_log_event</code> in the header of each
+      of its binary log files, starting with the most recent. When the
+      source finds the first <code class="literal">Previous_gtids_log_event</code>
+      which contains no transactions that the replica is missing, it
+      begins with that binary log file. This method is efficient and
+      only takes a significant amount of time if the replica is behind
+      the source by a large number of binary log files. The source then
+      reads the transactions in that binary log file and subsequent
+      files up to the current one, sending the transactions with GTIDs
+      that the replica is missing, and skipping the transactions that
+      were in the GTID set sent by the replica. The elapsed time until
+      the replica receives the first missing transaction depends on its
+      offset in the binary log file. This exchange ensures that the
+      source only sends the transactions with a GTID that the replica
+      has not already received or committed. If the replica receives
+      transactions from more than one source, as in the case of a
+      diamond topology, the auto-skip function ensures that the
+      transactions are not applied twice.
+    </p><p>
+      If any of the transactions that should be sent by the source have
+      been purged from the source&#39;s binary log, or added to the set of
+      GTIDs in the <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> system
+      variable by another method, the source sends the error
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_master_has_purged_required_gtids" target="_top"><code class="literal">ER_MASTER_HAS_PURGED_REQUIRED_GTIDS</code></a>
+      to the replica, and replication does not start. The GTIDs of the
+      missing purged transactions are identified and listed in the
+      source&#39;s error log in the warning message
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_found_missing_gtids" target="_top"><code class="literal">ER_FOUND_MISSING_GTIDS</code></a>. The
+      replica cannot recover automatically from this error because parts
+      of the transaction history that are needed to catch up with the
+      source have been purged. Attempting to reconnect without the
+      <code class="literal">MASTER_AUTO_POSITION</code> option enabled only
+      results in the loss of the purged transactions on the replica. The
+      correct approach to recover from this situation is for the replica
+      to replicate the missing transactions listed in the
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_found_missing_gtids" target="_top"><code class="literal">ER_FOUND_MISSING_GTIDS</code></a> message
+      from another source, or for the replica to be replaced by a new
+      replica created from a more recent backup. Consider revising the
+      binary log expiration period
+      (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_expire_logs_seconds"><code class="literal">binlog_expire_logs_seconds</code></a>) on
+      the source to ensure that the situation does not occur again.
+    </p><p>
+      If during the exchange of transactions it is found that the
+      replica has received or committed transactions with the source&#39;s
+      UUID in the GTID, but the source itself does not have a record of
+      them, the source sends the error
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_slave_has_more_gtids_than_master" target="_top"><code class="literal">ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER</code></a>
+      to the replica and replication does not start. This situation can
+      occur if a source that does not have
+      <a class="link" href="replication-options-binary-log.html#sysvar_sync_binlog"><code class="literal">sync_binlog=1</code></a> set experiences a
+      power failure or operating system crash, and loses committed
+      transactions that have not yet been synchronized to the binary log
+      file, but have been received by the replica. The source and
+      replica can diverge if any clients commit transactions on the
+      source after it is restarted, which can lead to the situation
+      where the source and replica are using the same GTID for different
+      transactions. The correct approach to recover from this situation
+      is to check manually whether the source and replica have diverged.
+      If the same GTID is now in use for different transactions, you
+      either need to perform manual conflict resolution for individual
+      transactions as required, or remove either the source or the
+      replica from the replication topology. If the issue is only
+      missing transactions on the source, you can make the source into a
+      replica instead, allow it to catch up with the other servers in
+      the replication topology, and then make it a source again if
+      needed.
+    </p><p>
+      For a multi-source replica in a diamond topology (where the
+      replica replicates from two or more sources, which in turn
+      replicate from a common source), when GTID-based replication is in
+      use, ensure that any replication filters or other channel
+      configuration are identical on all channels on the multi-source
+      replica. With GTID-based replication, filters are applied only to
+      the transaction data, and GTIDs are not filtered out. This happens
+      so that a replica&rsquo;s GTID set stays consistent with the
+      source&rsquo;s, meaning GTID auto-positioning can be used without
+      re-acquiring filtered out transactions each time. In the case
+      where the downstream replica is multi-source and receives the same
+      transaction from multiple sources in a diamond topology, the
+      downstream replica now has multiple versions of the transaction,
+      and the result depends on which channel applies the transaction
+      first. The second channel to attempt it skips the transaction
+      using GTID auto-skip, because the transaction&rsquo;s GTID was added
+      to the <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> set by the
+      first channel. With identical filtering on the channels, there is
+      no problem because all versions of the transaction contain the
+      same data, so the results are the same. However, with different
+      filtering on the channels, the database can become inconsistent
+      and replication can hang.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-gtids-lifecycle.html">Previous <span class="navHint"> GTID Life Cycle </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-gtids-howto.html">Next <span class="navHint"> Setting Up Replication Using GTIDs </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,147 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1729"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.3.12%C2%A0Invisible%20Indexes"></a><title>8.3.12&nbsp;Invisible Indexes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimization-indexes.html" title="8.3&nbsp;Optimization and Indexes"/><link rel="prev" href="generated-column-index-optimizations.html" title="8.3.11&nbsp;Optimizer Use of Generated Column Indexes"/><link rel="next" href="descending-indexes.html" title="8.3.13&nbsp;Descending Indexes"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="invisible-indexes.html#invisible-indexes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="generated-column-index-optimizations.html">Previous <span class="navHint"> Optimizer Use of Generated Column Indexes </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="descending-indexes.html">Next <span class="navHint"> Descending Indexes </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="invisible-indexes"></a>8.3.12&nbsp;Invisible Indexes</h3></div></div></div><a id="idm45828953838128" class="indexterm"></a><p>
+        MySQL supports invisible indexes; that is, indexes that are not
+        used by the optimizer. The feature applies to indexes other than
+        primary keys (either explicit or implicit).
+      </p><p>
+        Indexes are visible by default. To control visibility explicitly
+        for a new index, use a <code class="literal">VISIBLE</code> or
+        <code class="literal">INVISIBLE</code> keyword as part of the index
+        definition for <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>,
+        <a class="link" href="create-index.html" title="13.1.15&nbsp;CREATE INDEX Statement"><code class="literal">CREATE INDEX</code></a>, or
+        <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>:
+      </p><pre class="programlisting">CREATE TABLE t1 (
+  i INT,
+  j INT,
+  k INT,
+  INDEX i_idx (i) INVISIBLE
+) ENGINE = InnoDB;
+CREATE INDEX j_idx ON t1 (j) INVISIBLE;
+ALTER TABLE t1 ADD INDEX k_idx (k) INVISIBLE;
+</pre><p>
+        To alter the visibility of an existing index, use a
+        <code class="literal">VISIBLE</code> or <code class="literal">INVISIBLE</code>
+        keyword with the <code class="literal">ALTER TABLE ... ALTER INDEX</code>
+        operation:
+      </p><pre class="programlisting">ALTER TABLE t1 ALTER INDEX i_idx INVISIBLE;
+ALTER TABLE t1 ALTER INDEX i_idx VISIBLE;
+</pre><p>
+        Information about whether an index is visible or invisible is
+        available from the Information Schema
+        <a class="link" href="information-schema-statistics-table.html" title="26.3.34&nbsp;The INFORMATION_SCHEMA STATISTICS Table"><code class="literal">STATISTICS</code></a> table or
+        <a class="link" href="show-index.html" title="13.7.7.22&nbsp;SHOW INDEX Statement"><code class="literal">SHOW INDEX</code></a> output. For example:
+      </p><a id="idm45828953822976" class="indexterm"></a><a id="idm45828953821488" class="indexterm"></a><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT INDEX_NAME, IS_VISIBLE</code></strong>
+       <strong class="userinput"><code>FROM INFORMATION_SCHEMA.STATISTICS</code></strong>
+       <strong class="userinput"><code>WHERE TABLE_SCHEMA = &#39;db1&#39; AND TABLE_NAME = &#39;t1&#39;;</code></strong>
++------------+------------+
+| INDEX_NAME | IS_VISIBLE |
++------------+------------+
+| i_idx      | YES        |
+| j_idx      | NO         |
+| k_idx      | NO         |
++------------+------------+
+</pre><p>
+        Invisible indexes make it possible to test the effect of
+        removing an index on query performance, without making a
+        destructive change that must be undone should the index turn out
+        to be required. Dropping and re-adding an index can be expensive
+        for a large table, whereas making it invisible and visible are
+        fast, in-place operations.
+      </p><p>
+        If an index made invisible actually is needed or used by the
+        optimizer, there are several ways to notice the effect of its
+        absence on queries for the table:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Errors occur for queries that include index hints that refer
+            to the invisible index.
+          </p></li><li class="listitem"><p>
+            Performance Schema data shows an increase in workload for
+            affected queries.
+          </p></li><li class="listitem"><p>
+            Queries have different
+            <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> execution plans.
+          </p></li><li class="listitem"><p>
+            Queries appear in the slow query log that did not appear
+            there previously.
+          </p></li></ul></div><a id="idm45828953810192" class="indexterm"></a><a id="idm45828953808672" class="indexterm"></a><p>
+        The <a class="link" href="switchable-optimizations.html#optflag_use-invisible-indexes"><code class="literal">use_invisible_indexes</code></a> flag
+        of the <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> system
+        variable controls whether the optimizer uses invisible indexes
+        for query execution plan construction. If the flag is
+        <code class="literal">off</code> (the default), the optimizer ignores
+        invisible indexes (the same behavior as prior to the
+        introduction of this flag). If the flag is
+        <code class="literal">on</code>, invisible indexes remain invisible but
+        the optimizer takes them into account for execution plan
+        construction.
+      </p><p>
+        Using the <a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> optimizer
+        hint to update the value of
+        <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> temporarily,
+        you can enable invisible indexes for the duration of a single
+        query only, like this:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT /*+ SET_VAR(optimizer_switch = &#39;use_invisible_indexes=on&#39;) */</code></strong>
+     &gt; <strong class="userinput"><code>    i, j FROM t1 WHERE j &gt;= 50\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t1
+   partitions: NULL
+         type: range
+possible_keys: j_idx
+          key: j_idx
+      key_len: 5
+          ref: NULL
+         rows: 2
+     filtered: 100.00
+        Extra: Using index condition
+
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT i, j FROM t1 WHERE j &gt;= 50\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t1
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 5
+     filtered: 33.33
+        Extra: Using where
+</pre><p>
+        Index visibility does not affect index maintenance. For example,
+        an index continues to be updated per changes to table rows, and
+        a unique index prevents insertion of duplicates into a column,
+        regardless of whether the index is visible or invisible.
+      </p><p>
+        A table with no explicit primary key may still have an effective
+        implicit primary key if it has any <code class="literal">UNIQUE</code>
+        indexes on <code class="literal">NOT NULL</code> columns. In this case,
+        the first such index places the same constraint on table rows as
+        an explicit primary key and that index cannot be made invisible.
+        Consider the following table definition:
+      </p><pre class="programlisting">CREATE TABLE t2 (
+  i INT NOT NULL,
+  j INT NOT NULL,
+  UNIQUE j_idx (j)
+) ENGINE = InnoDB;
+</pre><p>
+        The definition includes no explicit primary key, but the index
+        on <code class="literal">NOT NULL</code> column <code class="literal">j</code>
+        places the same constraint on rows as a primary key and cannot
+        be made invisible:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER TABLE t2 ALTER INDEX j_idx INVISIBLE;</code></strong>
+ERROR 3522 (HY000): A primary key index cannot be invisible.
+</pre><p>
+        Now suppose that an explicit primary key is added to the table:
+      </p><pre class="programlisting">ALTER TABLE t2 ADD PRIMARY KEY (i);
+</pre><p>
+        The explicit primary key cannot be made invisible. In addition,
+        the unique index on <code class="literal">j</code> no longer acts as an
+        implicit primary key and as a result can be made invisible:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER TABLE t2 ALTER INDEX j_idx INVISIBLE;</code></strong>
+Query OK, 0 rows affected (0.03 sec)
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="generated-column-index-optimizations.html">Previous <span class="navHint"> Optimizer Use of Generated Column Indexes </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="descending-indexes.html">Next <span class="navHint"> Descending Indexes </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

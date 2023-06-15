@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.1.9.1 ALTER TABLE Partition Operations</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="alter-table.html" title="13.1.9 ALTER TABLE Statement" /><link rel="prev" href="alter-table.html" title="13.1.9 ALTER TABLE Statement" /><link rel="next" href="alter-table-generated-columns.html" title="13.1.9.2 ALTER TABLE and Generated Columns" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="alter-table-partition-operations.html#alter-table-partition-operations">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="alter-table.html">Previous <span class="navHint"> ALTER TABLE Statement </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="alter-table.html">Up <span class="navHint"> ALTER TABLE Statement </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="alter-table-generated-columns.html">Next <span class="navHint"> ALTER TABLE and Generated Columns </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="alter-table-partition-operations"></a>13.1.9.1 ALTER TABLE Partition Operations</h4></div></div></div><p>
+        Partitioning-related clauses for <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+        TABLE</code></a> can be used with partitioned tables for
+        repartitioning, to add, drop, discard, import, merge, and split
+        partitions, and to perform partitioning maintenance.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Simply using a <em class="replaceable"><code>partition_options</code></em>
+            clause with <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> on a
+            partitioned table repartitions the table according to the
+            partitioning scheme defined by the
+            <em class="replaceable"><code>partition_options</code></em>. This clause
+            always begins with <code class="literal">PARTITION BY</code>, and
+            follows the same syntax and other rules as apply to the
+            <em class="replaceable"><code>partition_options</code></em> clause for
+            <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> (for more
+            detailed information, see <a class="xref" href="create-table.html" title="13.1.20 CREATE TABLE Statement">Section 13.1.20, “CREATE TABLE Statement”</a>),
+            and can also be used to partition an existing table that is
+            not already partitioned. For example, consider a
+            (nonpartitioned) table defined as shown here:
+          </p><pre class="programlisting">CREATE TABLE t1 (
+    id INT,
+    year_col INT
+);
+</pre><p>
+            This table can be partitioned by <code class="literal">HASH</code>,
+            using the <code class="literal">id</code> column as the partitioning
+            key, into 8 partitions by means of this statement:
+          </p><pre class="programlisting">ALTER TABLE t1
+    PARTITION BY HASH(id)
+    PARTITIONS 8;
+</pre><p>
+            MySQL supports an <code class="literal">ALGORITHM</code> option with
+            <code class="literal">[SUB]PARTITION BY [LINEAR] KEY</code>.
+            <code class="literal">ALGORITHM=1</code> causes the server to use the
+            same key-hashing functions as MySQL 5.1 when computing the
+            placement of rows in partitions;
+            <code class="literal">ALGORITHM=2</code> means that the server employs
+            the key-hashing functions implemented and used by default
+            for new <code class="literal">KEY</code> partitioned tables in MySQL
+            5.5 and later. (Partitioned tables created with the
+            key-hashing functions employed in MySQL 5.5 and later cannot
+            be used by a MySQL 5.1 server.) Not specifying the option
+            has the same effect as using <code class="literal">ALGORITHM=2</code>.
+            This option is intended for use chiefly when upgrading or
+            downgrading <code class="literal">[LINEAR] KEY</code> partitioned
+            tables between MySQL 5.1 and later MySQL versions, or for
+            creating tables partitioned by <code class="literal">KEY</code> or
+            <code class="literal">LINEAR KEY</code> on a MySQL 5.5 or later server
+            which can be used on a MySQL 5.1 server.
+          </p><p>
+            The table that results from using an <code class="literal">ALTER TABLE
+            ... PARTITION BY</code> statement must follow the same
+            rules as one created using <code class="literal">CREATE TABLE ...
+            PARTITION BY</code>. This includes the rules governing
+            the relationship between any unique keys (including any
+            primary key) that the table might have, and the column or
+            columns used in the partitioning expression, as discussed in
+            <a class="xref" href="partitioning-limitations-partitioning-keys-unique-keys.html" title="24.6.1 Partitioning Keys, Primary Keys, and Unique Keys">Section 24.6.1, “Partitioning Keys, Primary Keys, and Unique Keys”</a>.
+            The <code class="literal">CREATE TABLE ... PARTITION BY</code> rules
+            for specifying the number of partitions also apply to
+            <code class="literal">ALTER TABLE ... PARTITION BY</code>.
+          </p><p>
+            The <em class="replaceable"><code>partition_definition</code></em> clause
+            for <code class="literal">ALTER TABLE ADD PARTITION</code> supports
+            the same options as the clause of the same name for the
+            <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement. (See
+            <a class="xref" href="create-table.html" title="13.1.20 CREATE TABLE Statement">Section 13.1.20, “CREATE TABLE Statement”</a>, for the syntax and
+            description.) Suppose that you have the partitioned table
+            created as shown here:
+          </p><pre class="programlisting">CREATE TABLE t1 (
+    id INT,
+    year_col INT
+)
+PARTITION BY RANGE (year_col) (
+    PARTITION p0 VALUES LESS THAN (1991),
+    PARTITION p1 VALUES LESS THAN (1995),
+    PARTITION p2 VALUES LESS THAN (1999)
+);
+</pre><p>
+            You can add a new partition <code class="literal">p3</code> to this
+            table for storing values less than <code class="literal">2002</code>
+            as follows:
+          </p><pre class="programlisting">ALTER TABLE t1 ADD PARTITION (PARTITION p3 VALUES LESS THAN (2002));
+</pre><p>
+            <code class="literal">DROP PARTITION</code> can be used to drop one or
+            more <code class="literal">RANGE</code> or <code class="literal">LIST</code>
+            partitions. This statement cannot be used with
+            <code class="literal">HASH</code> or <code class="literal">KEY</code>
+            partitions; instead, use <code class="literal">COALESCE
+            PARTITION</code> (see later in this section). Any data
+            that was stored in the dropped partitions named in the
+            <em class="replaceable"><code>partition_names</code></em> list is
+            discarded. For example, given the table
+            <code class="literal">t1</code> defined previously, you can drop the
+            partitions named <code class="literal">p0</code> and
+            <code class="literal">p1</code> as shown here:
+          </p><pre class="programlisting">ALTER TABLE t1 DROP PARTITION p0, p1;
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              <code class="literal">DROP PARTITION</code> does not work with
+              tables that use the <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a>
+              storage engine. See
+              <a class="xref" href="partitioning-management-range-list.html" title="24.3.1 Management of RANGE and LIST Partitions">Section 24.3.1, “Management of RANGE and LIST Partitions”</a>, and
+              <a class="xref" href="mysql-cluster-limitations.html" title="23.2.7 Known Limitations of NDB Cluster">Section 23.2.7, “Known Limitations of NDB Cluster”</a>.
+            </p></div><p>
+            <code class="literal">ADD PARTITION</code> and <code class="literal">DROP
+            PARTITION</code> do not currently support <code class="literal">IF
+            [NOT] EXISTS</code>.
+          </p><p>
+            The <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">DISCARD
+            PARTITION ... TABLESPACE</code></a> and
+            <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">IMPORT
+            PARTITION ... TABLESPACE</code></a> options extend the
+            <a class="link" href="glossary.html#glos_transportable_tablespace" title="transportable tablespace">Transportable
+            Tablespace</a> feature to individual
+            <code class="literal">InnoDB</code> table partitions. Each
+            <code class="literal">InnoDB</code> table partition has its own
+            tablespace file (<code class="filename">.ibd</code> file). The
+            <a class="link" href="glossary.html#glos_transportable_tablespace" title="transportable tablespace">Transportable
+            Tablespace</a> feature makes it easy to copy the
+            tablespaces from a running MySQL server instance to another
+            running instance, or to perform a restore on the same
+            instance. Both options take a comma-separated list of one or
+            more partition names. For example:
+          </p><pre class="programlisting">ALTER TABLE t1 DISCARD PARTITION p2, p3 TABLESPACE;
+</pre><pre class="programlisting">ALTER TABLE t1 IMPORT PARTITION p2, p3 TABLESPACE;
+</pre><p>
+            When running
+            <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">DISCARD
+            PARTITION ... TABLESPACE</code></a> and
+            <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">IMPORT
+            PARTITION ... TABLESPACE</code></a> on subpartitioned tables,
+            both partition and subpartition names are allowed. When a
+            partition name is specified, subpartitions of that partition
+            are included.
+          </p><p>
+            The
+            <a class="link" href="glossary.html#glos_transportable_tablespace" title="transportable tablespace">Transportable
+            Tablespace</a> feature also supports copying or restoring
+            partitioned <code class="literal">InnoDB</code> tables. For more
+            information, see <a class="xref" href="innodb-table-import.html" title="15.6.1.3 Importing InnoDB Tables">Section 15.6.1.3, “Importing InnoDB Tables”</a>.
+          </p><p>
+            Renames of partitioned tables are supported. You can rename
+            individual partitions indirectly using <code class="literal">ALTER TABLE
+            ... REORGANIZE PARTITION</code>; however, this operation
+            copies the partition's data.
+          </p><p>
+            To delete rows from selected partitions, use the
+            <code class="literal">TRUNCATE PARTITION</code> option. This option
+            takes a list of one or more comma-separated partition names.
+            Consider the table <code class="literal">t1</code> created by this
+            statement:
+          </p><pre class="programlisting">CREATE TABLE t1 (
+    id INT,
+    year_col INT
+)
+PARTITION BY RANGE (year_col) (
+    PARTITION p0 VALUES LESS THAN (1991),
+    PARTITION p1 VALUES LESS THAN (1995),
+    PARTITION p2 VALUES LESS THAN (1999),
+    PARTITION p3 VALUES LESS THAN (2003),
+    PARTITION p4 VALUES LESS THAN (2007)
+);
+</pre><p>
+            To delete all rows from partition <code class="literal">p0</code>, use
+            the following statement:
+          </p><pre class="programlisting">ALTER TABLE t1 TRUNCATE PARTITION p0;
+</pre><p>
+            The statement just shown has the same effect as the
+            following <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> statement:
+          </p><pre class="programlisting">DELETE FROM t1 WHERE year_col &lt; 1991;
+</pre><p>
+            When truncating multiple partitions, the partitions do not
+            have to be contiguous: This can greatly simplify delete
+            operations on partitioned tables that would otherwise
+            require very complex <code class="literal">WHERE</code> conditions if
+            done with <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> statements.
+            For example, this statement deletes all rows from partitions
+            <code class="literal">p1</code> and <code class="literal">p3</code>:
+          </p><pre class="programlisting">ALTER TABLE t1 TRUNCATE PARTITION p1, p3;
+</pre><p>
+            An equivalent <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a>
+            statement is shown here:
+          </p><pre class="programlisting">DELETE FROM t1 WHERE
+    (year_col &gt;= 1991 AND year_col &lt; 1995)
+    OR
+    (year_col &gt;= 2003 AND year_col &lt; 2007);
+</pre><p>
+            If you use the <code class="literal">ALL</code> keyword in place of
+            the list of partition names, the statement acts on all table
+            partitions.
+          </p><p>
+            <code class="literal">TRUNCATE PARTITION</code> merely deletes rows;
+            it does not alter the definition of the table itself, or of
+            any of its partitions.
+          </p><p>
+            To verify that the rows were dropped, check the
+            <code class="literal">INFORMATION_SCHEMA.PARTITIONS</code> table,
+            using a query such as this one:
+          </p><pre class="programlisting">SELECT PARTITION_NAME, TABLE_ROWS
+    FROM INFORMATION_SCHEMA.PARTITIONS
+    WHERE TABLE_NAME = 't1';
+</pre><p>
+            <code class="literal">COALESCE PARTITION</code> can be used with a
+            table that is partitioned by <code class="literal">HASH</code> or
+            <code class="literal">KEY</code> to reduce the number of partitions by
+            <em class="replaceable"><code>number</code></em>. Suppose that you have
+            created table <code class="literal">t2</code> as follows:
+          </p><pre class="programlisting">CREATE TABLE t2 (
+    name VARCHAR (30),
+    started DATE
+)
+PARTITION BY HASH( YEAR(started) )
+PARTITIONS 6;
+</pre><p>
+            To reduce the number of partitions used by
+            <code class="literal">t2</code> from 6 to 4, use the following
+            statement:
+          </p><pre class="programlisting">ALTER TABLE t2 COALESCE PARTITION 2;
+</pre><p>
+            The data contained in the last
+            <em class="replaceable"><code>number</code></em> partitions is merged into
+            the remaining partitions. In this case, partitions 4 and 5
+            are merged into the first 4 partitions (the partitions
+            numbered 0, 1, 2, and 3).
+          </p><p>
+            To change some but not all the partitions used by a
+            partitioned table, you can use <code class="literal">REORGANIZE
+            PARTITION</code>. This statement can be used in several
+            ways:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                To merge a set of partitions into a single partition.
+                This is done by naming several partitions in the
+                <em class="replaceable"><code>partition_names</code></em> list and
+                supplying a single definition for
+                <em class="replaceable"><code>partition_definition</code></em>.
+              </p></li><li class="listitem"><p>
+                To split an existing partition into several partitions.
+                Accomplish this by naming a single partition for
+                <em class="replaceable"><code>partition_names</code></em> and providing
+                multiple
+                <em class="replaceable"><code>partition_definitions</code></em>.
+              </p></li><li class="listitem"><p>
+                To change the ranges for a subset of partitions defined
+                using <code class="literal">VALUES LESS THAN</code> or the value
+                lists for a subset of partitions defined using
+                <code class="literal">VALUES IN</code>.
+              </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              For partitions that have not been explicitly named, MySQL
+              automatically provides the default names
+              <code class="literal">p0</code>, <code class="literal">p1</code>,
+              <code class="literal">p2</code>, and so on. The same is true with
+              regard to subpartitions.
+            </p></div><p>
+            For more detailed information about and examples of
+            <code class="literal">ALTER TABLE ... REORGANIZE PARTITION</code>
+            statements, see
+            <a class="xref" href="partitioning-management-range-list.html" title="24.3.1 Management of RANGE and LIST Partitions">Section 24.3.1, “Management of RANGE and LIST Partitions”</a>.
+          </p></li><li class="listitem"><p>
+            To exchange a table partition or subpartition with a table,
+            use the <code class="literal">ALTER TABLE ... EXCHANGE
+            PARTITION</code> statement—that is, to move any
+            existing rows in the partition or subpartition to the
+            nonpartitioned table, and any existing rows in the
+            nonpartitioned table to the table partition or subpartition.
+          </p><p>
+            Once one or more columns have been added to a partitioned
+            table using <code class="literal">ALGORITHM=INSTANT</code>, it is no
+            longer possible to exchange partitions with that table.
+          </p><p>
+            For usage information and examples, see
+            <a class="xref" href="partitioning-management-exchange.html" title="24.3.3 Exchanging Partitions and Subpartitions with Tables">Section 24.3.3, “Exchanging Partitions and Subpartitions with Tables”</a>.
+          </p></li><li class="listitem"><p>
+            Several options provide partition maintenance and repair
+            functionality analogous to that implemented for
+            nonpartitioned tables by statements such as
+            <a class="link" href="check-table.html" title="13.7.3.2 CHECK TABLE Statement"><code class="literal">CHECK TABLE</code></a> and
+            <a class="link" href="repair-table.html" title="13.7.3.5 REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a> (which are also
+            supported for partitioned tables; for more information, see
+            <a class="xref" href="table-maintenance-statements.html" title="13.7.3 Table Maintenance Statements">Section 13.7.3, “Table Maintenance Statements”</a>). These
+            include <code class="literal">ANALYZE PARTITION</code>, <code class="literal">CHECK
+            PARTITION</code>, <code class="literal">OPTIMIZE PARTITION</code>,
+            <code class="literal">REBUILD PARTITION</code>, and <code class="literal">REPAIR
+            PARTITION</code>. Each of these options takes a
+            <em class="replaceable"><code>partition_names</code></em> clause consisting
+            of one or more names of partitions, separated by commas. The
+            partitions must already exist in the target table. You can
+            also use the <code class="literal">ALL</code> keyword in place of
+            <em class="replaceable"><code>partition_names</code></em>, in which case
+            the statement acts on all table partitions. For more
+            information and examples, see
+            <a class="xref" href="partitioning-maintenance.html" title="24.3.4 Maintenance of Partitions">Section 24.3.4, “Maintenance of Partitions”</a>.
+          </p><p>
+            <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> does not currently
+            support per-partition optimization; <code class="literal">ALTER TABLE ...
+            OPTIMIZE PARTITION</code> causes the entire table to
+            rebuilt and analyzed, and an appropriate warning to be
+            issued. (Bug #11751825, Bug #42822) To work around this
+            problem, use <code class="literal">ALTER TABLE ... REBUILD
+            PARTITION</code> and <code class="literal">ALTER TABLE ... ANALYZE
+            PARTITION</code> instead.
+          </p><p>
+            The <code class="literal">ANALYZE PARTITION</code>, <code class="literal">CHECK
+            PARTITION</code>, <code class="literal">OPTIMIZE PARTITION</code>,
+            and <code class="literal">REPAIR PARTITION</code> options are not
+            supported for tables which are not partitioned.
+          </p></li><li class="listitem"><p>
+            <code class="literal">REMOVE PARTITIONING</code> enables you to remove
+            a table's partitioning without otherwise affecting the
+            table or its data. This option can be combined with other
+            <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> options such as
+            those used to add, drop, or rename columns or indexes.
+          </p></li><li class="listitem"><p>
+            Using the <code class="literal">ENGINE</code> option with
+            <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> changes the
+            storage engine used by the table without affecting the
+            partitioning. The target storage engine must provide its own
+            partitioning handler. Only the <code class="literal">InnoDB</code> and
+            <code class="literal">NDB</code> storage engines have native
+            partitioning handlers; <code class="literal">NDB</code> is not
+            currently supported in MySQL 8.0.
+          </p></li></ul></div><p>
+        It is possible for an <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+        statement to contain a <code class="literal">PARTITION BY</code> or
+        <code class="literal">REMOVE PARTITIONING</code> clause in an addition to
+        other alter specifications, but the <code class="literal">PARTITION
+        BY</code> or <code class="literal">REMOVE PARTITIONING</code> clause
+        must be specified last after any other specifications.
+      </p><p>
+        The <code class="literal">ADD PARTITION</code>, <code class="literal">DROP
+        PARTITION</code>, <code class="literal">COALESCE PARTITION</code>,
+        <code class="literal">REORGANIZE PARTITION</code>, <code class="literal">ANALYZE
+        PARTITION</code>, <code class="literal">CHECK PARTITION</code>, and
+        <code class="literal">REPAIR PARTITION</code> options cannot be combined
+        with other alter specifications in a single <code class="literal">ALTER
+        TABLE</code>, since the options just listed act on individual
+        partitions. For more information, see
+        <a class="xref" href="alter-table-partition-operations.html" title="13.1.9.1 ALTER TABLE Partition Operations">Section 13.1.9.1, “ALTER TABLE Partition Operations”</a>.
+      </p><p>
+        Only a single instance of any one of the following options can
+        be used in a given <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+        statement: <code class="literal">PARTITION BY</code>, <code class="literal">ADD
+        PARTITION</code>, <code class="literal">DROP PARTITION</code>,
+        <code class="literal">TRUNCATE PARTITION</code>, <code class="literal">EXCHANGE
+        PARTITION</code>, <code class="literal">REORGANIZE PARTITION</code>, or
+        <code class="literal">COALESCE PARTITION</code>, <code class="literal">ANALYZE
+        PARTITION</code>, <code class="literal">CHECK PARTITION</code>,
+        <code class="literal">OPTIMIZE PARTITION</code>, <code class="literal">REBUILD
+        PARTITION</code>, <code class="literal">REMOVE PARTITIONING</code>.
+      </p><p>
+        For example, the following two statements are invalid:
+      </p><pre class="programlisting">ALTER TABLE t1 ANALYZE PARTITION p1, ANALYZE PARTITION p2;
+
+ALTER TABLE t1 ANALYZE PARTITION p1, CHECK PARTITION p2;
+</pre><p>
+        In the first case, you can analyze partitions
+        <code class="literal">p1</code> and <code class="literal">p2</code> of table
+        <code class="literal">t1</code> concurrently using a single statement with
+        a single <code class="literal">ANALYZE PARTITION</code> option that lists
+        both of the partitions to be analyzed, like this:
+      </p><pre class="programlisting">ALTER TABLE t1 ANALYZE PARTITION p1, p2;
+</pre><p>
+        In the second case, it is not possible to perform
+        <code class="literal">ANALYZE</code> and <code class="literal">CHECK</code>
+        operations on different partitions of the same table
+        concurrently. Instead, you must issue two separate statements,
+        like this:
+      </p><pre class="programlisting">ALTER TABLE t1 ANALYZE PARTITION p1;
+ALTER TABLE t1 CHECK PARTITION p2;
+</pre><p>
+        <code class="literal">REBUILD</code> operations are currently unsupported
+        for subpartitions. The <code class="literal">REBUILD</code> keyword is
+        expressly disallowed with subpartitions, and causes
+        <code class="literal">ALTER TABLE</code> to fail with an error if so used.
+      </p><p>
+        <code class="literal">CHECK PARTITION </code>and<code class="literal"> REPAIR
+        PARTITION</code> operations fail when the partition to be
+        checked or repaired contains any duplicate key errors.
+      </p><p>
+        For more information about these statements, see
+        <a class="xref" href="partitioning-maintenance.html" title="24.3.4 Maintenance of Partitions">Section 24.3.4, “Maintenance of Partitions”</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="alter-table.html">Previous <span class="navHint"> ALTER TABLE Statement </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="alter-table.html">Up <span class="navHint"> ALTER TABLE Statement </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="alter-table-generated-columns.html">Next <span class="navHint"> ALTER TABLE and Generated Columns </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

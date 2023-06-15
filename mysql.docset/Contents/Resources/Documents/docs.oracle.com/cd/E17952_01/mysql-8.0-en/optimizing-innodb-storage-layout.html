@@ -1,0 +1,62 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2998"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.5.1%C2%A0Optimizing%20Storage%20Layout%20for%20InnoDB%20Tables"></a><title>8.5.1&nbsp;Optimizing Storage Layout for InnoDB Tables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimizing-innodb.html" title="8.5&nbsp;Optimizing for InnoDB Tables"/><link rel="prev" href="optimizing-innodb.html" title="8.5&nbsp;Optimizing for InnoDB Tables"/><link rel="next" href="optimizing-innodb-transaction-management.html" title="8.5.2&nbsp;Optimizing InnoDB Transaction Management"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="optimizing-innodb-storage-layout.html#optimizing-innodb-storage-layout">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="optimizing-innodb.html">Previous <span class="navHint"> Optimizing for InnoDB Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimizing-innodb.html">Up <span class="navHint"> Optimizing for InnoDB Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="optimizing-innodb-transaction-management.html">Next <span class="navHint"> Optimizing InnoDB Transaction Management </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="optimizing-innodb-storage-layout"></a>8.5.1&nbsp;Optimizing Storage Layout for InnoDB Tables</h3></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Once your data reaches a stable size, or a growing table has
+            increased by tens or some hundreds of megabytes, consider
+            using the <code class="literal">OPTIMIZE TABLE</code> statement to
+            reorganize the table and compact any wasted space. The
+            reorganized tables require less disk I/O to perform full
+            table scans. This is a straightforward technique that can
+            improve performance when other techniques such as improving
+            index usage or tuning application code are not practical.
+          </p><p>
+            <code class="literal">OPTIMIZE TABLE</code> copies the data part of
+            the table and rebuilds the indexes. The benefits come from
+            improved packing of data within indexes, and reduced
+            fragmentation within the tablespaces and on disk. The
+            benefits vary depending on the data in each table. You may
+            find that there are significant gains for some and not for
+            others, or that the gains decrease over time until you next
+            optimize the table. This operation can be slow if the table
+            is large or if the indexes being rebuilt do not fit into the
+            buffer pool. The first run after adding a lot of data to a
+            table is often much slower than later runs.
+          </p></li><li class="listitem"><p>
+            In <code class="literal">InnoDB</code>, having a long <code class="literal">PRIMARY
+            KEY</code> (either a single column with a lengthy value,
+            or several columns that form a long composite value) wastes
+            a lot of disk space. The primary key value for a row is
+            duplicated in all the secondary index records that point to
+            the same row. (See <a class="xref" href="innodb-index-types.html" title="15.6.2.1&nbsp;Clustered and Secondary Indexes">Section&nbsp;15.6.2.1, &ldquo;Clustered and Secondary Indexes&rdquo;</a>.)
+            Create an <code class="literal">AUTO_INCREMENT</code> column as the
+            primary key if your primary key is long, or index a prefix
+            of a long <code class="literal">VARCHAR</code> column instead of the
+            entire column.
+          </p></li><li class="listitem"><p>
+            Use the <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a> data type
+            instead of <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a> to store
+            variable-length strings or for columns with many
+            <code class="literal">NULL</code> values. A
+            <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">CHAR(<em class="replaceable"><code>N</code></em>)</code></a>
+            column always takes <em class="replaceable"><code>N</code></em> characters
+            to store data, even if the string is shorter or its value is
+            <code class="literal">NULL</code>. Smaller tables fit better in the
+            buffer pool and reduce disk I/O.
+          </p><p>
+            When using <code class="literal">COMPACT</code> row format (the
+            default <code class="literal">InnoDB</code> format) and
+            variable-length character sets, such as
+            <code class="literal">utf8mb4</code> or <code class="literal">sjis</code>,
+            <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">CHAR(<em class="replaceable"><code>N</code></em>)</code></a>
+            columns occupy a variable amount of space, but still at
+            least <em class="replaceable"><code>N</code></em> bytes.
+          </p></li><li class="listitem"><p>
+            For tables that are big, or contain lots of repetitive text
+            or numeric data, consider using
+            <code class="literal">COMPRESSED</code> row format. Less disk I/O is
+            required to bring data into the buffer pool, or to perform
+            full table scans. Before making a permanent decision,
+            measure the amount of compression you can achieve by using
+            <code class="literal">COMPRESSED</code> versus
+            <code class="literal">COMPACT</code> row format.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimizing-innodb.html">Previous <span class="navHint"> Optimizing for InnoDB Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimizing-innodb.html">Up <span class="navHint"> Optimizing for InnoDB Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="optimizing-innodb-transaction-management.html">Next <span class="navHint"> Optimizing InnoDB Transaction Management </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

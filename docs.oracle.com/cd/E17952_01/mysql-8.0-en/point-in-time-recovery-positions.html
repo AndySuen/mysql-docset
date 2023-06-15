@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>7.5.2 Point-in-Time Recovery Using Event Positions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="point-in-time-recovery.html" title="7.5 Point-in-Time (Incremental) Recovery" /><link rel="prev" href="point-in-time-recovery-binlog.html" title="7.5.1 Point-in-Time Recovery Using Binary Log" /><link rel="next" href="myisam-table-maintenance.html" title="7.6 MyISAM Table Maintenance and Crash Recovery" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="point-in-time-recovery-positions.html#point-in-time-recovery-positions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="point-in-time-recovery-binlog.html">Previous <span class="navHint"> Point-in-Time Recovery Using Binary Log </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="point-in-time-recovery.html">Up <span class="navHint"> Point-in-Time (Incremental) Recovery </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="myisam-table-maintenance.html">Next <span class="navHint"> MyISAM Table Maintenance and Crash Recovery </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="point-in-time-recovery-positions"></a>7.5.2 Point-in-Time Recovery Using Event Positions</h3></div></div></div><p>
+        The last section,
+        <a class="xref" href="point-in-time-recovery-binlog.html" title="7.5.1 Point-in-Time Recovery Using Binary Log">Section 7.5.1, “Point-in-Time Recovery Using Binary Log”</a>, explains the
+        general idea of using the binary log to perform a
+        point-in-time-recovery. The section explains the operation in
+        details with an example.
+      </p><p>
+        As an example, suppose that around 20:06:00 on March 11, 2020,
+        an SQL statement was executed that deleted a table. You can
+        perform a point-in-time recovery to restore the server up to its
+        state right before the table deletion. These are some sample
+        steps to achieve that:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Restore the last full backup created before the
+            point-in-time of interest (call it
+            <code class="literal">t<sub>p</sub></code>, which is
+            20:06:00 on March 11, 2020 in our example). When finished,
+            note the binary log position up to which you have restored
+            the server for later use, and restart the server.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              While the last binary log position recovered is also
+              displayed by InnoDB after the restore and server restart,
+              that is <span class="emphasis"><em>not</em></span> a reliable means for
+              obtaining the ending log position of your restore, as
+              there could be DDL events and non-InnoDB changes that have
+              taken place after the time reflected by the displayed
+              position. Your backup and restore tool should provide you
+              with the last binary log position for your recovery: for
+              example, if you are using <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>
+              for the task, check the stop position of the binary log
+              replay; if you are using MySQL Enterprise Backup, the last binary log
+              position has been saved in your backup. See
+              <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/advanced.point.html" target="_top">Point-in-Time Recovery</a>.
+            </p></div></li><li class="listitem"><p>
+            Find the precise binary log event position corresponding to
+            the point in time up to which you want to restore your
+            database. In our example, given that we know the rough time
+            where the table deletion took place
+            (<code class="literal">t<sub>p</sub></code>), we can find
+            the log position by checking the log contents around that
+            time using the <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> utility. Use
+            the <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_start-datetime"><code class="option">--start-datetime</code></a> and
+            <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_stop-datetime"><code class="option">--stop-datetime</code></a> options
+            to specify a short time period around
+            <code class="literal">t<sub>p</sub></code>, and then look
+            for the event in the output. For example:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog --start-datetime="2020-03-11 20:05:00" \
+                   --stop-datetime="2020-03-11 20:08:00" --verbose \</code></strong>
+         <strong class="userinput"><code>/var/lib/mysql/bin.123456 | grep -C 15 "DROP TABLE"
+ </code></strong>
+/*!80014 SET @@session.original_server_version=80019*//*!*/;
+/*!80014 SET @@session.immediate_server_version=80019*//*!*/;
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# at 232
+#200311 20:06:20 server id 1  end_log_pos 355 CRC32 0x2fc1e5ea 	Query	thread_id=16	exec_time=0	error_code=0
+SET TIMESTAMP=1583971580/*!*/;
+SET @@session.pseudo_thread_id=16/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1168113696/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+/*!80011 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
+DROP TABLE `pets`.`cats` /* generated by server */
+/*!*/;
+# at 355
+#200311 20:07:48 server id 1  end_log_pos 434 CRC32 0x123d65df 	Anonymous_GTID	last_committed=1	sequence_number=2	rbr_only=no	original_committed_timestamp=1583971668462467	immediate_commit_timestamp=1583971668462467	transaction_length=473
+# original_commit_timestamp=1583971668462467 (2020-03-11 20:07:48.462467 EDT)
+# immediate_commit_timestamp=1583971668462467 (2020-03-11 20:07:48.462467 EDT)
+/*!80001 SET @@session.original_commit_timestamp=1583971668462467*//*!*/;
+/*!80014 SET @@session.original_server_version=80019*//*!*/;
+/*!80014 SET @@session.immediate_server_version=80019*//*!*/;
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# at 434
+#200311 20:07:48 server id 1  end_log_pos 828 CRC32 0x57fac9ac 	Query	thread_id=16	exec_time=0	error_code=0	Xid = 217
+use `pets`/*!*/;
+SET TIMESTAMP=1583971668/*!*/;
+/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
+CREATE TABLE dogs
+</pre><p>
+            From the output of <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>, the
+            <code class="literal">DROP TABLE `pets`.`cats`</code> statement can be
+            found in the segment of the binary log between the line
+            <code class="literal"># at 232</code> and <code class="literal"># at 355</code>,
+            which means the statement takes place
+            <span class="emphasis"><em>after</em></span> the log position 232, and the log
+            is at position 355 after the <code class="literal">DROP TABLE</code>
+            statement.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              Only use the
+              <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_start-datetime"><code class="option">--start-datetime</code></a> and
+              <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_stop-datetime"><code class="option">--stop-datetime</code></a>
+              options to help you find the actual event positions of
+              interest. Using the two options to specify the range of
+              binary log segment to apply is not recommended: there is a
+              higher risk of missing binary log events when using the
+              options. Use
+              <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_start-position"><code class="option">--start-position</code></a> and
+              <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_stop-position"><code class="option">--stop-position</code></a>
+              instead.
+            </p></div></li><li class="listitem"><p>
+            Apply the events in binary log file to the server, starting
+            with the log position your found in step 1 (assume it is
+            155) and ending at the position you have found in step 2
+            that is <span class="emphasis"><em>before</em></span> your point-in-time of
+            interest (which is 232):
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog --start-position=155 --stop-position=232 /var/lib/mysql/bin.123456 \</code></strong>
+         <strong class="userinput"><code>| mysql -u root -p</code></strong>
+</pre><p>
+            The command recovers all the transactions from the starting
+            position until just before the stop position. Because the
+            output of <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> includes
+            <code class="literal">SET TIMESTAMP</code> statements before each SQL
+            statement recorded, the recovered data and related MySQL
+            logs reflect the original times at which the transactions
+            were executed.
+          </p><p>
+            Your database has now been restored to the point-in-time of
+            interest, <code class="literal">t<sub>p</sub></code>,
+            right before the table <code class="literal">pets.cats</code> was
+            dropped.
+          </p></li><li class="listitem"><p>
+            Beyond the point-in-time recovery that has been finished, if
+            you also want to reexecute all the statements
+            <span class="emphasis"><em>after</em></span> your point-in-time of interest,
+            use <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> again to apply all the
+            events after <code class="literal">t<sub>p</sub></code> to
+            the server. We noted in step 2 that after the statement we
+            wanted to skip, the log is at position 355; we can use it
+            for the <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_start-position"><code class="option">--start-position</code></a>
+            option, so that any statements after the position are
+            included:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog --start-position=355 /var/lib/mysql/bin.123456 \</code></strong>
+         <strong class="userinput"><code>| mysql -u root -p</code></strong>
+</pre><p>
+            Your database has been restored the latest statement
+            recorded in the binary log file, but with the selected event
+            skipped.
+          </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="point-in-time-recovery-binlog.html">Previous <span class="navHint"> Point-in-Time Recovery Using Binary Log </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="point-in-time-recovery.html">Up <span class="navHint"> Point-in-Time (Incremental) Recovery </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="myisam-table-maintenance.html">Next <span class="navHint"> MyISAM Table Maintenance and Crash Recovery </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.9.1.6 Compression for OLTP Workloads</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-table-compression.html" title="15.9.1 InnoDB Table Compression" /><link rel="prev" href="innodb-compression-internals.html" title="15.9.1.5 How Compression Works for InnoDB Tables" /><link rel="next" href="innodb-compression-syntax-warnings.html" title="15.9.1.7 SQL Compression Syntax Warnings and Errors" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-performance-compression-oltp.html#innodb-performance-compression-oltp">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-compression-internals.html">Previous <span class="navHint"> How Compression Works for InnoDB Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-table-compression.html">Up <span class="navHint"> InnoDB Table Compression </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-compression-syntax-warnings.html">Next <span class="navHint"> SQL Compression Syntax Warnings and Errors </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-performance-compression-oltp"></a>15.9.1.6 Compression for OLTP Workloads</h4></div></div></div><p>
+        Traditionally, the <code class="literal">InnoDB</code>
+        <a class="link" href="glossary.html#glos_compression" title="compression">compression</a> feature was
+        recommended primarily for read-only or read-mostly
+        <a class="link" href="glossary.html#glos_workload" title="workload">workloads</a>, such as in a
+        <a class="link" href="glossary.html#glos_data_warehouse" title="data warehouse">data warehouse</a>
+        configuration. The rise of <a class="link" href="glossary.html#glos_ssd" title="SSD">SSD</a>
+        storage devices, which are fast but relatively small and
+        expensive, makes compression attractive also for
+        <code class="literal">OLTP</code> workloads: high-traffic, interactive
+        websites can reduce their storage requirements and their I/O
+        operations per second (<a class="link" href="glossary.html#glos_iops" title="IOPS">IOPS</a>) by
+        using compressed tables with applications that do frequent
+        <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>,
+        <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>, and
+        <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> operations.
+      </p><p>
+        These configuration options let you adjust the way compression
+        works for a particular MySQL instance, with an emphasis on
+        performance and scalability for write-intensive operations:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_compression_level"><code class="literal">innodb_compression_level</code></a>
+            lets you turn the degree of compression up or down. A higher
+            value lets you fit more data onto a storage device, at the
+            expense of more CPU overhead during compression. A lower
+            value lets you reduce CPU overhead when storage space is not
+            critical, or you expect the data is not especially
+            compressible.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_compression_failure_threshold_pct"><code class="literal">innodb_compression_failure_threshold_pct</code></a>
+            specifies a cutoff point for
+            <a class="link" href="glossary.html#glos_compression_failure" title="compression failure">compression
+            failures</a> during updates to a compressed table. When
+            this threshold is passed, MySQL begins to leave additional
+            free space within each new compressed page, dynamically
+            adjusting the amount of free space up to the percentage of
+            page size specified by
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_compression_pad_pct_max"><code class="literal">innodb_compression_pad_pct_max</code></a>
+          </p></li><li class="listitem"><p>
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_compression_pad_pct_max"><code class="literal">innodb_compression_pad_pct_max</code></a>
+            lets you adjust the maximum amount of space reserved within
+            each <a class="link" href="glossary.html#glos_page" title="page">page</a> to record changes
+            to compressed rows, without needing to compress the entire
+            page again. The higher the value, the more changes can be
+            recorded without recompressing the page. MySQL uses a
+            variable amount of free space for the pages within each
+            compressed table, only when a designated percentage of
+            compression operations
+            <span class="quote">“<span class="quote"><a class="link" href="glossary.html#glos_compression_failure" title="compression failure">fail</a></span>”</span>
+            at runtime, requiring an expensive operation to split the
+            compressed page.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_log_compressed_pages"><code class="literal">innodb_log_compressed_pages</code></a>
+            lets you disable writing of images of
+            <a class="link" href="glossary.html#glos_compression" title="compression">re-compressed</a>
+            <a class="link" href="glossary.html#glos_page" title="page">pages</a> to the
+            <a class="link" href="glossary.html#glos_redo_log" title="redo log">redo log</a>.
+            Re-compression may occur when changes are made to compressed
+            data. This option is enabled by default to prevent
+            corruption that could occur if a different version of the
+            <code class="literal">zlib</code> compression algorithm is used during
+            recovery. If you are certain that the
+            <code class="literal">zlib</code> version is not subject to change,
+            disable
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_log_compressed_pages"><code class="literal">innodb_log_compressed_pages</code></a>
+            to reduce redo log generation for workloads that modify
+            compressed data.
+          </p></li></ul></div><p>
+        Because working with compressed data sometimes involves keeping
+        both compressed and uncompressed versions of a page in memory at
+        the same time, when using compression with an OLTP-style
+        workload, be prepared to increase the value of the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_buffer_pool_size"><code class="literal">innodb_buffer_pool_size</code></a>
+        configuration option.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-compression-internals.html">Previous <span class="navHint"> How Compression Works for InnoDB Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-table-compression.html">Up <span class="navHint"> InnoDB Table Compression </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-compression-syntax-warnings.html">Next <span class="navHint"> SQL Compression Syntax Warnings and Errors </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

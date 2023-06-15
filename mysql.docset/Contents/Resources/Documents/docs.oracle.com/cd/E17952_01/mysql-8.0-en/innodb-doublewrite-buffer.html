@@ -1,0 +1,169 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1457"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.6.4%C2%A0Doublewrite%20Buffer"></a><title>15.6.4&nbsp;Doublewrite Buffer</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-on-disk-structures.html" title="15.6&nbsp;InnoDB On-Disk Structures"/><link rel="prev" href="innodb-tablespace-autoextend-size.html" title="15.6.3.9&nbsp;Tablespace AUTOEXTEND_SIZE Configuration"/><link rel="next" href="innodb-redo-log.html" title="15.6.5&nbsp;Redo Log"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-doublewrite-buffer.html#innodb-doublewrite-buffer">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-tablespace-autoextend-size.html">Previous <span class="navHint"> Tablespace AUTOEXTEND_SIZE Configuration </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-on-disk-structures.html">Up <span class="navHint"> InnoDB On-Disk Structures </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-redo-log.html">Next <span class="navHint"> Redo Log </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-doublewrite-buffer"></a>15.6.4&nbsp;Doublewrite Buffer</h3></div></div></div><p>
+      The doublewrite buffer is a storage area where
+      <code class="literal">InnoDB</code> writes pages flushed from the buffer
+      pool before writing the pages to their proper positions in the
+      <code class="literal">InnoDB</code> data files. If there is an operating
+      system, storage subsystem, or unexpected <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+      process exit in the middle of a page write,
+      <code class="literal">InnoDB</code> can find a good copy of the page from
+      the doublewrite buffer during crash recovery.
+    </p><p>
+      Although data is written twice, the doublewrite buffer does not
+      require twice as much I/O overhead or twice as many I/O
+      operations. Data is written to the doublewrite buffer in a large
+      sequential chunk, with a single <code class="literal">fsync()</code> call to
+      the operating system (except in the case that
+      <code class="literal">innodb_flush_method</code> is set to
+      <code class="literal">O_DIRECT_NO_FSYNC</code>).
+    </p><p>
+      Prior to MySQL 8.0.20, the doublewrite buffer storage area is
+      located in the <code class="literal">InnoDB</code> system tablespace. As of
+      MySQL 8.0.20, the doublewrite buffer storage area is located in
+      doublewrite files.
+    </p><p>
+      The following variables are provided for doublewrite buffer
+      configuration:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite"><code class="literal">innodb_doublewrite</code></a>
+        </p><p>
+          The <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite"><code class="literal">innodb_doublewrite</code></a>
+          variable controls whether the doublewrite buffer is enabled.
+          It is enabled by default in most cases. To disable the
+          doublewrite buffer, set
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite"><code class="literal">innodb_doublewrite</code></a> to
+          <code class="literal">OFF</code>. Consider disabling the doublewrite
+          buffer if you are more concerned with performance than data
+          integrity, as may be the case when performing benchmarks, for
+          example.
+        </p><p>
+          From MySQL 8.0.30,
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite"><code class="literal">innodb_doublewrite</code></a> supports
+          <code class="literal">DETECT_AND_RECOVER</code> and
+          <code class="literal">DETECT_ONLY</code> settings.
+        </p><p>
+          The <code class="literal">DETECT_AND_RECOVER</code> setting is the same
+          as the <code class="literal">ON</code> setting. With this setting, the
+          doublewrite buffer is fully enabled, with database page
+          content written to the doublewrite buffer where it is accessed
+          during recovery to fix incomplete page writes.
+        </p><p>
+          With the <code class="literal">DETECT_ONLY</code> setting, only metadata
+          is written to the doublewrite buffer. Database page content is
+          not written to the doublewrite buffer, and recovery does not
+          use the doublewrite buffer to fix incomplete page writes. This
+          lightweight setting is intended for detecting incomplete page
+          writes only.
+        </p><p>
+          MySQL 8.0.30 onwards supports dynamic changes to the
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite"><code class="literal">innodb_doublewrite</code></a> setting
+          that enables the doublewrite buffer, between
+          <code class="literal">ON</code>, <code class="literal">DETECT_AND_RECOVER</code>,
+          and <code class="literal">DETECT_ONLY</code>. MySQL does not support
+          dynamic changes between a setting that enables the doublewrite
+          buffer and <code class="literal">OFF</code> or vice versa.
+        </p><p>
+          If the doublewrite buffer is located on a Fusion-io device
+          that supports atomic writes, the doublewrite buffer is
+          automatically disabled and data file writes are performed
+          using Fusion-io atomic writes instead. However, be aware that
+          the <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite"><code class="literal">innodb_doublewrite</code></a>
+          setting is global. When the doublewrite buffer is disabled, it
+          is disabled for all data files including those that do not
+          reside on Fusion-io hardware. This feature is only supported
+          on Fusion-io hardware and is only enabled for Fusion-io NVMFS
+          on Linux. To take full advantage of this feature, an
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_flush_method"><code class="literal">innodb_flush_method</code></a> setting
+          of <code class="literal">O_DIRECT</code> is recommended.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite_dir"><code class="literal">innodb_doublewrite_dir</code></a>
+        </p><p>
+          The <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite_dir"><code class="literal">innodb_doublewrite_dir</code></a>
+          variable (introduced in MySQL 8.0.20) defines the directory
+          where <code class="literal">InnoDB</code> creates doublewrite files. If
+          no directory is specified, doublewrite files are created in
+          the <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a>
+          directory, which defaults to the data directory if
+          unspecified.
+        </p><p>
+          A hash symbol &#39;#&#39; is automatically prefixed to the specified
+          directory name to avoid conflicts with schema names. However,
+          if a &#39;.&#39;, &#39;#&#39;. or &#39;/&#39; prefix is specified explicitly in the
+          directory name, the hash symbol &#39;#&#39; is not prefixed to the
+          directory name.
+        </p><p>
+          Ideally, the doublewrite directory should be placed on the
+          fastest storage media available.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite_files"><code class="literal">innodb_doublewrite_files</code></a>
+        </p><p>
+          The <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite_files"><code class="literal">innodb_doublewrite_files</code></a>
+          variable defines the number of doublewrite files. By default,
+          two doublewrite files are created for each buffer pool
+          instance: A flush list doublewrite file and an LRU list
+          doublewrite file.
+        </p><p>
+          The flush list doublewrite file is for pages flushed from the
+          buffer pool flush list. The default size of a flush list
+          doublewrite file is the <code class="literal">InnoDB</code> page size *
+          doublewrite page bytes.
+        </p><p>
+          The LRU list doublewrite file is for pages flushed from the
+          buffer pool LRU list. It also contains slots for single page
+          flushes. The default size of an LRU list doublewrite file is
+          the <code class="literal">InnoDB</code> page size * (doublewrite pages +
+          (512 / the number of buffer pool instances)) where 512 is the
+          total number of slots reserved for single page flushes.
+        </p><p>
+          At a minimum, there are two doublewrite files. The maximum
+          number of doublewrite files is two times the number of buffer
+          pool instances. (The number of buffer pool instances is
+          controlled by the
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_buffer_pool_instances"><code class="literal">innodb_buffer_pool_instances</code></a>
+          variable.)
+        </p><p>
+          Doublewrite file names have the following format:
+          <code class="filename">#ib_<em class="replaceable"><code>page_size</code></em>_<em class="replaceable"><code>file_number</code></em>.dblwr</code>
+          (or <code class="filename">.bdblwr</code> with the
+          <code class="literal">DETECT_ONLY</code> setting). For example, the
+          following doublewrite files are created for a MySQL instance
+          with an <code class="literal">InnoDB</code> pages size of 16KB and a
+          single buffer pool:
+        </p><pre class="programlisting">#ib_16384_0.dblwr
+#ib_16384_1.dblwr
+</pre><p>
+          The <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite_files"><code class="literal">innodb_doublewrite_files</code></a>
+          variable is intended for advanced performance tuning. The
+          default setting should be suitable for most users.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite_pages"><code class="literal">innodb_doublewrite_pages</code></a>
+        </p><p>
+          The <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite_pages"><code class="literal">innodb_doublewrite_pages</code></a>
+          variable (introduced in MySQL 8.0.20) controls the maximum
+          number of doublewrite pages per thread. If no value is
+          specified,
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite_pages"><code class="literal">innodb_doublewrite_pages</code></a> is
+          set to the
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_write_io_threads"><code class="literal">innodb_write_io_threads</code></a>
+          value. This variable is intended for advanced performance
+          tuning. The default value should be suitable for most users.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite_batch_size"><code class="literal">innodb_doublewrite_batch_size</code></a>
+        </p><p>
+          The
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite_batch_size"><code class="literal">innodb_doublewrite_batch_size</code></a>
+          variable (introduced in MySQL 8.0.20) controls the number of
+          doublewrite pages to write in a batch. This variable is
+          intended for advanced performance tuning. The default value
+          should be suitable for most users.
+        </p></li></ul></div><p>
+      As of MySQL 8.0.23, <code class="literal">InnoDB</code> automatically
+      encrypts doublewrite file pages that belong to encrypted
+      tablespaces (see <a class="xref" href="innodb-data-encryption.html" title="15.13&nbsp;InnoDB Data-at-Rest Encryption">Section&nbsp;15.13, &ldquo;InnoDB Data-at-Rest Encryption&rdquo;</a>).
+      Likewise, doublewrite file pages belonging to page-compressed
+      tablespaces are compressed. As a result, doublewrite files can
+      contain different page types including unencrypted and
+      uncompressed pages, encrypted pages, compressed pages, and pages
+      that are both encrypted and compressed.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-tablespace-autoextend-size.html">Previous <span class="navHint"> Tablespace AUTOEXTEND_SIZE Configuration </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-on-disk-structures.html">Up <span class="navHint"> InnoDB On-Disk Structures </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-redo-log.html">Next <span class="navHint"> Redo Log </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

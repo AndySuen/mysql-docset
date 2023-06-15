@@ -1,0 +1,90 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3516"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.5.2%C2%A0Replication%20Compatibility%20Between%20MySQL%20Versions"></a><title>17.5.2&nbsp;Replication Compatibility Between MySQL Versions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-notes.html" title="17.5&nbsp;Replication Notes and Tips"/><link rel="prev" href="replication-features-views.html" title="17.5.1.40&nbsp;Replication and Views"/><link rel="next" href="replication-upgrade.html" title="17.5.3&nbsp;Upgrading a Replication Topology"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-compatibility.html#replication-compatibility">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-features-views.html">Previous <span class="navHint"> Replication and Views </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-notes.html">Up <span class="navHint"> Replication Notes and Tips </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-upgrade.html">Next <span class="navHint"> Upgrading a Replication Topology </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="replication-compatibility"></a>17.5.2&nbsp;Replication Compatibility Between MySQL Versions</h3></div></div></div><p>
+      MySQL supports replication from one release series to the next
+      higher release series. For example, you can replicate from a
+      source running MySQL 5.6 to a replica running MySQL 5.7, from a
+      source running MySQL 5.7 to a replica running MySQL 8.0, and so
+      on. However, you might encounter difficulties when replicating
+      from an older source to a newer replica if the source uses
+      statements or relies on behavior no longer supported in the
+      version of MySQL used on the replica. For example, foreign key
+      names longer than 64 characters are no longer supported from MySQL
+      8.0.
+    </p><p>
+      The use of more than two MySQL Server versions is not supported in
+      replication setups involving multiple sources, regardless of the
+      number of source or replica MySQL servers. This restriction
+      applies not only to release series, but to version numbers within
+      the same release series as well. For example, if you are using a
+      chained or circular replication setup, you cannot use MySQL
+      8.0.22, MySQL 8.0.24, and MySQL
+      8.0.28 concurrently, although you could use any two
+      of these releases together.
+    </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        It is strongly recommended to use the most recent release
+        available within a given MySQL release series because
+        replication (and other) capabilities are continually being
+        improved. It is also recommended to upgrade sources and replicas
+        that use early releases of a release series of MySQL to GA
+        (production) releases when the latter become available for that
+        release series.
+      </p></div><p>
+      From MySQL 8.0.14, the server version is recorded in the binary
+      log for each transaction for the server that originally committed
+      the transaction
+      (<a class="link" href="replication-options-source.html#sysvar_original_server_version"><code class="literal">original_server_version</code></a>), and
+      for the server that is the immediate source of the current server
+      in the replication topology
+      (<a class="link" href="replication-options-source.html#sysvar_immediate_server_version"><code class="literal">immediate_server_version</code></a>).
+    </p><p>
+      Replication from newer sources to older replicas might be
+      possible, but is generally not supported. This is due to a number
+      of factors:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3514"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Binary%20log%20format%20changes."></a><strong>Binary log format changes.&nbsp;</strong>
+            The binary log format can change between major releases.
+            While we attempt to maintain backward compatibility, this is
+            not always possible. A source might also have optional
+            features enabled that are not understood by older replicas,
+            such as binary log transaction compression, where the
+            resulting compressed transaction payloads cannot be read by
+            a replica at a release before MySQL 8.0.20.
+          </p><p>
+          This also has significant implications for upgrading
+          replication servers; see
+          <a class="xref" href="replication-upgrade.html" title="17.5.3&nbsp;Upgrading a Replication Topology">Section&nbsp;17.5.3, &ldquo;Upgrading a Replication Topology&rdquo;</a>, for more information.
+        </p></li><li class="listitem"><p>
+          For more information about row-based replication, see
+          <a class="xref" href="replication-formats.html" title="17.2.1&nbsp;Replication Formats">Section&nbsp;17.2.1, &ldquo;Replication Formats&rdquo;</a>.
+        </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3515"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/SQL%20incompatibilities."></a><strong>SQL incompatibilities.&nbsp;</strong>
+            You cannot replicate from a newer source to an older replica
+            using statement-based replication if the statements to be
+            replicated use SQL features available on the source but not
+            on the replica.
+          </p><p>
+          However, if both the source and the replica support row-based
+          replication, and there are no data definition statements to be
+          replicated that depend on SQL features found on the source but
+          not on the replica, you can use row-based replication to
+          replicate the effects of data modification statements even if
+          the DDL run on the source is not supported on the replica.
+        </p></li></ul></div><p>
+      In MySQL 8.0.26, incompatible changes were made to replication
+      instrumentation names, including the names of thread stages,
+      containing the terms <span class="quote">&ldquo;<span class="quote">master</span>&rdquo;</span>, which is changed to
+      <span class="quote">&ldquo;<span class="quote">source</span>&rdquo;</span>, <span class="quote">&ldquo;<span class="quote">slave</span>&rdquo;</span>, which is changed to
+      <span class="quote">&ldquo;<span class="quote">replica</span>&rdquo;</span>, and <span class="quote">&ldquo;<span class="quote">mts</span>&rdquo;</span> (for
+      <span class="quote">&ldquo;<span class="quote">multithreaded slave</span>&rdquo;</span>), which is changed to
+      <span class="quote">&ldquo;<span class="quote">mta</span>&rdquo;</span> (for <span class="quote">&ldquo;<span class="quote">multithreaded applier</span>&rdquo;</span>).
+      Monitoring tools that work with these instrumentation names might
+      be impacted. If the incompatible changes have an impact for you,
+      set the <a class="link" href="replication-options-replica.html#sysvar_terminology_use_previous"><code class="literal">terminology_use_previous</code></a>
+      system variable to <code class="literal">BEFORE_8_0_26</code> to make MySQL
+      Server use the old versions of the names for the objects specified
+      in the previous list. This enables monitoring tools that rely on
+      the old names to continue working until they can be updated to use
+      the new names.
+    </p><p>
+      For more information on potential replication issues, see
+      <a class="xref" href="replication-features.html" title="17.5.1&nbsp;Replication Features and Issues">Section&nbsp;17.5.1, &ldquo;Replication Features and Issues&rdquo;</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-views.html">Previous <span class="navHint"> Replication and Views </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-notes.html">Up <span class="navHint"> Replication Notes and Tips </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-upgrade.html">Next <span class="navHint"> Upgrading a Replication Topology </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

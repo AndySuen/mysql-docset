@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.11.4 Defragmenting a Table</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-disk-management.html" title="15.11 InnoDB Disk I/O and File Space Management" /><link rel="prev" href="innodb-checkpoints.html" title="15.11.3 InnoDB Checkpoints" /><link rel="next" href="innodb-truncate-table-reclaim-space.html" title="15.11.5 Reclaiming Disk Space with TRUNCATE TABLE" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-file-defragmenting.html#innodb-file-defragmenting">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-checkpoints.html">Previous <span class="navHint"> InnoDB Checkpoints </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-disk-management.html">Up <span class="navHint"> InnoDB Disk I/O and File Space Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-truncate-table-reclaim-space.html">Next <span class="navHint"> Reclaiming Disk Space with TRUNCATE TABLE </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-file-defragmenting"></a>15.11.4 Defragmenting a Table</h3></div></div></div><a id="idm45828885607296" class="indexterm"></a><a id="idm45828885605392" class="indexterm"></a><p>
+      Random insertions into or deletions from a secondary index can
+      cause the index to become fragmented. Fragmentation means that the
+      physical ordering of the index pages on the disk is not close to
+      the index ordering of the records on the pages, or that there are
+      many unused pages in the 64-page blocks that were allocated to the
+      index.
+    </p><p>
+      One symptom of fragmentation is that a table takes more space than
+      it <span class="quote">“<span class="quote">should</span>”</span> take. How much that is exactly, is
+      difficult to determine. All <code class="literal">InnoDB</code> data and
+      indexes are stored in <a class="link" href="glossary.html#glos_b_tree" title="B-tree">B-trees</a>,
+      and their <a class="link" href="glossary.html#glos_fill_factor" title="fill factor">fill factor</a> may
+      vary from 50% to 100%. Another symptom of fragmentation is that a
+      table scan such as this takes more time than it
+      <span class="quote">“<span class="quote">should</span>”</span> take:
+    </p><pre class="programlisting">SELECT COUNT(*) FROM t WHERE <em class="replaceable"><code>non_indexed_column</code></em> &lt;&gt; 12345;
+</pre><p>
+      The preceding query requires MySQL to perform a full table scan,
+      the slowest type of query for a large table.
+    </p><p>
+      To speed up index scans, you can periodically perform a
+      <span class="quote">“<span class="quote">null</span>”</span> <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+      operation, which causes MySQL to rebuild the table:
+    </p><pre class="programlisting">ALTER TABLE <em class="replaceable"><code>tbl_name</code></em> ENGINE=INNODB
+</pre><p>
+      You can also use
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE
+      <em class="replaceable"><code>tbl_name</code></em> FORCE</code></a> to perform a
+      <span class="quote">“<span class="quote">null</span>”</span> alter operation that rebuilds the table.
+    </p><p>
+      Both <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE
+      <em class="replaceable"><code>tbl_name</code></em> ENGINE=INNODB</code></a> and
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE
+      <em class="replaceable"><code>tbl_name</code></em> FORCE</code></a> use
+      <a class="link" href="innodb-online-ddl.html" title="15.12 InnoDB and Online DDL">online DDL</a>. For more
+      information, see <a class="xref" href="innodb-online-ddl.html" title="15.12 InnoDB and Online DDL">Section 15.12, “InnoDB and Online DDL”</a>.
+    </p><p>
+      Another way to perform a defragmentation operation is to use
+      <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> to dump the table to a text file,
+      drop the table, and reload it from the dump file.
+    </p><p>
+      If the insertions into an index are always ascending and records
+      are deleted only from the end, the <code class="literal">InnoDB</code>
+      filespace management algorithm guarantees that fragmentation in
+      the index does not occur.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-checkpoints.html">Previous <span class="navHint"> InnoDB Checkpoints </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-disk-management.html">Up <span class="navHint"> InnoDB Disk I/O and File Space Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-truncate-table-reclaim-space.html">Next <span class="navHint"> Reclaiming Disk Space with TRUNCATE TABLE </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.2.15.1 The Subquery as Scalar Operand</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="subqueries.html" title="13.2.15 Subqueries" /><link rel="prev" href="subqueries.html" title="13.2.15 Subqueries" /><link rel="next" href="comparisons-using-subqueries.html" title="13.2.15.2 Comparisons Using Subqueries" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="scalar-subqueries.html#scalar-subqueries">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="subqueries.html">Previous <span class="navHint"> Subqueries </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="comparisons-using-subqueries.html">Next <span class="navHint"> Comparisons Using Subqueries </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="scalar-subqueries"></a>13.2.15.1 The Subquery as Scalar Operand</h4></div></div></div><p>
+        In its simplest form, a subquery is a scalar subquery that
+        returns a single value. A scalar subquery is a simple operand,
+        and you can use it almost anywhere a single column value or
+        literal is legal, and you can expect it to have those
+        characteristics that all operands have: a data type, a length,
+        an indication that it can be <code class="literal">NULL</code>, and so on.
+        For example:
+      </p><pre class="programlisting">CREATE TABLE t1 (s1 INT, s2 CHAR(5) NOT NULL);
+INSERT INTO t1 VALUES(100, 'abcde');
+SELECT (SELECT s2 FROM t1);
+</pre><p>
+        The subquery in this <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>
+        returns a single value (<code class="literal">'abcde'</code>) that has a
+        data type of <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a>, a length of 5,
+        a character set and collation equal to the defaults in effect at
+        <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> time, and an
+        indication that the value in the column can be
+        <code class="literal">NULL</code>. Nullability of the value selected by a
+        scalar subquery is not copied because if the subquery result is
+        empty, the result is <code class="literal">NULL</code>. For the subquery
+        just shown, if <code class="literal">t1</code> were empty, the result
+        would be <code class="literal">NULL</code> even though
+        <code class="literal">s2</code> is <code class="literal">NOT NULL</code>.
+      </p><p>
+        There are a few contexts in which a scalar subquery cannot be
+        used. If a statement permits only a literal value, you cannot
+        use a subquery. For example, <code class="literal">LIMIT</code> requires
+        literal integer arguments, and <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD
+        DATA</code></a> requires a literal string file name. You cannot
+        use subqueries to supply these values.
+      </p><p>
+        When you see examples in the following sections that contain the
+        rather spartan construct <code class="literal">(SELECT column1 FROM
+        t1)</code>, imagine that your own code contains much more
+        diverse and complex constructions.
+      </p><p>
+        Suppose that we make two tables:
+      </p><pre class="programlisting">CREATE TABLE t1 (s1 INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (s1 INT);
+INSERT INTO t2 VALUES (2);
+</pre><p>
+        Then perform a <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>:
+      </p><pre class="programlisting">SELECT (SELECT s1 FROM t2) FROM t1;
+</pre><p>
+        The result is <code class="literal">2</code> because there is a row in
+        <code class="literal">t2</code> containing a column <code class="literal">s1</code>
+        that has a value of <code class="literal">2</code>.
+      </p><p>
+        In MySQL 8.0.19 and later, the preceding query can also be
+        written like this, using <a class="link" href="table.html" title="13.2.16 TABLE Statement"><code class="literal">TABLE</code></a>:
+      </p><pre class="programlisting">SELECT (TABLE t2) FROM t1;
+</pre><p>
+        A scalar subquery can be part of an expression, but remember the
+        parentheses, even if the subquery is an operand that provides an
+        argument for a function. For example:
+      </p><pre class="programlisting">SELECT UPPER((SELECT s1 FROM t1)) FROM t2;
+</pre><p>
+        The same result can be obtained in MySQL 8.0.19 and later using
+        <code class="literal">SELECT UPPER((TABLE t1)) FROM t2</code>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="subqueries.html">Previous <span class="navHint"> Subqueries </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="comparisons-using-subqueries.html">Next <span class="navHint"> Comparisons Using Subqueries </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

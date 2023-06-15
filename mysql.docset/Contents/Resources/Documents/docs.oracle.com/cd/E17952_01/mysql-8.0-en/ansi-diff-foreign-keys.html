@@ -1,0 +1,217 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-66"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/1.6.2.3%C2%A0FOREIGN%20KEY%20Constraint%20Differences"></a><title>1.6.2.3&nbsp;FOREIGN KEY Constraint Differences</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="differences-from-ansi.html" title="1.6.2&nbsp;MySQL Differences from Standard SQL"/><link rel="prev" href="ansi-diff-update.html" title="1.6.2.2&nbsp;UPDATE Differences"/><link rel="next" href="ansi-diff-comments.html" title="1.6.2.4&nbsp;&#39;--&#39; as the Start of a Comment"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="ansi-diff-foreign-keys.html#ansi-diff-foreign-keys">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="ansi-diff-update.html">Previous <span class="navHint"> UPDATE Differences </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="differences-from-ansi.html">Up <span class="navHint"> MySQL Differences from Standard SQL </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="ansi-diff-comments.html">Next <span class="navHint"> &#39;--&#39; as the Start of a Comment </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-67"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/1.6.2.3%C2%A0FOREIGN%20KEY%20Constraint%20Differences"></a><h4 class="title"><a id="ansi-diff-foreign-keys"></a>1.6.2.3&nbsp;FOREIGN KEY Constraint Differences</h4></div></div></div><a id="idm45829060376384" class="indexterm"></a><a id="idm45829060375344" class="indexterm"></a><p>
+          The MySQL implementation of foreign key constraints differs
+          from the SQL standard in the following key respects:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              If there are several rows in the parent table with the
+              same referenced key value,
+              <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> performs a foreign key
+              check as if the other parent rows with the same key value
+              do not exist. For example, if you define a
+              <code class="literal">RESTRICT</code> type constraint, and there is
+              a child row with several parent rows,
+              <code class="literal">InnoDB</code> does not permit the deletion of
+              any of the parent rows.
+            </p></li><li class="listitem"><p>
+              If <code class="literal">ON UPDATE CASCADE</code> or <code class="literal">ON
+              UPDATE SET NULL</code> recurses to update the
+              <span class="emphasis"><em>same table</em></span> it has previously updated
+              during the same cascade, it acts like
+              <code class="literal">RESTRICT</code>. This means that you cannot
+              use self-referential <code class="literal">ON UPDATE CASCADE</code>
+              or <code class="literal">ON UPDATE SET NULL</code> operations. This
+              is to prevent infinite loops resulting from cascaded
+              updates. A self-referential <code class="literal">ON DELETE SET
+              NULL</code>, on the other hand, is possible, as is a
+              self-referential <code class="literal">ON DELETE CASCADE</code>.
+              Cascading operations may not be nested more than 15 levels
+              deep.
+            </p></li><li class="listitem"><p>
+              In an SQL statement that inserts, deletes, or updates many
+              rows, foreign key constraints (like unique constraints)
+              are checked row-by-row. When performing foreign key
+              checks, <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> sets shared
+              row-level locks on child or parent records that it must
+              examine. MySQL checks foreign key constraints immediately;
+              the check is not deferred to transaction commit. According
+              to the SQL standard, the default behavior should be
+              deferred checking. That is, constraints are only checked
+              after the <span class="emphasis"><em>entire SQL statement</em></span> has
+              been processed. This means that it is not possible to
+              delete a row that refers to itself using a foreign key.
+            </p></li><li class="listitem"><p>
+              No storage engine, including <code class="literal">InnoDB</code>,
+              recognizes or enforces the <code class="literal">MATCH</code> clause
+              used in referential-integrity constraint definitions. Use
+              of an explicit <code class="literal">MATCH</code> clause does not
+              have the specified effect, and it causes <code class="literal">ON
+              DELETE</code> and <code class="literal">ON UPDATE</code> clauses
+              to be ignored. Specifying the <code class="literal">MATCH</code>
+              should be avoided.
+            </p><p>
+              The <code class="literal">MATCH</code> clause in the SQL standard
+              controls how <code class="literal">NULL</code> values in a composite
+              (multiple-column) foreign key are handled when comparing
+              to a primary key in the referenced table. MySQL
+              essentially implements the semantics defined by
+              <code class="literal">MATCH SIMPLE</code>, which permits a foreign
+              key to be all or partially <code class="literal">NULL</code>. In
+              that case, a (child table) row containing such a foreign
+              key can be inserted even though it does not match any row
+              in the referenced (parent) table. (It is possible to
+              implement other semantics using triggers.)
+            </p></li><li class="listitem"><p>
+              MySQL requires that the referenced columns be indexed for
+              performance reasons. However, MySQL does not enforce a
+              requirement that the referenced columns be
+              <code class="literal">UNIQUE</code> or be declared <code class="literal">NOT
+              NULL</code>.
+            </p><p>
+              A <code class="literal">FOREIGN KEY</code> constraint that
+              references a non-<code class="literal">UNIQUE</code> key is not
+              standard SQL but rather an
+              <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> extension. The
+              <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> storage engine, on the
+              other hand, requires an explicit unique key (or primary
+              key) on any column referenced as a foreign key.
+            </p><p>
+              The handling of foreign key references to nonunique keys
+              or keys that contain <code class="literal">NULL</code> values is not
+              well defined for operations such as
+              <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> or <code class="literal">DELETE
+              CASCADE</code>. You are advised to use foreign keys
+              that reference only <code class="literal">UNIQUE</code> (including
+              <code class="literal">PRIMARY</code>) and <code class="literal">NOT
+              NULL</code> keys.
+            </p></li><li class="listitem"><p>
+              For storage engines that do not support foreign keys (such
+              as <a class="link" href="myisam-storage-engine.html" title="16.2&nbsp;The MyISAM Storage Engine"><code class="literal">MyISAM</code></a>), MySQL Server
+              parses and ignores foreign key specifications.
+            </p></li><li class="listitem"><p>
+              MySQL parses but ignores <span class="quote">&ldquo;<span class="quote">inline
+              <code class="literal">REFERENCES</code> specifications</span>&rdquo;</span> (as
+              defined in the SQL standard) where the references are
+              defined as part of the column specification. MySQL accepts
+              <code class="literal">REFERENCES</code> clauses only when specified
+              as part of a separate <code class="literal">FOREIGN KEY</code>
+              specification.
+            </p><p>
+              Defining a column to use a <code class="literal">REFERENCES
+              <em class="replaceable"><code>tbl_name</code></em>(<em class="replaceable"><code>col_name</code></em>)</code>
+              clause has no actual effect and <span class="emphasis"><em>serves only as a
+              memo or comment to you that the column which you are
+              currently defining is intended to refer to a column in
+              another table</em></span>. It is important to realize when
+              using this syntax that:
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                  MySQL does not perform any sort of check to make sure
+                  that <em class="replaceable"><code>col_name</code></em> actually
+                  exists in <em class="replaceable"><code>tbl_name</code></em> (or even
+                  that <em class="replaceable"><code>tbl_name</code></em> itself
+                  exists).
+                </p></li><li class="listitem"><p>
+                  MySQL does not perform any sort of action on
+                  <em class="replaceable"><code>tbl_name</code></em> such as deleting
+                  rows in response to actions taken on rows in the table
+                  which you are defining; in other words, this syntax
+                  induces no <code class="literal">ON DELETE</code> or <code class="literal">ON
+                  UPDATE</code> behavior whatsoever. (Although you
+                  can write an <code class="literal">ON DELETE</code> or
+                  <code class="literal">ON UPDATE</code> clause as part of the
+                  <code class="literal">REFERENCES</code> clause, it is also
+                  ignored.)
+                </p></li><li class="listitem"><p>
+                  This syntax creates a <span class="emphasis"><em>column</em></span>; it
+                  does <span class="bold"><strong>not</strong></span> create any
+                  sort of index or key.
+                </p></li></ul></div><p>
+              You can use a column so created as a join column, as shown
+              here:
+            </p><pre class="programlisting">CREATE TABLE person (
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name CHAR(60) NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE shirt (
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    style ENUM(&#39;t-shirt&#39;, &#39;polo&#39;, &#39;dress&#39;) NOT NULL,
+    color ENUM(&#39;red&#39;, &#39;blue&#39;, &#39;orange&#39;, &#39;white&#39;, &#39;black&#39;) NOT NULL,
+    owner SMALLINT UNSIGNED NOT NULL REFERENCES person(id),
+    PRIMARY KEY (id)
+);
+
+INSERT INTO person VALUES (NULL, &#39;Antonio Paz&#39;);
+
+SELECT @last := LAST_INSERT_ID();
+
+INSERT INTO shirt VALUES
+(NULL, &#39;polo&#39;, &#39;blue&#39;, @last),
+(NULL, &#39;dress&#39;, &#39;white&#39;, @last),
+(NULL, &#39;t-shirt&#39;, &#39;blue&#39;, @last);
+
+INSERT INTO person VALUES (NULL, &#39;Lilliana Angelovska&#39;);
+
+SELECT @last := LAST_INSERT_ID();
+
+INSERT INTO shirt VALUES
+(NULL, &#39;dress&#39;, &#39;orange&#39;, @last),
+(NULL, &#39;polo&#39;, &#39;red&#39;, @last),
+(NULL, &#39;dress&#39;, &#39;blue&#39;, @last),
+(NULL, &#39;t-shirt&#39;, &#39;white&#39;, @last);
+
+SELECT * FROM person;
++----+---------------------+
+| id | name                |
++----+---------------------+
+|  1 | Antonio Paz         |
+|  2 | Lilliana Angelovska |
++----+---------------------+
+
+SELECT * FROM shirt;
++----+---------+--------+-------+
+| id | style   | color  | owner |
++----+---------+--------+-------+
+|  1 | polo    | blue   |     1 |
+|  2 | dress   | white  |     1 |
+|  3 | t-shirt | blue   |     1 |
+|  4 | dress   | orange |     2 |
+|  5 | polo    | red    |     2 |
+|  6 | dress   | blue   |     2 |
+|  7 | t-shirt | white  |     2 |
++----+---------+--------+-------+
+
+
+SELECT s.* FROM person p INNER JOIN shirt s
+   ON s.owner = p.id
+ WHERE p.name LIKE &#39;Lilliana%&#39;
+   AND s.color &lt;&gt; &#39;white&#39;;
+
++----+-------+--------+-------+
+| id | style | color  | owner |
++----+-------+--------+-------+
+|  4 | dress | orange |     2 |
+|  5 | polo  | red    |     2 |
+|  6 | dress | blue   |     2 |
++----+-------+--------+-------+
+</pre><p>
+              When used in this fashion, the
+              <code class="literal">REFERENCES</code> clause is not displayed in
+              the output of <a class="link" href="show-create-table.html" title="13.7.7.10&nbsp;SHOW CREATE TABLE Statement"><code class="literal">SHOW CREATE
+              TABLE</code></a> or
+              <a class="link" href="describe.html" title="13.8.1&nbsp;DESCRIBE Statement"><code class="literal">DESCRIBE</code></a>:
+            </p><pre class="programlisting">SHOW CREATE TABLE shirt\G
+*************************** 1. row ***************************
+Table: shirt
+Create Table: CREATE TABLE `shirt` (
+`id` smallint(5) unsigned NOT NULL auto_increment,
+`style` enum(&#39;t-shirt&#39;,&#39;polo&#39;,&#39;dress&#39;) NOT NULL,
+`color` enum(&#39;red&#39;,&#39;blue&#39;,&#39;orange&#39;,&#39;white&#39;,&#39;black&#39;) NOT NULL,
+`owner` smallint(5) unsigned NOT NULL,
+PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+</pre></li></ul></div><p>
+          For information about foreign key constraints, see
+          <a class="xref" href="create-table-foreign-keys.html" title="13.1.20.5&nbsp;FOREIGN KEY Constraints">Section&nbsp;13.1.20.5, &ldquo;FOREIGN KEY Constraints&rdquo;</a>.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="ansi-diff-update.html">Previous <span class="navHint"> UPDATE Differences </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="differences-from-ansi.html">Up <span class="navHint"> MySQL Differences from Standard SQL </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="ansi-diff-comments.html">Next <span class="navHint"> &#39;--&#39; as the Start of a Comment </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

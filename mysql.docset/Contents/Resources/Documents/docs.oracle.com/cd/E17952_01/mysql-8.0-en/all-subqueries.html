@@ -1,0 +1,74 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-25"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/13.2.15.4%C2%A0Subqueries%20with%20ALL"></a><title>13.2.15.4&nbsp;Subqueries with ALL</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="subqueries.html" title="13.2.15&nbsp;Subqueries"/><link rel="prev" href="any-in-some-subqueries.html" title="13.2.15.3&nbsp;Subqueries with ANY, IN, or SOME"/><link rel="next" href="row-subqueries.html" title="13.2.15.5&nbsp;Row Subqueries"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="all-subqueries.html#all-subqueries">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="any-in-some-subqueries.html">Previous <span class="navHint"> Subqueries with ANY, IN, or SOME </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="row-subqueries.html">Next <span class="navHint"> Row Subqueries </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-24"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/13.2.15.4%C2%A0Subqueries%20with%20ALL"></a><h4 class="title"><a id="all-subqueries"></a>13.2.15.4&nbsp;Subqueries with ALL</h4></div></div></div><a id="idm45828906408528" class="indexterm"></a><a id="idm45828906407040" class="indexterm"></a><p>
+        Syntax:
+      </p><pre class="programlisting"><em class="replaceable"><code>operand</code></em> <em class="replaceable"><code>comparison_operator</code></em> ALL (<em class="replaceable"><code>subquery</code></em>)
+</pre><p>
+        The word <code class="literal">ALL</code>, which must follow a comparison
+        operator, means <span class="quote">&ldquo;<span class="quote">return <code class="literal">TRUE</code> if the
+        comparison is <code class="literal">TRUE</code> for <code class="literal">ALL</code>
+        of the values in the column that the subquery returns.</span>&rdquo;</span>
+        For example:
+      </p><pre class="programlisting">SELECT s1 FROM t1 WHERE s1 &gt; ALL (SELECT s1 FROM t2);
+</pre><p>
+        Suppose that there is a row in table <code class="literal">t1</code>
+        containing <code class="literal">(10)</code>. The expression is
+        <code class="literal">TRUE</code> if table <code class="literal">t2</code> contains
+        <code class="literal">(-5,0,+5)</code> because <code class="literal">10</code> is
+        greater than all three values in <code class="literal">t2</code>. The
+        expression is <code class="literal">FALSE</code> if table
+        <code class="literal">t2</code> contains
+        <code class="literal">(12,6,NULL,-100)</code> because there is a single
+        value <code class="literal">12</code> in table <code class="literal">t2</code> that
+        is greater than <code class="literal">10</code>. The expression is
+        <span class="emphasis"><em>unknown</em></span> (that is, <code class="literal">NULL</code>)
+        if table <code class="literal">t2</code> contains
+        <code class="literal">(0,NULL,1)</code>.
+      </p><p>
+        Finally, the expression is <code class="literal">TRUE</code> if table
+        <code class="literal">t2</code> is empty. So, the following expression is
+        <code class="literal">TRUE</code> when table <code class="literal">t2</code> is
+        empty:
+      </p><pre class="programlisting">SELECT * FROM t1 WHERE 1 &gt; ALL (SELECT s1 FROM t2);
+</pre><p>
+        But this expression is <code class="literal">NULL</code> when table
+        <code class="literal">t2</code> is empty:
+      </p><pre class="programlisting">SELECT * FROM t1 WHERE 1 &gt; (SELECT s1 FROM t2);
+</pre><p>
+        In addition, the following expression is <code class="literal">NULL</code>
+        when table <code class="literal">t2</code> is empty:
+      </p><pre class="programlisting">SELECT * FROM t1 WHERE 1 &gt; ALL (SELECT MAX(s1) FROM t2);
+</pre><p>
+        In general, <span class="emphasis"><em>tables containing <code class="literal">NULL</code>
+        values</em></span> and <span class="emphasis"><em>empty tables</em></span> are
+        <span class="quote">&ldquo;<span class="quote">edge cases.</span>&rdquo;</span> When writing subqueries, always
+        consider whether you have taken those two possibilities into
+        account.
+      </p><p>
+        <code class="literal">NOT IN</code> is an alias for <code class="literal">&lt;&gt;
+        ALL</code>. Thus, these two statements are the same:
+      </p><pre class="programlisting">SELECT s1 FROM t1 WHERE s1 &lt;&gt; ALL (SELECT s1 FROM t2);
+SELECT s1 FROM t1 WHERE s1 NOT IN (SELECT s1 FROM t2);
+</pre><p>
+        MySQL 8.0.19 supports the <a class="link" href="table.html" title="13.2.16&nbsp;TABLE Statement"><code class="literal">TABLE</code></a>
+        statement. As with <code class="literal">IN</code>,
+        <code class="literal">ANY</code>, and <code class="literal">SOME</code>, you can use
+        <code class="literal">TABLE</code> with <code class="literal">ALL</code> and
+        <code class="literal">NOT IN</code> provided that the following two
+        conditions are met:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The table in the subquery contains only one column
+          </p></li><li class="listitem"><p>
+            The subquery does not depend on a column expression
+          </p></li></ul></div><p>
+        For example, assuming that table <code class="literal">t2</code> consists
+        of a single column, the last two statements shown previously can
+        be written using <code class="literal">TABLE t2</code> like this:
+      </p><pre class="programlisting">SELECT s1 FROM t1 WHERE s1 &lt;&gt; ALL (TABLE t2);
+SELECT s1 FROM t1 WHERE s1 NOT IN (TABLE t2);
+</pre><p>
+        A query such as <code class="literal">SELECT * FROM t1 WHERE 1 &gt; ALL
+        (SELECT MAX(s1) FROM t2);</code> cannot be written using
+        <code class="literal">TABLE t2</code> because the subquery depends on a
+        column expression.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="any-in-some-subqueries.html">Previous <span class="navHint"> Subqueries with ANY, IN, or SOME </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="row-subqueries.html">Next <span class="navHint"> Row Subqueries </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

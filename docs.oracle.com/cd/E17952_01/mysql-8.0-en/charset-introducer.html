@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>10.3.8 Character Set Introducers</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="charset-syntax.html" title="10.3 Specifying Character Sets and Collations" /><link rel="prev" href="charset-national.html" title="10.3.7 The National Character Set" /><link rel="next" href="charset-examples.html" title="10.3.9 Examples of Character Set and Collation Assignment" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="charset-introducer.html#charset-introducer">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="charset-national.html">Previous <span class="navHint"> The National Character Set </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="charset-syntax.html">Up <span class="navHint"> Specifying Character Sets and Collations </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="charset-examples.html">Next <span class="navHint"> Examples of Character Set and Collation Assignment </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="charset-introducer"></a>10.3.8 Character Set Introducers</h3></div></div></div><a id="idm45828944462048" class="indexterm"></a><a id="idm45828944460592" class="indexterm"></a><p>
+        A character string literal, hexadecimal literal, or bit-value
+        literal may have an optional character set introducer and
+        <code class="literal">COLLATE</code> clause, to designate it as a string
+        that uses a particular character set and collation:
+      </p><pre class="programlisting">[_<em class="replaceable"><code>charset_name</code></em>] <em class="replaceable"><code>literal</code></em> [COLLATE <em class="replaceable"><code>collation_name</code></em>]
+</pre><p>
+        The <code class="literal">_<em class="replaceable"><code>charset_name</code></em></code>
+        expression is formally called an
+        <span class="emphasis"><em>introducer</em></span>. It tells the parser, <span class="quote">“<span class="quote">the
+        string that follows uses character set
+        <em class="replaceable"><code>charset_name</code></em>.</span>”</span> An introducer
+        does not change the string to the introducer character set like
+        <a class="link" href="cast-functions.html#function_convert"><code class="literal">CONVERT()</code></a> would do. It does not
+        change the string value, although padding may occur. The
+        introducer is just a signal.
+      </p><p>
+        For character string literals, space between the introducer and
+        the string is permitted but optional.
+      </p><p>
+        For character set literals, an introducer indicates the
+        character set for the following string, but does not change how
+        the parser performs escape processing within the string. Escapes
+        are always interpreted by the parser according to the character
+        set given by
+        <a class="link" href="server-system-variables.html#sysvar_character_set_connection"><code class="literal">character_set_connection</code></a>. For
+        additional discussion and examples, see
+        <a class="xref" href="charset-literal.html" title="10.3.6 Character String Literal Character Set and Collation">Section 10.3.6, “Character String Literal Character Set and Collation”</a>.
+      </p><p>
+        Examples:
+      </p><pre class="programlisting">SELECT 'abc';
+SELECT _latin1'abc';
+SELECT _binary'abc';
+SELECT _utf8mb4'abc' COLLATE utf8mb4_danish_ci;
+
+SELECT _latin1 X'4D7953514C';
+SELECT _utf8mb4 0x4D7953514C COLLATE utf8mb4_danish_ci;
+
+SELECT _latin1 b'1000001';
+SELECT _utf8mb4 0b1000001 COLLATE utf8mb4_danish_ci;
+</pre><p>
+        Character set introducers and the <code class="literal">COLLATE</code>
+        clause are implemented according to standard SQL specifications.
+      </p><p>
+        Character string literals can be designated as binary strings by
+        using the <code class="literal">_binary</code> introducer. Hexadecimal
+        literals and bit-value literals are binary strings by default,
+        so <code class="literal">_binary</code> is permitted, but normally
+        unnecessary. <code class="literal">_binary</code> may be useful to
+        preserve a hexadecimal or bit literal as a binary string in
+        contexts for which the literal is otherwise treated as a number.
+        For example, bit operations permit numeric or binary string
+        arguments in MySQL 8.0 and higher, but treat
+        hexadecimal and bit literals as numbers by default. To
+        explicitly specify binary string context for such literals, use
+        a <code class="literal">_binary</code> introducer for at least one of the
+        arguments:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @v1 = X'000D' | X'0BC0';</code></strong>
+mysql&gt; <strong class="userinput"><code>SET @v2 = _binary X'000D' | X'0BC0';</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT HEX(@v1), HEX(@v2);</code></strong>
++----------+----------+
+| HEX(@v1) | HEX(@v2) |
++----------+----------+
+| BCD      | 0BCD     |
++----------+----------+
+</pre><p>
+        The displayed result appears similar for both bit operations,
+        but the result without <code class="literal">_binary</code> is a
+        <code class="literal">BIGINT</code> value, whereas the result with
+        <code class="literal">_binary</code> is a binary string. Due to the
+        difference in result types, the displayed values differ:
+        High-order 0 digits are not displayed for the numeric result.
+      </p><p>
+        MySQL determines the character set and collation of a character
+        string literal, hexadecimal literal, or bit-value literal in the
+        following manner:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If both <em class="replaceable"><code>_charset_name</code></em> and
+            <code class="literal">COLLATE
+            <em class="replaceable"><code>collation_name</code></em></code> are
+            specified, character set
+            <em class="replaceable"><code>charset_name</code></em> and collation
+            <em class="replaceable"><code>collation_name</code></em> are used.
+            <em class="replaceable"><code>collation_name</code></em> must be a
+            permitted collation for
+            <em class="replaceable"><code>charset_name</code></em>.
+          </p></li><li class="listitem"><p>
+            If <em class="replaceable"><code>_charset_name</code></em> is specified but
+            <code class="literal">COLLATE</code> is not specified, character set
+            <em class="replaceable"><code>charset_name</code></em> and its default
+            collation are used. To see the default collation for each
+            character set, use the <a class="link" href="show-character-set.html" title="13.7.7.3 SHOW CHARACTER SET Statement"><code class="literal">SHOW CHARACTER
+            SET</code></a> statement or query the
+            <code class="literal">INFORMATION_SCHEMA</code>
+            <a class="link" href="information-schema-character-sets-table.html" title="26.3.4 The INFORMATION_SCHEMA CHARACTER_SETS Table"><code class="literal">CHARACTER_SETS</code></a> table.
+          </p></li><li class="listitem"><p>
+            If <em class="replaceable"><code>_charset_name</code></em> is not specified
+            but <code class="literal">COLLATE
+            <em class="replaceable"><code>collation_name</code></em></code> is
+            specified:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                For a character string literal, the connection default
+                character set given by the
+                <a class="link" href="server-system-variables.html#sysvar_character_set_connection"><code class="literal">character_set_connection</code></a>
+                system variable and collation
+                <em class="replaceable"><code>collation_name</code></em> are used.
+                <em class="replaceable"><code>collation_name</code></em> must be a
+                permitted collation for the connection default character
+                set.
+              </p></li><li class="listitem"><p>
+                For a hexadecimal literal or bit-value literal, the only
+                permitted collation is <code class="literal">binary</code> because
+                these types of literals are binary strings by default.
+              </p></li></ul></div></li><li class="listitem"><p>
+            Otherwise (neither <em class="replaceable"><code>_charset_name</code></em>
+            nor <code class="literal">COLLATE
+            <em class="replaceable"><code>collation_name</code></em></code> is
+            specified):
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                For a character string literal, the connection default
+                character set and collation given by the
+                <a class="link" href="server-system-variables.html#sysvar_character_set_connection"><code class="literal">character_set_connection</code></a>
+                and
+                <a class="link" href="server-system-variables.html#sysvar_collation_connection"><code class="literal">collation_connection</code></a>
+                system variables are used.
+              </p></li><li class="listitem"><p>
+                For a hexadecimal literal or bit-value literal, the
+                character set and collation are
+                <code class="literal">binary</code>.
+              </p></li></ul></div></li></ul></div><p>
+        Examples:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Nonbinary strings with <code class="literal">latin1</code> character
+            set and <code class="literal">latin1_german1_ci</code> collation:
+          </p><pre class="programlisting">SELECT _latin1'Müller' COLLATE latin1_german1_ci;
+SELECT _latin1 X'0A0D' COLLATE latin1_german1_ci;
+SELECT _latin1 b'0110' COLLATE latin1_german1_ci;
+</pre></li><li class="listitem"><p>
+            Nonbinary strings with <code class="literal">utf8mb4</code> character
+            set and its default collation (that is,
+            <code class="literal">utf8mb4_0900_ai_ci</code>):
+          </p><pre class="programlisting">SELECT _utf8mb4'Müller';
+SELECT _utf8mb4 X'0A0D';
+SELECT _utf8mb4 b'0110';
+</pre></li><li class="listitem"><p>
+            Binary strings with <code class="literal">binary</code> character set
+            and its default collation (that is,
+            <code class="literal">binary</code>):
+          </p><pre class="programlisting">SELECT _binary'Müller';
+SELECT X'0A0D';
+SELECT b'0110';
+</pre><p>
+            The hexadecimal literal and bit-value literal need no
+            introducer because they are binary strings by default.
+          </p></li><li class="listitem"><p>
+            A nonbinary string with the connection default character set
+            and <code class="literal">utf8mb4_0900_ai_ci</code> collation (fails
+            if the connection character set is not
+            <code class="literal">utf8mb4</code>):
+          </p><pre class="programlisting">SELECT 'Müller' COLLATE utf8mb4_0900_ai_ci;
+</pre><p>
+            This construction (<code class="literal">COLLATE</code> only) does not
+            work for hexadecimal literals or bit literals because their
+            character set is <code class="literal">binary</code> no matter the
+            connection character set, and <code class="literal">binary</code> is
+            not compatible with the
+            <code class="literal">utf8mb4_0900_ai_ci</code> collation. The only
+            permitted <code class="literal">COLLATE</code> clause in the absence
+            of an introducer is <code class="literal">COLLATE binary</code>.
+          </p></li><li class="listitem"><p>
+            A string with the connection default character set and
+            collation:
+          </p><pre class="programlisting">SELECT 'Müller';
+</pre></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="charset-national.html">Previous <span class="navHint"> The National Character Set </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="charset-syntax.html">Up <span class="navHint"> Specifying Character Sets and Collations </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="charset-examples.html">Next <span class="navHint"> Examples of Character Set and Collation Assignment </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

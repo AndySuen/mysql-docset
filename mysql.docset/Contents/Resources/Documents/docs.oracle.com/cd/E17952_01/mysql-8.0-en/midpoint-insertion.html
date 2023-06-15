@@ -1,0 +1,59 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1925"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.10.2.3%C2%A0Midpoint%20Insertion%20Strategy"></a><title>8.10.2.3&nbsp;Midpoint Insertion Strategy</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="myisam-key-cache.html" title="8.10.2&nbsp;The MyISAM Key Cache"/><link rel="prev" href="multiple-key-caches.html" title="8.10.2.2&nbsp;Multiple Key Caches"/><link rel="next" href="index-preloading.html" title="8.10.2.4&nbsp;Index Preloading"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="midpoint-insertion.html#midpoint-insertion">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="multiple-key-caches.html">Previous <span class="navHint"> Multiple Key Caches </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="myisam-key-cache.html">Up <span class="navHint"> The MyISAM Key Cache </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="index-preloading.html">Next <span class="navHint"> Index Preloading </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1924"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.10.2.3%C2%A0Midpoint%20Insertion%20Strategy"></a><h4 class="title"><a id="midpoint-insertion"></a>8.10.2.3&nbsp;Midpoint Insertion Strategy</h4></div></div></div><p>
+          By default, the key cache management system uses a simple LRU
+          strategy for choosing key cache blocks to be evicted, but it
+          also supports a more sophisticated method called the
+          <span class="firstterm">midpoint insertion
+          strategy.</span>
+        </p><p>
+          When using the midpoint insertion strategy, the LRU chain is
+          divided into two parts: a hot sublist and a warm sublist. The
+          division point between two parts is not fixed, but the key
+          cache management system takes care that the warm part is not
+          <span class="quote">&ldquo;<span class="quote">too short,</span>&rdquo;</span> always containing at least
+          <a class="link" href="server-system-variables.html#sysvar_key_cache_division_limit"><code class="literal">key_cache_division_limit</code></a>
+          percent of the key cache blocks.
+          <a class="link" href="server-system-variables.html#sysvar_key_cache_division_limit"><code class="literal">key_cache_division_limit</code></a> is a
+          component of structured key cache variables, so its value is a
+          parameter that can be set per cache.
+        </p><p>
+          When an index block is read from a table into the key cache,
+          it is placed at the end of the warm sublist. After a certain
+          number of hits (accesses of the block), it is promoted to the
+          hot sublist. At present, the number of hits required to
+          promote a block (3) is the same for all index blocks.
+        </p><p>
+          A block promoted into the hot sublist is placed at the end of
+          the list. The block then circulates within this sublist. If
+          the block stays at the beginning of the sublist for a long
+          enough time, it is demoted to the warm sublist. This time is
+          determined by the value of the
+          <a class="link" href="server-system-variables.html#sysvar_key_cache_age_threshold"><code class="literal">key_cache_age_threshold</code></a>
+          component of the key cache.
+        </p><p>
+          The threshold value prescribes that, for a key cache
+          containing <em class="replaceable"><code>N</code></em> blocks, the block at
+          the beginning of the hot sublist not accessed within the last
+          <code class="literal"><em class="replaceable"><code>N</code></em> *
+          key_cache_age_threshold / 100</code> hits is to be moved to
+          the beginning of the warm sublist. It then becomes the first
+          candidate for eviction, because blocks for replacement always
+          are taken from the beginning of the warm sublist.
+        </p><p>
+          The midpoint insertion strategy enables you to keep
+          more-valued blocks always in the cache. If you prefer to use
+          the plain LRU strategy, leave the
+          <a class="link" href="server-system-variables.html#sysvar_key_cache_division_limit"><code class="literal">key_cache_division_limit</code></a>
+          value set to its default of 100.
+        </p><p>
+          The midpoint insertion strategy helps to improve performance
+          when execution of a query that requires an index scan
+          effectively pushes out of the cache all the index blocks
+          corresponding to valuable high-level B-tree nodes. To avoid
+          this, you must use a midpoint insertion strategy with the
+          <a class="link" href="server-system-variables.html#sysvar_key_cache_division_limit"><code class="literal">key_cache_division_limit</code></a> set
+          to much less than 100. Then valuable frequently hit nodes are
+          preserved in the hot sublist during an index scan operation as
+          well.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="multiple-key-caches.html">Previous <span class="navHint"> Multiple Key Caches </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="myisam-key-cache.html">Up <span class="navHint"> The MyISAM Key Cache </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="index-preloading.html">Next <span class="navHint"> Index Preloading </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

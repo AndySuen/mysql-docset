@@ -1,0 +1,573 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2331"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.6.7.3%C2%A0Adding%20NDB%20Cluster%20Data%20Nodes%20Online%3A%20Detailed%20Example"></a><title>23.6.7.3&nbsp;Adding NDB Cluster Data Nodes Online: Detailed Example</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-online-add-node.html" title="23.6.7&nbsp;Adding NDB Cluster Data Nodes Online"/><link rel="prev" href="mysql-cluster-online-add-node-basics.html" title="23.6.7.2&nbsp;Adding NDB Cluster Data Nodes Online: Basic procedure"/><link rel="next" href="mysql-cluster-backup.html" title="23.6.8&nbsp;Online Backup of NDB Cluster"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-online-add-node-example.html#mysql-cluster-online-add-node-example">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-online-add-node-basics.html">Previous <span class="navHint"> Adding NDB Cluster Data Nodes Online: Basic procedure </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-online-add-node.html">Up <span class="navHint"> Adding NDB Cluster Data Nodes Online </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-backup.html">Next <span class="navHint"> Online Backup of NDB Cluster </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2330"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/23.6.7.3%C2%A0Adding%20NDB%20Cluster%20Data%20Nodes%20Online%3A%20Detailed%20Example"></a><h4 class="title"><a id="mysql-cluster-online-add-node-example"></a>23.6.7.3&nbsp;Adding NDB Cluster Data Nodes Online: Detailed Example</h4></div></div></div><p>
+        In this section we provide a detailed example illustrating how
+        to add new NDB Cluster data nodes online, starting with an NDB
+        Cluster having 2 data nodes in a single node group and
+        concluding with a cluster having 4 data nodes in 2 node groups.
+      </p><p><strong>Starting configuration.&nbsp;</strong>
+          For purposes of illustration, we assume a minimal
+          configuration, and that the cluster uses a
+          <code class="filename">config.ini</code> file containing only the
+          following information:
+        </p><pre class="programlisting">[ndbd default]
+DataMemory = 100M
+IndexMemory = 100M
+NoOfReplicas = 2
+DataDir = /usr/local/mysql/var/mysql-cluster
+
+[ndbd]
+Id = 1
+HostName = 198.51.100.1
+
+[ndbd]
+Id = 2
+HostName = 198.51.100.2
+
+[mgm]
+HostName = 198.51.100.10
+Id = 10
+
+[api]
+Id=20
+HostName = 198.51.100.20
+
+[api]
+Id=21
+HostName = 198.51.100.21
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          We have left a gap in the sequence between data node IDs and
+          other nodes. This make it easier later to assign node IDs that
+          are not already in use to data nodes which are newly added.
+        </p></div><p>
+        We also assume that you have already started the cluster using
+        the appropriate command line or <code class="filename">my.cnf</code>
+        options, and that running
+        <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-show"><code class="literal">SHOW</code></a> in the management
+        client produces output similar to what is shown here:
+      </p><pre class="programlisting">-- NDB Cluster -- Management Client --
+ndb_mgm&gt; <strong class="userinput"><code>SHOW</code></strong>
+Connected to Management Server at: 198.51.100.10:1186
+Cluster Configuration
+---------------------
+[ndbd(NDB)]     2 node(s)
+id=1    @198.51.100.1  (8.0.34-ndb-8.0.34, Nodegroup: 0, *)
+id=2    @198.51.100.2  (8.0.34-ndb-8.0.34, Nodegroup: 0)
+
+[ndb_mgmd(MGM)] 1 node(s)
+id=10   @198.51.100.10  (8.0.34-ndb-8.0.34)
+
+[mysqld(API)]   2 node(s)
+id=20   @198.51.100.20  (8.0.34-ndb-8.0.34)
+id=21   @198.51.100.21  (8.0.34-ndb-8.0.34)
+</pre><p>
+        Finally, we assume that the cluster contains a single
+        <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> table created as shown
+        here:
+      </p><pre class="programlisting">USE n;
+
+CREATE TABLE ips (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    country_code CHAR(2) NOT NULL,
+    type CHAR(4) NOT NULL,
+    ip_address VARCHAR(15) NOT NULL,
+    addresses BIGINT UNSIGNED DEFAULT NULL,
+    date BIGINT UNSIGNED DEFAULT NULL
+)   ENGINE NDBCLUSTER;
+</pre><p>
+        The memory usage and related information shown later in this
+        section was generated after inserting approximately 50000 rows
+        into this table.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          In this example, we show the single-threaded
+          <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1&nbsp;ndbd &mdash; The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> being used for the data node
+          processes. You can also apply this example, if you are using
+          the multithreaded <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3&nbsp;ndbmtd &mdash; The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a> by substituting
+          <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3&nbsp;ndbmtd &mdash; The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a> for <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1&nbsp;ndbd &mdash; The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> wherever
+          it appears in the steps that follow.
+        </p></div><p><strong>Step 1: Update configuration file.&nbsp;</strong>
+          Open the cluster global configuration file in a text editor
+          and add <code class="literal">[ndbd]</code> sections corresponding to
+          the 2 new data nodes. (We give these data nodes IDs 3 and 4,
+          and assume that they are to be run on host machines at
+          addresses 198.51.100.3 and 198.51.100.4, respectively.) After
+          you have added the new sections, the contents of the
+          <code class="filename">config.ini</code> file should look like what is
+          shown here, where the additions to the file are shown in bold
+          type:
+        </p><pre class="programlisting">[ndbd default]
+DataMemory = 100M
+IndexMemory = 100M
+NoOfReplicas = 2
+DataDir = /usr/local/mysql/var/mysql-cluster
+
+[ndbd]
+Id = 1
+HostName = 198.51.100.1
+
+[ndbd]
+Id = 2
+HostName = 198.51.100.2
+
+<span class="bold"><strong>[ndbd]
+Id = 3
+HostName = 198.51.100.3
+
+[ndbd]
+Id = 4
+HostName = 198.51.100.4</strong></span>
+
+[mgm]
+HostName = 198.51.100.10
+Id = 10
+
+[api]
+Id=20
+HostName = 198.51.100.20
+
+[api]
+Id=21
+HostName = 198.51.100.21
+</pre><p>
+        Once you have made the necessary changes, save the file.
+      </p><p><strong>Step 2: Restart the management server.&nbsp;</strong>
+          Restarting the cluster management server requires that you
+          issue separate commands to stop the management server and then
+          to start it again, as follows:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Stop the management server using the management client
+            <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-stop"><code class="literal">STOP</code></a> command, as shown
+            here:
+          </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>10 STOP</code></strong>
+Node 10 has shut down.
+Disconnecting to allow Management Server to shutdown
+
+$&gt;
+</pre></li><li class="listitem"><p>
+            Because shutting down the management server causes the
+            management client to terminate, you must start the
+            management server from the system shell. For simplicity, we
+            assume that <code class="filename">config.ini</code> is in the same
+            directory as the management server binary, but in practice,
+            you must supply the correct path to the configuration file.
+            You must also supply the
+            <a class="link" href="mysql-cluster-programs-ndb-mgmd.html#option_ndb_mgmd_reload"><code class="option">--reload</code></a> or
+            <a class="link" href="mysql-cluster-programs-ndb-mgmd.html#option_ndb_mgmd_initial"><code class="option">--initial</code></a> option so that
+            the management server reads the new configuration from the
+            file rather than its configuration cache. If your
+            shell&#39;s current directory is also the same as the
+            directory where the management server binary is located,
+            then you can invoke the management server as shown here:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>ndb_mgmd -f config.ini --reload</code></strong>
+2008-12-08 17:29:23 [MgmSrvr] INFO     -- NDB Cluster Management Server. 8.0.34-ndb-8.0.34
+2008-12-08 17:29:23 [MgmSrvr] INFO     -- Reading cluster configuration from &#39;config.ini&#39;
+</pre></li></ol></div><p>
+        If you check the output of
+        <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-show"><code class="literal">SHOW</code></a> in the management
+        client after restarting the <a class="link" href="mysql-cluster-programs-ndb-mgm.html" title="23.5.5&nbsp;ndb_mgm &mdash; The NDB Cluster Management Client"><span class="command"><strong>ndb_mgm</strong></span></a> process,
+        you should now see something like this:
+      </p><pre class="programlisting">-- NDB Cluster -- Management Client --
+ndb_mgm&gt; <strong class="userinput"><code>SHOW</code></strong>
+Connected to Management Server at: 198.51.100.10:1186
+Cluster Configuration
+---------------------
+[ndbd(NDB)]     2 node(s)
+id=1    @198.51.100.1  (8.0.34-ndb-8.0.34, Nodegroup: 0, *)
+id=2    @198.51.100.2  (8.0.34-ndb-8.0.34, Nodegroup: 0)
+id=3 (not connected, accepting connect from 198.51.100.3)
+id=4 (not connected, accepting connect from 198.51.100.4)
+
+[ndb_mgmd(MGM)] 1 node(s)
+id=10   @198.51.100.10  (8.0.34-ndb-8.0.34)
+
+[mysqld(API)]   2 node(s)
+id=20   @198.51.100.20  (8.0.34-ndb-8.0.34)
+id=21   @198.51.100.21  (8.0.34-ndb-8.0.34)
+</pre><p><strong>Step 3: Perform a rolling restart of the existing data nodes.&nbsp;</strong>
+          This step can be accomplished entirely within the cluster
+          management client using the
+          <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-restart"><code class="literal">RESTART</code></a> command, as shown
+          here:
+        </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>1 RESTART</code></strong>
+Node 1: Node shutdown initiated
+Node 1: Node shutdown completed, restarting, no start.
+Node 1 is being restarted
+
+ndb_mgm&gt; Node 1: Start initiated (version 8.0.34)
+Node 1: Started (version 8.0.34)
+
+ndb_mgm&gt; <strong class="userinput"><code>2 RESTART</code></strong>
+Node 2: Node shutdown initiated
+Node 2: Node shutdown completed, restarting, no start.
+Node 2 is being restarted
+
+ndb_mgm&gt; Node 2: Start initiated (version 8.0.34)
+
+ndb_mgm&gt; Node 2: Started (version 8.0.34)
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          After issuing each <code class="literal"><em class="replaceable"><code>X</code></em>
+          RESTART</code> command, wait until the management client
+          reports <code class="literal">Node <em class="replaceable"><code>X</code></em>: Started
+          (version ...)</code> <span class="emphasis"><em>before</em></span> proceeding
+          any further.
+        </p></div><p>
+        You can verify that all existing data nodes were restarted using
+        the updated configuration by checking the
+        <a class="link" href="mysql-cluster-ndbinfo-nodes.html" title="23.6.16.47&nbsp;The ndbinfo nodes Table"><code class="literal">ndbinfo.nodes</code></a> table in the
+        <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client.
+      </p><p><strong>Step 4: Perform a rolling restart of all cluster API nodes.&nbsp;</strong>
+          Shut down and restart each MySQL server acting as an SQL node
+          in the cluster using <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin shutdown</strong></span></a>
+          followed by <a class="link" href="mysqld-safe.html" title="4.3.2&nbsp;mysqld_safe &mdash; MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> (or another startup
+          script). This should be similar to what is shown here, where
+          <em class="replaceable"><code>password</code></em> is the MySQL
+          <code class="literal">root</code> password for a given MySQL server
+          instance:
+        </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqladmin -uroot -p<em class="replaceable"><code>password</code></em> shutdown</code></strong>
+081208 20:19:56 mysqld_safe mysqld from pid file
+/usr/local/mysql/var/tonfisk.pid ended
+$&gt; <strong class="userinput"><code>mysqld_safe --ndbcluster --ndb-connectstring=198.51.100.10 &amp;</code></strong>
+081208 20:20:06 mysqld_safe Logging to &#39;/usr/local/mysql/var/tonfisk.err&#39;.
+081208 20:20:06 mysqld_safe Starting mysqld daemon with databases
+from /usr/local/mysql/var
+</pre><p>
+        Of course, the exact input and output depend on how and where
+        MySQL is installed on the system, as well as which options you
+        choose to start it (and whether or not some or all of these
+        options are specified in a <code class="filename">my.cnf</code> file).
+      </p><p><strong>Step 5: Perform an initial start of the new data nodes.&nbsp;</strong>
+          From a system shell on each of the hosts for the new data
+          nodes, start the data nodes as shown here, using the
+          <a class="link" href="mysql-cluster-programs-ndbd.html#option_ndbd_initial"><code class="option">--initial</code></a> option:
+        </p><pre class="programlisting">$&gt; <strong class="userinput"><code>ndbd -c 198.51.100.10 --initial</code></strong>
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Unlike the case with restarting the existing data nodes, you
+          can start the new data nodes concurrently; you do not need to
+          wait for one to finish starting before starting the other.
+        </p></div><p>
+        <span class="emphasis"><em>Wait until both of the new data nodes have started
+        before proceeding with the next step</em></span>. Once the new
+        data nodes have started, you can see in the output of the
+        management client <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-show"><code class="literal">SHOW</code></a>
+        command that they do not yet belong to any node group (as
+        indicated with bold type here):
+      </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>SHOW</code></strong>
+Connected to Management Server at: 198.51.100.10:1186
+Cluster Configuration
+---------------------
+[ndbd(NDB)]     2 node(s)
+id=1    @198.51.100.1  (8.0.34-ndb-8.0.34, Nodegroup: 0, *)
+id=2    @198.51.100.2  (8.0.34-ndb-8.0.34, Nodegroup: 0)
+id=3    @198.51.100.3  (8.0.34-ndb-8.0.34, <span class="bold"><strong>no nodegroup</strong></span>)
+id=4    @198.51.100.4  (8.0.34-ndb-8.0.34, <span class="bold"><strong>no nodegroup</strong></span>)
+
+[ndb_mgmd(MGM)] 1 node(s)
+id=10   @198.51.100.10  (8.0.34-ndb-8.0.34)
+
+[mysqld(API)]   2 node(s)
+id=20   @198.51.100.20  (8.0.34-ndb-8.0.34)
+id=21   @198.51.100.21  (8.0.34-ndb-8.0.34)
+</pre><p><strong>Step 6: Create a new node group.&nbsp;</strong>
+          You can do this by issuing a <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-create-nodegroup"><code class="literal">CREATE
+          NODEGROUP</code></a> command in the cluster management client.
+          This command takes as its argument a comma-separated list of
+          the node IDs of the data nodes to be included in the new node
+          group, as shown here:
+        </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>CREATE NODEGROUP 3,4</code></strong>
+Nodegroup 1 created
+</pre><p>
+        By issuing <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-show"><code class="literal">SHOW</code></a> again, you
+        can verify that data nodes 3 and 4 have joined the new node
+        group (again indicated in bold type):
+      </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>SHOW</code></strong>
+Connected to Management Server at: 198.51.100.10:1186
+Cluster Configuration
+---------------------
+[ndbd(NDB)]     2 node(s)
+id=1    @198.51.100.1  (8.0.34-ndb-8.0.34, Nodegroup: 0, *)
+id=2    @198.51.100.2  (8.0.34-ndb-8.0.34, Nodegroup: 0)
+id=3    @198.51.100.3  (8.0.34-ndb-8.0.34, <span class="bold"><strong>Nodegroup: 1</strong></span>)
+id=4    @198.51.100.4  (8.0.34-ndb-8.0.34, <span class="bold"><strong>Nodegroup: 1</strong></span>)
+
+[ndb_mgmd(MGM)] 1 node(s)
+id=10   @198.51.100.10  (8.0.34-ndb-8.0.34)
+
+[mysqld(API)]   2 node(s)
+id=20   @198.51.100.20  (8.0.34-ndb-8.0.34)
+id=21   @198.51.100.21  (8.0.34-ndb-8.0.34)
+</pre><p><strong>Step 7: Redistribute cluster data.&nbsp;</strong>
+          When a node group is created, existing data and indexes are
+          not automatically distributed to the new node group&#39;s
+          data nodes, as you can see by issuing the appropriate
+          <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-report"><code class="literal">REPORT</code></a> command in the
+          management client:
+        </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>ALL REPORT MEMORY</code></strong>
+
+Node 1: Data usage is 5%(177 32K pages of total 3200)
+Node 1: Index usage is 0%(108 8K pages of total 12832)
+Node 2: Data usage is 5%(177 32K pages of total 3200)
+Node 2: Index usage is 0%(108 8K pages of total 12832)
+<span class="bold"><strong>Node 3: Data usage is 0%(0 32K pages of total 3200)
+Node 3: Index usage is 0%(0 8K pages of total 12832)
+Node 4: Data usage is 0%(0 32K pages of total 3200)
+Node 4: Index usage is 0%(0 8K pages of total 12832)</strong></span>
+</pre><p>
+        By using <a class="link" href="mysql-cluster-programs-ndb-desc.html" title="23.5.9&nbsp;ndb_desc &mdash; Describe NDB Tables"><span class="command"><strong>ndb_desc</strong></span></a> with the
+        <code class="option">-p</code> option, which causes the output to include
+        partitioning information, you can see that the table still uses
+        only 2 partitions (in the <code class="literal">Per partition info</code>
+        section of the output, shown here in bold text):
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>ndb_desc -c 198.51.100.10 -d n ips -p</code></strong>
+-- ips --
+Version: 1
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 6
+Number of primary keys: 1
+Length of frm data: 340
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes --
+id Bigint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+country_code Char(2;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+type Char(4;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+ip_address Varchar(15;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+addresses Bigunsigned NULL AT=FIXED ST=MEMORY
+date Bigunsigned NULL AT=FIXED ST=MEMORY
+
+-- Indexes --
+PRIMARY KEY(id) - UniqueHashIndex
+PRIMARY(id) - OrderedIndex
+
+<span class="bold"><strong>-- Per partition info --
+Partition   Row count   Commit count  Frag fixed memory   Frag varsized memory
+0           26086       26086         1572864             557056
+1           26329       26329         1605632             557056</strong></span>
+
+NDBT_ProgramExit: 0 - OK
+</pre><p>
+        You can cause the data to be redistributed among all of the data
+        nodes by performing, for each <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a>
+        table, an <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER
+        TABLE ... ALGORITHM=INPLACE, REORGANIZE PARTITION</code></a>
+        statement in the <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          <code class="literal">ALTER TABLE ... ALGORITHM=INPLACE, REORGANIZE
+          PARTITION</code> does not work on tables that were created
+          with the <code class="literal">MAX_ROWS</code> option. Instead, use
+          <code class="literal">ALTER TABLE ... ALGORITHM=INPLACE,
+          MAX_ROWS=...</code> to reorganize such tables.
+        </p><p>
+          Keep in mind that using <code class="literal">MAX_ROWS</code> to set the
+          number of partitions per table is deprecated, and you should
+          use <code class="literal">PARTITION_BALANCE</code> instead; see
+          <a class="xref" href="create-table-ndb-comment-options.html" title="13.1.20.12&nbsp;Setting NDB Comment Options">Section&nbsp;13.1.20.12, &ldquo;Setting NDB Comment Options&rdquo;</a>, for more
+          information.
+        </p></div><p>
+        After issuing the statement <code class="literal">ALTER TABLE ips
+        ALGORITHM=INPLACE, REORGANIZE PARTITION</code>, you can see
+        using <a class="link" href="mysql-cluster-programs-ndb-desc.html" title="23.5.9&nbsp;ndb_desc &mdash; Describe NDB Tables"><span class="command"><strong>ndb_desc</strong></span></a> that the data for this table
+        is now stored using 4 partitions, as shown here (with the
+        relevant portions of the output in bold type):
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>ndb_desc -c 198.51.100.10 -d n ips -p</code></strong>
+-- ips --
+Version: 16777217
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 6
+Number of primary keys: 1
+Length of frm data: 341
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 4
+TableStatus: Retrieved
+-- Attributes --
+id Bigint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+country_code Char(2;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+type Char(4;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+ip_address Varchar(15;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+addresses Bigunsigned NULL AT=FIXED ST=MEMORY
+date Bigunsigned NULL AT=FIXED ST=MEMORY
+
+-- Indexes --
+PRIMARY KEY(id) - UniqueHashIndex
+PRIMARY(id) - OrderedIndex
+
+<span class="bold"><strong>-- Per partition info --
+Partition   Row count   Commit count  Frag fixed memory   Frag varsized memory
+0           12981       52296         1572864             557056
+1           13236       52515         1605632             557056
+2           13105       13105         819200              294912
+3           13093       13093         819200              294912</strong></span>
+
+NDBT_ProgramExit: 0 - OK
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Normally, <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER
+          TABLE <em class="replaceable"><code>table_name</code></em>
+          [ALGORITHM=INPLACE,] REORGANIZE PARTITION</code></a> is used
+          with a list of partition identifiers and a set of partition
+          definitions to create a new partitioning scheme for a table
+          that has already been explicitly partitioned. Its use here to
+          redistribute data onto a new NDB Cluster node group is an
+          exception in this regard; when used in this way, no other
+          keywords or identifiers follow <code class="literal">REORGANIZE
+          PARTITION</code>.
+        </p><p>
+          For more information, see <a class="xref" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement">Section&nbsp;13.1.9, &ldquo;ALTER TABLE Statement&rdquo;</a>.
+        </p></div><p>
+        In addition, for each table, the
+        <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER
+        TABLE</code></a> statement should be followed by an
+        <a class="link" href="optimize-table.html" title="13.7.3.4&nbsp;OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> to reclaim wasted
+        space. You can obtain a list of all
+        <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> tables using the
+        following query against the Information Schema
+        <a class="link" href="information-schema-tables-table.html" title="26.3.38&nbsp;The INFORMATION_SCHEMA TABLES Table"><code class="literal">TABLES</code></a> table:
+      </p><pre class="programlisting">SELECT TABLE_SCHEMA, TABLE_NAME
+    FROM INFORMATION_SCHEMA.TABLES
+    WHERE ENGINE = &#39;NDBCLUSTER&#39;;
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          The <code class="literal">INFORMATION_SCHEMA.TABLES.ENGINE</code> value
+          for an NDB Cluster table is always
+          <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a>, regardless of whether
+          the <code class="literal">CREATE TABLE</code> statement used to create
+          the table (or <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+          statement used to convert an existing table from a different
+          storage engine) used <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> or
+          <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> in its
+          <code class="literal">ENGINE</code> option.
+        </p></div><p>
+        You can see after performing these statements in the output of
+        <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-report"><code class="literal">ALL REPORT MEMORY</code></a> that the
+        data and indexes are now redistributed between all cluster data
+        nodes, as shown here:
+      </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>ALL REPORT MEMORY</code></strong>
+
+Node 1: Data usage is 5%(176 32K pages of total 3200)
+Node 1: Index usage is 0%(76 8K pages of total 12832)
+Node 2: Data usage is 5%(176 32K pages of total 3200)
+Node 2: Index usage is 0%(76 8K pages of total 12832)
+Node 3: Data usage is 2%(80 32K pages of total 3200)
+Node 3: Index usage is 0%(51 8K pages of total 12832)
+Node 4: Data usage is 2%(80 32K pages of total 3200)
+Node 4: Index usage is 0%(50 8K pages of total 12832)
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Since only one DDL operation on
+          <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> tables can be executed
+          at a time, you must wait for each
+          <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE ...
+          REORGANIZE PARTITION</code></a> statement to finish before
+          issuing the next one.
+        </p></div><p>
+        It is not necessary to issue
+        <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE ...
+        REORGANIZE PARTITION</code></a> statements for
+        <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> tables created
+        <span class="emphasis"><em>after</em></span> the new data nodes have been added;
+        data added to such tables is distributed among all data nodes
+        automatically. However, in
+        <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> tables that existed
+        <span class="emphasis"><em>prior to</em></span> the addition of the new nodes,
+        neither existing nor new data is distributed using the new nodes
+        until these tables have been reorganized using
+        <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE ...
+        REORGANIZE PARTITION</code></a>.
+      </p><p><strong>Alternative procedure, without rolling restart.&nbsp;</strong>
+          It is possible to avoid the need for a rolling restart by
+          configuring the extra data nodes, but not starting them, when
+          first starting the cluster. We assume, as before, that you
+          wish to start with two data nodes&mdash;nodes 1 and 2&mdash;in
+          one node group and later to expand the cluster to four data
+          nodes, by adding a second node group consisting of nodes 3 and
+          4:
+        </p><pre class="programlisting">[ndbd default]
+DataMemory = 100M
+IndexMemory = 100M
+NoOfReplicas = 2
+DataDir = /usr/local/mysql/var/mysql-cluster
+
+[ndbd]
+Id = 1
+HostName = 198.51.100.1
+
+[ndbd]
+Id = 2
+HostName = 198.51.100.2
+
+[ndbd]
+Id = 3
+HostName = 198.51.100.3
+Nodegroup = 65536
+
+[ndbd]
+Id = 4
+HostName = 198.51.100.4
+Nodegroup = 65536
+
+[mgm]
+HostName = 198.51.100.10
+Id = 10
+
+[api]
+Id=20
+HostName = 198.51.100.20
+
+[api]
+Id=21
+HostName = 198.51.100.21
+</pre><p>
+        The data nodes to be brought online at a later time (nodes 3 and
+        4) can be configured with
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-nodegroup"><code class="literal">NodeGroup = 65536</code></a>, in
+        which case nodes 1 and 2 can each be started as shown here:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>ndbd -c 198.51.100.10 --initial</code></strong>
+</pre><p>
+        The data nodes configured with
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-nodegroup"><code class="literal">NodeGroup = 65536</code></a> are
+        treated by the management server as though you had started nodes
+        1 and 2 using <a class="link" href="mysql-cluster-programs-ndbd.html#option_ndbd_nowait-nodes"><code class="option">--nowait-nodes=3,4</code></a>
+        after waiting for a period of time determined by the setting for
+        the
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-startnonodegrouptimeout"><code class="literal">StartNoNodeGroupTimeout</code></a>
+        data node configuration parameter. By default, this is 15
+        seconds (15000 milliseconds).
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-startnonodegrouptimeout"><code class="literal">StartNoNodegroupTimeout</code></a>
+          must be the same for all data nodes in the cluster; for this
+          reason, you should always set it in the <code class="literal">[ndbd
+          default]</code> section of the
+          <code class="filename">config.ini</code> file, rather than for
+          individual data nodes.
+        </p></div><p>
+        When you are ready to add the second node group, you need only
+        perform the following additional steps:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Start data nodes 3 and 4, invoking the data node process
+            once for each new node:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>ndbd -c 198.51.100.10 --initial</code></strong>
+</pre></li><li class="listitem"><p>
+            Issue the appropriate <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-create-nodegroup"><code class="literal">CREATE
+            NODEGROUP</code></a> command in the management client:
+          </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>CREATE NODEGROUP 3,4</code></strong>
+</pre></li><li class="listitem"><p>
+            In the <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client, issue
+            <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE ...
+            REORGANIZE PARTITION</code></a> and
+            <a class="link" href="optimize-table.html" title="13.7.3.4&nbsp;OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> statements for
+            each existing <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> table.
+            (As noted elsewhere in this section, existing NDB Cluster
+            tables cannot use the new nodes for data distribution until
+            this has been done.)
+          </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-online-add-node-basics.html">Previous <span class="navHint"> Adding NDB Cluster Data Nodes Online: Basic procedure </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-online-add-node.html">Up <span class="navHint"> Adding NDB Cluster Data Nodes Online </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-backup.html">Next <span class="navHint"> Online Backup of NDB Cluster </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

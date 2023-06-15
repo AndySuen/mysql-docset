@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>3.6.6 Using Foreign Keys</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="examples.html" title="3.6 Examples of Common Queries" /><link rel="prev" href="example-user-variables.html" title="3.6.5 Using User-Defined Variables" /><link rel="next" href="searching-on-two-keys.html" title="3.6.7 Searching on Two Keys" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="example-foreign-keys.html#example-foreign-keys">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="example-user-variables.html">Previous <span class="navHint"> Using User-Defined Variables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="examples.html">Up <span class="navHint"> Examples of Common Queries </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="searching-on-two-keys.html">Next <span class="navHint"> Searching on Two Keys </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="example-foreign-keys"></a>3.6.6 Using Foreign Keys</h3></div></div></div><a id="idm45829049698704" class="indexterm"></a><a id="idm45829049697632" class="indexterm"></a><p>
+        MySQL supports foreign keys, which permit cross-referencing
+        related data across tables, and foreign key constraints, which
+        help keep the related data consistent.
+      </p><p>
+        A foreign key relationship involves a parent table that holds
+        the initial column values, and a child table with column values
+        that reference the parent column values. A foreign key
+        constraint is defined on the child table.
+      </p><p>
+        This following example relates <code class="literal">parent</code> and
+        <code class="literal">child</code> tables through a single-column foreign
+        key and shows how a foreign key constraint enforces referential
+        integrity.
+      </p><p>
+        Create the parent and child tables:
+      </p><pre class="programlisting">CREATE TABLE parent (
+    id INT NOT NULL,
+    PRIMARY KEY (id)
+) ENGINE=INNODB;
+
+
+CREATE TABLE child (
+    id INT,
+    parent_id INT,
+    INDEX par_ind (parent_id),
+    FOREIGN KEY (parent_id)
+        REFERENCES parent(id)
+) ENGINE=INNODB;
+</pre><p>
+        Insert a row into the parent table:
+      </p><pre class="programlisting">mysql&gt; INSERT INTO parent (id) VALUES (1);
+</pre><p>
+        Verify that the data was inserted:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM parent;</code></strong>
++----+
+| id |
++----+
+|  1 |
++----+
+</pre><p>
+        Insert a row into the child table:
+      </p><pre class="programlisting">mysql&gt; INSERT INTO child (id,parent_id) VALUES (1,1);
+</pre><p>
+        The insert operation is successful because
+        <code class="literal">parent_id</code> 1 is present in the parent table.
+      </p><p>
+        Insert a row into the child table with a
+        <code class="literal">parent_id</code> value that is not present in the
+        parent table:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO child (id,parent_id) VALUES(2,2);</code></strong>
+ERROR 1452 (23000): Cannot add or update a child row: a foreign key constraint fails 
+(`test`.`child`, CONSTRAINT `child_ibfk_1` FOREIGN KEY (`parent_id`) 
+REFERENCES `parent` (`id`))
+</pre><p>
+        The operation fails because the specified
+        <code class="literal">parent_id</code> value does not exist in the parent
+        table.
+      </p><p>
+        Try to delete the previously inserted row from the parent table:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>DELETE FROM parent WHERE id VALUES = 1;</code></strong>
+ERROR 1451 (23000): Cannot delete or update a parent row: a foreign key constraint fails 
+(`test`.`child`, CONSTRAINT `child_ibfk_1` FOREIGN KEY (`parent_id`) 
+REFERENCES `parent` (`id`))
+</pre><p>
+        This operation fails because the record in the child table
+        contains the referenced id (<code class="literal">parent_id</code>) value.
+      </p><p>
+        When an operation affects a key value in the parent table that
+        has matching rows in the child table, the result depends on the
+        referential action specified by <code class="literal">ON UPDATE</code> and
+        <code class="literal">ON DELETE</code> subclauses of the <code class="literal">FOREIGN
+        KEY</code> clause. Omitting <code class="literal">ON DELETE</code> and
+        <code class="literal">ON UPDATE</code> clauses (as in the current child
+        table definition) is the same as specifying the
+        <code class="literal">RESTRICT</code> option, which rejects operations
+        that affect a key value in the parent table that has matching
+        rows in the parent table.
+      </p><p>
+        To demonstrate <code class="literal">ON DELETE</code> and <code class="literal">ON
+        UPDATE</code> referential actions, drop the child table and
+        recreate it to include <code class="literal">ON UPDATE</code> and
+        <code class="literal">ON DELETE</code> subclauses with the
+        <code class="literal">CASCADE</code> option. The
+        <code class="literal">CASCADE</code> option automatically deletes or
+        updates matching rows in the child table when deleting or
+        updating rows in the parent table.
+      </p><pre class="programlisting">DROP TABLE child;
+
+CREATE TABLE child (
+    id INT,
+    parent_id INT,
+    INDEX par_ind (parent_id),
+    FOREIGN KEY (parent_id)
+        REFERENCES parent(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+) ENGINE=INNODB;
+</pre><p>
+        Insert the following rows into the child table:
+      </p><pre class="programlisting">mysql&gt; INSERT INTO child (id,parent_id) VALUES(1,1),(2,1),(3,1);
+</pre><p>
+        Verify that the data was inserted:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM child;</code></strong>
++------+-----------+
+| id   | parent_id |
++------+-----------+
+|    1 |         1 |
+|    2 |         1 |
+|    3 |         1 |
++------+-----------+
+</pre><p>
+        Update the id in the parent table, changing it from 1 to 2.
+      </p><pre class="programlisting">mysql&gt; UPDATE parent SET id = 2 WHERE id = 1;
+</pre><p>
+        Verify that the update was successful:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM parent;</code></strong>
++----+
+| id |
++----+
+|  2 |
++----+
+</pre><p>
+        Verify that the <code class="literal">ON UPDATE CASCADE</code> referential
+        action updated the child table:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM child;</code></strong>
++------+-----------+
+| id   | parent_id |
++------+-----------+
+|    1 |         2 |
+|    2 |         2 |
+|    3 |         2 |
++------+-----------+
+</pre><p>
+        To demonstrate the <code class="literal">ON DELTE CASCADE</code>
+        referential action, delete records from the parent table where
+        the <code class="literal">parent_id = 2</code>, which deletes all records
+        in the parent table.
+      </p><pre class="programlisting">mysql&gt; DELETE FROM parent WHERE id = 2;
+</pre><p>
+        Because all records in the child table are associated with
+        <code class="literal">parent_id = 2</code>, the <code class="literal">ON DELETE
+        CASCADE</code> referential action removes all records from
+        the child table:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM child;</code></strong>
+Empty set (0.00 sec)
+</pre><p>
+        For more information about foreign key constraints, see
+        <a class="xref" href="create-table-foreign-keys.html" title="13.1.20.5 FOREIGN KEY Constraints">Section 13.1.20.5, “FOREIGN KEY Constraints”</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="example-user-variables.html">Previous <span class="navHint"> Using User-Defined Variables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="examples.html">Up <span class="navHint"> Examples of Common Queries </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="searching-on-two-keys.html">Next <span class="navHint"> Searching on Two Keys </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

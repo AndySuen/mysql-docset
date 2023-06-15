@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.21.3 Forcing InnoDB Recovery</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-troubleshooting.html" title="15.21 InnoDB Troubleshooting" /><link rel="prev" href="innodb-troubleshooting-recovery.html" title="15.21.2 Troubleshooting Recovery Failures" /><link rel="next" href="innodb-troubleshooting-datadict.html" title="15.21.4 Troubleshooting InnoDB Data Dictionary Operations" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="forcing-innodb-recovery.html#forcing-innodb-recovery">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-troubleshooting-recovery.html">Previous <span class="navHint"> Troubleshooting Recovery Failures </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-troubleshooting.html">Up <span class="navHint"> InnoDB Troubleshooting </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-troubleshooting-datadict.html">Next <span class="navHint"> Troubleshooting InnoDB Data Dictionary Operations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="forcing-innodb-recovery"></a>15.21.3 Forcing InnoDB Recovery</h3></div></div></div><a id="idm45828871658800" class="indexterm"></a><a id="idm45828871656896" class="indexterm"></a><a id="idm45828871655440" class="indexterm"></a><p>
+      To investigate database page corruption, you might dump your
+      tables from the database with
+      <a class="link" href="select-into.html" title="13.2.13.1 SELECT ... INTO Statement"><code class="literal">SELECT ... INTO
+      OUTFILE</code></a>. Usually, most of the data obtained in this way
+      is intact. Serious corruption might cause <code class="literal">SELECT * FROM
+      <em class="replaceable"><code>tbl_name</code></em></code> statements or
+      <code class="literal">InnoDB</code> background operations to unexpectedly
+      exit or assert, or even cause <code class="literal">InnoDB</code>
+      roll-forward recovery to crash. In such cases, you can use the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> option to
+      force the <code class="literal">InnoDB</code> storage engine to start up
+      while preventing background operations from running, so that you
+      can dump your tables. For example, you can add the following line
+      to the <code class="literal">[mysqld]</code> section of your option file
+      before restarting the server:
+    </p><pre class="programlisting">[mysqld]
+innodb_force_recovery = 1
+</pre><p>
+      For information about using option files, see
+      <a class="xref" href="option-files.html" title="4.2.2.2 Using Option Files">Section 4.2.2.2, “Using Option Files”</a>.
+    </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+        Only set <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a>
+        to a value greater than 0 in an emergency situation, so that you
+        can start <code class="literal">InnoDB</code> and dump your tables. Before
+        doing so, ensure that you have a backup copy of your database in
+        case you need to recreate it. Values of 4 or greater can
+        permanently corrupt data files. Only use an
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> setting
+        of 4 or greater on a production server instance after you have
+        successfully tested the setting on a separate physical copy of
+        your database. When forcing <code class="literal">InnoDB</code> recovery,
+        you should always start with
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery=1</code></a> and
+        only increase the value incrementally, as necessary.
+      </p></div><p>
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> is 0 by
+      default (normal startup without forced recovery). The permissible
+      nonzero values for
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> are 1 to 6.
+      A larger value includes the functionality of lesser values. For
+      example, a value of 3 includes all of the functionality of values
+      1 and 2.
+    </p><p>
+      If you are able to dump your tables with an
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> value of 3
+      or less, then you are relatively safe that only some data on
+      corrupt individual pages is lost. A value of 4 or greater is
+      considered dangerous because data files can be permanently
+      corrupted. A value of 6 is considered drastic because database
+      pages are left in an obsolete state, which in turn may introduce
+      more corruption into <a class="link" href="glossary.html#glos_b_tree" title="B-tree">B-trees</a>
+      and other database structures.
+    </p><p>
+      As a safety measure, <code class="literal">InnoDB</code> prevents
+      <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>,
+      <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>, or
+      <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> operations when
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> is greater
+      than 0. An <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a>
+      setting of 4 or greater places <code class="literal">InnoDB</code> in
+      read-only mode.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">1</code>
+          (<code class="literal">SRV_FORCE_IGNORE_CORRUPT</code>)
+        </p><p>
+          Lets the server run even if it detects a corrupt
+          <a class="link" href="glossary.html#glos_page" title="page">page</a>. Tries to make
+          <code class="literal">SELECT * FROM
+          <em class="replaceable"><code>tbl_name</code></em></code> jump over
+          corrupt index records and pages, which helps in dumping
+          tables.
+        </p></li><li class="listitem"><p>
+          <code class="literal">2</code>
+          (<code class="literal">SRV_FORCE_NO_BACKGROUND</code>)
+        </p><p>
+          Prevents the <a class="link" href="glossary.html#glos_master_thread" title="master thread">master
+          thread</a> and any <a class="link" href="glossary.html#glos_purge_thread" title="purge thread">purge
+          threads</a> from running. If an unexpected exit would occur
+          during the <a class="link" href="glossary.html#glos_purge" title="purge">purge</a> operation,
+          this recovery value prevents it.
+        </p></li><li class="listitem"><p>
+          <code class="literal">3</code>
+          (<code class="literal">SRV_FORCE_NO_TRX_UNDO</code>)
+        </p><p>
+          Does not run transaction
+          <a class="link" href="glossary.html#glos_rollback" title="rollback">rollbacks</a> after
+          <a class="link" href="glossary.html#glos_crash_recovery" title="crash recovery">crash recovery</a>.
+        </p></li><li class="listitem"><p>
+          <code class="literal">4</code>
+          (<code class="literal">SRV_FORCE_NO_IBUF_MERGE</code>)
+        </p><p>
+          Prevents <a class="link" href="glossary.html#glos_insert_buffer" title="insert buffer">insert
+          buffer</a> merge operations. If they would cause a crash,
+          does not do them. Does not calculate table
+          <a class="link" href="glossary.html#glos_statistics" title="statistics">statistics</a>. This value
+          can permanently corrupt data files. After using this value, be
+          prepared to drop and recreate all secondary indexes. Sets
+          <code class="literal">InnoDB</code> to read-only.
+        </p></li><li class="listitem"><p>
+          <code class="literal">5</code>
+          (<code class="literal">SRV_FORCE_NO_UNDO_LOG_SCAN</code>)
+        </p><p>
+          Does not look at <a class="link" href="glossary.html#glos_undo_log" title="undo log">undo
+          logs</a> when starting the database:
+          <code class="literal">InnoDB</code> treats even incomplete transactions
+          as committed. This value can permanently corrupt data files.
+          Sets <code class="literal">InnoDB</code> to read-only.
+        </p></li><li class="listitem"><p>
+          <code class="literal">6</code>
+          (<code class="literal">SRV_FORCE_NO_LOG_REDO</code>)
+        </p><p>
+          Does not do the <a class="link" href="glossary.html#glos_redo_log" title="redo log">redo log</a>
+          roll-forward in connection with recovery. This value can
+          permanently corrupt data files. Leaves database pages in an
+          obsolete state, which in turn may introduce more corruption
+          into B-trees and other database structures. Sets
+          <code class="literal">InnoDB</code> to read-only.
+        </p></li></ul></div><p>
+      You can <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> from tables to dump
+      them. With an
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> value of 3
+      or less you can <code class="literal">DROP</code> or
+      <code class="literal">CREATE</code> tables. <a class="link" href="drop-table.html" title="13.1.32 DROP TABLE Statement"><code class="literal">DROP
+      TABLE</code></a> is also supported with an
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> value
+      greater than 3. <a class="link" href="drop-table.html" title="13.1.32 DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> is not
+      permitted with an
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> value
+      greater than 4.
+    </p><p>
+      If you know that a given table is causing an unexpected exit on
+      rollback, you can drop it. If you encounter a runaway rollback
+      caused by a failing mass import or <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+      TABLE</code></a>, you can kill the <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+      process and set
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> to
+      <code class="literal">3</code> to bring the database up without the
+      rollback, and then <code class="literal">DROP</code> the table that is
+      causing the runaway rollback.
+    </p><p>
+      If corruption within the table data prevents you from dumping the
+      entire table contents, a query with an <code class="literal">ORDER BY
+      <em class="replaceable"><code>primary_key</code></em> DESC</code> clause might
+      be able to dump the portion of the table after the corrupted part.
+    </p><p>
+      If a high <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a>
+      value is required to start <code class="literal">InnoDB</code>, there may be
+      corrupted data structures that could cause complex queries
+      (queries containing <code class="literal">WHERE</code>, <code class="literal">ORDER
+      BY</code>, or other clauses) to fail. In this case, you may
+      only be able to run basic <code class="literal">SELECT * FROM t</code>
+      queries.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-troubleshooting-recovery.html">Previous <span class="navHint"> Troubleshooting Recovery Failures </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-troubleshooting.html">Up <span class="navHint"> InnoDB Troubleshooting </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-troubleshooting-datadict.html">Next <span class="navHint"> Troubleshooting InnoDB Data Dictionary Operations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

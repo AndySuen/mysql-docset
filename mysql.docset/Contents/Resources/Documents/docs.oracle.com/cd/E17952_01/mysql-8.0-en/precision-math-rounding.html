@@ -1,0 +1,73 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3408"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/12.24.4%C2%A0Rounding%20Behavior"></a><title>12.24.4&nbsp;Rounding Behavior</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="precision-math.html" title="12.24&nbsp;Precision Math"/><link rel="prev" href="precision-math-expressions.html" title="12.24.3&nbsp;Expression Handling"/><link rel="next" href="precision-math-examples.html" title="12.24.5&nbsp;Precision Math Examples"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="precision-math-rounding.html#precision-math-rounding">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="precision-math-expressions.html">Previous <span class="navHint"> Expression Handling </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="precision-math.html">Up <span class="navHint"> Precision Math </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="precision-math-examples.html">Next <span class="navHint"> Precision Math Examples </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="precision-math-rounding"></a>12.24.4&nbsp;Rounding Behavior</h3></div></div></div><p>
+      This section discusses precision math rounding for the
+      <a class="link" href="mathematical-functions.html#function_round"><code class="literal">ROUND()</code></a> function and for inserts
+      into columns with exact-value types
+      (<a class="link" href="fixed-point-types.html" title="11.1.3&nbsp;Fixed-Point Types (Exact Value) - DECIMAL, NUMERIC"><code class="literal">DECIMAL</code></a> and integer).
+    </p><p>
+      The <a class="link" href="mathematical-functions.html#function_round"><code class="literal">ROUND()</code></a> function rounds
+      differently depending on whether its argument is exact or
+      approximate:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          For exact-value numbers,
+          <a class="link" href="mathematical-functions.html#function_round"><code class="literal">ROUND()</code></a> uses the <span class="quote">&ldquo;<span class="quote">round
+          half up</span>&rdquo;</span> rule: A value with a fractional part of .5 or
+          greater is rounded up to the next integer if positive or down
+          to the next integer if negative. (In other words, it is
+          rounded away from zero.) A value with a fractional part less
+          than .5 is rounded down to the next integer if positive or up
+          to the next integer if negative. (In other words, it is
+          rounded toward zero.)
+        </p></li><li class="listitem"><p>
+          For approximate-value numbers, the result depends on the C
+          library. On many systems, this means that
+          <a class="link" href="mathematical-functions.html#function_round"><code class="literal">ROUND()</code></a> uses the <span class="quote">&ldquo;<span class="quote">round
+          to nearest even</span>&rdquo;</span> rule: A value with a fractional part
+          exactly half way between two integers is rounded to the
+          nearest even integer.
+        </p></li></ul></div><p>
+      The following example shows how rounding differs for exact and
+      approximate values:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ROUND(2.5), ROUND(25E-1);</code></strong>
++------------+--------------+
+| ROUND(2.5) | ROUND(25E-1) |
++------------+--------------+
+| 3          |            2 |
++------------+--------------+
+</pre><p>
+      For inserts into a <a class="link" href="fixed-point-types.html" title="11.1.3&nbsp;Fixed-Point Types (Exact Value) - DECIMAL, NUMERIC"><code class="literal">DECIMAL</code></a> or
+      integer column, the target is an exact data type, so rounding uses
+      <span class="quote">&ldquo;<span class="quote">round half away from zero,</span>&rdquo;</span> regardless of whether
+      the value to be inserted is exact or approximate:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t (d DECIMAL(10,0));</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO t VALUES(2.5),(2.5E0);</code></strong>
+Query OK, 2 rows affected, 2 warnings (0.00 sec)
+Records: 2  Duplicates: 0  Warnings: 2
+
+mysql&gt; <strong class="userinput"><code>SHOW WARNINGS;</code></strong>
++-------+------+----------------------------------------+
+| Level | Code | Message                                |
++-------+------+----------------------------------------+
+| Note  | 1265 | Data truncated for column &#39;d&#39; at row 1 |
+| Note  | 1265 | Data truncated for column &#39;d&#39; at row 2 |
++-------+------+----------------------------------------+
+2 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT d FROM t;</code></strong>
++------+
+| d    |
++------+
+|    3 |
+|    3 |
++------+
+2 rows in set (0.00 sec)
+</pre><p>
+      The <a class="link" href="show-warnings.html" title="13.7.7.42&nbsp;SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a> statement
+      displays the notes that are generated by truncation due to
+      rounding of the fractional part. Such truncation is not an error,
+      even in strict SQL mode (see
+      <a class="xref" href="precision-math-expressions.html" title="12.24.3&nbsp;Expression Handling">Section&nbsp;12.24.3, &ldquo;Expression Handling&rdquo;</a>).
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="precision-math-expressions.html">Previous <span class="navHint"> Expression Handling </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="precision-math.html">Up <span class="navHint"> Precision Math </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="precision-math-examples.html">Next <span class="navHint"> Precision Math Examples </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

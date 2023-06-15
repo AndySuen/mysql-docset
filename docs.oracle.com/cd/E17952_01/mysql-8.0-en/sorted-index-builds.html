@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.6.2.3 Sorted Index Builds</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-indexes.html" title="15.6.2 Indexes" /><link rel="prev" href="innodb-physical-structure.html" title="15.6.2.2 The Physical Structure of an InnoDB Index" /><link rel="next" href="innodb-fulltext-index.html" title="15.6.2.4 InnoDB Full-Text Indexes" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="sorted-index-builds.html#sorted-index-builds">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-physical-structure.html">Previous <span class="navHint"> The Physical Structure of an InnoDB Index </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-indexes.html">Up <span class="navHint"> Indexes </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-fulltext-index.html">Next <span class="navHint"> InnoDB Full-Text Indexes </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="sorted-index-builds"></a>15.6.2.3 Sorted Index Builds</h4></div></div></div><a id="idm45828891168368" class="indexterm"></a><a id="idm45828891166880" class="indexterm"></a><p>
+      <code class="literal">InnoDB</code> performs a bulk load instead of
+      inserting one index record at a time when creating or rebuilding
+      indexes. This method of index creation is also known as a sorted
+      index build. Sorted index builds are not supported for spatial
+      indexes.
+    </p><p>
+      There are three phases to an index build. In the first phase, the
+      <a class="link" href="glossary.html#glos_clustered_index" title="clustered index">clustered index</a> is
+      scanned, and index entries are generated and added to the sort
+      buffer. When the <a class="link" href="glossary.html#glos_sort_buffer" title="sort buffer">sort
+      buffer</a> becomes full, entries are sorted and written out to
+      a temporary intermediate file. This process is also known as a
+      <span class="quote">“<span class="quote">run</span>”</span>. In the second phase, with one or more runs
+      written to the temporary intermediate file, a merge sort is
+      performed on all entries in the file. In the third and final
+      phase, the sorted entries are inserted into the
+      <a class="link" href="glossary.html#glos_b_tree" title="B-tree">B-tree</a>.
+
+    </p><p>
+      Prior to the introduction of sorted index builds, index entries
+      were inserted into the B-tree one record at a time using insert
+      APIs. This method involved opening a B-tree
+      <a class="link" href="glossary.html#glos_cursor" title="cursor">cursor</a> to find the insert
+      position and then inserting entries into a B-tree page using an
+      <a class="link" href="glossary.html#glos_optimistic" title="optimistic">optimistic</a> insert. If an
+      insert failed due to a page being full, a
+      <a class="link" href="glossary.html#glos_pessimistic" title="pessimistic">pessimistic</a> insert would
+      be performed, which involves opening a B-tree cursor and splitting
+      and merging B-tree nodes as necessary to find space for the entry.
+      The drawbacks of this <span class="quote">“<span class="quote">top-down</span>”</span> method of building
+      an index are the cost of searching for an insert position and the
+      constant splitting and merging of B-tree nodes.
+    </p><p>
+      Sorted index builds use a <span class="quote">“<span class="quote">bottom-up</span>”</span> approach to
+      building an index. With this approach, a reference to the
+      right-most leaf page is held at all levels of the B-tree. The
+      right-most leaf page at the necessary B-tree depth is allocated
+      and entries are inserted according to their sorted order. Once a
+      leaf page is full, a node pointer is appended to the parent page
+      and a sibling leaf page is allocated for the next insert. This
+      process continues until all entries are inserted, which may result
+      in inserts up to the root level. When a sibling page is allocated,
+      the reference to the previously pinned leaf page is released, and
+      the newly allocated leaf page becomes the right-most leaf page and
+      new default insert location.
+    </p><h5><a id="idm45828891153376"></a>Reserving B-tree Page Space for Future Index Growth</h5><p>
+      To set aside space for future index growth, you can use the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_fill_factor"><code class="literal">innodb_fill_factor</code></a> variable to
+      reserve a percentage of B-tree page space. For example, setting
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_fill_factor"><code class="literal">innodb_fill_factor</code></a> to 80 reserves
+      20 percent of the space in B-tree pages during a sorted index
+      build. This setting applies to both B-tree leaf and non-leaf
+      pages. It does not apply to external pages used for
+      <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">TEXT</code></a> or
+      <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a> entries. The amount of space
+      that is reserved may not be exactly as configured, as the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_fill_factor"><code class="literal">innodb_fill_factor</code></a> value is
+      interpreted as a hint rather than a hard limit.
+    </p><h5><a id="idm45828891145440"></a>Sorted Index Builds and Full-Text Index Support</h5><p>
+      Sorted index builds are supported for
+      <a class="link" href="glossary.html#glos_fulltext_index" title="FULLTEXT index">fulltext indexes</a>.
+      Previously, SQL was used to insert entries into a fulltext index.
+    </p><h5><a id="idm45828891143216"></a>Sorted Index Builds and Compressed Tables</h5><p>
+      For <a class="link" href="glossary.html#glos_compression" title="compression">compressed tables</a>, the
+      previous index creation method appended entries to both compressed
+      and uncompressed pages. When the modification log (representing
+      free space on the compressed page) became full, the compressed
+      page would be recompressed. If compression failed due to a lack of
+      space, the page would be split. With sorted index builds, entries
+      are only appended to uncompressed pages. When an uncompressed page
+      becomes full, it is compressed. Adaptive padding is used to ensure
+      that compression succeeds in most cases, but if compression fails,
+      the page is split and compression is attempted again. This process
+      continues until compression is successful. For more information
+      about compression of B-Tree pages, see
+      <a class="xref" href="innodb-compression-internals.html" title="15.9.1.5 How Compression Works for InnoDB Tables">Section 15.9.1.5, “How Compression Works for InnoDB Tables”</a>.
+    </p><h5><a id="idm45828891139696"></a>Sorted Index Builds and Redo Logging</h5><p>
+      <a class="link" href="glossary.html#glos_redo_log" title="redo log">Redo logging</a> is disabled
+      during a sorted index build. Instead, there is a
+      <a class="link" href="glossary.html#glos_checkpoint" title="checkpoint">checkpoint</a> to ensure that
+      the index build can withstand an unexpected exit or failure. The
+      checkpoint forces a write of all dirty pages to disk. During a
+      sorted index build, the <a class="link" href="glossary.html#glos_page_cleaner" title="page cleaner">page
+      cleaner</a> thread is signaled periodically to flush
+      <a class="link" href="glossary.html#glos_dirty_page" title="dirty page">dirty pages</a> to ensure that
+      the checkpoint operation can be processed quickly. Normally, the
+      page cleaner thread flushes dirty pages when the number of clean
+      pages falls below a set threshold. For sorted index builds, dirty
+      pages are flushed promptly to reduce checkpoint overhead and to
+      parallelize I/O and CPU activity.
+    </p><h5><a id="idm45828891134592"></a>Sorted Index Builds and Optimizer Statistics</h5><p>
+      Sorted index builds may result in
+      <a class="link" href="glossary.html#glos_optimizer" title="optimizer">optimizer</a> statistics that
+      differ from those generated by the previous method of index
+      creation. The difference in statistics, which is not expected to
+      affect workload performance, is due to the different algorithm
+      used to populate the index.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-physical-structure.html">Previous <span class="navHint"> The Physical Structure of an InnoDB Index </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-indexes.html">Up <span class="navHint"> Indexes </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-fulltext-index.html">Next <span class="navHint"> InnoDB Full-Text Indexes </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

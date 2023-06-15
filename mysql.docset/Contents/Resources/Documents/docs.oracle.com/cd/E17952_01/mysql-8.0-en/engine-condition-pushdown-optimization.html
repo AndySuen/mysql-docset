@@ -1,0 +1,213 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-672"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.5%C2%A0Engine%20Condition%20Pushdown%20Optimization"></a><title>8.2.1.5&nbsp;Engine Condition Pushdown Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="hash-joins.html" title="8.2.1.4&nbsp;Hash Join Optimization"/><link rel="next" href="index-condition-pushdown-optimization.html" title="8.2.1.6&nbsp;Index Condition Pushdown Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="engine-condition-pushdown-optimization.html#engine-condition-pushdown-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="hash-joins.html">Previous <span class="navHint"> Hash Join Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="index-condition-pushdown-optimization.html">Next <span class="navHint"> Index Condition Pushdown Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-671"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.5%C2%A0Engine%20Condition%20Pushdown%20Optimization"></a><h4 class="title"><a id="engine-condition-pushdown-optimization"></a>8.2.1.5&nbsp;Engine Condition Pushdown Optimization</h4></div></div></div><a id="idm45828956577488" class="indexterm"></a><a id="idm45828956576400" class="indexterm"></a><p>
+          This optimization improves the efficiency of direct
+          comparisons between a nonindexed column and a constant. In
+          such cases, the condition is <span class="quote">&ldquo;<span class="quote">pushed down</span>&rdquo;</span> to the
+          storage engine for evaluation. This optimization can be used
+          only by the <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> storage engine.
+        </p><p>
+          For NDB Cluster, this optimization can eliminate the need to
+          send nonmatching rows over the network between the
+          cluster&#39;s data nodes and the MySQL server that issued the
+          query, and can speed up queries where it is used by a factor
+          of 5 to 10 times over cases where condition pushdown could be
+          but is not used.
+        </p><p>
+          Suppose that an NDB Cluster table is defined as follows:
+        </p><pre class="programlisting">CREATE TABLE t1 (
+    a INT,
+    b INT,
+    KEY(a)
+) ENGINE=NDB;
+</pre><p>
+          Engine condition pushdown can be used with queries such as the
+          one shown here, which includes a comparison between a
+          nonindexed column and a constant:
+        </p><pre class="programlisting">SELECT a, b FROM t1 WHERE b = 10;
+</pre><p>
+          The use of engine condition pushdown can be seen in the output
+          of <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT a, b FROM t1 WHERE b = 10\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t1
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 10
+        Extra: Using where with pushed condition
+</pre><p>
+          However, engine condition pushdown <span class="emphasis"><em>cannot</em></span>
+          be used with the following query:
+        </p><pre class="programlisting">SELECT a,b FROM t1 WHERE a = 10;
+</pre><p>
+          Engine condition pushdown is not applicable here because an
+          index exists on column <code class="literal">a</code>. (An index access
+          method would be more efficient and so would be chosen in
+          preference to condition pushdown.)
+        </p><p>
+          Engine condition pushdown may also be employed when an indexed
+          column is compared with a constant using a
+          <code class="literal">&gt;</code> or <code class="literal">&lt;</code> operator:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT a, b FROM t1 WHERE a &lt; 2\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t1
+         type: range
+possible_keys: a
+          key: a
+      key_len: 5
+          ref: NULL
+         rows: 2
+        Extra: Using where with pushed condition
+</pre><p>
+          Other supported comparisons for engine condition pushdown
+          include the following:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal"><em class="replaceable"><code>column</code></em> [NOT] LIKE
+              <em class="replaceable"><code>pattern</code></em></code>
+            </p><p>
+              <em class="replaceable"><code>pattern</code></em> must be a string
+              literal containing the pattern to be matched; for syntax,
+              see <a class="xref" href="string-comparison-functions.html" title="12.8.1&nbsp;String Comparison Functions and Operators">Section&nbsp;12.8.1, &ldquo;String Comparison Functions and Operators&rdquo;</a>.
+            </p></li><li class="listitem"><p>
+              <code class="literal"><em class="replaceable"><code>column</code></em> IS [NOT]
+              NULL</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal"><em class="replaceable"><code>column</code></em> IN
+              (<em class="replaceable"><code>value_list</code></em>)</code>
+            </p><p>
+              Each item in the <em class="replaceable"><code>value_list</code></em>
+              must be a constant, literal value.
+            </p></li><li class="listitem"><p>
+              <code class="literal"><em class="replaceable"><code>column</code></em> BETWEEN
+              <em class="replaceable"><code>constant1</code></em> AND
+              <em class="replaceable"><code>constant2</code></em></code>
+            </p><p>
+              <em class="replaceable"><code>constant1</code></em> and
+              <em class="replaceable"><code>constant2</code></em> must each be a
+              constant, literal value.
+            </p></li></ul></div><p>
+          In all of the cases in the preceding list, it is possible for
+          the condition to be converted into the form of one or more
+          direct comparisons between a column and a constant.
+        </p><p>
+          Engine condition pushdown is enabled by default. To disable it
+          at server startup, set the
+          <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> system
+          variable&#39;s
+          <a class="link" href="switchable-optimizations.html#optflag_engine-condition-pushdown"><code class="literal">engine_condition_pushdown</code></a>
+          flag to <code class="literal">off</code>. For example, in a
+          <code class="filename">my.cnf</code> file, use these lines:
+        </p><pre class="programlisting">[mysqld]
+optimizer_switch=engine_condition_pushdown=off
+</pre><p>
+          At runtime, disable condition pushdown like this:
+        </p><pre class="programlisting">SET optimizer_switch=&#39;engine_condition_pushdown=off&#39;;
+</pre><p><strong>Limitations.&nbsp;</strong>
+            Engine condition pushdown is subject to the following
+            limitations:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Engine condition pushdown is supported only by the
+              <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> storage engine.
+            </p></li><li class="listitem"><p>
+              Prior to NDB 8.0.18, columns could be compared with
+              constants or expressions which evaluate to constant values
+              only. In NDB 8.0.18 and later, columns can be compared
+              with one another as long as they are of exactly the same
+              type, including the same signedness, length, character
+              set, precision, and scale, where these are applicable.
+            </p></li><li class="listitem"><p>
+              Columns used in comparisons cannot be of any of the
+              <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">BLOB</code></a> or
+              <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">TEXT</code></a> types. This exclusion
+              extends to <a class="link" href="json.html" title="11.5&nbsp;The JSON Data Type"><code class="literal">JSON</code></a>,
+              <a class="link" href="bit-type.html" title="11.1.5&nbsp;Bit-Value Type - BIT"><code class="literal">BIT</code></a>, and
+              <a class="link" href="enum.html" title="11.3.5&nbsp;The ENUM Type"><code class="literal">ENUM</code></a> columns as well.
+            </p></li><li class="listitem"><p>
+              A string value to be compared with a column must use the
+              same collation as the column.
+            </p></li><li class="listitem"><p>
+              Joins are not directly supported; conditions involving
+              multiple tables are pushed separately where possible. Use
+              extended <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output to
+              determine which conditions are actually pushed down. See
+              <a class="xref" href="explain-extended.html" title="8.8.3&nbsp;Extended EXPLAIN Output Format">Section&nbsp;8.8.3, &ldquo;Extended EXPLAIN Output Format&rdquo;</a>.
+            </p></li></ul></div><p>
+          Previously, engine condition pushdown was limited to terms
+          referring to column values from the same table to which the
+          condition was being pushed. Beginning with NDB 8.0.16, column
+          values from tables earlier in the query plan can also be
+          referred to from pushed conditions. This reduces the number of
+          rows which must be handled by the SQL node during join
+          processing. Filtering can be also performed in parallel in the
+          LDM threads, rather than in a single <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+          process. This has the potential to improve performance of
+          queries by a significant margin.
+        </p><p>
+          Beginning with NDB 8.0.20, an outer join using a scan can be
+          pushed if there are no unpushable conditions on any table used
+          in the same join nest, or on any table in join nests above it
+          on which it depends. This is also true for a semijoin,
+          provided the optimization strategy employed is
+          <code class="literal">firstMatch</code> (see
+          <a class="xref" href="semijoins.html" title="8.2.2.1&nbsp;Optimizing IN and EXISTS Subquery Predicates with Semijoin Transformations">Section&nbsp;8.2.2.1, &ldquo;Optimizing IN and EXISTS Subquery Predicates with Semijoin
+          Transformations&rdquo;</a>).
+        </p><p>
+          Join algorithms cannot be combined with referring columns from
+          previous tables in the following two situations:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              When any of the referred previous tables are in a join
+              buffer. In this case, each row retrieved from the
+              scan-filtered table is matched against every row in the
+              buffer. This means that there is no single specific row
+              from which column values can be fetched from when
+              generating the scan filter.
+            </p></li><li class="listitem"><p>
+              When the column originates from a child operation in a
+              pushed join. This is because rows referenced from ancestor
+              operations in the join have not yet been retrieved when
+              the scan filter is generated.
+            </p></li></ol></div><p>
+          Beginning with NDB 8.0.27, columns from ancestor tables in a
+          join can be pushed down, provided that they meet the
+          requirements listed previously. An example of such a query,
+          using the table <code class="literal">t1</code> created previously, is
+          shown here:
+        </p><pre class="programlisting">mysql&gt; EXPLAIN 
+    -&gt;   SELECT * FROM t1 AS x 
+    -&gt;   LEFT JOIN t1 AS y 
+    -&gt;   ON x.a=0 AND y.b&gt;=3\G
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: x
+   partitions: p0,p1
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 4
+     filtered: 100.00
+        Extra: NULL
+*************************** 2. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: y
+   partitions: p0,p1
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 4
+     filtered: 100.00
+        Extra: Using where; Using pushed condition (`test`.`y`.`b` &gt;= 3); Using join buffer (hash join)
+2 rows in set, 2 warnings (0.00 sec)
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="hash-joins.html">Previous <span class="navHint"> Hash Join Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="index-condition-pushdown-optimization.html">Next <span class="navHint"> Index Condition Pushdown Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

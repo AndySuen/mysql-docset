@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>24.6.1 Partitioning Keys, Primary Keys, and Unique Keys</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="partitioning-limitations.html" title="24.6 Restrictions and Limitations on Partitioning" /><link rel="prev" href="partitioning-limitations.html" title="24.6 Restrictions and Limitations on Partitioning" /><link rel="next" href="partitioning-limitations-storage-engines.html" title="24.6.2 Partitioning Limitations Relating to Storage Engines" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partitioning-limitations-partitioning-keys-unique-keys.html#partitioning-limitations-partitioning-keys-unique-keys">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="partitioning-limitations.html">Previous <span class="navHint"> Restrictions and Limitations on Partitioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="partitioning-limitations.html">Up <span class="navHint"> Restrictions and Limitations on Partitioning </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="partitioning-limitations-storage-engines.html">Next <span class="navHint"> Partitioning Limitations Relating to Storage Engines </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="partitioning-limitations-partitioning-keys-unique-keys"></a>24.6.1 Partitioning Keys, Primary Keys, and Unique Keys</h3></div></div></div><a id="idm45828800539680" class="indexterm"></a><a id="idm45828800538640" class="indexterm"></a><a id="idm45828800537152" class="indexterm"></a><a id="idm45828800536064" class="indexterm"></a><a id="idm45828800534576" class="indexterm"></a><p>
+        This section discusses the relationship of partitioning keys
+        with primary keys and unique keys. The rule governing this
+        relationship can be expressed as follows: All columns used in
+        the partitioning expression for a partitioned table must be part
+        of every unique key that the table may have.
+      </p><p>
+        In other words, <span class="emphasis"><em>every unique key on the table must use
+        every column in the table's partitioning
+        expression</em></span>. (This also includes the table's
+        primary key, since it is by definition a unique key. This
+        particular case is discussed later in this section.) For
+        example, each of the following table creation statements is
+        invalid:
+      </p><pre class="programlisting">CREATE TABLE t1 (
+    col1 INT NOT NULL,
+    col2 DATE NOT NULL,
+    col3 INT NOT NULL,
+    col4 INT NOT NULL,
+    UNIQUE KEY (col1, col2)
+)
+PARTITION BY HASH(col3)
+PARTITIONS 4;
+
+CREATE TABLE t2 (
+    col1 INT NOT NULL,
+    col2 DATE NOT NULL,
+    col3 INT NOT NULL,
+    col4 INT NOT NULL,
+    UNIQUE KEY (col1),
+    UNIQUE KEY (col3)
+)
+PARTITION BY HASH(col1 + col3)
+PARTITIONS 4;
+</pre><p>
+        In each case, the proposed table would have at least one unique
+        key that does not include all columns used in the partitioning
+        expression.
+      </p><p>
+        Each of the following statements is valid, and represents one
+        way in which the corresponding invalid table creation statement
+        could be made to work:
+      </p><pre class="programlisting">CREATE TABLE t1 (
+    col1 INT NOT NULL,
+    col2 DATE NOT NULL,
+    col3 INT NOT NULL,
+    col4 INT NOT NULL,
+    UNIQUE KEY (col1, col2, col3)
+)
+PARTITION BY HASH(col3)
+PARTITIONS 4;
+
+CREATE TABLE t2 (
+    col1 INT NOT NULL,
+    col2 DATE NOT NULL,
+    col3 INT NOT NULL,
+    col4 INT NOT NULL,
+    UNIQUE KEY (col1, col3)
+)
+PARTITION BY HASH(col1 + col3)
+PARTITIONS 4;
+</pre><p>
+        This example shows the error produced in such cases:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t3 (</code></strong>
+    -&gt;     <strong class="userinput"><code>col1 INT NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>col2 DATE NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>col3 INT NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>col4 INT NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>UNIQUE KEY (col1, col2),</code></strong>
+    -&gt;     <strong class="userinput"><code>UNIQUE KEY (col3)</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY HASH(col1 + col3)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITIONS 4;</code></strong>
+<span class="errortext">ERROR 1491 (HY000): A PRIMARY KEY must include all columns in the table's partitioning function</span>
+</pre><p>
+        The <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement fails
+        because both <code class="literal">col1</code> and <code class="literal">col3</code>
+        are included in the proposed partitioning key, but neither of
+        these columns is part of both of unique keys on the table. This
+        shows one possible fix for the invalid table definition:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t3 (</code></strong>
+    -&gt;     <strong class="userinput"><code>col1 INT NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>col2 DATE NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>col3 INT NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>col4 INT NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>UNIQUE KEY (col1, col2, col3),</code></strong>
+    -&gt;     <strong class="userinput"><code>UNIQUE KEY (col3)</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY HASH(col3)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITIONS 4;</code></strong>
+Query OK, 0 rows affected (0.05 sec)
+</pre><p>
+        In this case, the proposed partitioning key
+        <code class="literal">col3</code> is part of both unique keys, and the
+        table creation statement succeeds.
+      </p><p>
+        The following table cannot be partitioned at all, because there
+        is no way to include in a partitioning key any columns that
+        belong to both unique keys:
+      </p><pre class="programlisting">CREATE TABLE t4 (
+    col1 INT NOT NULL,
+    col2 INT NOT NULL,
+    col3 INT NOT NULL,
+    col4 INT NOT NULL,
+    UNIQUE KEY (col1, col3),
+    UNIQUE KEY (col2, col4)
+);
+</pre><p>
+        Since every primary key is by definition a unique key, this
+        restriction also includes the table's primary key, if it
+        has one. For example, the next two statements are invalid:
+      </p><pre class="programlisting">CREATE TABLE t5 (
+    col1 INT NOT NULL,
+    col2 DATE NOT NULL,
+    col3 INT NOT NULL,
+    col4 INT NOT NULL,
+    PRIMARY KEY(col1, col2)
+)
+PARTITION BY HASH(col3)
+PARTITIONS 4;
+
+CREATE TABLE t6 (
+    col1 INT NOT NULL,
+    col2 DATE NOT NULL,
+    col3 INT NOT NULL,
+    col4 INT NOT NULL,
+    PRIMARY KEY(col1, col3),
+    UNIQUE KEY(col2)
+)
+PARTITION BY HASH( YEAR(col2) )
+PARTITIONS 4;
+</pre><p>
+        In both cases, the primary key does not include all columns
+        referenced in the partitioning expression. However, both of the
+        next two statements are valid:
+      </p><pre class="programlisting">CREATE TABLE t7 (
+    col1 INT NOT NULL,
+    col2 DATE NOT NULL,
+    col3 INT NOT NULL,
+    col4 INT NOT NULL,
+    PRIMARY KEY(col1, col2)
+)
+PARTITION BY HASH(col1 + YEAR(col2))
+PARTITIONS 4;
+
+CREATE TABLE t8 (
+    col1 INT NOT NULL,
+    col2 DATE NOT NULL,
+    col3 INT NOT NULL,
+    col4 INT NOT NULL,
+    PRIMARY KEY(col1, col2, col4),
+    UNIQUE KEY(col2, col1)
+)
+PARTITION BY HASH(col1 + YEAR(col2))
+PARTITIONS 4;
+</pre><p>
+        If a table has no unique keys—this includes having no
+        primary key—then this restriction does not apply, and you
+        may use any column or columns in the partitioning expression as
+        long as the column type is compatible with the partitioning
+        type.
+      </p><p>
+        For the same reason, you cannot later add a unique key to a
+        partitioned table unless the key includes all columns used by
+        the table's partitioning expression. Consider the partitioned
+        table created as shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t_no_pk (c1 INT, c2 INT)</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION BY RANGE(c1) (</code></strong>
+    -&gt;         <strong class="userinput"><code>PARTITION p0 VALUES LESS THAN (10),</code></strong>
+    -&gt;         <strong class="userinput"><code>PARTITION p1 VALUES LESS THAN (20),</code></strong>
+    -&gt;         <strong class="userinput"><code>PARTITION p2 VALUES LESS THAN (30),</code></strong>
+    -&gt;         <strong class="userinput"><code>PARTITION p3 VALUES LESS THAN (40)</code></strong>
+    -&gt;     <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.12 sec)
+</pre><p>
+        It is possible to add a primary key to
+        <code class="literal">t_no_pk</code> using either of these
+        <a class="link" href="alter-table-partition-operations.html" title="13.1.9.1 ALTER TABLE Partition Operations"><code class="literal">ALTER
+        TABLE</code></a> statements:
+      </p><pre class="programlisting">#  possible PK
+mysql&gt; <strong class="userinput"><code>ALTER TABLE t_no_pk ADD PRIMARY KEY(c1);</code></strong>
+Query OK, 0 rows affected (0.13 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+# drop this PK
+mysql&gt; <strong class="userinput"><code>ALTER TABLE t_no_pk DROP PRIMARY KEY;</code></strong>
+Query OK, 0 rows affected (0.10 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+#  use another possible PK
+mysql&gt; <strong class="userinput"><code>ALTER TABLE t_no_pk ADD PRIMARY KEY(c1, c2);</code></strong>
+Query OK, 0 rows affected (0.12 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+# drop this PK
+mysql&gt; <strong class="userinput"><code>ALTER TABLE t_no_pk DROP PRIMARY KEY;</code></strong>
+Query OK, 0 rows affected (0.09 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+</pre><p>
+        However, the next statement fails, because <code class="literal">c1</code>
+        is part of the partitioning key, but is not part of the proposed
+        primary key:
+      </p><pre class="programlisting">#  fails with error 1503
+mysql&gt; <strong class="userinput"><code>ALTER TABLE t_no_pk ADD PRIMARY KEY(c2);</code></strong>
+<span class="errortext">ERROR 1503 (HY000): A PRIMARY KEY must include all columns in the table's partitioning function</span>
+</pre><p>
+        Since <code class="literal">t_no_pk</code> has only <code class="literal">c1</code>
+        in its partitioning expression, attempting to adding a unique
+        key on <code class="literal">c2</code> alone fails. However, you can add a
+        unique key that uses both <code class="literal">c1</code> and
+        <code class="literal">c2</code>.
+      </p><p>
+        These rules also apply to existing nonpartitioned tables that
+        you wish to partition using
+        <a class="link" href="alter-table-partition-operations.html" title="13.1.9.1 ALTER TABLE Partition Operations"><code class="literal">ALTER
+        TABLE ... PARTITION BY</code></a>. Consider a table
+        <code class="literal">np_pk</code> created as shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE np_pk (</code></strong>
+    -&gt;     <strong class="userinput"><code>id INT NOT NULL AUTO_INCREMENT,</code></strong>
+    -&gt;     <strong class="userinput"><code>name VARCHAR(50),</code></strong>
+    -&gt;     <strong class="userinput"><code>added DATE,</code></strong>
+    -&gt;     <strong class="userinput"><code>PRIMARY KEY (id)</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.08 sec)
+</pre><p>
+        The following
+        <a class="link" href="alter-table-partition-operations.html" title="13.1.9.1 ALTER TABLE Partition Operations"><code class="literal">ALTER
+        TABLE</code></a> statement fails with an error, because the
+        <code class="literal">added</code> column is not part of any unique key in
+        the table:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER TABLE np_pk</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION BY HASH( TO_DAYS(added) )</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITIONS 4;</code></strong>
+<span class="errortext">ERROR 1503 (HY000): A PRIMARY KEY must include all columns in the table's partitioning function</span>
+</pre><p>
+        However, this statement using the <code class="literal">id</code> column
+        for the partitioning column is valid, as shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER TABLE np_pk</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION BY HASH(id)</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITIONS 4;</code></strong>
+Query OK, 0 rows affected (0.11 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+</pre><p>
+        In the case of <code class="literal">np_pk</code>, the only column that
+        may be used as part of a partitioning expression is
+        <code class="literal">id</code>; if you wish to partition this table using
+        any other column or columns in the partitioning expression, you
+        must first modify the table, either by adding the desired column
+        or columns to the primary key, or by dropping the primary key
+        altogether.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partitioning-limitations.html">Previous <span class="navHint"> Restrictions and Limitations on Partitioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="partitioning-limitations.html">Up <span class="navHint"> Restrictions and Limitations on Partitioning </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="partitioning-limitations-storage-engines.html">Next <span class="navHint"> Partitioning Limitations Relating to Storage Engines </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

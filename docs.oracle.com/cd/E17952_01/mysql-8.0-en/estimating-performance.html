@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.8.5 Estimating Query Performance</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="execution-plan-information.html" title="8.8 Understanding the Query Execution Plan" /><link rel="prev" href="explain-for-connection.html" title="8.8.4 Obtaining Execution Plan Information for a Named Connection" /><link rel="next" href="controlling-optimizer.html" title="8.9 Controlling the Query Optimizer" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="estimating-performance.html#estimating-performance">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="explain-for-connection.html">Previous <span class="navHint"> Obtaining Execution Plan Information for a Named Connection </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="execution-plan-information.html">Up <span class="navHint"> Understanding the Query Execution Plan </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="controlling-optimizer.html">Next <span class="navHint"> Controlling the Query Optimizer </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="estimating-performance"></a>8.8.5 Estimating Query Performance</h3></div></div></div><a id="idm45828951355296" class="indexterm"></a><a id="idm45828951353840" class="indexterm"></a><a id="idm45828951352352" class="indexterm"></a><p>
+        In most cases, you can estimate query performance by counting
+        disk seeks. For small tables, you can usually find a row in one
+        disk seek (because the index is probably cached). For bigger
+        tables, you can estimate that, using B-tree indexes, you need
+        this many seeks to find a row:
+        <code class="literal">log(<em class="replaceable"><code>row_count</code></em>) /
+        log(<em class="replaceable"><code>index_block_length</code></em> / 3 * 2 /
+        (<em class="replaceable"><code>index_length</code></em> +
+        <em class="replaceable"><code>data_pointer_length</code></em>)) + 1</code>.
+      </p><p>
+        In MySQL, an index block is usually 1,024 bytes and the data
+        pointer is usually four bytes. For a 500,000-row table with a
+        key value length of three bytes (the size of
+        <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">MEDIUMINT</code></a>), the formula indicates
+        <code class="literal">log(500,000)/log(1024/3*2/(3+4)) + 1</code> =
+        <code class="literal">4</code> seeks.
+      </p><p>
+        This index would require storage of about 500,000 * 7 * 3/2 =
+        5.2MB (assuming a typical index buffer fill ratio of 2/3), so
+        you probably have much of the index in memory and so need only
+        one or two calls to read data to find the row.
+      </p><p>
+        For writes, however, you need four seek requests to find where
+        to place a new index value and normally two seeks to update the
+        index and write the row.
+      </p><p>
+        The preceding discussion does not mean that your application
+        performance slowly degenerates by log
+        <em class="replaceable"><code>N</code></em>. As long as everything is cached by
+        the OS or the MySQL server, things become only marginally slower
+        as the table gets bigger. After the data gets too big to be
+        cached, things start to go much slower until your applications
+        are bound only by disk seeks (which increase by log
+        <em class="replaceable"><code>N</code></em>). To avoid this, increase the key
+        cache size as the data grows. For <code class="literal">MyISAM</code>
+        tables, the key cache size is controlled by the
+        <a class="link" href="server-system-variables.html#sysvar_key_buffer_size"><code class="literal">key_buffer_size</code></a> system
+        variable. See <a class="xref" href="server-configuration.html" title="5.1.1 Configuring the Server">Section 5.1.1, “Configuring the Server”</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="explain-for-connection.html">Previous <span class="navHint"> Obtaining Execution Plan Information for a Named Connection </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="execution-plan-information.html">Up <span class="navHint"> Understanding the Query Execution Plan </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="controlling-optimizer.html">Next <span class="navHint"> Controlling the Query Optimizer </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

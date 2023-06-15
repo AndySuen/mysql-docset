@@ -1,0 +1,282 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-979"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/12.19.3%C2%A0MySQL%20Handling%20of%20GROUP%20BY"></a><title>12.19.3&nbsp;MySQL Handling of GROUP BY</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="aggregate-functions-and-modifiers.html" title="12.19&nbsp;Aggregate Functions"/><link rel="prev" href="group-by-modifiers.html" title="12.19.2&nbsp;GROUP BY Modifiers"/><link rel="next" href="group-by-functional-dependence.html" title="12.19.4&nbsp;Detection of Functional Dependence"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-by-handling.html#group-by-handling">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-by-modifiers.html">Previous <span class="navHint"> GROUP BY Modifiers </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="aggregate-functions-and-modifiers.html">Up <span class="navHint"> Aggregate Functions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-by-functional-dependence.html">Next <span class="navHint"> Detection of Functional Dependence </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-by-handling"></a>12.19.3&nbsp;MySQL Handling of GROUP BY</h3></div></div></div><a id="idm45828919320400" class="indexterm"></a><a id="idm45828919319360" class="indexterm"></a><a id="idm45828919317856" class="indexterm"></a><a id="idm45828919316368" class="indexterm"></a><p>
+        SQL-92 and earlier does not permit queries for which the select
+        list, <code class="literal">HAVING</code> condition, or <code class="literal">ORDER
+        BY</code> list refer to nonaggregated columns that are not
+        named in the <code class="literal">GROUP BY</code> clause. For example,
+        this query is illegal in standard SQL-92 because the
+        nonaggregated <code class="literal">name</code> column in the select list
+        does not appear in the <code class="literal">GROUP BY</code>:
+      </p><pre class="programlisting">SELECT o.custid, c.name, MAX(o.payment)
+  FROM orders AS o, customers AS c
+  WHERE o.custid = c.custid
+  GROUP BY o.custid;
+</pre><p>
+        For the query to be legal in SQL-92, the <code class="literal">name</code>
+        column must be omitted from the select list or named in the
+        <code class="literal">GROUP BY</code> clause.
+      </p><p>
+        SQL:1999 and later permits such nonaggregates per optional
+        feature T301 if they are functionally dependent on
+        <code class="literal">GROUP BY</code> columns: If such a relationship
+        exists between <code class="literal">name</code> and
+        <code class="literal">custid</code>, the query is legal. This would be the
+        case, for example, were <code class="literal">custid</code> a primary key
+        of <code class="literal">customers</code>.
+      </p><p>
+        MySQL implements detection of functional dependence. If the
+        <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a> SQL mode is
+        enabled (which it is by default), MySQL rejects queries for
+        which the select list, <code class="literal">HAVING</code> condition, or
+        <code class="literal">ORDER BY</code> list refer to nonaggregated columns
+        that are neither named in the <code class="literal">GROUP BY</code> clause
+        nor are functionally dependent on them.
+      </p><p>
+        MySQL also permits a nonaggregate column not named in a
+        <code class="literal">GROUP BY</code> clause when SQL
+        <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a> mode is
+        enabled, provided that this column is limited to a single value,
+        as shown in the following example:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE mytable (</code></strong>
+    -&gt;    <strong class="userinput"><code>id INT UNSIGNED NOT NULL PRIMARY KEY,</code></strong>
+    -&gt;    <strong class="userinput"><code>a VARCHAR(10),</code></strong>
+    -&gt;    <strong class="userinput"><code>b INT</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO mytable</code></strong>
+    -&gt; <strong class="userinput"><code>VALUES (1, &#39;abc&#39;, 1000),</code></strong>
+    -&gt;        <strong class="userinput"><code>(2, &#39;abc&#39;, 2000),</code></strong>
+    -&gt;        <strong class="userinput"><code>(3, &#39;def&#39;, 4000);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SET SESSION sql_mode = sys.list_add(@@session.sql_mode, &#39;ONLY_FULL_GROUP_BY&#39;);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT a, SUM(b) FROM mytable WHERE a = &#39;abc&#39;;</code></strong>
++------+--------+
+| a    | SUM(b) |
++------+--------+
+| abc  |   3000 |
++------+--------+
+</pre><p>
+        It is also possible to have more than one nonaggregate column in
+        the <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> list when employing
+        <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a>. In this
+        case, every such column must be limited to a single value in the
+        <code class="literal">WHERE</code> clause, and all such limiting
+        conditions must be joined by logical <code class="literal">AND</code>, as
+        shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>DROP TABLE IF EXISTS mytable;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>CREATE TABLE mytable (</code></strong>
+    -&gt;    <strong class="userinput"><code>id INT UNSIGNED NOT NULL PRIMARY KEY,</code></strong>
+    -&gt;    <strong class="userinput"><code>a VARCHAR(10),</code></strong>
+    -&gt;    <strong class="userinput"><code>b VARCHAR(10),</code></strong>
+    -&gt;    <strong class="userinput"><code>c INT</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO mytable</code></strong>
+    -&gt; <strong class="userinput"><code>VALUES (1, &#39;abc&#39;, &#39;qrs&#39;, 1000),</code></strong>
+    -&gt;        <strong class="userinput"><code>(2, &#39;abc&#39;, &#39;tuv&#39;, 2000),</code></strong>
+    -&gt;        <strong class="userinput"><code>(3, &#39;def&#39;, &#39;qrs&#39;, 4000),</code></strong>
+    -&gt;        <strong class="userinput"><code>(4, &#39;def&#39;, &#39;tuv&#39;, 8000),</code></strong>
+    -&gt;        <strong class="userinput"><code>(5, &#39;abc&#39;, &#39;qrs&#39;, 16000),</code></strong>
+    -&gt;        <strong class="userinput"><code>(6, &#39;def&#39;, &#39;tuv&#39;, 32000);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT @@session.sql_mode;</code></strong>
++---------------------------------------------------------------+
+| @@session.sql_mode                                            |
++---------------------------------------------------------------+
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION |
++---------------------------------------------------------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT a, b, SUM(c) FROM mytable</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE a = &#39;abc&#39; AND b = &#39;qrs&#39;;</code></strong>
++------+------+--------+
+| a    | b    | SUM(c) |
++------+------+--------+
+| abc  | qrs  |  17000 |
++------+------+--------+
+</pre><p>
+        If <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a> is
+        disabled, a MySQL extension to the standard SQL use of
+        <code class="literal">GROUP BY</code> permits the select list,
+        <code class="literal">HAVING</code> condition, or <code class="literal">ORDER
+        BY</code> list to refer to nonaggregated columns even if the
+        columns are not functionally dependent on <code class="literal">GROUP
+        BY</code> columns. This causes MySQL to accept the preceding
+        query. In this case, the server is free to choose any value from
+        each group, so unless they are the same, the values chosen are
+        nondeterministic, which is probably not what you want.
+        Furthermore, the selection of values from each group cannot be
+        influenced by adding an <code class="literal">ORDER BY</code> clause.
+        Result set sorting occurs after values have been chosen, and
+        <code class="literal">ORDER BY</code> does not affect which value within
+        each group the server chooses. Disabling
+        <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a> is useful
+        primarily when you know that, due to some property of the data,
+        all values in each nonaggregated column not named in the
+        <code class="literal">GROUP BY</code> are the same for each group.
+      </p><p>
+        You can achieve the same effect without disabling
+        <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a> by using
+        <a class="link" href="miscellaneous-functions.html#function_any-value"><code class="literal">ANY_VALUE()</code></a> to refer to the
+        nonaggregated column.
+      </p><p>
+        The following discussion demonstrates functional dependence, the
+        error message MySQL produces when functional dependence is
+        absent, and ways of causing MySQL to accept a query in the
+        absence of functional dependence.
+      </p><p>
+        This query might be invalid with
+        <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a> enabled
+        because the nonaggregated <code class="literal">address</code> column in
+        the select list is not named in the <code class="literal">GROUP BY</code>
+        clause:
+      </p><pre class="programlisting">SELECT name, address, MAX(age) FROM t GROUP BY name;
+</pre><p>
+        The query is valid if <code class="literal">name</code> is a primary key
+        of <code class="literal">t</code> or is a unique <code class="literal">NOT
+        NULL</code> column. In such cases, MySQL recognizes that the
+        selected column is functionally dependent on a grouping column.
+        For example, if <code class="literal">name</code> is a primary key, its
+        value determines the value of <code class="literal">address</code> because
+        each group has only one value of the primary key and thus only
+        one row. As a result, there is no randomness in the choice of
+        <code class="literal">address</code> value in a group and no need to
+        reject the query.
+      </p><p>
+        The query is invalid if <code class="literal">name</code> is not a primary
+        key of <code class="literal">t</code> or a unique <code class="literal">NOT
+        NULL</code> column. In this case, no functional dependency
+        can be inferred and an error occurs:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT name, address, MAX(age) FROM t GROUP BY name;</code></strong>
+ERROR 1055 (42000): Expression #2 of SELECT list is not in GROUP
+BY clause and contains nonaggregated column &#39;mydb.t.address&#39; which
+is not functionally dependent on columns in GROUP BY clause; this
+is incompatible with sql_mode=only_full_group_by
+</pre><p>
+        If you know that, <span class="emphasis"><em>for a given data set,</em></span>
+        each <code class="literal">name</code> value in fact uniquely determines
+        the <code class="literal">address</code> value, <code class="literal">address</code>
+        is effectively functionally dependent on
+        <code class="literal">name</code>. To tell MySQL to accept the query, you
+        can use the <a class="link" href="miscellaneous-functions.html#function_any-value"><code class="literal">ANY_VALUE()</code></a> function:
+      </p><pre class="programlisting">SELECT name, ANY_VALUE(address), MAX(age) FROM t GROUP BY name;
+</pre><p>
+        Alternatively, disable
+        <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a>.
+      </p><p>
+        The preceding example is quite simple, however. In particular,
+        it is unlikely you would group on a single primary key column
+        because every group would contain only one row. For additional
+        examples demonstrating functional dependence in more complex
+        queries, see <a class="xref" href="group-by-functional-dependence.html" title="12.19.4&nbsp;Detection of Functional Dependence">Section&nbsp;12.19.4, &ldquo;Detection of Functional Dependence&rdquo;</a>.
+      </p><p>
+        If a query has aggregate functions and no <code class="literal">GROUP
+        BY</code> clause, it cannot have nonaggregated columns in the
+        select list, <code class="literal">HAVING</code> condition, or
+        <code class="literal">ORDER BY</code> list with
+        <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a> enabled:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT name, MAX(age) FROM t;</code></strong>
+ERROR 1140 (42000): In aggregated query without GROUP BY, expression
+#1 of SELECT list contains nonaggregated column &#39;mydb.t.name&#39;; this
+is incompatible with sql_mode=only_full_group_by
+</pre><p>
+        Without <code class="literal">GROUP BY</code>, there is a single group and
+        it is nondeterministic which <code class="literal">name</code> value to
+        choose for the group. Here, too,
+        <a class="link" href="miscellaneous-functions.html#function_any-value"><code class="literal">ANY_VALUE()</code></a> can be used, if it is
+        immaterial which <code class="literal">name</code> value MySQL chooses:
+      </p><pre class="programlisting">SELECT ANY_VALUE(name), MAX(age) FROM t;
+</pre><p>
+        <code class="literal">ONLY_FULL_GROUP_BY</code> also affects handling of
+        queries that use <code class="literal">DISTINCT</code> and <code class="literal">ORDER
+        BY</code>. Consider the case of a table <code class="literal">t</code>
+        with three columns <code class="literal">c1</code>, <code class="literal">c2</code>,
+        and <code class="literal">c3</code> that contains these rows:
+      </p><pre class="programlisting">c1 c2 c3
+1  2  A
+3  4  B
+1  2  C
+</pre><p>
+        Suppose that we execute the following query, expecting the
+        results to be ordered by <code class="literal">c3</code>:
+      </p><pre class="programlisting">SELECT DISTINCT c1, c2 FROM t ORDER BY c3;
+</pre><p>
+        To order the result, duplicates must be eliminated first. But to
+        do so, should we keep the first row or the third? This arbitrary
+        choice influences the retained value of <code class="literal">c3</code>,
+        which in turn influences ordering and makes it arbitrary as
+        well. To prevent this problem, a query that has
+        <code class="literal">DISTINCT</code> and <code class="literal">ORDER BY</code> is
+        rejected as invalid if any <code class="literal">ORDER BY</code>
+        expression does not satisfy at least one of these conditions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The expression is equal to one in the select list
+          </p></li><li class="listitem"><p>
+            All columns referenced by the expression and belonging to
+            the query&#39;s selected tables are elements of the select list
+          </p></li></ul></div><p>
+        Another MySQL extension to standard SQL permits references in
+        the <code class="literal">HAVING</code> clause to aliased expressions in
+        the select list. For example, the following query returns
+        <code class="literal">name</code> values that occur only once in table
+        <code class="literal">orders</code>:
+      </p><pre class="programlisting">SELECT name, COUNT(name) FROM orders
+  GROUP BY name
+  HAVING COUNT(name) = 1;
+</pre><p>
+        The MySQL extension permits the use of an alias in the
+        <code class="literal">HAVING</code> clause for the aggregated column:
+      </p><pre class="programlisting">SELECT name, COUNT(name) AS c FROM orders
+  GROUP BY name
+  HAVING c = 1;
+</pre><a id="idm45828919202288" class="indexterm"></a><a id="idm45828919200800" class="indexterm"></a><a id="idm45828919199312" class="indexterm"></a><a id="idm45828919198240" class="indexterm"></a><p>
+        Standard SQL permits only column expressions in <code class="literal">GROUP
+        BY</code> clauses, so a statement such as this is invalid
+        because <code class="literal">FLOOR(value/100)</code> is a noncolumn
+        expression:
+      </p><pre class="programlisting">SELECT id, FLOOR(value/100)
+  FROM <em class="replaceable"><code>tbl_name</code></em>
+  GROUP BY id, FLOOR(value/100);
+</pre><p>
+        MySQL extends standard SQL to permit noncolumn expressions in
+        <code class="literal">GROUP BY</code> clauses and considers the preceding
+        statement valid.
+      </p><p>
+        Standard SQL also does not permit aliases in <code class="literal">GROUP
+        BY</code> clauses. MySQL extends standard SQL to permit
+        aliases, so another way to write the query is as follows:
+      </p><pre class="programlisting">SELECT id, FLOOR(value/100) AS val
+  FROM <em class="replaceable"><code>tbl_name</code></em>
+  GROUP BY id, val;
+</pre><p>
+        The alias <code class="literal">val</code> is considered a column
+        expression in the <code class="literal">GROUP BY</code> clause.
+      </p><p>
+        In the presence of a noncolumn expression in the <code class="literal">GROUP
+        BY</code> clause, MySQL recognizes equality between that
+        expression and expressions in the select list. This means that
+        with <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a> SQL
+        mode enabled, the query containing <code class="literal">GROUP BY id,
+        FLOOR(value/100)</code> is valid because that same
+        <a class="link" href="mathematical-functions.html#function_floor"><code class="literal">FLOOR()</code></a> expression occurs in the
+        select list. However, MySQL does not try to recognize functional
+        dependence on <code class="literal">GROUP BY</code> noncolumn expressions,
+        so the following query is invalid with
+        <a class="link" href="sql-mode.html#sqlmode_only_full_group_by"><code class="literal">ONLY_FULL_GROUP_BY</code></a> enabled,
+        even though the third selected expression is a simple formula of
+        the <code class="literal">id</code> column and the
+        <a class="link" href="mathematical-functions.html#function_floor"><code class="literal">FLOOR()</code></a> expression in the
+        <code class="literal">GROUP BY</code> clause:
+      </p><pre class="programlisting">SELECT id, FLOOR(value/100), id+FLOOR(value/100)
+  FROM <em class="replaceable"><code>tbl_name</code></em>
+  GROUP BY id, FLOOR(value/100);
+</pre><p>
+        A workaround is to use a derived table:
+      </p><pre class="programlisting">SELECT id, F, id+F
+  FROM
+    (SELECT id, FLOOR(value/100) AS F
+     FROM <em class="replaceable"><code>tbl_name</code></em>
+     GROUP BY id, FLOOR(value/100)) AS dt;
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-by-modifiers.html">Previous <span class="navHint"> GROUP BY Modifiers </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="aggregate-functions-and-modifiers.html">Up <span class="navHint"> Aggregate Functions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-by-functional-dependence.html">Next <span class="navHint"> Detection of Functional Dependence </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

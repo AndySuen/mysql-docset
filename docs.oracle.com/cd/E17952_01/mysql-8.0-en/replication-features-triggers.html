@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.5.1.36 Replication and Triggers</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-features.html" title="17.5.1 Replication Features and Issues" /><link rel="prev" href="replication-features-transactions.html" title="17.5.1.35 Replication and Transactions" /><link rel="next" href="replication-features-truncate.html" title="17.5.1.37 Replication and TRUNCATE TABLE" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-triggers.html#replication-features-triggers">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-features-transactions.html">Previous <span class="navHint"> Replication and Transactions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-features-truncate.html">Next <span class="navHint"> Replication and TRUNCATE TABLE </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-features-triggers"></a>17.5.1.36 Replication and Triggers</h4></div></div></div><a id="idm45828855968432" class="indexterm"></a><a id="idm45828855966944" class="indexterm"></a><p>
+        With statement-based replication, triggers executed on the
+        source also execute on the replica. With row-based replication,
+        triggers executed on the source do not execute on the replica.
+        Instead, the row changes on the source resulting from trigger
+        execution are replicated and applied on the replica.
+      </p><p>
+        This behavior is by design. If under row-based replication the
+        replica applied the triggers as well as the row changes caused
+        by them, the changes would in effect be applied twice on the
+        replica, leading to different data on the source and the
+        replica.
+      </p><p>
+        If you want triggers to execute on both the source and the
+        replica, perhaps because you have different triggers on the
+        source and replica, you must use statement-based replication.
+        However, to enable replica-side triggers, it is not necessary to
+        use statement-based replication exclusively. It is sufficient to
+        switch to statement-based replication only for those statements
+        where you want this effect, and to use row-based replication the
+        rest of the time.
+      </p><p>
+        A statement invoking a trigger (or function) that causes an
+        update to an <code class="literal">AUTO_INCREMENT</code> column is not
+        replicated correctly using statement-based replication. MySQL
+        8.0 marks such statements as unsafe. (Bug #45677)
+      </p><p>
+        A trigger can have triggers for different combinations of
+        trigger event (<a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>,
+        <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>,
+        <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a>) and action time
+        (<code class="literal">BEFORE</code>, <code class="literal">AFTER</code>), and
+        multiple triggers are permitted.
+      </p><p>
+        For brevity, <span class="quote">“<span class="quote">multiple triggers</span>”</span> here is shorthand
+        for <span class="quote">“<span class="quote">multiple triggers that have the same trigger event
+        and action time.</span>”</span>
+      </p><p>
+        <span class="bold"><strong>Upgrades.</strong></span> Multiple triggers are
+        not supported in versions earlier than MySQL 5.7. If you upgrade
+        servers in a replication topology that use a version earlier
+        than MySQL 5.7, upgrade the replicas first and then upgrade the
+        source. If an upgraded replication source server still has old
+        replicas using MySQL versions that do not support multiple
+        triggers, an error occurs on those replicas if a trigger is
+        created on the source for a table that already has a trigger
+        with the same trigger event and action time.
+      </p><p>
+        <span class="bold"><strong>Downgrades.</strong></span> If you downgrade a
+        server that supports multiple triggers to an older version that
+        does not, the downgrade has these effects:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For each table that has triggers, all trigger definitions
+            are in the <code class="filename">.TRG</code> file for the table.
+            However, if there are multiple triggers with the same
+            trigger event and action time, the server executes only one
+            of them when the trigger event occurs. For information about
+            <code class="literal">.TRG</code> files, see the Table Trigger Storage
+            section of the MySQL Server Doxygen documentation, available
+            at <a class="ulink" href="https://dev.mysql.com/doc/index-other.html" target="_top">https://dev.mysql.com/doc/index-other.html</a>.
+          </p></li><li class="listitem"><p>
+            If triggers for the table are added or dropped subsequent to
+            the downgrade, the server rewrites the table's
+            <code class="filename">.TRG</code> file. The rewritten file retains
+            only one trigger per combination of trigger event and action
+            time; the others are lost.
+          </p></li></ul></div><p>
+        To avoid these problems, modify your triggers before
+        downgrading. For each table that has multiple triggers per
+        combination of trigger event and action time, convert each such
+        set of triggers to a single trigger as follows:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            For each trigger, create a stored routine that contains all
+            the code in the trigger. Values accessed using
+            <code class="literal">NEW</code> and <code class="literal">OLD</code> can be
+            passed to the routine using parameters. If the trigger needs
+            a single result value from the code, you can put the code in
+            a stored function and have the function return the value. If
+            the trigger needs multiple result values from the code, you
+            can put the code in a stored procedure and return the values
+            using <code class="literal">OUT</code> parameters.
+          </p></li><li class="listitem"><p>
+            Drop all triggers for the table.
+          </p></li><li class="listitem"><p>
+            Create one new trigger for the table that invokes the stored
+            routines just created. The effect for this trigger is thus
+            the same as the multiple triggers it replaces.
+          </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-transactions.html">Previous <span class="navHint"> Replication and Transactions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-truncate.html">Next <span class="navHint"> Replication and TRUNCATE TABLE </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

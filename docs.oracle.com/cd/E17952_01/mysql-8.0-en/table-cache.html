@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.4.3.1 How MySQL Opens and Closes Tables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="optimize-multi-tables.html" title="8.4.3 Optimizing for Many Tables" /><link rel="prev" href="optimize-multi-tables.html" title="8.4.3 Optimizing for Many Tables" /><link rel="next" href="creating-many-tables.html" title="8.4.3.2 Disadvantages of Creating Many Tables in the Same Database" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="table-cache.html#table-cache">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="optimize-multi-tables.html">Previous <span class="navHint"> Optimizing for Many Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="optimize-multi-tables.html">Up <span class="navHint"> Optimizing for Many Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="creating-many-tables.html">Next <span class="navHint"> Disadvantages of Creating Many Tables in the Same Database </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="table-cache"></a>8.4.3.1 How MySQL Opens and Closes Tables</h4></div></div></div><a id="idm45828953540576" class="indexterm"></a><a id="idm45828953539536" class="indexterm"></a><a id="idm45828953538048" class="indexterm"></a><a id="idm45828953536560" class="indexterm"></a><a id="idm45828953535072" class="indexterm"></a><a id="idm45828953533584" class="indexterm"></a><a id="idm45828953532096" class="indexterm"></a><a id="idm45828953530608" class="indexterm"></a><a id="idm45828953529536" class="indexterm"></a><a id="idm45828953528048" class="indexterm"></a><p>
+          When you execute a <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin status</strong></span></a>
+          command, you should see something like this:
+        </p><pre class="programlisting">Uptime: 426 Running threads: 1 Questions: 11082
+Reloads: 1 Open tables: 12
+</pre><p>
+          The <code class="literal">Open tables</code> value of 12 can be somewhat
+          puzzling if you have fewer than 12 tables.
+        </p><p>
+          MySQL is multithreaded, so there may be many clients issuing
+          queries for a given table simultaneously. To minimize the
+          problem with multiple client sessions having different states
+          on the same table, the table is opened independently by each
+          concurrent session. This uses additional memory but normally
+          increases performance. With <code class="literal">MyISAM</code> tables,
+          one extra file descriptor is required for the data file for
+          each client that has the table open. (By contrast, the index
+          file descriptor is shared between all sessions.)
+        </p><p>
+          The <a class="link" href="server-system-variables.html#sysvar_table_open_cache"><code class="literal">table_open_cache</code></a> and
+          <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a> system
+          variables affect the maximum number of files the server keeps
+          open. If you increase one or both of these values, you may run
+          up against a limit imposed by your operating system on the
+          per-process number of open file descriptors. Many operating
+          systems permit you to increase the open-files limit, although
+          the method varies widely from system to system. Consult your
+          operating system documentation to determine whether it is
+          possible to increase the limit and how to do so.
+        </p><p>
+          <a class="link" href="server-system-variables.html#sysvar_table_open_cache"><code class="literal">table_open_cache</code></a> is related
+          to <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a>. For
+          example, for 200 concurrent running connections, specify a
+          table cache size of at least <code class="literal">200 *
+          <em class="replaceable"><code>N</code></em></code>, where
+          <em class="replaceable"><code>N</code></em> is the maximum number of tables
+          per join in any of the queries which you execute. You must
+          also reserve some extra file descriptors for temporary tables
+          and files.
+        </p><p>
+          Make sure that your operating system can handle the number of
+          open file descriptors implied by the
+          <a class="link" href="server-system-variables.html#sysvar_table_open_cache"><code class="literal">table_open_cache</code></a> setting. If
+          <a class="link" href="server-system-variables.html#sysvar_table_open_cache"><code class="literal">table_open_cache</code></a> is set too
+          high, MySQL may run out of file descriptors and exhibit
+          symptoms such as refusing connections or failing to perform
+          queries.
+        </p><p>
+          Also take into account that the <code class="literal">MyISAM</code>
+          storage engine needs two file descriptors for each unique open
+          table. To increase the number of file descriptors available to
+          MySQL, set the
+          <a class="link" href="server-system-variables.html#sysvar_open_files_limit"><code class="literal">open_files_limit</code></a> system
+          variable. See <a class="xref" href="not-enough-file-handles.html" title="B.3.2.16 File Not Found and Similar Errors">Section B.3.2.16, “File Not Found and Similar Errors”</a>.
+        </p><p>
+          The cache of open tables is kept at a level of
+          <a class="link" href="server-system-variables.html#sysvar_table_open_cache"><code class="literal">table_open_cache</code></a> entries. The
+          server autosizes the cache size at startup. To set the size
+          explicitly, set the
+          <a class="link" href="server-system-variables.html#sysvar_table_open_cache"><code class="literal">table_open_cache</code></a> system
+          variable at startup. MySQL may temporarily open more tables
+          than this to execute queries, as described later in this
+          section.
+        </p><p>
+          MySQL closes an unused table and removes it from the table
+          cache under the following circumstances:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              When the cache is full and a thread tries to open a table
+              that is not in the cache.
+            </p></li><li class="listitem"><p>
+              When the cache contains more than
+              <a class="link" href="server-system-variables.html#sysvar_table_open_cache"><code class="literal">table_open_cache</code></a> entries
+              and a table in the cache is no longer being used by any
+              threads.
+            </p></li><li class="listitem"><p>
+              When a table-flushing operation occurs. This happens when
+              someone issues a <a class="link" href="flush.html#flush-tables"><code class="literal">FLUSH
+              TABLES</code></a> statement or executes a
+              <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin flush-tables</strong></span></a> or
+              <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin refresh</strong></span></a> command.
+            </p></li></ul></div><p>
+          When the table cache fills up, the server uses the following
+          procedure to locate a cache entry to use:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Tables not currently in use are released, beginning with
+              the table least recently used.
+            </p></li><li class="listitem"><p>
+              If a new table must be opened, but the cache is full and
+              no tables can be released, the cache is temporarily
+              extended as necessary. When the cache is in a temporarily
+              extended state and a table goes from a used to unused
+              state, the table is closed and released from the cache.
+            </p></li></ul></div><p>
+          A <code class="literal">MyISAM</code> table is opened for each
+          concurrent access. This means the table needs to be opened
+          twice if two threads access the same table or if a thread
+          accesses the table twice in the same query (for example, by
+          joining the table to itself). Each concurrent open requires an
+          entry in the table cache. The first open of any
+          <code class="literal">MyISAM</code> table takes two file descriptors:
+          one for the data file and one for the index file. Each
+          additional use of the table takes only one file descriptor for
+          the data file. The index file descriptor is shared among all
+          threads.
+        </p><p>
+          If you are opening a table with the <code class="literal">HANDLER
+          <em class="replaceable"><code>tbl_name</code></em> OPEN</code> statement,
+          a dedicated table object is allocated for the thread. This
+          table object is not shared by other threads and is not closed
+          until the thread calls <code class="literal">HANDLER
+          <em class="replaceable"><code>tbl_name</code></em> CLOSE</code> or the
+          thread terminates. When this happens, the table is put back in
+          the table cache (if the cache is not full). See
+          <a class="xref" href="handler.html" title="13.2.5 HANDLER Statement">Section 13.2.5, “HANDLER Statement”</a>.
+        </p><p>
+          To determine whether your table cache is too small, check the
+          <a class="link" href="server-status-variables.html#statvar_Opened_tables"><code class="literal">Opened_tables</code></a> status
+          variable, which indicates the number of table-opening
+          operations since the server started:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW GLOBAL STATUS LIKE 'Opened_tables';</code></strong>
++---------------+-------+
+| Variable_name | Value |
++---------------+-------+
+| Opened_tables | 2741  |
++---------------+-------+
+</pre><p>
+          If the value is very large or increases rapidly, even when you
+          have not issued many <a class="link" href="flush.html#flush-tables"><code class="literal">FLUSH
+          TABLES</code></a> statements, increase the
+          <a class="link" href="server-system-variables.html#sysvar_table_open_cache"><code class="literal">table_open_cache</code></a> value at
+          server startup.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimize-multi-tables.html">Previous <span class="navHint"> Optimizing for Many Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimize-multi-tables.html">Up <span class="navHint"> Optimizing for Many Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="creating-many-tables.html">Next <span class="navHint"> Disadvantages of Creating Many Tables in the Same Database </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

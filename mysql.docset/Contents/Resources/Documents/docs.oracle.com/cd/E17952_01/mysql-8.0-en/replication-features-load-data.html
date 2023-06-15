@@ -1,0 +1,51 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3561"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.5.1.19%C2%A0Replication%20and%20LOAD%20DATA"></a><title>17.5.1.19&nbsp;Replication and LOAD DATA</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-features.html" title="17.5.1&nbsp;Replication Features and Issues"/><link rel="prev" href="replication-features-limit.html" title="17.5.1.18&nbsp;Replication and LIMIT"/><link rel="next" href="replication-features-max-allowed-packet.html" title="17.5.1.20&nbsp;Replication and max_allowed_packet"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-load-data.html#replication-features-load-data">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-features-limit.html">Previous <span class="navHint"> Replication and LIMIT </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-features-max-allowed-packet.html">Next <span class="navHint"> Replication and max_allowed_packet </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3560"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.5.1.19%C2%A0Replication%20and%20LOAD%20DATA"></a><h4 class="title"><a id="replication-features-load-data"></a>17.5.1.19&nbsp;Replication and LOAD DATA</h4></div></div></div><a id="idm45828856517328" class="indexterm"></a><a id="idm45828856515840" class="indexterm"></a><p>
+        <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> is considered unsafe
+        for statement-based logging (see
+        <a class="xref" href="replication-rbr-safe-unsafe.html" title="17.2.1.3&nbsp;Determination of Safe and Unsafe Statements in Binary Logging">Section&nbsp;17.2.1.3, &ldquo;Determination of Safe and Unsafe Statements in Binary Logging&rdquo;</a>). When
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=MIXED</code></a> is set, the
+        statement is logged in row-based format. When
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=STATEMENT</code></a> is set,
+        note that <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> does not
+        generate a warning, unlike other unsafe statements.
+      </p><p>
+        If you use <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> with
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=STATEMENT</code></a>, each
+        replica on which the changes are to be applied creates a
+        temporary file containing the data. The replica then uses a
+        <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> statement to apply the
+        changes. This temporary file is not encrypted, even if binary
+        log encryption is active on the source, If encryption is
+        required, use row-based or mixed binary logging format instead,
+        for which replicas do not create the temporary file.
+      </p><p>
+        If a <code class="literal">PRIVILEGE_CHECKS_USER</code> account has been
+        used to help secure the replication channel (see
+        <a class="xref" href="replication-privilege-checks.html" title="17.3.3&nbsp;Replication Privilege Checks">Section&nbsp;17.3.3, &ldquo;Replication Privilege Checks&rdquo;</a>), it is strongly
+        recommended that you log <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD
+        DATA</code></a> operations using row-based binary logging
+        (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a>). If
+        <code class="literal">REQUIRE_ROW_FORMAT</code> is set for the channel,
+        row-based binary logging is required. With this logging format,
+        the <a class="link" href="privileges-provided.html#priv_file"><code class="literal">FILE</code></a> privilege is not needed
+        to execute the event, so do not give the
+        <code class="literal">PRIVILEGE_CHECKS_USER</code> account this privilege.
+        If you need to recover from a replication error involving a
+        <code class="literal">LOAD DATA INFILE</code> operation logged in
+        statement format, and the replicated event is trusted, you could
+        grant the <a class="link" href="privileges-provided.html#priv_file"><code class="literal">FILE</code></a> privilege to the
+        <code class="literal">PRIVILEGE_CHECKS_USER</code> account temporarily,
+        removing it after the replicated event has been applied.
+      </p><p>
+        When <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> reads log events for
+        <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> statements logged in
+        statement-based format, a generated local file is created in a
+        temporary directory. These temporary files are not automatically
+        removed by <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> or any other MySQL
+        program. If you do use <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD DATA</code></a>
+        statements with statement-based binary logging, you should
+        delete the temporary files yourself after you no longer need the
+        statement log. For more information, see
+        <a class="xref" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files">Section&nbsp;4.6.9, &ldquo;mysqlbinlog &mdash; Utility for Processing Binary Log Files&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-limit.html">Previous <span class="navHint"> Replication and LIMIT </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-max-allowed-packet.html">Next <span class="navHint"> Replication and max_allowed_packet </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

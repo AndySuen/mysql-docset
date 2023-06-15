@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.2.2 Optimizing Subqueries with Materialization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="subquery-optimization.html" title="8.2.2 Optimizing Subqueries, Derived Tables, View References, and Common Table Expressions" /><link rel="prev" href="semijoins.html" title="8.2.2.1 Optimizing IN and EXISTS Subquery Predicates with Semijoin Transformations" /><link rel="next" href="subquery-optimization-with-exists.html" title="8.2.2.3 Optimizing Subqueries with the EXISTS Strategy" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="subquery-materialization.html#subquery-materialization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="semijoins.html">Previous <span class="navHint"> Optimizing IN and EXISTS Subquery Predicates with Semijoin
+          Transformations </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="subquery-optimization.html">Up <span class="navHint"> Optimizing Subqueries, Derived Tables, View References, and Common Table
+        Expressions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="subquery-optimization-with-exists.html">Next <span class="navHint"> Optimizing Subqueries with the EXISTS Strategy </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="subquery-materialization"></a>8.2.2.2 Optimizing Subqueries with Materialization</h4></div></div></div><a id="idm45828955047072" class="indexterm"></a><a id="idm45828955046032" class="indexterm"></a><a id="idm45828955044544" class="indexterm"></a><p>
+          The optimizer uses materialization to enable more efficient
+          subquery processing. Materialization speeds up query execution
+          by generating a subquery result as a temporary table, normally
+          in memory. The first time MySQL needs the subquery result, it
+          materializes that result into a temporary table. Any
+          subsequent time the result is needed, MySQL refers again to
+          the temporary table. The optimizer may index the table with a
+          hash index to make lookups fast and inexpensive. The index
+          contains unique values to eliminate duplicates and make the
+          table smaller.
+        </p><p>
+          Subquery materialization uses an in-memory temporary table
+          when possible, falling back to on-disk storage if the table
+          becomes too large. See
+          <a class="xref" href="internal-temporary-tables.html" title="8.4.4 Internal Temporary Table Use in MySQL">Section 8.4.4, “Internal Temporary Table Use in MySQL”</a>.
+        </p><p>
+          If materialization is not used, the optimizer sometimes
+          rewrites a noncorrelated subquery as a correlated subquery.
+          For example, the following <code class="literal">IN</code> subquery is
+          noncorrelated (<em class="replaceable"><code>where_condition</code></em>
+          involves only columns from <code class="literal">t2</code> and not
+          <code class="literal">t1</code>):
+        </p><pre class="programlisting">SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.b FROM t2 WHERE <em class="replaceable"><code>where_condition</code></em>);
+</pre><p>
+          The optimizer might rewrite this as an
+          <code class="literal">EXISTS</code> correlated subquery:
+        </p><pre class="programlisting">SELECT * FROM t1
+WHERE EXISTS (SELECT t2.b FROM t2 WHERE <em class="replaceable"><code>where_condition</code></em> AND t1.a=t2.b);
+</pre><p>
+          Subquery materialization using a temporary table avoids such
+          rewrites and makes it possible to execute the subquery only
+          once rather than once per row of the outer query.
+        </p><p>
+          For subquery materialization to be used in MySQL, the
+          <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> system
+          variable <a class="link" href="switchable-optimizations.html#optflag_materialization"><code class="literal">materialization</code></a>
+          flag must be enabled. (See
+          <a class="xref" href="switchable-optimizations.html" title="8.9.2 Switchable Optimizations">Section 8.9.2, “Switchable Optimizations”</a>.) With the
+          <a class="link" href="switchable-optimizations.html#optflag_materialization"><code class="literal">materialization</code></a> flag
+          enabled, materialization applies to subquery predicates that
+          appear anywhere (in the select list, <code class="literal">WHERE</code>,
+          <code class="literal">ON</code>, <code class="literal">GROUP BY</code>,
+          <code class="literal">HAVING</code>, or <code class="literal">ORDER BY</code>),
+          for predicates that fall into any of these use cases:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The predicate has this form, when no outer expression
+              <em class="replaceable"><code>oe_i</code></em> or inner expression
+              <em class="replaceable"><code>ie_i</code></em> is nullable.
+              <em class="replaceable"><code>N</code></em> is 1 or larger.
+            </p><pre class="programlisting">(<em class="replaceable"><code>oe_1</code></em>, <em class="replaceable"><code>oe_2</code></em>, ..., <em class="replaceable"><code>oe_N</code></em>) [NOT] IN (SELECT <em class="replaceable"><code>ie_1</code></em>, <em class="replaceable"><code>i_2</code></em>, ..., <em class="replaceable"><code>ie_N</code></em> ...)
+</pre></li><li class="listitem"><p>
+              The predicate has this form, when there is a single outer
+              expression <em class="replaceable"><code>oe</code></em> and inner
+              expression <em class="replaceable"><code>ie</code></em>. The expressions
+              can be nullable.
+            </p><pre class="programlisting"><em class="replaceable"><code>oe</code></em> [NOT] IN (SELECT <em class="replaceable"><code>ie</code></em> ...)
+</pre></li><li class="listitem"><p>
+              The predicate is <code class="literal">IN</code> or <code class="literal">NOT
+              IN</code> and a result of <code class="literal">UNKNOWN</code>
+              (<code class="literal">NULL</code>) has the same meaning as a result
+              of <code class="literal">FALSE</code>.
+            </p></li></ul></div><p>
+          The following examples illustrate how the requirement for
+          equivalence of <code class="literal">UNKNOWN</code> and
+          <code class="literal">FALSE</code> predicate evaluation affects whether
+          subquery materialization can be used. Assume that
+          <em class="replaceable"><code>where_condition</code></em> involves columns
+          only from <code class="literal">t2</code> and not <code class="literal">t1</code>
+          so that the subquery is noncorrelated.
+        </p><p>
+          This query is subject to materialization:
+        </p><pre class="programlisting">SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.b FROM t2 WHERE <em class="replaceable"><code>where_condition</code></em>);
+</pre><p>
+          Here, it does not matter whether the <code class="literal">IN</code>
+          predicate returns <code class="literal">UNKNOWN</code> or
+          <code class="literal">FALSE</code>. Either way, the row from
+          <code class="literal">t1</code> is not included in the query result.
+        </p><p>
+          An example where subquery materialization is not used is the
+          following query, where <code class="literal">t2.b</code> is a nullable
+          column:
+        </p><pre class="programlisting">SELECT * FROM t1
+WHERE (t1.a,t1.b) NOT IN (SELECT t2.a,t2.b FROM t2
+                          WHERE <em class="replaceable"><code>where_condition</code></em>);
+</pre><p>
+          The following restrictions apply to the use of subquery
+          materialization:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The types of the inner and outer expressions must match.
+              For example, the optimizer might be able to use
+              materialization if both expressions are integer or both
+              are decimal, but cannot if one expression is integer and
+              the other is decimal.
+            </p></li><li class="listitem"><p>
+              The inner expression cannot be a
+              <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a>.
+            </p></li></ul></div><p>
+          Use of <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> with a query
+          provides some indication of whether the optimizer uses
+          subquery materialization:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Compared to query execution that does not use
+              materialization, <code class="literal">select_type</code> may change
+              from <code class="literal">DEPENDENT SUBQUERY</code> to
+              <code class="literal">SUBQUERY</code>. This indicates that, for a
+              subquery that would be executed once per outer row,
+              materialization enables the subquery to be executed just
+              once.
+            </p></li><li class="listitem"><p>
+              For extended <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>
+              output, the text displayed by a following
+              <a class="link" href="show-warnings.html" title="13.7.7.42 SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a> includes
+              <code class="literal">materialize</code> and
+              <code class="literal">materialized-subquery</code>.
+            </p></li></ul></div><p>
+          In MySQL 8.0.21 and later, MySQL can also apply subquery
+          materialization to a single-table
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> or
+          <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> statement that uses a
+          <code class="literal">[NOT] IN</code> or <code class="literal">[NOT] EXISTS</code>
+          subquery predicate, provided that the statement does not use
+          <code class="literal">ORDER BY</code> or <code class="literal">LIMIT</code>, and
+          that subquery materialization is allowed by an optimizer hint
+          or by the <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a>
+          setting.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="semijoins.html">Previous <span class="navHint"> Optimizing IN and EXISTS Subquery Predicates with Semijoin
+          Transformations </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="subquery-optimization.html">Up <span class="navHint"> Optimizing Subqueries, Derived Tables, View References, and Common Table
+        Expressions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="subquery-optimization-with-exists.html">Next <span class="navHint"> Optimizing Subqueries with the EXISTS Strategy </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

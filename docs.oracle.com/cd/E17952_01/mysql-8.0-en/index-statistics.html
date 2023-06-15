@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.3.8 InnoDB and MyISAM Index Statistics Collection</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="optimization-indexes.html" title="8.3 Optimization and Indexes" /><link rel="prev" href="verifying-index-usage.html" title="8.3.7 Verifying Index Usage" /><link rel="next" href="index-btree-hash.html" title="8.3.9 Comparison of B-Tree and Hash Indexes" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="index-statistics.html#index-statistics">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="verifying-index-usage.html">Previous <span class="navHint"> Verifying Index Usage </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="index-btree-hash.html">Next <span class="navHint"> Comparison of B-Tree and Hash Indexes </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="index-statistics"></a>8.3.8 InnoDB and MyISAM Index Statistics Collection</h3></div></div></div><p>
+        Storage engines collect statistics about tables for use by the
+        optimizer. Table statistics are based on value groups, where a
+        value group is a set of rows with the same key prefix value. For
+        optimizer purposes, an important statistic is the average value
+        group size.
+      </p><p>
+        MySQL uses the average value group size in the following ways:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            To estimate how many rows must be read for each
+            <a class="link" href="explain-output.html#jointype_ref"><code class="literal">ref</code></a> access
+          </p></li><li class="listitem"><p>
+            To estimate how many rows a partial join produces, that is,
+            the number of rows produced by an operation of the form
+          </p><pre class="programlisting">(...) JOIN <em class="replaceable"><code>tbl_name</code></em> ON <em class="replaceable"><code>tbl_name</code></em>.<em class="replaceable"><code>key</code></em> = <em class="replaceable"><code>expr</code></em>
+</pre></li></ul></div><p>
+        As the average value group size for an index increases, the
+        index is less useful for those two purposes because the average
+        number of rows per lookup increases: For the index to be good
+        for optimization purposes, it is best that each index value
+        target a small number of rows in the table. When a given index
+        value yields a large number of rows, the index is less useful
+        and MySQL is less likely to use it.
+      </p><p>
+        The average value group size is related to table cardinality,
+        which is the number of value groups. The
+        <a class="link" href="show-index.html" title="13.7.7.22 SHOW INDEX Statement"><code class="literal">SHOW INDEX</code></a> statement displays a
+        cardinality value based on <em class="replaceable"><code>N/S</code></em>, where
+        <em class="replaceable"><code>N</code></em> is the number of rows in the table
+        and <em class="replaceable"><code>S</code></em> is the average value group
+        size. That ratio yields an approximate number of value groups in
+        the table.
+      </p><p>
+        For a join based on the <code class="literal">&lt;=&gt;</code> comparison
+        operator, <code class="literal">NULL</code> is not treated differently
+        from any other value: <code class="literal">NULL &lt;=&gt; NULL</code>,
+        just as <code class="literal"><em class="replaceable"><code>N</code></em> &lt;=&gt;
+        <em class="replaceable"><code>N</code></em></code> for any other
+        <em class="replaceable"><code>N</code></em>.
+      </p><p>
+        However, for a join based on the <code class="literal">=</code> operator,
+        <code class="literal">NULL</code> is different from
+        non-<code class="literal">NULL</code> values:
+        <code class="literal"><em class="replaceable"><code>expr1</code></em> =
+        <em class="replaceable"><code>expr2</code></em></code> is not true when
+        <em class="replaceable"><code>expr1</code></em> or
+        <em class="replaceable"><code>expr2</code></em> (or both) are
+        <code class="literal">NULL</code>. This affects
+        <a class="link" href="explain-output.html#jointype_ref"><code class="literal">ref</code></a> accesses for comparisons
+        of the form <code class="literal"><em class="replaceable"><code>tbl_name.key</code></em> =
+        <em class="replaceable"><code>expr</code></em></code>: MySQL does not access
+        the table if the current value of
+        <em class="replaceable"><code>expr</code></em> is <code class="literal">NULL</code>,
+        because the comparison cannot be true.
+      </p><p>
+        For <code class="literal">=</code> comparisons, it does not matter how
+        many <code class="literal">NULL</code> values are in the table. For
+        optimization purposes, the relevant value is the average size of
+        the non-<code class="literal">NULL</code> value groups. However, MySQL
+        does not currently enable that average size to be collected or
+        used.
+      </p><p>
+        For <code class="literal">InnoDB</code> and <code class="literal">MyISAM</code>
+        tables, you have some control over collection of table
+        statistics by means of the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_method"><code class="literal">innodb_stats_method</code></a> and
+        <a class="link" href="server-system-variables.html#sysvar_myisam_stats_method"><code class="literal">myisam_stats_method</code></a> system
+        variables, respectively. These variables have three possible
+        values, which differ as follows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            When the variable is set to <code class="literal">nulls_equal</code>,
+            all <code class="literal">NULL</code> values are treated as identical
+            (that is, they all form a single value group).
+          </p><p>
+            If the <code class="literal">NULL</code> value group size is much
+            higher than the average non-<code class="literal">NULL</code> value
+            group size, this method skews the average value group size
+            upward. This makes index appear to the optimizer to be less
+            useful than it really is for joins that look for
+            non-<code class="literal">NULL</code> values. Consequently, the
+            <code class="literal">nulls_equal</code> method may cause the
+            optimizer not to use the index for
+            <a class="link" href="explain-output.html#jointype_ref"><code class="literal">ref</code></a> accesses when it
+            should.
+          </p></li><li class="listitem"><p>
+            When the variable is set to
+            <code class="literal">nulls_unequal</code>, <code class="literal">NULL</code>
+            values are not considered the same. Instead, each
+            <code class="literal">NULL</code> value forms a separate value group
+            of size 1.
+          </p><p>
+            If you have many <code class="literal">NULL</code> values, this method
+            skews the average value group size downward. If the average
+            non-<code class="literal">NULL</code> value group size is large,
+            counting <code class="literal">NULL</code> values each as a group of
+            size 1 causes the optimizer to overestimate the value of the
+            index for joins that look for non-<code class="literal">NULL</code>
+            values. Consequently, the <code class="literal">nulls_unequal</code>
+            method may cause the optimizer to use this index for
+            <a class="link" href="explain-output.html#jointype_ref"><code class="literal">ref</code></a> lookups when other
+            methods may be better.
+          </p></li><li class="listitem"><p>
+            When the variable is set to
+            <code class="literal">nulls_ignored</code>, <code class="literal">NULL</code>
+            values are ignored.
+          </p></li></ul></div><p>
+        If you tend to use many joins that use
+        <code class="literal">&lt;=&gt;</code> rather than <code class="literal">=</code>,
+        <code class="literal">NULL</code> values are not special in comparisons
+        and one <code class="literal">NULL</code> is equal to another. In this
+        case, <code class="literal">nulls_equal</code> is the appropriate
+        statistics method.
+      </p><p>
+        The <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_method"><code class="literal">innodb_stats_method</code></a> system
+        variable has a global value; the
+        <a class="link" href="server-system-variables.html#sysvar_myisam_stats_method"><code class="literal">myisam_stats_method</code></a> system
+        variable has both global and session values. Setting the global
+        value affects statistics collection for tables from the
+        corresponding storage engine. Setting the session value affects
+        statistics collection only for the current client connection.
+        This means that you can force a table's statistics to be
+        regenerated with a given method without affecting other clients
+        by setting the session value of
+        <a class="link" href="server-system-variables.html#sysvar_myisam_stats_method"><code class="literal">myisam_stats_method</code></a>.
+      </p><p>
+        To regenerate <code class="literal">MyISAM</code> table statistics, you
+        can use any of the following methods:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Execute <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk
+            --stats_method=<em class="replaceable"><code>method_name</code></em>
+            --analyze</strong></span></a>
+          </p></li><li class="listitem"><p>
+            Change the table to cause its statistics to go out of date
+            (for example, insert a row and then delete it), and then set
+            <a class="link" href="server-system-variables.html#sysvar_myisam_stats_method"><code class="literal">myisam_stats_method</code></a> and
+            issue an <a class="link" href="analyze-table.html" title="13.7.3.1 ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a>
+            statement
+          </p></li></ul></div><p>
+        Some caveats regarding the use of
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_method"><code class="literal">innodb_stats_method</code></a> and
+        <a class="link" href="server-system-variables.html#sysvar_myisam_stats_method"><code class="literal">myisam_stats_method</code></a>:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            You can force table statistics to be collected explicitly,
+            as just described. However, MySQL may also collect
+            statistics automatically. For example, if during the course
+            of executing statements for a table, some of those
+            statements modify the table, MySQL may collect statistics.
+            (This may occur for bulk inserts or deletes, or some
+            <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statements, for
+            example.) If this happens, the statistics are collected
+            using whatever value
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_method"><code class="literal">innodb_stats_method</code></a> or
+            <a class="link" href="server-system-variables.html#sysvar_myisam_stats_method"><code class="literal">myisam_stats_method</code></a> has at
+            the time. Thus, if you collect statistics using one method,
+            but the system variable is set to the other method when a
+            table's statistics are collected automatically later,
+            the other method is used.
+          </p></li><li class="listitem"><p>
+            There is no way to tell which method was used to generate
+            statistics for a given table.
+          </p></li><li class="listitem"><p>
+            These variables apply only to <code class="literal">InnoDB</code> and
+            <code class="literal">MyISAM</code> tables. Other storage engines have
+            only one method for collecting table statistics. Usually it
+            is closer to the <code class="literal">nulls_equal</code> method.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="verifying-index-usage.html">Previous <span class="navHint"> Verifying Index Usage </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="index-btree-hash.html">Next <span class="navHint"> Comparison of B-Tree and Hash Indexes </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>27.19.1 Query Profiling Using Performance Schema</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="performance-schema-examples.html" title="27.19 Using the Performance Schema to Diagnose Problems" /><link rel="prev" href="performance-schema-examples.html" title="27.19 Using the Performance Schema to Diagnose Problems" /><link rel="next" href="performance-schema-obtaining-parent-events.html" title="27.19.2 Obtaining Parent Event Information" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-query-profiling.html#performance-schema-query-profiling">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="performance-schema-examples.html">Previous <span class="navHint"> Using the Performance Schema to Diagnose Problems </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="performance-schema-examples.html">Up <span class="navHint"> Using the Performance Schema to Diagnose Problems </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="performance-schema-obtaining-parent-events.html">Next <span class="navHint"> Obtaining Parent Event Information </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="performance-schema-query-profiling"></a>27.19.1 Query Profiling Using Performance Schema</h3></div></div></div><p>
+        The following example demonstrates how to use Performance Schema
+        statement events and stage events to retrieve data comparable to
+        profiling information provided by <a class="link" href="show-profiles.html" title="13.7.7.31 SHOW PROFILES Statement"><code class="literal">SHOW
+        PROFILES</code></a> and <a class="link" href="show-profile.html" title="13.7.7.30 SHOW PROFILE Statement"><code class="literal">SHOW
+        PROFILE</code></a> statements.
+      </p><p>
+        The <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> table can be used
+        to limit the collection of historical events by host, user, or
+        account to reduce runtime overhead and the amount of data
+        collected in history tables. The first step of the example shows
+        how to limit collection of historical events to a specific user.
+      </p><p>
+        Performance Schema displays event timer information in
+        picoseconds (trillionths of a second) to normalize timing data
+        to a standard unit. In the following example,
+        <code class="literal">TIMER_WAIT</code> values are divided by
+        1000000000000 to show data in units of seconds. Values are also
+        truncated to 6 decimal places to display data in the same format
+        as <a class="link" href="show-profiles.html" title="13.7.7.31 SHOW PROFILES Statement"><code class="literal">SHOW PROFILES</code></a> and
+        <a class="link" href="show-profile.html" title="13.7.7.30 SHOW PROFILE Statement"><code class="literal">SHOW PROFILE</code></a> statements.
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Limit the collection of historical events to the user that
+            runs the query. By default,
+            <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> is configured to
+            allow monitoring and historical event collection for all
+            foreground threads:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.setup_actors;</code></strong>
++------+------+------+---------+---------+
+| HOST | USER | ROLE | ENABLED | HISTORY |
++------+------+------+---------+---------+
+| %    | %    | %    | YES     | YES     |
++------+------+------+---------+---------+
+</pre><p>
+            Update the default row in the
+            <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> table to disable
+            historical event collection and monitoring for all
+            foreground threads, and insert a new row that enables
+            monitoring and historical event collection for the user that
+            runs the query:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_actors</code></strong>
+       <strong class="userinput"><code>SET ENABLED = 'NO', HISTORY = 'NO'</code></strong>
+       <strong class="userinput"><code>WHERE HOST = '%' AND USER = '%';</code></strong>
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO performance_schema.setup_actors</code></strong>
+       <strong class="userinput"><code>(HOST,USER,ROLE,ENABLED,HISTORY)</code></strong>
+       <strong class="userinput"><code>VALUES('localhost','test_user','%','YES','YES');</code></strong>
+</pre><p>
+            Data in the <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> table
+            should now appear similar to the following:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.setup_actors;</code></strong>
++-----------+-----------+------+---------+---------+
+| HOST      | USER      | ROLE | ENABLED | HISTORY |
++-----------+-----------+------+---------+---------+
+| %         | %         | %    | NO      | NO      |
+| localhost | test_user | %    | YES     | YES     |
++-----------+-----------+------+---------+---------+
+</pre></li><li class="listitem"><p>
+            Ensure that statement and stage instrumentation is enabled
+            by updating the
+            <a class="link" href="performance-schema-setup-instruments-table.html" title="27.12.2.3 The setup_instruments Table"><code class="literal">setup_instruments</code></a> table. Some
+            instruments may already be enabled by default.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>SET ENABLED = 'YES', TIMED = 'YES'</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE '%statement/%';</code></strong>
+
+mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>SET ENABLED = 'YES', TIMED = 'YES'</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE '%stage/%';</code></strong>
+</pre></li><li class="listitem"><p>
+            Ensure that <code class="literal">events_statements_*</code> and
+            <code class="literal">events_stages_*</code> consumers are enabled.
+            Some consumers may already be enabled by default.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_consumers</code></strong>
+       <strong class="userinput"><code>SET ENABLED = 'YES'</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE '%events_statements_%';</code></strong>
+
+mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_consumers</code></strong>
+       <strong class="userinput"><code>SET ENABLED = 'YES'</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE '%events_stages_%';</code></strong>
+</pre></li><li class="listitem"><p>
+            Under the user account you are monitoring, run the statement
+            that you want to profile. For example:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM employees.employees WHERE emp_no = 10001;</code></strong>
++--------+------------+------------+-----------+--------+------------+
+| emp_no | birth_date | first_name | last_name | gender | hire_date |
++--------+------------+------------+-----------+--------+------------+
+|  10001 | 1953-09-02 | Georgi     | Facello   | M      | 1986-06-26 |
++--------+------------+------------+-----------+--------+------------+
+</pre></li><li class="listitem"><p>
+            Identify the <code class="literal">EVENT_ID</code> of the statement by
+            querying the
+            <a class="link" href="performance-schema-events-statements-history-long-table.html" title="27.12.6.3 The events_statements_history_long Table"><code class="literal">events_statements_history_long</code></a>
+            table. This step is similar to running
+            <a class="link" href="show-profiles.html" title="13.7.7.31 SHOW PROFILES Statement"><code class="literal">SHOW PROFILES</code></a> to identify the
+            <code class="literal">Query_ID</code>. The following query produces
+            output similar to <a class="link" href="show-profiles.html" title="13.7.7.31 SHOW PROFILES Statement"><code class="literal">SHOW
+            PROFILES</code></a>:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT EVENT_ID, TRUNCATE(TIMER_WAIT/1000000000000,6) as Duration, SQL_TEXT
+       FROM performance_schema.events_statements_history_long WHERE SQL_TEXT like '%10001%';</code></strong>
++----------+----------+--------------------------------------------------------+
+| event_id | duration | sql_text                                               |
++----------+----------+--------------------------------------------------------+
+|       31 | 0.028310 | SELECT * FROM employees.employees WHERE emp_no = 10001 |
++----------+----------+--------------------------------------------------------+
+</pre></li><li class="listitem"><p>
+            Query the
+            <a class="link" href="performance-schema-events-stages-history-long-table.html" title="27.12.5.3 The events_stages_history_long Table"><code class="literal">events_stages_history_long</code></a>
+            table to retrieve the statement's stage events. Stages are
+            linked to statements using event nesting. Each stage event
+            record has a <code class="literal">NESTING_EVENT_ID</code> column that
+            contains the <code class="literal">EVENT_ID</code> of the parent
+            statement.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT event_name AS Stage, TRUNCATE(TIMER_WAIT/1000000000000,6) AS Duration
+       FROM performance_schema.events_stages_history_long WHERE NESTING_EVENT_ID=31;</code></strong>
++--------------------------------+----------+
+| Stage                          | Duration |
++--------------------------------+----------+
+| stage/sql/starting             | 0.000080 |
+| stage/sql/checking permissions | 0.000005 |
+| stage/sql/Opening tables       | 0.027759 |
+| stage/sql/init                 | 0.000052 |
+| stage/sql/System lock          | 0.000009 |
+| stage/sql/optimizing           | 0.000006 |
+| stage/sql/statistics           | 0.000082 |
+| stage/sql/preparing            | 0.000008 |
+| stage/sql/executing            | 0.000000 |
+| stage/sql/Sending data         | 0.000017 |
+| stage/sql/end                  | 0.000001 |
+| stage/sql/query end            | 0.000004 |
+| stage/sql/closing tables       | 0.000006 |
+| stage/sql/freeing items        | 0.000272 |
+| stage/sql/cleaning up          | 0.000001 |
++--------------------------------+----------+
+</pre></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="performance-schema-examples.html">Previous <span class="navHint"> Using the Performance Schema to Diagnose Problems </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="performance-schema-examples.html">Up <span class="navHint"> Using the Performance Schema to Diagnose Problems </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-obtaining-parent-events.html">Next <span class="navHint"> Obtaining Parent Event Information </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

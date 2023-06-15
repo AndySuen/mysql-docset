@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.7.1 InnoDB Locking</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-locking-transaction-model.html" title="15.7 InnoDB Locking and Transaction Model" /><link rel="prev" href="innodb-locking-transaction-model.html" title="15.7 InnoDB Locking and Transaction Model" /><link rel="next" href="innodb-transaction-model.html" title="15.7.2 InnoDB Transaction Model" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-locking.html#innodb-locking">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-locking-transaction-model.html">Previous <span class="navHint"> InnoDB Locking and Transaction Model </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-locking-transaction-model.html">Up <span class="navHint"> InnoDB Locking and Transaction Model </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-transaction-model.html">Next <span class="navHint"> InnoDB Transaction Model </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-locking"></a>15.7.1 InnoDB Locking</h3></div></div></div><a id="idm45828889680064" class="indexterm"></a><a id="idm45828889678576" class="indexterm"></a><a id="idm45828889677088" class="indexterm"></a><a id="idm45828889675600" class="indexterm"></a><a id="idm45828889674112" class="indexterm"></a><a id="idm45828889672624" class="indexterm"></a><a id="idm45828889671136" class="indexterm"></a><a id="idm45828889669648" class="indexterm"></a><a id="idm45828889668160" class="indexterm"></a><a id="idm45828889666672" class="indexterm"></a><a id="idm45828889665184" class="indexterm"></a><a id="idm45828889664112" class="indexterm"></a><a id="idm45828889663040" class="indexterm"></a><a id="idm45828889661968" class="indexterm"></a><a id="idm45828889660896" class="indexterm"></a><a id="idm45828889659824" class="indexterm"></a><a id="idm45828889658752" class="indexterm"></a><p>
+      This section describes lock types used by
+      <code class="literal">InnoDB</code>.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="innodb-locking.html#innodb-shared-exclusive-locks" title="Shared and Exclusive Locks">Shared and Exclusive Locks</a></p></li><li class="listitem"><p><a class="xref" href="innodb-locking.html#innodb-intention-locks" title="Intention Locks">Intention Locks</a></p></li><li class="listitem"><p><a class="xref" href="innodb-locking.html#innodb-record-locks" title="Record Locks">Record Locks</a></p></li><li class="listitem"><p><a class="xref" href="innodb-locking.html#innodb-gap-locks" title="Gap Locks">Gap Locks</a></p></li><li class="listitem"><p><a class="xref" href="innodb-locking.html#innodb-next-key-locks" title="Next-Key Locks">Next-Key Locks</a></p></li><li class="listitem"><p><a class="xref" href="innodb-locking.html#innodb-insert-intention-locks" title="Insert Intention Locks">Insert Intention Locks</a></p></li><li class="listitem"><p><a class="xref" href="innodb-locking.html#innodb-auto-inc-locks" title="AUTO-INC Locks">AUTO-INC Locks</a></p></li><li class="listitem"><p><a class="xref" href="innodb-locking.html#innodb-predicate-locks" title="Predicate Locks for Spatial Indexes">Predicate Locks for Spatial Indexes</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-shared-exclusive-locks"></a>Shared and Exclusive Locks</h4></div></div></div><p>
+        <code class="literal">InnoDB</code> implements standard row-level locking
+        where there are two types of locks,
+        <a class="link" href="glossary.html#glos_shared_lock" title="shared lock">shared (<code class="literal">S</code>)
+        locks</a> and <a class="link" href="glossary.html#glos_exclusive_lock" title="exclusive lock">exclusive
+        (<code class="literal">X</code>) locks</a>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A <a class="link" href="glossary.html#glos_shared_lock" title="shared lock">shared
+            (<code class="literal">S</code>) lock</a> permits the transaction
+            that holds the lock to read a row.
+          </p></li><li class="listitem"><p>
+            An <a class="link" href="glossary.html#glos_exclusive_lock" title="exclusive lock">exclusive
+            (<code class="literal">X</code>) lock</a> permits the transaction
+            that holds the lock to update or delete a row.
+          </p></li></ul></div><p>
+        If transaction <code class="literal">T1</code> holds a shared
+        (<code class="literal">S</code>) lock on row <code class="literal">r</code>, then
+        requests from some distinct transaction <code class="literal">T2</code>
+        for a lock on row <code class="literal">r</code> are handled as follows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A request by <code class="literal">T2</code> for an
+            <code class="literal">S</code> lock can be granted immediately. As a
+            result, both <code class="literal">T1</code> and <code class="literal">T2</code>
+            hold an <code class="literal">S</code> lock on <code class="literal">r</code>.
+          </p></li><li class="listitem"><p>
+            A request by <code class="literal">T2</code> for an
+            <code class="literal">X</code> lock cannot be granted immediately.
+          </p></li></ul></div><p>
+        If a transaction <code class="literal">T1</code> holds an exclusive
+        (<code class="literal">X</code>) lock on row <code class="literal">r</code>, a
+        request from some distinct transaction <code class="literal">T2</code> for
+        a lock of either type on <code class="literal">r</code> cannot be granted
+        immediately. Instead, transaction <code class="literal">T2</code> has to
+        wait for transaction <code class="literal">T1</code> to release its lock
+        on row <code class="literal">r</code>.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-intention-locks"></a>Intention Locks</h4></div></div></div><p>
+        <code class="literal">InnoDB</code> supports <span class="emphasis"><em>multiple
+        granularity locking</em></span> which permits coexistence of row
+        locks and table locks. For example, a statement such as
+        <a class="link" href="lock-tables.html" title="13.3.6 LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">LOCK TABLES ...
+        WRITE</code></a> takes an exclusive lock (an <code class="literal">X</code>
+        lock) on the specified table. To make locking at multiple
+        granularity levels practical, <code class="literal">InnoDB</code> uses
+        <a class="link" href="glossary.html#glos_intention_lock" title="intention lock">intention locks</a>.
+        Intention locks are table-level locks that indicate which type
+        of lock (shared or exclusive) a transaction requires later for a
+        row in a table. There are two types of intention locks:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            An <a class="link" href="glossary.html#glos_intention_shared_lock" title="intention shared lock">intention
+            shared lock</a> (<code class="literal">IS</code>) indicates that a
+            transaction intends to set a <span class="emphasis"><em>shared</em></span>
+            lock on individual rows in a table.
+          </p></li><li class="listitem"><p>
+            An <a class="link" href="glossary.html#glos_intention_exclusive_lock" title="intention exclusive lock">intention
+            exclusive lock</a> (<code class="literal">IX</code>) indicates that
+            a transaction intends to set an exclusive lock on individual
+            rows in a table.
+          </p></li></ul></div><p>
+        For example, <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT ...
+        FOR SHARE</code></a> sets an <code class="literal">IS</code> lock, and
+        <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT ... FOR
+        UPDATE</code></a> sets an <code class="literal">IX</code> lock.
+      </p><p>
+        The intention locking protocol is as follows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Before a transaction can acquire a shared lock on a row in a
+            table, it must first acquire an <code class="literal">IS</code> lock
+            or stronger on the table.
+          </p></li><li class="listitem"><p>
+            Before a transaction can acquire an exclusive lock on a row
+            in a table, it must first acquire an <code class="literal">IX</code>
+            lock on the table.
+          </p></li></ul></div><p>
+        Table-level lock type compatibility is summarized in the
+        following matrix.
+      </p><div class="informaltable"><table summary="A matrix showing table-level lock type compatibility. Each cell in the matrix is marked as either &quot;Compatible&quot; or &quot;Conflict&quot;."><col style="width: 20%" /><col style="width: 20%" /><col style="width: 20%" /><col style="width: 20%" /><col style="width: 20%" /><thead><tr>
+            <th scope="col"></th>
+            <th scope="col"><code class="literal">X</code></th>
+            <th scope="col"><code class="literal">IX</code></th>
+            <th scope="col"><code class="literal">S</code></th>
+            <th scope="col"><code class="literal">IS</code></th>
+          </tr></thead><tbody><tr>
+            <th scope="row"><code class="literal">X</code></th>
+            <td>Conflict</td>
+            <td>Conflict</td>
+            <td>Conflict</td>
+            <td>Conflict</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">IX</code></th>
+            <td>Conflict</td>
+            <td>Compatible</td>
+            <td>Conflict</td>
+            <td>Compatible</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">S</code></th>
+            <td>Conflict</td>
+            <td>Conflict</td>
+            <td>Compatible</td>
+            <td>Compatible</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">IS</code></th>
+            <td>Conflict</td>
+            <td>Compatible</td>
+            <td>Compatible</td>
+            <td>Compatible</td>
+          </tr></tbody></table></div><p>
+        A lock is granted to a requesting transaction if it is
+        compatible with existing locks, but not if it conflicts with
+        existing locks. A transaction waits until the conflicting
+        existing lock is released. If a lock request conflicts with an
+        existing lock and cannot be granted because it would cause
+        <a class="link" href="glossary.html#glos_deadlock" title="deadlock">deadlock</a>, an error occurs.
+      </p><p>
+        Intention locks do not block anything except full table requests
+        (for example, <a class="link" href="lock-tables.html" title="13.3.6 LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">LOCK
+        TABLES ... WRITE</code></a>). The main purpose of intention locks
+        is to show that someone is locking a row, or going to lock a row
+        in the table.
+      </p><p>
+        Transaction data for an intention lock appears similar to the
+        following in <a class="link" href="show-engine.html" title="13.7.7.15 SHOW ENGINE Statement"><code class="literal">SHOW
+        ENGINE INNODB STATUS</code></a> and
+        <a class="link" href="innodb-standard-monitor.html" title="15.17.3 InnoDB Standard Monitor and Lock Monitor Output">InnoDB monitor</a>
+        output:
+      </p><pre class="programlisting">TABLE LOCK table `test`.`t` trx id 10080 lock mode IX
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-record-locks"></a>Record Locks</h4></div></div></div><p>
+        A record lock is a lock on an index record. For example,
+        <code class="literal">SELECT c1 FROM t WHERE c1 = 10 FOR UPDATE;</code>
+        prevents any other transaction from inserting, updating, or
+        deleting rows where the value of <code class="literal">t.c1</code> is
+        <code class="literal">10</code>.
+      </p><p>
+        Record locks always lock index records, even if a table is
+        defined with no indexes. For such cases,
+        <code class="literal">InnoDB</code> creates a hidden clustered index and
+        uses this index for record locking. See
+        <a class="xref" href="innodb-index-types.html" title="15.6.2.1 Clustered and Secondary Indexes">Section 15.6.2.1, “Clustered and Secondary Indexes”</a>.
+      </p><p>
+        Transaction data for a record lock appears similar to the
+        following in <a class="link" href="show-engine.html" title="13.7.7.15 SHOW ENGINE Statement"><code class="literal">SHOW
+        ENGINE INNODB STATUS</code></a> and
+        <a class="link" href="innodb-standard-monitor.html" title="15.17.3 InnoDB Standard Monitor and Lock Monitor Output">InnoDB monitor</a>
+        output:
+      </p><pre class="programlisting">RECORD LOCKS space id 58 page no 3 n bits 72 index `PRIMARY` of table `test`.`t`
+trx id 10078 lock_mode X locks rec but not gap
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 4; hex 8000000a; asc     ;;
+ 1: len 6; hex 00000000274f; asc     'O;;
+ 2: len 7; hex b60000019d0110; asc        ;;
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-gap-locks"></a>Gap Locks</h4></div></div></div><p>
+        A gap lock is a lock on a gap between index records, or a lock
+        on the gap before the first or after the last index record. For
+        example, <code class="literal">SELECT c1 FROM t WHERE c1 BETWEEN 10 and 20
+        FOR UPDATE;</code> prevents other transactions from inserting
+        a value of <code class="literal">15</code> into column
+        <code class="literal">t.c1</code>, whether or not there was already any
+        such value in the column, because the gaps between all existing
+        values in the range are locked.
+      </p><p>
+        A gap might span a single index value, multiple index values, or
+        even be empty.
+      </p><p>
+        Gap locks are part of the tradeoff between performance and
+        concurrency, and are used in some transaction isolation levels
+        and not others.
+      </p><p>
+        Gap locking is not needed for statements that lock rows using a
+        unique index to search for a unique row. (This does not include
+        the case that the search condition includes only some columns of
+        a multiple-column unique index; in that case, gap locking does
+        occur.) For example, if the <code class="literal">id</code> column has a
+        unique index, the following statement uses only an index-record
+        lock for the row having <code class="literal">id</code> value 100 and it
+        does not matter whether other sessions insert rows in the
+        preceding gap:
+      </p><pre class="programlisting">SELECT * FROM child WHERE id = 100;
+</pre><p>
+        If <code class="literal">id</code> is not indexed or has a nonunique
+        index, the statement does lock the preceding gap.
+      </p><p>
+        It is also worth noting here that conflicting locks can be held
+        on a gap by different transactions. For example, transaction A
+        can hold a shared gap lock (gap S-lock) on a gap while
+        transaction B holds an exclusive gap lock (gap X-lock) on the
+        same gap. The reason conflicting gap locks are allowed is that
+        if a record is purged from an index, the gap locks held on the
+        record by different transactions must be merged.
+      </p><p>
+        Gap locks in <code class="literal">InnoDB</code> are <span class="quote">“<span class="quote">purely
+        inhibitive</span>”</span>, which means that their only purpose is to
+        prevent other transactions from inserting to the gap. Gap locks
+        can co-exist. A gap lock taken by one transaction does not
+        prevent another transaction from taking a gap lock on the same
+        gap. There is no difference between shared and exclusive gap
+        locks. They do not conflict with each other, and they perform
+        the same function.
+      </p><p>
+        Gap locking can be disabled explicitly. This occurs if you
+        change the transaction isolation level to
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-committed"><code class="literal">READ COMMITTED</code></a>. In this case,
+        gap locking is disabled for searches and index scans and is used
+        only for foreign-key constraint checking and duplicate-key
+        checking.
+      </p><p>
+        There are also other effects of using the
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-committed"><code class="literal">READ COMMITTED</code></a> isolation
+        level. Record locks for nonmatching rows are released after
+        MySQL has evaluated the <code class="literal">WHERE</code> condition. For
+        <code class="literal">UPDATE</code> statements, <code class="literal">InnoDB</code>
+        does a <span class="quote">“<span class="quote">semi-consistent</span>”</span> read, such that it returns
+        the latest committed version to MySQL so that MySQL can
+        determine whether the row matches the <code class="literal">WHERE</code>
+        condition of the <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-next-key-locks"></a>Next-Key Locks</h4></div></div></div><p>
+        A next-key lock is a combination of a record lock on the index
+        record and a gap lock on the gap before the index record.
+      </p><p>
+        <code class="literal">InnoDB</code> performs row-level locking in such a
+        way that when it searches or scans a table index, it sets shared
+        or exclusive locks on the index records it encounters. Thus, the
+        row-level locks are actually index-record locks. A next-key lock
+        on an index record also affects the <span class="quote">“<span class="quote">gap</span>”</span> before
+        that index record. That is, a next-key lock is an index-record
+        lock plus a gap lock on the gap preceding the index record. If
+        one session has a shared or exclusive lock on record
+        <code class="literal">R</code> in an index, another session cannot insert
+        a new index record in the gap immediately before
+        <code class="literal">R</code> in the index order.
+      </p><p>
+        Suppose that an index contains the values 10, 11, 13, and 20.
+        The possible next-key locks for this index cover the following
+        intervals, where a round bracket denotes exclusion of the
+        interval endpoint and a square bracket denotes inclusion of the
+        endpoint:
+      </p><pre class="programlisting">(negative infinity, 10]
+(10, 11]
+(11, 13]
+(13, 20]
+(20, positive infinity)
+</pre><p>
+        For the last interval, the next-key lock locks the gap above the
+        largest value in the index and the <span class="quote">“<span class="quote">supremum</span>”</span>
+        pseudo-record having a value higher than any value actually in
+        the index. The supremum is not a real index record, so, in
+        effect, this next-key lock locks only the gap following the
+        largest index value.
+      </p><p>
+        By default, <code class="literal">InnoDB</code> operates in
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_repeatable-read"><code class="literal">REPEATABLE READ</code></a> transaction
+        isolation level. In this case, <code class="literal">InnoDB</code> uses
+        next-key locks for searches and index scans, which prevents
+        phantom rows (see <a class="xref" href="innodb-next-key-locking.html" title="15.7.4 Phantom Rows">Section 15.7.4, “Phantom Rows”</a>).
+      </p><p>
+        Transaction data for a next-key lock appears similar to the
+        following in <a class="link" href="show-engine.html" title="13.7.7.15 SHOW ENGINE Statement"><code class="literal">SHOW
+        ENGINE INNODB STATUS</code></a> and
+        <a class="link" href="innodb-standard-monitor.html" title="15.17.3 InnoDB Standard Monitor and Lock Monitor Output">InnoDB monitor</a>
+        output:
+      </p><pre class="programlisting">RECORD LOCKS space id 58 page no 3 n bits 72 index `PRIMARY` of table `test`.`t`
+trx id 10080 lock_mode X
+Record lock, heap no 1 PHYSICAL RECORD: n_fields 1; compact format; info bits 0
+ 0: len 8; hex 73757072656d756d; asc supremum;;
+
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 4; hex 8000000a; asc     ;;
+ 1: len 6; hex 00000000274f; asc     'O;;
+ 2: len 7; hex b60000019d0110; asc        ;;
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-insert-intention-locks"></a>Insert Intention Locks</h4></div></div></div><p>
+        An insert intention lock is a type of gap lock set by
+        <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operations prior to row
+        insertion. This lock signals the intent to insert in such a way
+        that multiple transactions inserting into the same index gap
+        need not wait for each other if they are not inserting at the
+        same position within the gap. Suppose that there are index
+        records with values of 4 and 7. Separate transactions that
+        attempt to insert values of 5 and 6, respectively, each lock the
+        gap between 4 and 7 with insert intention locks prior to
+        obtaining the exclusive lock on the inserted row, but do not
+        block each other because the rows are nonconflicting.
+      </p><p>
+        The following example demonstrates a transaction taking an
+        insert intention lock prior to obtaining an exclusive lock on
+        the inserted record. The example involves two clients, A and B.
+      </p><p>
+        Client A creates a table containing two index records (90 and
+        102) and then starts a transaction that places an exclusive lock
+        on index records with an ID greater than 100. The exclusive lock
+        includes a gap lock before record 102:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE child (id int(11) NOT NULL, PRIMARY KEY(id)) ENGINE=InnoDB;</code></strong>
+mysql&gt; <strong class="userinput"><code>INSERT INTO child (id) values (90),(102);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>START TRANSACTION;</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT * FROM child WHERE id &gt; 100 FOR UPDATE;</code></strong>
++-----+
+| id  |
++-----+
+| 102 |
++-----+
+</pre><p>
+        Client B begins a transaction to insert a record into the gap.
+        The transaction takes an insert intention lock while it waits to
+        obtain an exclusive lock.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>START TRANSACTION;</code></strong>
+mysql&gt; <strong class="userinput"><code>INSERT INTO child (id) VALUES (101);</code></strong>
+</pre><p>
+        Transaction data for an insert intention lock appears similar to
+        the following in
+        <a class="link" href="show-engine.html" title="13.7.7.15 SHOW ENGINE Statement"><code class="literal">SHOW ENGINE INNODB
+        STATUS</code></a> and
+        <a class="link" href="innodb-standard-monitor.html" title="15.17.3 InnoDB Standard Monitor and Lock Monitor Output">InnoDB monitor</a>
+        output:
+      </p><pre class="programlisting">RECORD LOCKS space id 31 page no 3 n bits 72 index `PRIMARY` of table `test`.`child`
+trx id 8731 lock_mode X locks gap before rec <span class="bold"><strong>insert intention</strong></span> waiting
+Record lock, heap no 3 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 4; hex 80000066; asc    f;;
+ 1: len 6; hex 000000002215; asc     " ;;
+ 2: len 7; hex 9000000172011c; asc     r  ;;...
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-auto-inc-locks"></a>AUTO-INC Locks</h4></div></div></div><p>
+        An <code class="literal">AUTO-INC</code> lock is a special table-level
+        lock taken by transactions inserting into tables with
+        <code class="literal">AUTO_INCREMENT</code> columns. In the simplest case,
+        if one transaction is inserting values into the table, any other
+        transactions must wait to do their own inserts into that table,
+        so that rows inserted by the first transaction receive
+        consecutive primary key values.
+      </p><p>
+        The <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+        variable controls the algorithm used for auto-increment locking.
+        It allows you to choose how to trade off between predictable
+        sequences of auto-increment values and maximum concurrency for
+        insert operations.
+      </p><p>
+        For more information, see
+        <a class="xref" href="innodb-auto-increment-handling.html" title="15.6.1.6 AUTO_INCREMENT Handling in InnoDB">Section 15.6.1.6, “AUTO_INCREMENT Handling in InnoDB”</a>.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-predicate-locks"></a>Predicate Locks for Spatial Indexes</h4></div></div></div><a id="idm45828889485472" class="indexterm"></a><a id="idm45828889484432" class="indexterm"></a><p>
+        <code class="literal">InnoDB</code> supports <code class="literal">SPATIAL</code>
+        indexing of columns containing spatial data (see
+        <a class="xref" href="optimizing-spatial-analysis.html" title="11.4.9 Optimizing Spatial Analysis">Section 11.4.9, “Optimizing Spatial Analysis”</a>).
+      </p><p>
+        To handle locking for operations involving
+        <code class="literal">SPATIAL</code> indexes, next-key locking does not
+        work well to support <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_repeatable-read"><code class="literal">REPEATABLE
+        READ</code></a> or
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_serializable"><code class="literal">SERIALIZABLE</code></a> transaction
+        isolation levels. There is no absolute ordering concept in
+        multidimensional data, so it is not clear which is the
+        <span class="quote">“<span class="quote">next</span>”</span> key.
+      </p><p>
+        To enable support of isolation levels for tables with
+        <code class="literal">SPATIAL</code> indexes, <code class="literal">InnoDB</code>
+        uses predicate locks. A <code class="literal">SPATIAL</code> index
+        contains minimum bounding rectangle (MBR) values, so
+        <code class="literal">InnoDB</code> enforces consistent read on the index
+        by setting a predicate lock on the MBR value used for a query.
+        Other transactions cannot insert or modify a row that would
+        match the query condition.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-locking-transaction-model.html">Previous <span class="navHint"> InnoDB Locking and Transaction Model </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-locking-transaction-model.html">Up <span class="navHint"> InnoDB Locking and Transaction Model </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-transaction-model.html">Next <span class="navHint"> InnoDB Transaction Model </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

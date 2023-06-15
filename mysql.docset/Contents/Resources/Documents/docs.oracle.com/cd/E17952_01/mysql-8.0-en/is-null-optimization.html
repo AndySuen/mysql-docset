@@ -1,0 +1,71 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1743"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.15%C2%A0IS%20NULL%20Optimization"></a><title>8.2.1.15&nbsp;IS NULL Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="constant-folding-optimization.html" title="8.2.1.14&nbsp;Constant-Folding Optimization"/><link rel="next" href="order-by-optimization.html" title="8.2.1.16&nbsp;ORDER BY Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="is-null-optimization.html#is-null-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="constant-folding-optimization.html">Previous <span class="navHint"> Constant-Folding Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="order-by-optimization.html">Next <span class="navHint"> ORDER BY Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1742"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.15%C2%A0IS%20NULL%20Optimization"></a><h4 class="title"><a id="is-null-optimization"></a>8.2.1.15&nbsp;IS NULL Optimization</h4></div></div></div><a id="idm45828955862480" class="indexterm"></a><a id="idm45828955861408" class="indexterm"></a><p>
+          MySQL can perform the same optimization on
+          <em class="replaceable"><code>col_name</code></em> <a class="link" href="comparison-operators.html#operator_is-null"><code class="literal">IS
+          NULL</code></a> that it can use for
+          <em class="replaceable"><code>col_name</code></em> <code class="literal">=</code>
+          <em class="replaceable"><code>constant_value</code></em>. For example, MySQL
+          can use indexes and ranges to search for
+          <code class="literal">NULL</code> with <a class="link" href="comparison-operators.html#operator_is-null"><code class="literal">IS
+          NULL</code></a>.
+        </p><p>
+          Examples:
+        </p><pre class="programlisting">SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE <em class="replaceable"><code>key_col</code></em> IS NULL;
+
+SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE <em class="replaceable"><code>key_col</code></em> &lt;=&gt; NULL;
+
+SELECT * FROM <em class="replaceable"><code>tbl_name</code></em>
+  WHERE <em class="replaceable"><code>key_col</code></em>=<em class="replaceable"><code>const1</code></em> OR <em class="replaceable"><code>key_col</code></em>=<em class="replaceable"><code>const2</code></em> OR <em class="replaceable"><code>key_col</code></em> IS NULL;
+</pre><p>
+          If a <code class="literal">WHERE</code> clause includes a
+          <em class="replaceable"><code>col_name</code></em> <a class="link" href="comparison-operators.html#operator_is-null"><code class="literal">IS
+          NULL</code></a> condition for a column that is declared as
+          <code class="literal">NOT NULL</code>, that expression is optimized
+          away. This optimization does not occur in cases when the
+          column might produce <code class="literal">NULL</code> anyway (for
+          example, if it comes from a table on the right side of a
+          <code class="literal">LEFT JOIN</code>).
+        </p><p>
+          MySQL can also optimize the combination
+          <code class="literal"><em class="replaceable"><code>col_name</code></em> =
+          <em class="replaceable"><code>expr</code></em> OR
+          <em class="replaceable"><code>col_name</code></em> IS NULL</code>, a form
+          that is common in resolved subqueries.
+          <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> shows
+          <a class="link" href="explain-output.html#jointype_ref_or_null"><code class="literal">ref_or_null</code></a> when this
+          optimization is used.
+        </p><p>
+          This optimization can handle one <a class="link" href="comparison-operators.html#operator_is-null"><code class="literal">IS
+          NULL</code></a> for any key part.
+        </p><p>
+          Some examples of queries that are optimized, assuming that
+          there is an index on columns <code class="literal">a</code> and
+          <code class="literal">b</code> of table <code class="literal">t2</code>:
+        </p><pre class="programlisting">SELECT * FROM t1 WHERE t1.a=<em class="replaceable"><code>expr</code></em> OR t1.a IS NULL;
+
+SELECT * FROM t1, t2 WHERE t1.a=t2.a OR t2.a IS NULL;
+
+SELECT * FROM t1, t2
+  WHERE (t1.a=t2.a OR t2.a IS NULL) AND t2.b=t1.b;
+
+SELECT * FROM t1, t2
+  WHERE t1.a=t2.a AND (t2.b=t1.b OR t2.b IS NULL);
+
+SELECT * FROM t1, t2
+  WHERE (t1.a=t2.a AND t2.a IS NULL AND ...)
+  OR (t1.a=t2.a AND t2.a IS NULL AND ...);
+</pre><p>
+          <a class="link" href="explain-output.html#jointype_ref_or_null"><code class="literal">ref_or_null</code></a> works by first
+          doing a read on the reference key, and then a separate search
+          for rows with a <code class="literal">NULL</code> key value.
+        </p><p>
+          The optimization can handle only one <a class="link" href="comparison-operators.html#operator_is-null"><code class="literal">IS
+          NULL</code></a> level. In the following query, MySQL uses key
+          lookups only on the expression <code class="literal">(t1.a=t2.a AND t2.a IS
+          NULL)</code> and is not able to use the key part on
+          <code class="literal">b</code>:
+        </p><pre class="programlisting">SELECT * FROM t1, t2
+  WHERE (t1.a=t2.a AND t2.a IS NULL)
+  OR (t1.b=t2.b AND t2.b IS NULL);
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="constant-folding-optimization.html">Previous <span class="navHint"> Constant-Folding Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="order-by-optimization.html">Next <span class="navHint"> ORDER BY Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

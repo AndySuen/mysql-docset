@@ -1,0 +1,173 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-936"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/12.16.6%C2%A0Geometry%20Format%20Conversion%20Functions"></a><title>12.16.6&nbsp;Geometry Format Conversion Functions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="spatial-analysis-functions.html" title="12.16&nbsp;Spatial Analysis Functions"/><link rel="prev" href="gis-mysql-specific-functions.html" title="12.16.5&nbsp;MySQL-Specific Functions That Create Geometry Values"/><link rel="next" href="gis-property-functions.html" title="12.16.7&nbsp;Geometry Property Functions"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="gis-format-conversion-functions.html#gis-format-conversion-functions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="gis-mysql-specific-functions.html">Previous <span class="navHint"> MySQL-Specific Functions That Create Geometry Values </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="spatial-analysis-functions.html">Up <span class="navHint"> Spatial Analysis Functions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="gis-property-functions.html">Next <span class="navHint"> Geometry Property Functions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="gis-format-conversion-functions"></a>12.16.6&nbsp;Geometry Format Conversion Functions</h3></div></div></div><p>
+      MySQL supports the functions listed in this section for converting
+      geometry values from internal geometry format to WKT or WKB
+      format, or for swapping the order of X and Y coordinates.
+    </p><p>
+      There are also functions to convert a string from WKT or WKB
+      format to internal geometry format. See
+      <a class="xref" href="gis-wkt-functions.html" title="12.16.3&nbsp;Functions That Create Geometry Values from WKT Values">Section&nbsp;12.16.3, &ldquo;Functions That Create Geometry Values from WKT Values&rdquo;</a>, and
+      <a class="xref" href="gis-wkb-functions.html" title="12.16.4&nbsp;Functions That Create Geometry Values from WKB Values">Section&nbsp;12.16.4, &ldquo;Functions That Create Geometry Values from WKB Values&rdquo;</a>.
+    </p><p>
+      Functions such as <a class="link" href="gis-wkt-functions.html#function_st-geomfromtext"><code class="literal">ST_GeomFromText()</code></a>
+      that accept WKT geometry collection arguments understand both
+      OpenGIS <code class="literal">&#39;GEOMETRYCOLLECTION EMPTY&#39;</code> standard
+      syntax and MySQL <code class="literal">&#39;GEOMETRYCOLLECTION()&#39;</code>
+      nonstandard syntax. Another way to produce an empty geometry
+      collection is by calling
+      <a class="link" href="gis-mysql-specific-functions.html#function_geometrycollection"><code class="literal">GeometryCollection()</code></a> with no
+      arguments. Functions such as
+      <a class="link" href="gis-format-conversion-functions.html#function_st-astext"><code class="literal">ST_AsWKT()</code></a>
+      that produce WKT values produce <code class="literal">&#39;GEOMETRYCOLLECTION
+      EMPTY&#39;</code> standard syntax:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @s1 = ST_GeomFromText(&#39;GEOMETRYCOLLECTION()&#39;);</code></strong>
+mysql&gt; <strong class="userinput"><code>SET @s2 = ST_GeomFromText(&#39;GEOMETRYCOLLECTION EMPTY&#39;);</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT ST_AsWKT(@s1), ST_AsWKT(@s2);</code></strong>
++--------------------------+--------------------------+
+| ST_AsWKT(@s1)            | ST_AsWKT(@s2)            |
++--------------------------+--------------------------+
+| GEOMETRYCOLLECTION EMPTY | GEOMETRYCOLLECTION EMPTY |
++--------------------------+--------------------------+
+mysql&gt; <strong class="userinput"><code>SELECT ST_AsWKT(GeomCollection());</code></strong>
++----------------------------+
+| ST_AsWKT(GeomCollection()) |
++----------------------------+
+| GEOMETRYCOLLECTION EMPTY   |
++----------------------------+
+</pre><p>
+      Unless otherwise specified, functions in this section handle their
+      geometry arguments as follows:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          If any argument is <code class="literal">NULL</code>, the return value
+          is <code class="literal">NULL</code>.
+        </p></li><li class="listitem"><p>
+          If any geometry argument is not a syntactically well-formed
+          geometry, an
+          <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_gis_invalid_data" target="_top"><code class="literal">ER_GIS_INVALID_DATA</code></a> error
+          occurs.
+        </p></li><li class="listitem"><p>
+          If any geometry argument is in an undefined spatial reference
+          system, the axes are output in the order they appear in the
+          geometry and an
+          <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_warn_srs_not_found_axis_order" target="_top"><code class="literal">ER_WARN_SRS_NOT_FOUND_AXIS_ORDER</code></a>
+          warning occurs.
+        </p></li><li class="listitem"><p>
+          By default, geographic coordinates (latitude, longitude) are
+          interpreted as in the order specified by the spatial reference
+          system of geometry arguments. An optional
+          <em class="replaceable"><code>options</code></em> argument may be given to
+          override the default axis order. <code class="option">options</code>
+          consists of a list of comma-separated
+          <code class="literal"><em class="replaceable"><code>key</code></em>=<em class="replaceable"><code>value</code></em></code>.
+          The only permitted <em class="replaceable"><code>key</code></em> value is
+          <code class="literal">axis-order</code>, with permitted values of
+          <code class="literal">lat-long</code>, <code class="literal">long-lat</code> and
+          <code class="literal">srid-defined</code> (the default).
+        </p><p>
+          If the <em class="replaceable"><code>options</code></em> argument is
+          <code class="literal">NULL</code>, the return value is
+          <code class="literal">NULL</code>. If the
+          <em class="replaceable"><code>options</code></em> argument is invalid, an
+          error occurs to indicate why.
+        </p></li><li class="listitem"><p>
+          Otherwise, the return value is non-<code class="literal">NULL</code>.
+        </p></li></ul></div><p>
+      These functions are available for format conversions or coordinate
+      swapping:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><a id="function_st-asbinary"></a><p>
+          <a class="link" href="gis-format-conversion-functions.html#function_st-asbinary"><code class="literal">ST_AsBinary(<em class="replaceable"><code>g</code></em>
+          [, <em class="replaceable"><code>options</code></em>])</code></a>,
+          <a class="link" href="gis-format-conversion-functions.html#function_st-asbinary"><code class="literal">ST_AsWKB(<em class="replaceable"><code>g</code></em>
+          [, <em class="replaceable"><code>options</code></em>])</code></a>
+        </p><a id="idm45828923872176" class="indexterm"></a><p>
+          Converts a value in internal geometry format to its WKB
+          representation and returns the binary result.
+        </p><p>
+          The function return value has geographic coordinates
+          (latitude, longitude) in the order specified by the spatial
+          reference system that applies to the geometry argument. An
+          optional <em class="replaceable"><code>options</code></em> argument may be
+          given to override the default axis order.
+        </p><p>
+          <a class="link" href="gis-format-conversion-functions.html#function_st-asbinary"><code class="literal">ST_AsBinary()</code></a> and
+          <a class="link" href="gis-format-conversion-functions.html#function_st-asbinary"><code class="literal">ST_AsWKB()</code></a>
+          handle their arguments as described in the introduction to
+          this section.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @g = ST_LineFromText(&#39;LINESTRING(0 5,5 10,10 15)&#39;, 4326);</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT ST_AsText(ST_GeomFromWKB(ST_AsWKB(@g)));</code></strong>
++-----------------------------------------+
+| ST_AsText(ST_GeomFromWKB(ST_AsWKB(@g))) |
++-----------------------------------------+
+| LINESTRING(5 0,10 5,15 10)              |
++-----------------------------------------+
+mysql&gt; <strong class="userinput"><code>SELECT ST_AsText(ST_GeomFromWKB(ST_AsWKB(@g, &#39;axis-order=long-lat&#39;)));</code></strong>
++----------------------------------------------------------------+
+| ST_AsText(ST_GeomFromWKB(ST_AsWKB(@g, &#39;axis-order=long-lat&#39;))) |
++----------------------------------------------------------------+
+| LINESTRING(0 5,5 10,10 15)                                     |
++----------------------------------------------------------------+
+mysql&gt; <strong class="userinput"><code>SELECT ST_AsText(ST_GeomFromWKB(ST_AsWKB(@g, &#39;axis-order=lat-long&#39;)));</code></strong>
++----------------------------------------------------------------+
+| ST_AsText(ST_GeomFromWKB(ST_AsWKB(@g, &#39;axis-order=lat-long&#39;))) |
++----------------------------------------------------------------+
+| LINESTRING(5 0,10 5,15 10)                                     |
++----------------------------------------------------------------+
+</pre></li><li class="listitem"><a id="function_st-astext"></a><p>
+          <a class="link" href="gis-format-conversion-functions.html#function_st-astext"><code class="literal">ST_AsText(<em class="replaceable"><code>g</code></em> [,
+          <em class="replaceable"><code>options</code></em>])</code></a>,
+          <a class="link" href="gis-format-conversion-functions.html#function_st-astext"><code class="literal">ST_AsWKT(<em class="replaceable"><code>g</code></em>
+          [, <em class="replaceable"><code>options</code></em>])</code></a>
+        </p><a id="idm45828923852720" class="indexterm"></a><p>
+          Converts a value in internal geometry format to its WKT
+          representation and returns the string result.
+        </p><p>
+          The function return value has geographic coordinates
+          (latitude, longitude) in the order specified by the spatial
+          reference system that applies to the geometry argument. An
+          optional <em class="replaceable"><code>options</code></em> argument may be
+          given to override the default axis order.
+        </p><p>
+          <a class="link" href="gis-format-conversion-functions.html#function_st-astext"><code class="literal">ST_AsText()</code></a> and
+          <a class="link" href="gis-format-conversion-functions.html#function_st-astext"><code class="literal">ST_AsWKT()</code></a>
+          handle their arguments as described in the introduction to
+          this section.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @g = &#39;LineString(1 1,2 2,3 3)&#39;;</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT ST_AsText(ST_GeomFromText(@g));</code></strong>
++--------------------------------+
+| ST_AsText(ST_GeomFromText(@g)) |
++--------------------------------+
+| LINESTRING(1 1,2 2,3 3)        |
++--------------------------------+
+</pre><p>
+          Output for <code class="literal">MultiPoint</code> values includes
+          parentheses around each point. For example:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ST_AsText(ST_GeomFromText(@mp));</code></strong>
++---------------------------------+
+| ST_AsText(ST_GeomFromText(@mp)) |
++---------------------------------+
+| MULTIPOINT((1 1),(2 2),(3 3))   |
++---------------------------------+
+</pre></li><li class="listitem"><a id="function_st-swapxy"></a><p>
+          <a class="link" href="gis-format-conversion-functions.html#function_st-swapxy"><code class="literal">ST_SwapXY(<em class="replaceable"><code>g</code></em>)</code></a>
+        </p><a id="idm45828923835600" class="indexterm"></a><p>
+          Accepts an argument in internal geometry format, swaps the X
+          and Y values of each coordinate pair within the geometry, and
+          returns the result.
+        </p><p>
+          <a class="link" href="gis-format-conversion-functions.html#function_st-swapxy"><code class="literal">ST_SwapXY()</code></a> handles its
+          arguments as described in the introduction to this section.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @g = ST_LineFromText(&#39;LINESTRING(0 5,5 10,10 15)&#39;);</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT ST_AsText(@g);</code></strong>
++----------------------------+
+| ST_AsText(@g)              |
++----------------------------+
+| LINESTRING(0 5,5 10,10 15) |
++----------------------------+
+mysql&gt; <strong class="userinput"><code>SELECT ST_AsText(ST_SwapXY(@g));</code></strong>
++----------------------------+
+| ST_AsText(ST_SwapXY(@g))   |
++----------------------------+
+| LINESTRING(5 0,10 5,15 10) |
++----------------------------+
+</pre></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="gis-mysql-specific-functions.html">Previous <span class="navHint"> MySQL-Specific Functions That Create Geometry Values </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="spatial-analysis-functions.html">Up <span class="navHint"> Spatial Analysis Functions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="gis-property-functions.html">Next <span class="navHint"> Geometry Property Functions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

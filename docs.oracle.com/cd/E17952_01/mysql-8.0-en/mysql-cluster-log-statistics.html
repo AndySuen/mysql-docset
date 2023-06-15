@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.6.3.3 Using CLUSTERLOG STATISTICS in the NDB Cluster Management Client</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-event-reports.html" title="23.6.3 Event Reports Generated in NDB Cluster" /><link rel="prev" href="mysql-cluster-log-events.html" title="23.6.3.2 NDB Cluster Log Events" /><link rel="next" href="mysql-cluster-start-phases.html" title="23.6.4 Summary of NDB Cluster Start Phases" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-log-statistics.html#mysql-cluster-log-statistics">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-log-events.html">Previous <span class="navHint"> NDB Cluster Log Events </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-event-reports.html">Up <span class="navHint"> Event Reports Generated in NDB Cluster </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-start-phases.html">Next <span class="navHint"> Summary of NDB Cluster Start Phases </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-cluster-log-statistics"></a>23.6.3.3 Using CLUSTERLOG STATISTICS in the NDB Cluster Management Client</h4></div></div></div><a id="idm45828810115696" class="indexterm"></a><a id="idm45828810114240" class="indexterm"></a><a id="idm45828810113136" class="indexterm"></a><a id="idm45828810111648" class="indexterm"></a><a id="idm45828810110160" class="indexterm"></a><a id="idm45828810108672" class="indexterm"></a><p>
+        The <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> management client's
+        <a class="link" href="mysql-cluster-logging-management-commands.html" title="23.6.3.1 NDB Cluster Logging Management Commands"><code class="literal">CLUSTERLOG STATISTICS</code></a>
+        command can provide a number of useful statistics in its output.
+        Counters providing information about the state of the cluster
+        are updated at 5-second reporting intervals by the transaction
+        coordinator (TC) and the local query handler (LQH), and written
+        to the cluster log.
+      </p><p><strong>Transaction coordinator statistics. </strong>
+          Each transaction has one transaction coordinator, which is
+          chosen by one of the following methods:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            In a round-robin fashion
+          </p></li><li class="listitem"><p>
+            By communication proximity
+          </p></li><li class="listitem"><p>
+            By supplying a data placement hint when the transaction is
+            started
+          </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          You can determine which TC selection method is used for
+          transactions started from a given SQL node using the
+          <a class="link" href="mysql-cluster-options-variables.html#sysvar_ndb_optimized_node_selection"><code class="literal">ndb_optimized_node_selection</code></a>
+          system variable.
+        </p></div><p>
+        All operations within the same transaction use the same
+        transaction coordinator, which reports the following statistics:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><strong>Trans count. </strong>
+              This is the number transactions started in the last
+              interval using this TC as the transaction coordinator. Any
+              of these transactions may have committed, have been
+              aborted, or remain uncommitted at the end of the reporting
+              interval.
+            </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              Transactions do not migrate between TCs.
+            </p></div></li><li class="listitem"><p><strong>Commit count. </strong>
+              This is the number of transactions using this TC as the
+              transaction coordinator that were committed in the last
+              reporting interval. Because some transactions committed in
+              this reporting interval may have started in a previous
+              reporting interval, it is possible for <code class="literal">Commit
+              count</code> to be greater than <code class="literal">Trans
+              count</code>.
+            </p></li><li class="listitem"><p><strong>Read count. </strong>
+              This is the number of primary key read operations using
+              this TC as the transaction coordinator that were started
+              in the last reporting interval, including simple reads.
+              This count also includes reads performed as part of unique
+              index operations. A unique index read operation generates
+              2 primary key read operations—1 for the hidden
+              unique index table, and 1 for the table on which the read
+              takes place.
+            </p></li><li class="listitem"><p><strong>Simple read count. </strong>
+              This is the number of simple read operations using this TC
+              as the transaction coordinator that were started in the
+              last reporting interval.
+            </p></li><li class="listitem"><p><strong>Write count. </strong>
+              This is the number of primary key write operations using
+              this TC as the transaction coordinator that were started
+              in the last reporting interval. This includes all inserts,
+              updates, writes and deletes, as well as writes performed
+              as part of unique index operations.
+            </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              A unique index update operation can generate multiple PK
+              read and write operations on the index table and on the
+              base table.
+            </p></div></li><li class="listitem"><p><strong>AttrInfoCount. </strong>
+              This is the number of 32-bit data words received in the
+              last reporting interval for primary key operations using
+              this TC as the transaction coordinator. For reads, this is
+              proportional to the number of columns requested. For
+              inserts and updates, this is proportional to the number of
+              columns written, and the size of their data. For delete
+              operations, this is usually zero.
+            </p><p>
+            Unique index operations generate multiple PK operations and
+            so increase this count. However, data words sent to describe
+            the PK operation itself, and the key information sent, are
+            <span class="emphasis"><em>not</em></span> counted here. Attribute information
+            sent to describe columns to read for scans, or to describe
+            ScanFilters, is also not counted in
+            <code class="literal">AttrInfoCount</code>.
+          </p></li><li class="listitem"><p><strong>Concurrent Operations. </strong>
+              This is the number of primary key or scan operations using
+              this TC as the transaction coordinator that were started
+              during the last reporting interval but that were not
+              completed. Operations increment this counter when they are
+              started and decrement it when they are completed; this
+              occurs after the transaction commits. Dirty reads and
+              writes—as well as failed operations—decrement
+              this counter.
+            </p><p>
+            The maximum value that <code class="literal">Concurrent
+            Operations</code> can have is the maximum number of
+            operations that a TC block can support; currently, this is
+            <code class="literal">(2 * MaxNoOfConcurrentOperations) + 16 +
+            MaxNoOfConcurrentTransactions</code>. (For more
+            information about these configuration parameters, see the
+            <em class="citetitle">Transaction Parameters</em> section of
+            <a class="xref" href="mysql-cluster-ndbd-definition.html" title="23.4.3.6 Defining NDB Cluster Data Nodes">Section 23.4.3.6, “Defining NDB Cluster Data Nodes”</a>.)
+          </p></li><li class="listitem"><p><strong>Abort count. </strong>
+              This is the number of transactions using this TC as the
+              transaction coordinator that were aborted during the last
+              reporting interval. Because some transactions that were
+              aborted in the last reporting interval may have started in
+              a previous reporting interval, <code class="literal">Abort
+              count</code> can sometimes be greater than
+              <code class="literal">Trans count</code>.
+            </p></li><li class="listitem"><p><strong>Scans. </strong>
+              This is the number of table scans using this TC as the
+              transaction coordinator that were started during the last
+              reporting interval. This does not include range scans
+              (that is, ordered index scans).
+            </p></li><li class="listitem"><p><strong>Range scans. </strong>
+              This is the number of ordered index scans using this TC as
+              the transaction coordinator that were started in the last
+              reporting interval.
+            </p></li><li class="listitem"><p><strong>Local reads. </strong>
+              This is the number of primary-key read operations
+              performed using a transaction coordinator on a node that
+              also holds the primary fragment replica of the record.
+              This count can also be obtained from the
+              <code class="literal">LOCAL_READS</code> counter in the
+              <a class="link" href="mysql-cluster-ndbinfo-counters.html" title="23.6.16.12 The ndbinfo counters Table"><code class="literal">ndbinfo.counters</code></a> table.
+            </p></li><li class="listitem"><p><strong>Local writes. </strong>
+              This contains the number of primary-key read operations
+              that were performed using a transaction coordinator on a
+              node that also holds the primary fragment replica of the
+              record. This count can also be obtained from the
+              <code class="literal">LOCAL_WRITES</code> counter in the
+              <a class="link" href="mysql-cluster-ndbinfo-counters.html" title="23.6.16.12 The ndbinfo counters Table"><code class="literal">ndbinfo.counters</code></a> table.
+            </p></li></ul></div><p><strong>Local query handler statistics (Operations). </strong>
+          There is 1 cluster event per local query handler block (that
+          is, 1 per data node process). Operations are recorded in the
+          LQH where the data they are operating on resides.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          A single transaction may operate on data stored in multiple
+          LQH blocks.
+        </p></div><p>
+        The <code class="literal">Operations</code> statistic provides the number
+        of local operations performed by this LQH block in the last
+        reporting interval, and includes all types of read and write
+        operations (insert, update, write, and delete operations). This
+        also includes operations used to replicate writes. For example,
+        in a cluster with two fragment replicas, the write to the
+        primary fragment replica is recorded in the primary LQH, and the
+        write to the backup is recorded in the backup LQH. Unique key
+        operations may result in multiple local operations; however,
+        this does <span class="emphasis"><em>not</em></span> include local operations
+        generated as a result of a table scan or ordered index scan,
+        which are not counted.
+      </p><p><strong>Process scheduler statistics. </strong>
+          <a id="idm45828810052400" class="indexterm"></a>
+
+          In addition to the statistics reported by the transaction
+          coordinator and local query handler, each
+          <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> process has a scheduler which also
+          provides useful metrics relating to the performance of an NDB
+          Cluster. This scheduler runs in an infinite loop; during each
+          loop the scheduler performs the following tasks:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Read any incoming messages from sockets into a job buffer.
+          </p></li><li class="listitem"><p>
+            Check whether there are any timed messages to be executed;
+            if so, put these into the job buffer as well.
+          </p></li><li class="listitem"><p>
+            Execute (in a loop) any messages in the job buffer.
+          </p></li><li class="listitem"><p>
+            Send any distributed messages that were generated by
+            executing the messages in the job buffer.
+          </p></li><li class="listitem"><p>
+            Wait for any new incoming messages.
+          </p></li></ol></div><p>
+        Process scheduler statistics include the following:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><strong>Mean Loop Counter. </strong>
+              This is the number of loops executed in the third step
+              from the preceding list. This statistic increases in size
+              as the utilization of the TCP/IP buffer improves. You can
+              use this to monitor changes in performance as you add new
+              data node processes.
+            </p></li><li class="listitem"><p><strong>Mean send size and Mean receive size. </strong>
+              These statistics enable you to gauge the efficiency of,
+              respectively writes and reads between nodes. The values
+              are given in bytes. Higher values mean a lower cost per
+              byte sent or received; the maximum value is 64K.
+            </p></li></ul></div><p>
+        To cause all cluster log statistics to be logged, you can use
+        the following command in the <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a>
+        management client:
+      </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>ALL CLUSTERLOG STATISTICS=15</code></strong>
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Setting the threshold for <code class="literal">STATISTICS</code> to 15
+          causes the cluster log to become very verbose, and to grow
+          quite rapidly in size, in direct proportion to the number of
+          cluster nodes and the amount of activity in the NDB Cluster.
+        </p></div><p>
+        For more information about NDB Cluster management client
+        commands relating to logging and reporting, see
+        <a class="xref" href="mysql-cluster-logging-management-commands.html" title="23.6.3.1 NDB Cluster Logging Management Commands">Section 23.6.3.1, “NDB Cluster Logging Management Commands”</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-log-events.html">Previous <span class="navHint"> NDB Cluster Log Events </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-event-reports.html">Up <span class="navHint"> Event Reports Generated in NDB Cluster </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-start-phases.html">Next <span class="navHint"> Summary of NDB Cluster Start Phases </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

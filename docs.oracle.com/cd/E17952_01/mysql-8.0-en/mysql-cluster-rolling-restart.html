@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.6.5 Performing a Rolling Restart of an NDB Cluster</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-management.html" title="23.6 Management of NDB Cluster" /><link rel="prev" href="mysql-cluster-start-phases.html" title="23.6.4 Summary of NDB Cluster Start Phases" /><link rel="next" href="mysql-cluster-single-user-mode.html" title="23.6.6 NDB Cluster Single User Mode" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-rolling-restart.html#mysql-cluster-rolling-restart">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-start-phases.html">Previous <span class="navHint"> Summary of NDB Cluster Start Phases </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-management.html">Up <span class="navHint"> Management of NDB Cluster </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-single-user-mode.html">Next <span class="navHint"> NDB Cluster Single User Mode </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-rolling-restart"></a>23.6.5 Performing a Rolling Restart of an NDB Cluster</h3></div></div></div><a id="idm45828809954912" class="indexterm"></a><a id="idm45828809953424" class="indexterm"></a><a id="idm45828809952320" class="indexterm"></a><a id="idm45828809950832" class="indexterm"></a><a id="idm45828809949344" class="indexterm"></a><p>
+      This section discusses how to perform a
+      <span class="firstterm">rolling restart</span> of an NDB
+      Cluster installation, so called because it involves stopping and
+      starting (or restarting) each node in turn, so that the cluster
+      itself remains operational. This is often done as part of a
+      <span class="firstterm">rolling upgrade</span> or
+      <span class="firstterm">rolling downgrade</span>, where
+      high availability of the cluster is mandatory and no downtime of
+      the cluster as a whole is permissible. Where we refer to upgrades,
+      the information provided here also generally applies to downgrades
+      as well.
+    </p><p>
+      There are a number of reasons why a rolling restart might be
+      desirable. These are described in the next few paragraphs.
+    </p><p><strong>Configuration change. </strong><a id="idm45828809944048" class="indexterm"></a>
+        To make a change in the cluster's configuration, such as
+        adding an SQL node to the cluster, or setting a configuration
+        parameter to a new value.
+      </p><p><strong>NDB Cluster software upgrade or downgrade. </strong>
+        To upgrade the cluster to a newer version of the NDB Cluster
+        software (or to downgrade it to an older version). This is
+        usually referred to as a <span class="quote">“<span class="quote">rolling upgrade</span>”</span> (or
+        <span class="quote">“<span class="quote">rolling downgrade</span>”</span>, when reverting to an older
+        version of NDB Cluster).
+      </p><p><strong>Change on node host. </strong>
+        To make changes in the hardware or operating system on which one
+        or more NDB Cluster node processes are running.
+      </p><p><strong>System reset (cluster reset). </strong><a id="idm45828809937472" class="indexterm"></a>
+        To reset the cluster because it has reached an undesirable
+        state. In such cases it is often desirable to reload the data
+        and metadata of one or more data nodes. This can be done in any
+        of three ways:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Start each data node process (<a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> or
+          possibly <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a>) with the
+          <a class="link" href="mysql-cluster-programs-ndbd.html#option_ndbd_initial"><code class="option">--initial</code></a> option, which forces
+          the data node to clear its file system and to reload all NDB
+          Cluster data and metadata from the other data nodes.
+        </p><p>
+          Beginning with NDB 8.0.21, this also forces the removal of all
+          Disk Data objects and files associated with those objects.
+        </p></li><li class="listitem"><p>
+          Create a backup using the <a class="link" href="mysql-cluster-programs-ndb-mgm.html" title="23.5.5 ndb_mgm — The NDB Cluster Management Client"><span class="command"><strong>ndb_mgm</strong></span></a> client
+          <a class="link" href="mysql-cluster-backup-using-management-client.html" title="23.6.8.2 Using The NDB Cluster Management Client to Create a Backup"><code class="literal">START BACKUP</code></a> command prior
+          to performing the restart. Following the upgrade, restore the
+          node or nodes using <a class="link" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23 ndb_restore — Restore an NDB Cluster Backup"><span class="command"><strong>ndb_restore</strong></span></a>.
+        </p><p>
+          See <a class="xref" href="mysql-cluster-backup.html" title="23.6.8 Online Backup of NDB Cluster">Section 23.6.8, “Online Backup of NDB Cluster”</a>, and
+          <a class="xref" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23 ndb_restore — Restore an NDB Cluster Backup">Section 23.5.23, “ndb_restore — Restore an NDB Cluster Backup”</a>, for more
+          information.
+        </p></li><li class="listitem"><p>
+          Use <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> to create a backup prior to
+          the upgrade; afterward, restore the dump using
+          <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA</code></a>.
+        </p></li></ul></div><p><strong>Resource Recovery. </strong><a id="idm45828809919248" class="indexterm"></a>
+        To free memory previously allocated to a table by successive
+        <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> and
+        <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> operations, for re-use by
+        other NDB Cluster tables.
+      </p><p>
+      The process for performing a rolling restart may be generalized as
+      follows:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Stop all cluster management nodes (<a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a>
+          processes), reconfigure them, then restart them. (See
+          <a class="xref" href="mysql-cluster-rolling-restart.html#mysql-cluster-rolling-restart-multiple-ndb-mgmd" title="Rolling restarts with multiple management servers">Rolling restarts with multiple management servers</a>.)
+        </p></li><li class="listitem"><p>
+          Stop, reconfigure, then restart each cluster data node
+          (<a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> process) in turn.
+        </p><p>
+          Some node configuration parameters can be updated by issuing
+          <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-restart"><code class="literal">RESTART</code></a> for each of the
+          data nodes in the <a class="link" href="mysql-cluster-programs-ndb-mgm.html" title="23.5.5 ndb_mgm — The NDB Cluster Management Client"><span class="command"><strong>ndb_mgm</strong></span></a> client following
+          the previous step. Other parameters require that the data node
+          be stopped completely using the management client
+          <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-stop"><code class="literal">STOP</code></a> command, then started
+          again from a system shell by invoking the
+          <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> or <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a>
+          executable as appropriate. (A shell command such as
+          <a class="link" href="kill.html" title="13.7.8.4 KILL Statement"><span class="command"><strong>kill</strong></span></a> can also be used on most
+          Unix systems to stop a data node process, but the
+          <code class="literal">STOP</code> command is preferred and usually
+          simpler.)
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            On Windows, you can also use <span class="command"><strong>SC STOP</strong></span> and
+            <span class="command"><strong>SC START</strong></span> commands, <code class="literal">NET
+            STOP</code> and <code class="literal">NET START</code> commands, or
+            the Windows Service Manager to stop and start nodes which
+            have been installed as Windows services (see
+            <a class="xref" href="mysql-cluster-install-windows-service.html" title="23.3.2.4 Installing NDB Cluster Processes as Windows Services">Section 23.3.2.4, “Installing NDB Cluster Processes as Windows Services”</a>).
+          </p></div><p>
+          The type of restart required is indicated in the documentation
+          for each node configuration parameter. See
+          <a class="xref" href="mysql-cluster-config-file.html" title="23.4.3 NDB Cluster Configuration Files">Section 23.4.3, “NDB Cluster Configuration Files”</a>.
+        </p></li><li class="listitem"><p>
+          Stop, reconfigure, then restart each cluster SQL node
+          (<a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> process) in turn.
+        </p></li></ol></div><a id="idm45828809891008" class="indexterm"></a><p>
+      NDB Cluster supports a somewhat flexible order for upgrading
+      nodes. When upgrading an NDB Cluster, you may upgrade API nodes
+      (including SQL nodes) before upgrading the management nodes, data
+      nodes, or both. In other words, you are permitted to upgrade the
+      API and SQL nodes in any order. This is subject to the following
+      provisions:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          This functionality is intended for use as part of an online
+          upgrade only. A mix of node binaries from different NDB
+          Cluster releases is neither intended nor supported for
+          continuous, long-term use in a production setting.
+        </p></li><li class="listitem"><p>
+          You must upgrade all nodes of the same type (management, data,
+          or API node) before upgrading any nodes of a different type.
+          This remains true regardless of the order in which the nodes
+          are upgraded.
+        </p></li><li class="listitem"><p>
+          You must upgrade all management nodes before upgrading any
+          data nodes. This remains true regardless of the order in which
+          you upgrade the cluster's API and SQL nodes.
+        </p></li><li class="listitem"><p>
+          Features specific to the <span class="quote">“<span class="quote">new</span>”</span> version must not
+          be used until all management nodes and data nodes have been
+          upgraded.
+        </p><p>
+          This also applies to any MySQL Server version change that may
+          apply, in addition to the NDB engine version change, so do not
+          forget to take this into account when planning the upgrade.
+          (This is true for online upgrades of NDB Cluster in general.)
+        </p></li></ul></div><p>
+      It is not possible for any API node to perform schema operations
+      (such as data definition statements) during a node restart. Due in
+      part to this limitation, schema operations are also not supported
+      during an online upgrade or downgrade. In addition, it is not
+      possible to perform native backups while an upgrade or downgrade
+      is ongoing.
+    </p><p><a id="mysql-cluster-rolling-restart-multiple-ndb-mgmd"></a><strong>Rolling restarts with multiple management servers. </strong>
+        <a id="idm45828809881040" class="indexterm"></a>
+
+        <a id="idm45828809879520" class="indexterm"></a>
+
+        When performing a rolling restart of an NDB Cluster with
+        multiple management nodes, you should keep in mind that
+        <a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a> checks to see if any other
+        management node is running, and, if so, tries to use that
+        node's configuration data. To keep this from occurring, and
+        to force <a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a> to re-read its
+        configuration file, perform the following steps:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Stop all NDB Cluster <a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a> processes.
+        </p></li><li class="listitem"><p>
+          Update all <code class="filename">config.ini</code> files.
+        </p></li><li class="listitem"><p>
+          Start a single <a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a> with
+          <a class="link" href="mysql-cluster-programs-ndb-mgmd.html#option_ndb_mgmd_reload"><code class="option">--reload</code></a>,
+          <a class="link" href="mysql-cluster-programs-ndb-mgmd.html#option_ndb_mgmd_initial"><code class="option">--initial</code></a>, or both options as
+          desired.
+        </p></li><li class="listitem"><p>
+          If you started the first <a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a> with the
+          <a class="link" href="mysql-cluster-programs-ndb-mgmd.html#option_ndb_mgmd_initial"><code class="option">--initial</code></a> option, you must
+          also start any remaining <a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a> processes
+          using <code class="option">--initial</code>.
+        </p><p>
+          Regardless of any other options used when starting the first
+          <a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a>, you should not start any
+          remaining <a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a> processes after the
+          first one using <a class="link" href="mysql-cluster-programs-ndb-mgmd.html#option_ndb_mgmd_reload"><code class="option">--reload</code></a>.
+        </p></li><li class="listitem"><p>
+          Complete the rolling restarts of the data nodes and API nodes
+          as normal.
+        </p></li></ol></div><p>
+      When performing a rolling restart to update the cluster's
+      configuration, you can use the
+      <code class="literal">config_generation</code> column of the
+      <a class="link" href="mysql-cluster-ndbinfo-nodes.html" title="23.6.16.47 The ndbinfo nodes Table"><code class="literal">ndbinfo.nodes</code></a> table to keep
+      track of which data nodes have been successfully restarted with
+      the new configuration. See
+      <a class="xref" href="mysql-cluster-ndbinfo-nodes.html" title="23.6.16.47 The ndbinfo nodes Table">Section 23.6.16.47, “The ndbinfo nodes Table”</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-start-phases.html">Previous <span class="navHint"> Summary of NDB Cluster Start Phases </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-management.html">Up <span class="navHint"> Management of NDB Cluster </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-single-user-mode.html">Next <span class="navHint"> NDB Cluster Single User Mode </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

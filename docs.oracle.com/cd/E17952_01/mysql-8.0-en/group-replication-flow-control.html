@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>18.7.2 Flow Control</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="group-replication-performance.html" title="18.7 Group Replication Performance and Troubleshooting" /><link rel="prev" href="group-replication-fine-tuning-the-group-communication-thread.html" title="18.7.1 Fine Tuning the Group Communication Thread" /><link rel="next" href="group-replication-probes-and-statistics.html" title="18.7.2.1 Probes and Statistics" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-flow-control.html#group-replication-flow-control">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-replication-fine-tuning-the-group-communication-thread.html">Previous <span class="navHint"> Fine Tuning the Group Communication Thread </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="group-replication-performance.html">Up <span class="navHint"> Group Replication Performance and Troubleshooting </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-probes-and-statistics.html">Next <span class="navHint"> Probes and Statistics </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-replication-flow-control"></a>18.7.2 Flow Control</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="group-replication-probes-and-statistics.html">18.7.2.1 Probes and Statistics</a></span></li><li><span class="section"><a href="group-replication-throttling.html">18.7.2.2 Group Replication Throttling</a></span></li></ul></div><a id="idm45828853111264" class="indexterm"></a><p>
+      Group Replication ensures that a transaction only commits after a
+      majority of the members in a group have received it and agreed on
+      the relative order between all transactions that were sent
+      concurrently. This approach works well if the total number of
+      writes to the group does not exceed the write capacity of any
+      member in the group. If it does and some of the members have less
+      write throughput than others, particularly less than the writer
+      members, those members can start lagging behind of the writers.
+    </p><p>
+      Having some members lagging behind the group brings some
+      problematic consequences, particularly, the reads on such members
+      may externalize very old data. Depending on why the member is
+      lagging behind, other members in the group may have to save more
+      or less replication context to be able to fulfil potential data
+      transfer requests from the slow member.
+    </p><p>
+      There is however a mechanism in the replication protocol to avoid
+      having too much distance, in terms of transactions applied,
+      between fast and slow members. This is known as the flow control
+      mechanism. It tries to address several goals:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          to keep the members close enough to make buffering and
+          de-synchronization between members a small problem;
+        </p></li><li class="listitem"><p>
+          to adapt quickly to changing conditions like different
+          workloads or more writers in the group;
+        </p></li><li class="listitem"><p>
+          to give each member a fair share of the available write
+          capacity;
+        </p></li><li class="listitem"><p>
+          to not reduce throughput more than strictly necessary to avoid
+          wasting resources.
+        </p></li></ol></div><p>
+      Given the design of Group Replication, the decision whether to
+      throttle or not may be decided taking into account two work
+      queues: <span class="emphasis"><em>(i)</em></span> the
+      <span class="emphasis"><em>certification</em></span> queue;
+      <span class="emphasis"><em>(ii)</em></span> and on the binary log
+      <span class="emphasis"><em>applier</em></span> queue. Whenever the size of one of
+      these queues exceeds the user-defined threshold, the throttling
+      mechanism is triggered. Only configure: <span class="emphasis"><em>(i)</em></span>
+      whether to do flow control at the certifier or at the applier
+      level, or both; and <span class="emphasis"><em>(ii)</em></span> what is the
+      threshold for each queue.
+    </p><p>
+      The flow control depends on two basic mechanisms:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          the monitoring of members to collect some statistics on
+          throughput and queue sizes of all group members to make
+          educated guesses on what is the maximum write pressure each
+          member should be subjected to;
+        </p></li><li class="listitem"><p>
+          the throttling of members that are trying to write beyond
+          their fair-share of the available capacity at each moment in
+          time.
+        </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-fine-tuning-the-group-communication-thread.html">Previous <span class="navHint"> Fine Tuning the Group Communication Thread </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-performance.html">Up <span class="navHint"> Group Replication Performance and Troubleshooting </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-probes-and-statistics.html">Next <span class="navHint"> Probes and Statistics </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

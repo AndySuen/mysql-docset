@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.7.9.2 Point-In-Time Recovery Using NDB Cluster Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-replication-backups.html" title="23.7.9 NDB Cluster Backups With NDB Cluster Replication" /><link rel="prev" href="mysql-cluster-replication-auto-sync.html" title="23.7.9.1 NDB Cluster Replication: Automating Synchronization of the Replica to the Source Binary Log" /><link rel="next" href="mysql-cluster-replication-multi-source.html" title="23.7.10 NDB Cluster Replication: Bidirectional and Circular Replication" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-replication-pitr.html#mysql-cluster-replication-pitr">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-replication-auto-sync.html">Previous <span class="navHint"> NDB Cluster Replication: Automating Synchronization of the Replica to
+        the Source Binary Log </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-replication-backups.html">Up <span class="navHint"> NDB Cluster Backups With NDB Cluster Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-replication-multi-source.html">Next <span class="navHint"> NDB Cluster Replication: Bidirectional and Circular Replication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-cluster-replication-pitr"></a>23.7.9.2 Point-In-Time Recovery Using NDB Cluster Replication</h4></div></div></div><a id="idm45828803551680" class="indexterm"></a><a id="idm45828803550192" class="indexterm"></a><a id="idm45828803548736" class="indexterm"></a><p>
+        <span class="firstterm">Point-in-time</span>
+        recovery—that is, recovery of data changes made since a
+        given point in time—is performed after restoring a full
+        backup that returns the server to its state when the backup was
+        made. Performing point-in-time recovery of NDB Cluster tables
+        with NDB Cluster and NDB Cluster Replication can be accomplished
+        using a native <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> data backup
+        (taken by issuing <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-create-nodegroup"><code class="literal">CREATE
+        BACKUP</code></a> in the <a class="link" href="mysql-cluster-programs-ndb-mgm.html" title="23.5.5 ndb_mgm — The NDB Cluster Management Client"><span class="command"><strong>ndb_mgm</strong></span></a> client) and
+        restoring the <code class="literal">ndb_binlog_index</code> table (from a
+        dump made using <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>).
+      </p><p>
+        To perform point-in-time recovery of NDB Cluster, it is
+        necessary to follow the steps shown here:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Back up all <code class="literal">NDB</code> databases in the cluster,
+            using the <a class="link" href="mysql-cluster-backup-using-management-client.html" title="23.6.8.2 Using The NDB Cluster Management Client to Create a Backup"><code class="literal">START BACKUP</code></a>
+            command in the <a class="link" href="mysql-cluster-programs-ndb-mgm.html" title="23.5.5 ndb_mgm — The NDB Cluster Management Client"><span class="command"><strong>ndb_mgm</strong></span></a> client (see
+            <a class="xref" href="mysql-cluster-backup.html" title="23.6.8 Online Backup of NDB Cluster">Section 23.6.8, “Online Backup of NDB Cluster”</a>).
+          </p></li><li class="listitem"><p>
+            At some later point, prior to restoring the cluster, make a
+            backup of the <code class="literal">mysql.ndb_binlog_index</code>
+            table. It is probably simplest to use
+            <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> for this task. Also back up the
+            binary log files at this time.
+          </p><p>
+            This backup should be updated regularly—perhaps even
+            hourly—depending on your needs.
+          </p></li><li class="listitem"><p>
+            (<span class="emphasis"><em>Catastrophic failure or error occurs</em></span>.)
+          </p></li><li class="listitem"><p>
+            Locate the last known good backup.
+          </p></li><li class="listitem"><p>
+            Clear the data node file systems (using
+            <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a>
+            <a class="link" href="mysql-cluster-programs-ndbd.html#option_ndbd_initial"><code class="option">--initial</code></a> or
+            <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a>
+            <a class="link" href="mysql-cluster-programs-ndbd.html#option_ndbd_initial"><code class="option">--initial</code></a>).
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              Beginning with NDB 8.0.21, Disk Data tablespace and log
+              files are removed by
+              <a class="link" href="mysql-cluster-programs-ndbd.html#option_ndbd_initial"><code class="option">--initial</code></a>. Previously, it was
+              necessary to delete these manually.
+            </p></div></li><li class="listitem"><p>
+            Use <a class="link" href="drop-table.html" title="13.1.32 DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> or
+            <a class="link" href="truncate-table.html" title="13.1.37 TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a> with the
+            <code class="literal">mysql.ndb_binlog_index</code> table.
+          </p></li><li class="listitem"><p>
+            Execute <a class="link" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23 ndb_restore — Restore an NDB Cluster Backup"><span class="command"><strong>ndb_restore</strong></span></a>, restoring all data.
+            You must include the
+            <a class="link" href="mysql-cluster-programs-ndb-restore.html#option_ndb_restore_restore-epoch"><code class="option">--restore-epoch</code></a> option
+            when you run <a class="link" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23 ndb_restore — Restore an NDB Cluster Backup"><span class="command"><strong>ndb_restore</strong></span></a>, so that the
+            <code class="literal">ndb_apply_status</code> table is populated
+            correctly. (See
+            <a class="xref" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23 ndb_restore — Restore an NDB Cluster Backup">Section 23.5.23, “ndb_restore — Restore an NDB Cluster Backup”</a>, for
+            more information.)
+          </p></li><li class="listitem"><p>
+            Restore the <code class="literal">ndb_binlog_index</code> table from
+            the output of <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> and restore the
+            binary log files from backup, if necessary.
+          </p></li><li class="listitem"><p>
+            Find the epoch applied most recently—that is, the
+            maximum <code class="literal">epoch</code> column value in the
+            <code class="literal">ndb_apply_status</code> table—as the user
+            variable <code class="literal">@LATEST_EPOCH</code> (emphasized):
+          </p><pre class="programlisting">SELECT <span class="emphasis"><em>@LATEST_EPOCH</em></span>:=MAX(epoch)
+    FROM mysql.ndb_apply_status;
+</pre></li><li class="listitem"><p>
+            Find the latest binary log file
+            (<code class="literal">@FIRST_FILE</code>) and position
+            (<code class="literal">Position</code> column value) within this file
+            that correspond to <code class="literal">@LATEST_EPOCH</code> in the
+            <code class="literal">ndb_binlog_index</code> table:
+          </p><pre class="programlisting">SELECT Position, <span class="emphasis"><em>@FIRST_FILE</em></span>:=File
+    FROM mysql.ndb_binlog_index
+    WHERE epoch &gt; <span class="emphasis"><em>@LATEST_EPOCH</em></span> ORDER BY epoch ASC LIMIT 1;
+</pre></li><li class="listitem"><p>
+            Using <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>, replay the binary log
+            events from the given file and position up to the point of
+            the failure. (See <a class="xref" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files">Section 4.6.9, “mysqlbinlog — Utility for Processing Binary Log Files”</a>.)
+          </p></li></ol></div><p>
+        See also <a class="xref" href="point-in-time-recovery.html" title="7.5 Point-in-Time (Incremental) Recovery">Section 7.5, “Point-in-Time (Incremental) Recovery”</a>, for more
+        information about the binary log, replication, and incremental
+        recovery.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-replication-auto-sync.html">Previous <span class="navHint"> NDB Cluster Replication: Automating Synchronization of the Replica to
+        the Source Binary Log </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-replication-backups.html">Up <span class="navHint"> NDB Cluster Backups With NDB Cluster Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-replication-multi-source.html">Next <span class="navHint"> NDB Cluster Replication: Bidirectional and Circular Replication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

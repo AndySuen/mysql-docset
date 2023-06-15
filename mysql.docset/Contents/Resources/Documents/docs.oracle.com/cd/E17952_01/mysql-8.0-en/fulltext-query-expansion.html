@@ -1,0 +1,65 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-862"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/12.9.3%C2%A0Full-Text%20Searches%20with%20Query%20Expansion"></a><title>12.9.3&nbsp;Full-Text Searches with Query Expansion</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="fulltext-search.html" title="12.9&nbsp;Full-Text Search Functions"/><link rel="prev" href="fulltext-boolean.html" title="12.9.2&nbsp;Boolean Full-Text Searches"/><link rel="next" href="fulltext-stopwords.html" title="12.9.4&nbsp;Full-Text Stopwords"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="fulltext-query-expansion.html#fulltext-query-expansion">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="fulltext-boolean.html">Previous <span class="navHint"> Boolean Full-Text Searches </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="fulltext-search.html">Up <span class="navHint"> Full-Text Search Functions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="fulltext-stopwords.html">Next <span class="navHint"> Full-Text Stopwords </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="fulltext-query-expansion"></a>12.9.3&nbsp;Full-Text Searches with Query Expansion</h3></div></div></div><a id="idm45828928025168" class="indexterm"></a><a id="idm45828928024096" class="indexterm"></a><p>
+        Full-text search supports query expansion (and in particular,
+        its variant <span class="quote">&ldquo;<span class="quote">blind query expansion</span>&rdquo;</span>). This is
+        generally useful when a search phrase is too short, which often
+        means that the user is relying on implied knowledge that the
+        full-text search engine lacks. For example, a user searching for
+        <span class="quote">&ldquo;<span class="quote">database</span>&rdquo;</span> may really mean that
+        <span class="quote">&ldquo;<span class="quote">MySQL</span>&rdquo;</span>, <span class="quote">&ldquo;<span class="quote">Oracle</span>&rdquo;</span>, <span class="quote">&ldquo;<span class="quote">DB2</span>&rdquo;</span>,
+        and <span class="quote">&ldquo;<span class="quote">RDBMS</span>&rdquo;</span> all are phrases that should match
+        <span class="quote">&ldquo;<span class="quote">databases</span>&rdquo;</span> and should be returned, too. This is
+        implied knowledge.
+      </p><p>
+        Blind query expansion (also known as automatic relevance
+        feedback) is enabled by adding <code class="literal">WITH QUERY
+        EXPANSION</code> or <code class="literal">IN NATURAL LANGUAGE MODE WITH
+        QUERY EXPANSION</code> following the search phrase. It works
+        by performing the search twice, where the search phrase for the
+        second search is the original search phrase concatenated with
+        the few most highly relevant documents from the first search.
+        Thus, if one of these documents contains the word
+        <span class="quote">&ldquo;<span class="quote">databases</span>&rdquo;</span> and the word <span class="quote">&ldquo;<span class="quote">MySQL</span>&rdquo;</span>, the
+        second search finds the documents that contain the word
+        <span class="quote">&ldquo;<span class="quote">MySQL</span>&rdquo;</span> even if they do not contain the word
+        <span class="quote">&ldquo;<span class="quote">database</span>&rdquo;</span>. The following example shows this
+        difference:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM articles</code></strong>
+    <strong class="userinput"><code>WHERE MATCH (title,body)</code></strong>
+    <strong class="userinput"><code>AGAINST (&#39;database&#39; IN NATURAL LANGUAGE MODE);</code></strong>
++----+-------------------+------------------------------------------+
+| id | title             | body                                     |
++----+-------------------+------------------------------------------+
+|  1 | MySQL Tutorial    | DBMS stands for DataBase ...             |
+|  5 | MySQL vs. YourSQL | In the following database comparison ... |
++----+-------------------+------------------------------------------+
+2 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM articles</code></strong>
+    <strong class="userinput"><code>WHERE MATCH (title,body)</code></strong>
+    <strong class="userinput"><code>AGAINST (&#39;database&#39; WITH QUERY EXPANSION);</code></strong>
++----+-----------------------+------------------------------------------+
+| id | title                 | body                                     |
++----+-----------------------+------------------------------------------+
+|  5 | MySQL vs. YourSQL     | In the following database comparison ... |
+|  1 | MySQL Tutorial        | DBMS stands for DataBase ...             |
+|  3 | Optimizing MySQL      | In this tutorial we show ...             |
+|  6 | MySQL Security        | When configured properly, MySQL ...      |
+|  2 | How To Use MySQL Well | After you went through a ...             |
+|  4 | 1001 MySQL Tricks     | 1. Never run mysqld as root. 2. ...      |
++----+-----------------------+------------------------------------------+
+6 rows in set (0.00 sec)
+</pre><p>
+        Another example could be searching for books by Georges Simenon
+        about Maigret, when a user is not sure how to spell
+        <span class="quote">&ldquo;<span class="quote">Maigret</span>&rdquo;</span>. A search for <span class="quote">&ldquo;<span class="quote">Megre and the
+        reluctant witnesses</span>&rdquo;</span> finds only <span class="quote">&ldquo;<span class="quote">Maigret and the
+        Reluctant Witnesses</span>&rdquo;</span> without query expansion. A search
+        with query expansion finds all books with the word
+        <span class="quote">&ldquo;<span class="quote">Maigret</span>&rdquo;</span> on the second pass.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Because blind query expansion tends to increase noise
+          significantly by returning nonrelevant documents, use it only
+          when a search phrase is short.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="fulltext-boolean.html">Previous <span class="navHint"> Boolean Full-Text Searches </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="fulltext-search.html">Up <span class="navHint"> Full-Text Search Functions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="fulltext-stopwords.html">Next <span class="navHint"> Full-Text Stopwords </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

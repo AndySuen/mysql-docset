@@ -1,0 +1,144 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1127"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.7.7.1%C2%A0Expel%20Timeout"></a><title>18.7.7.1&nbsp;Expel Timeout</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-responses-failure.html" title="18.7.7&nbsp;Responses to Failure Detection and Network Partitioning"/><link rel="prev" href="group-replication-responses-failure.html" title="18.7.7&nbsp;Responses to Failure Detection and Network Partitioning"/><link rel="next" href="group-replication-responses-failure-partition.html" title="18.7.7.2&nbsp;Unreachable Majority Timeout"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-responses-failure-expel.html#group-replication-responses-failure-expel">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-responses-failure.html">Previous <span class="navHint"> Responses to Failure Detection and Network Partitioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-responses-failure.html">Up <span class="navHint"> Responses to Failure Detection and Network Partitioning </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-responses-failure-partition.html">Next <span class="navHint"> Unreachable Majority Timeout </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1126"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/18.7.7.1%C2%A0Expel%20Timeout"></a><h4 class="title"><a id="group-replication-responses-failure-expel"></a>18.7.7.1&nbsp;Expel Timeout</h4></div></div></div><p>
+        You can use the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>
+        system variable, which is available from MySQL 8.0.13, to allow
+        additional time between the creation of a suspicion and the
+        expulsion of the suspect member. A suspicion is created when one
+        server does not receive messages from another server, as
+        explained in
+        <a class="xref" href="group-replication-failure-detection.html" title="18.1.4.2&nbsp;Failure Detection">Section&nbsp;18.1.4.2, &ldquo;Failure Detection&rdquo;</a>.
+      </p><p>
+        There is an initial 5-second detection period before a Group
+        Replication group member creates a suspicion of another member
+        (or of itself). A group member is then expelled when another
+        member&#39;s suspicion of it (or its own suspicion of itself) times
+        out. A further short period of time might elapse after that
+        before the expelling mechanism detects and implements the
+        expulsion.
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>
+        specifies the period of time in seconds, called the expel
+        timeout, that a group member waits between creating a suspicion,
+        and expelling the suspected member. Suspect members are listed
+        as <code class="literal">UNREACHABLE</code> during this waiting period,
+        but are not removed from the group&#39;s membership list.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If a suspect member becomes active again before the
+            suspicion times out at the end of the waiting period, the
+            member applies all the messages that were buffered by the
+            remaining group members in XCom&#39;s message cache and enters
+            <code class="literal">ONLINE</code> state, without operator
+            intervention. In this situation, the member is considered by
+            the group as the same incarnation.
+          </p></li><li class="listitem"><p>
+            If a suspect member becomes active only after the suspicion
+            times out and is able to resume communications, it receives
+            a view where it is expelled and at that point realises it
+            was expelled. You can use the
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_autorejoin_tries"><code class="literal">group_replication_autorejoin_tries</code></a>
+            system variable, which is available from MySQL 8.0.16, to
+            make the member automatically try to rejoin the group at
+            this point. From MySQL 8.0.21, this feature is activated by
+            default and the member makes three auto-rejoin attempts. If
+            the auto-rejoin procedure does not succeed or is not
+            attempted, the expelled member then follows the exit action
+            specified by
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_exit_state_action"><code class="literal">group_replication_exit_state_action</code></a>.
+          </p></li></ul></div><p>
+        The waiting period before expelling a member only applies to
+        members that have previously been active in the group.
+        Non-members that were never active in the group do not get this
+        waiting period and are removed after the initial detection
+        period because they took too long to join.
+      </p><p>
+        If
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>
+        is set to 0, there is no waiting period, and a suspected member
+        is liable for expulsion immediately after the 5-second detection
+        period ends. This setting is the default up to and including
+        MySQL 8.0.20. This is also the behavior of a group member which
+        is at a MySQL Server version that does not support the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>
+        system variable. From MySQL 8.0.21, the value defaults to 5,
+        meaning that a suspected member is liable for expulsion 5
+        seconds after the 5-second detection period. It is not mandatory
+        for all members of a group to have the same setting for
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>,
+        but it is recommended in order to avoid unexpected expulsions.
+        Any member can create a suspicion of any other member, including
+        itself, so the effective expel timeout is that of the member
+        with the lowest setting.
+      </p><p>
+        Consider increasing the value of
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>
+        from the default in the following scenarios:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The network is slow and the default 5 or 10 seconds before
+            expulsion is not long enough for group members to always
+            exchange at least one message.
+          </p></li><li class="listitem"><p>
+            The network sometimes has transient outages and you want to
+            avoid unnecessary expulsions and primary member changes at
+            these times.
+          </p></li><li class="listitem"><p>
+            The network is not under your direct control and you want to
+            minimize the need for operator intervention.
+          </p></li><li class="listitem"><p>
+            A temporary network outage is expected and you do not want
+            some or all of the members to be expelled due to this.
+          </p></li><li class="listitem"><p>
+            An individual machine is experiencing a slowdown and you do
+            not want it to be expelled from the group.
+          </p></li></ul></div><p>
+        You can specify an expel timeout up to a maximum of 3600 seconds
+        (1 hour). It is important to ensure that XCom&#39;s message cache is
+        sufficiently large to contain the expected volume of messages in
+        your specified time period, plus the initial 5-second detection
+        period, otherwise members cannot reconnect. You can adjust the
+        cache size limit using the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_message_cache_size"><code class="literal">group_replication_message_cache_size</code></a>
+        system variable. For more information, see
+        <a class="xref" href="group-replication-performance-xcom-cache.html" title="18.7.6&nbsp;XCom Cache Management">Section&nbsp;18.7.6, &ldquo;XCom Cache Management&rdquo;</a>.
+      </p><p>
+        If any members in a group are currently under suspicion, the
+        group membership cannot be reconfigured (by adding or removing
+        members or electing a new leader). If group membership changes
+        need to be implemented while one or more members are under
+        suspicion, and you want the suspect members to remain in the
+        group, take any actions required to make the members active
+        again, if that is possible. If you cannot make the members
+        active again and you want them to be expelled from the group,
+        you can force the suspicions to time out immediately. Do this by
+        changing the value of
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>
+        on any active members to a value lower than the time that has
+        already elapsed since the suspicions were created. The suspect
+        members then become liable for expulsion immediately.
+      </p><p>
+        If a replication group member stops unexpectedly and is
+        immediately restarted (for example, because it was started with
+        <code class="literal">mysqld_safe</code>), it automatically attempts to
+        rejoin the group if
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_start_on_boot"><code class="literal">group_replication_start_on_boot=on</code></a>
+        is set. In this situation, it is possible for the restart and
+        rejoin attempt to take place before the member&#39;s previous
+        incarnation has been expelled from the group, in which case the
+        member cannot rejoin. From MySQL 8.0.19, Group Replication
+        automatically uses a Group Communication System (GCS) feature to
+        retry the rejoin attempt for the member 10 times, with a
+        5-second interval between each retry. This should cover most
+        cases and allow enough time for the previous incarnation to be
+        expelled from the group, letting the member rejoin. Note that if
+        the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>
+        system variable is set to specify a longer waiting period before
+        the member is expelled, the automatic rejoin attempts might
+        still not succeed.
+      </p><p>
+        For alternative mitigation strategies to avoid unnecessary
+        expulsions where the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>
+        system variable is not available, see
+        <a class="xref" href="group-replication-limitations.html" title="18.3.2&nbsp;Group Replication Limitations">Section&nbsp;18.3.2, &ldquo;Group Replication Limitations&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-responses-failure.html">Previous <span class="navHint"> Responses to Failure Detection and Network Partitioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-responses-failure.html">Up <span class="navHint"> Responses to Failure Detection and Network Partitioning </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-responses-failure-partition.html">Next <span class="navHint"> Unreachable Majority Timeout </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

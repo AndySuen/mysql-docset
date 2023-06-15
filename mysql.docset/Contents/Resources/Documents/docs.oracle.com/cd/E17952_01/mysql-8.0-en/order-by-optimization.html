@@ -1,0 +1,372 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3019"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.16%C2%A0ORDER%20BY%20Optimization"></a><title>8.2.1.16&nbsp;ORDER BY Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="is-null-optimization.html" title="8.2.1.15&nbsp;IS NULL Optimization"/><link rel="next" href="group-by-optimization.html" title="8.2.1.17&nbsp;GROUP BY Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="order-by-optimization.html#order-by-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="is-null-optimization.html">Previous <span class="navHint"> IS NULL Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-by-optimization.html">Next <span class="navHint"> GROUP BY Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3018"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.16%C2%A0ORDER%20BY%20Optimization"></a><h4 class="title"><a id="order-by-optimization"></a>8.2.1.16&nbsp;ORDER BY Optimization</h4></div></div></div><a id="idm45828955824560" class="indexterm"></a><a id="idm45828955823488" class="indexterm"></a><p>
+          This section describes when MySQL can use an index to satisfy
+          an <code class="literal">ORDER BY</code> clause, the
+          <code class="literal">filesort</code> operation used when an index
+          cannot be used, and execution plan information available from
+          the optimizer about <code class="literal">ORDER BY</code>.
+        </p><p>
+          An <code class="literal">ORDER BY</code> with and without
+          <code class="literal">LIMIT</code> may return rows in different orders,
+          as discussed in <a class="xref" href="limit-optimization.html" title="8.2.1.19&nbsp;LIMIT Query Optimization">Section&nbsp;8.2.1.19, &ldquo;LIMIT Query Optimization&rdquo;</a>.
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="order-by-optimization.html#order-by-index-use" title="Use of Indexes to Satisfy ORDER BY">Use of Indexes to Satisfy ORDER BY</a></p></li><li class="listitem"><p><a class="xref" href="order-by-optimization.html#order-by-filesort" title="Use of filesort to Satisfy ORDER BY">Use of filesort to Satisfy ORDER BY</a></p></li><li class="listitem"><p><a class="xref" href="order-by-optimization.html#order-by-optimizer-control" title="Influencing ORDER BY Optimization">Influencing ORDER BY Optimization</a></p></li><li class="listitem"><p><a class="xref" href="order-by-optimization.html#order-by-diagnostic-information" title="ORDER BY Execution Plan Information Available">ORDER BY Execution Plan Information Available</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="order-by-index-use"></a>Use of Indexes to Satisfy ORDER BY</h5></div></div></div><p>
+            In some cases, MySQL may use an index to satisfy an
+            <code class="literal">ORDER BY</code> clause and avoid the extra
+            sorting involved in performing a <code class="literal">filesort</code>
+            operation.
+          </p><p>
+            The index may also be used even if the <code class="literal">ORDER
+            BY</code> does not match the index exactly, as long as
+            all unused portions of the index and all extra
+            <code class="literal">ORDER BY</code> columns are constants in the
+            <code class="literal">WHERE</code> clause. If the index does not
+            contain all columns accessed by the query, the index is used
+            only if index access is cheaper than other access methods.
+          </p><p>
+            Assuming that there is an index on
+            <code class="literal">(<em class="replaceable"><code>key_part1</code></em>,
+            <em class="replaceable"><code>key_part2</code></em>)</code>, the
+            following queries may use the index to resolve the
+            <code class="literal">ORDER BY</code> part. Whether the optimizer
+            actually does so depends on whether reading the index is
+            more efficient than a table scan if columns not in the index
+            must also be read.
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                In this query, the index on
+                <code class="literal">(<em class="replaceable"><code>key_part1</code></em>,
+                <em class="replaceable"><code>key_part2</code></em>)</code> enables
+                the optimizer to avoid sorting:
+              </p><pre class="programlisting">SELECT * FROM t1
+  ORDER BY <em class="replaceable"><code>key_part1</code></em>, <em class="replaceable"><code>key_part2</code></em>;
+</pre><p>
+                However, the query uses <code class="literal">SELECT *</code>,
+                which may select more columns than
+                <em class="replaceable"><code>key_part1</code></em> and
+                <em class="replaceable"><code>key_part2</code></em>. In that case,
+                scanning an entire index and looking up table rows to
+                find columns not in the index may be more expensive than
+                scanning the table and sorting the results. If so, the
+                optimizer probably does not use the index. If
+                <code class="literal">SELECT *</code> selects only the index
+                columns, the index is used and sorting avoided.
+              </p><p>
+                If <code class="literal">t1</code> is an <code class="literal">InnoDB</code>
+                table, the table primary key is implicitly part of the
+                index, and the index can be used to resolve the
+                <code class="literal">ORDER BY</code> for this query:
+              </p><pre class="programlisting">SELECT <em class="replaceable"><code>pk</code></em>, <em class="replaceable"><code>key_part1</code></em>, <em class="replaceable"><code>key_part2</code></em> FROM t1
+  ORDER BY <em class="replaceable"><code>key_part1</code></em>, <em class="replaceable"><code>key_part2</code></em>;
+</pre></li><li class="listitem"><p>
+                In this query, <em class="replaceable"><code>key_part1</code></em> is
+                constant, so all rows accessed through the index are in
+                <em class="replaceable"><code>key_part2</code></em> order, and an index
+                on <code class="literal">(<em class="replaceable"><code>key_part1</code></em>,
+                <em class="replaceable"><code>key_part2</code></em>)</code> avoids
+                sorting if the <code class="literal">WHERE</code> clause is
+                selective enough to make an index range scan cheaper
+                than a table scan:
+              </p><pre class="programlisting">SELECT * FROM t1
+  WHERE <em class="replaceable"><code>key_part1</code></em> = <em class="replaceable"><code>constant</code></em>
+  ORDER BY <em class="replaceable"><code>key_part2</code></em>;
+</pre></li><li class="listitem"><p>
+                In the next two queries, whether the index is used is
+                similar to the same queries without
+                <code class="literal">DESC</code> shown previously:
+              </p><pre class="programlisting">SELECT * FROM t1
+  ORDER BY <em class="replaceable"><code>key_part1</code></em> DESC, <em class="replaceable"><code>key_part2</code></em> DESC;
+
+SELECT * FROM t1
+  WHERE <em class="replaceable"><code>key_part1</code></em> = <em class="replaceable"><code>constant</code></em>
+  ORDER BY <em class="replaceable"><code>key_part2</code></em> DESC;
+</pre></li><li class="listitem"><p>
+                Two columns in an <code class="literal">ORDER BY</code> can sort
+                in the same direction (both <code class="literal">ASC</code>, or
+                both <code class="literal">DESC</code>) or in opposite directions
+                (one <code class="literal">ASC</code>, one
+                <code class="literal">DESC</code>). A condition for index use is
+                that the index must have the same homogeneity, but need
+                not have the same actual direction.
+              </p><p>
+                If a query mixes <code class="literal">ASC</code> and
+                <code class="literal">DESC</code>, the optimizer can use an index
+                on the columns if the index also uses corresponding
+                mixed ascending and descending columns:
+              </p><pre class="programlisting">SELECT * FROM t1
+  ORDER BY <em class="replaceable"><code>key_part1</code></em> DESC, <em class="replaceable"><code>key_part2</code></em> ASC;
+</pre><p>
+                The optimizer can use an index on
+                (<em class="replaceable"><code>key_part1</code></em>,
+                <em class="replaceable"><code>key_part2</code></em>) if
+                <em class="replaceable"><code>key_part1</code></em> is descending and
+                <em class="replaceable"><code>key_part2</code></em> is ascending. It
+                can also use an index on those columns (with a backward
+                scan) if <em class="replaceable"><code>key_part1</code></em> is
+                ascending and <em class="replaceable"><code>key_part2</code></em> is
+                descending. See <a class="xref" href="descending-indexes.html" title="8.3.13&nbsp;Descending Indexes">Section&nbsp;8.3.13, &ldquo;Descending Indexes&rdquo;</a>.
+              </p></li><li class="listitem"><p>
+                In the next two queries,
+                <em class="replaceable"><code>key_part1</code></em> is compared to a
+                constant. The index is used if the
+                <code class="literal">WHERE</code> clause is selective enough to
+                make an index range scan cheaper than a table scan:
+              </p><pre class="programlisting">SELECT * FROM t1
+  WHERE <em class="replaceable"><code>key_part1</code></em> &gt; <em class="replaceable"><code>constant</code></em>
+  ORDER BY <em class="replaceable"><code>key_part1</code></em> ASC;
+
+SELECT * FROM t1
+  WHERE <em class="replaceable"><code>key_part1</code></em> &lt; <em class="replaceable"><code>constant</code></em>
+  ORDER BY <em class="replaceable"><code>key_part1</code></em> DESC;
+</pre></li><li class="listitem"><p>
+                In the next query, the <code class="literal">ORDER BY</code> does
+                not name <em class="replaceable"><code>key_part1</code></em>, but all
+                rows selected have a constant
+                <em class="replaceable"><code>key_part1</code></em> value, so the index
+                can still be used:
+              </p><pre class="programlisting">SELECT * FROM t1
+  WHERE <em class="replaceable"><code>key_part1</code></em> = <em class="replaceable"><code>constant1</code></em> AND <em class="replaceable"><code>key_part2</code></em> &gt; <em class="replaceable"><code>constant2</code></em>
+  ORDER BY <em class="replaceable"><code>key_part2</code></em>;
+</pre></li></ul></div><p>
+            In some cases, MySQL <span class="emphasis"><em>cannot</em></span> use indexes
+            to resolve the <code class="literal">ORDER BY</code>, although it may
+            still use indexes to find the rows that match the
+            <code class="literal">WHERE</code> clause. Examples:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                The query uses <code class="literal">ORDER BY</code> on different
+                indexes:
+              </p><pre class="programlisting">SELECT * FROM t1 ORDER BY <em class="replaceable"><code>key1</code></em>, <em class="replaceable"><code>key2</code></em>;
+</pre></li><li class="listitem"><p>
+                The query uses <code class="literal">ORDER BY</code> on
+                nonconsecutive parts of an index:
+              </p><pre class="programlisting">SELECT * FROM t1 WHERE <em class="replaceable"><code>key2</code></em>=<em class="replaceable"><code>constant</code></em> ORDER BY <em class="replaceable"><code>key1_part1</code></em>, <em class="replaceable"><code>key1_part3</code></em>;
+</pre></li><li class="listitem"><p>
+                The index used to fetch the rows differs from the one
+                used in the <code class="literal">ORDER BY</code>:
+              </p><pre class="programlisting">SELECT * FROM t1 WHERE <em class="replaceable"><code>key2</code></em>=<em class="replaceable"><code>constant</code></em> ORDER BY <em class="replaceable"><code>key1</code></em>;
+</pre></li><li class="listitem"><p>
+                The query uses <code class="literal">ORDER BY</code> with an
+                expression that includes terms other than the index
+                column name:
+              </p><pre class="programlisting">SELECT * FROM t1 ORDER BY ABS(<em class="replaceable"><code>key</code></em>);
+SELECT * FROM t1 ORDER BY -<em class="replaceable"><code>key</code></em>;
+</pre></li><li class="listitem"><p>
+                The query joins many tables, and the columns in the
+                <code class="literal">ORDER BY</code> are not all from the first
+                nonconstant table that is used to retrieve rows. (This
+                is the first table in the
+                <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output that does
+                not have a <a class="link" href="explain-output.html#jointype_const"><code class="literal">const</code></a> join
+                type.)
+              </p></li><li class="listitem"><p>
+                The query has different <code class="literal">ORDER BY</code> and
+                <code class="literal">GROUP BY</code> expressions.
+              </p></li><li class="listitem"><p>
+                There is an index on only a prefix of a column named in
+                the <code class="literal">ORDER BY</code> clause. In this case,
+                the index cannot be used to fully resolve the sort
+                order. For example, if only the first 10 bytes of a
+                <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">CHAR(20)</code></a> column are
+                indexed, the index cannot distinguish values past the
+                10th byte and a <code class="literal">filesort</code> is needed.
+              </p></li><li class="listitem"><p>
+                The index does not store rows in order. For example,
+                this is true for a <code class="literal">HASH</code> index in a
+                <code class="literal">MEMORY</code> table.
+              </p></li></ul></div><p>
+            Availability of an index for sorting may be affected by the
+            use of column aliases. Suppose that the column
+            <code class="literal">t1.a</code> is indexed. In this statement, the
+            name of the column in the select list is
+            <code class="literal">a</code>. It refers to <code class="literal">t1.a</code>,
+            as does the reference to <code class="literal">a</code> in the
+            <code class="literal">ORDER BY</code>, so the index on
+            <code class="literal">t1.a</code> can be used:
+          </p><pre class="programlisting">SELECT a FROM t1 ORDER BY a;
+</pre><p>
+            In this statement, the name of the column in the select list
+            is also <code class="literal">a</code>, but it is the alias name. It
+            refers to <code class="literal">ABS(a)</code>, as does the reference
+            to <code class="literal">a</code> in the <code class="literal">ORDER BY</code>,
+            so the index on <code class="literal">t1.a</code> cannot be used:
+          </p><pre class="programlisting">SELECT ABS(a) AS a FROM t1 ORDER BY a;
+</pre><p>
+            In the following statement, the <code class="literal">ORDER BY</code>
+            refers to a name that is not the name of a column in the
+            select list. But there is a column in <code class="literal">t1</code>
+            named <code class="literal">a</code>, so the <code class="literal">ORDER
+            BY</code> refers to <code class="literal">t1.a</code> and the index
+            on <code class="literal">t1.a</code> can be used. (The resulting sort
+            order may be completely different from the order for
+            <code class="literal">ABS(a)</code>, of course.)
+          </p><pre class="programlisting">SELECT ABS(a) AS b FROM t1 ORDER BY a;
+</pre><a id="idm45828955706768" class="indexterm"></a><a id="idm45828955705280" class="indexterm"></a><a id="idm45828955703792" class="indexterm"></a><a id="idm45828955702304" class="indexterm"></a><p>
+            Previously (MySQL 5.7 and lower),
+            <code class="literal">GROUP BY</code> sorted implicitly under certain
+            conditions. In MySQL 8.0, that no longer
+            occurs, so specifying <code class="literal">ORDER BY NULL</code> at
+            the end to suppress implicit sorting (as was done
+            previously) is no longer necessary. However, query results
+            may differ from previous MySQL versions. To produce a given
+            sort order, provide an <code class="literal">ORDER BY</code> clause.
+          </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="order-by-filesort"></a>Use of filesort to Satisfy ORDER BY</h5></div></div></div><a id="idm45828955696976" class="indexterm"></a><a id="idm45828955695936" class="indexterm"></a><p>
+            If an index cannot be used to satisfy an <code class="literal">ORDER
+            BY</code> clause, MySQL performs a
+            <code class="literal">filesort</code> operation that reads table rows
+            and sorts them. A <code class="literal">filesort</code> constitutes an
+            extra sorting phase in query execution.
+          </p><p>
+            To obtain memory for <code class="literal">filesort</code> operations,
+            as of MySQL 8.0.12, the optimizer allocates memory buffers
+            incrementally as needed, up to the size indicated by the
+            <a class="link" href="server-system-variables.html#sysvar_sort_buffer_size"><code class="literal">sort_buffer_size</code></a> system
+            variable, rather than allocating a fixed amount of
+            <a class="link" href="server-system-variables.html#sysvar_sort_buffer_size"><code class="literal">sort_buffer_size</code></a> bytes up
+            front, as was done prior to MySQL 8.0.12. This enables users
+            to set <a class="link" href="server-system-variables.html#sysvar_sort_buffer_size"><code class="literal">sort_buffer_size</code></a> to
+            larger values to speed up larger sorts, without concern for
+            excessive memory use for small sorts. (This benefit may not
+            occur for multiple concurrent sorts on Windows, which has a
+            weak multithreaded <code class="literal">malloc</code>.)
+          </p><p>
+            A <code class="literal">filesort</code> operation uses temporary disk
+            files as necessary if the result set is too large to fit in
+            memory. Some types of queries are particularly suited to
+            completely in-memory <code class="literal">filesort</code> operations.
+            For example, the optimizer can use
+            <code class="literal">filesort</code> to efficiently handle in memory,
+            without temporary files, the <code class="literal">ORDER BY</code>
+            operation for queries (and subqueries) of the following
+            form:
+          </p><pre class="programlisting">SELECT ... FROM <em class="replaceable"><code>single_table</code></em> ... ORDER BY <em class="replaceable"><code>non_index_column</code></em> [DESC] LIMIT [<em class="replaceable"><code>M</code></em>,]<em class="replaceable"><code>N</code></em>;
+</pre><p>
+            Such queries are common in web applications that display
+            only a few rows from a larger result set. Examples:
+          </p><pre class="programlisting">SELECT col1, ... FROM t1 ... ORDER BY name LIMIT 10;
+SELECT col1, ... FROM t1 ... ORDER BY RAND() LIMIT 15;
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="order-by-optimizer-control"></a>Influencing ORDER BY Optimization</h5></div></div></div><p>
+            For slow <code class="literal">ORDER BY</code> queries for which
+            <code class="literal">filesort</code> is not used, try lowering the
+            <a class="link" href="server-system-variables.html#sysvar_max_length_for_sort_data"><code class="literal">max_length_for_sort_data</code></a>
+            system variable to a value that is appropriate to trigger a
+            <code class="literal">filesort</code>. (A symptom of setting the value
+            of this variable too high is a combination of high disk
+            activity and low CPU activity.) This technique applies only
+            before MySQL 8.0.20. As of 8.0.20,
+            <a class="link" href="server-system-variables.html#sysvar_max_length_for_sort_data"><code class="literal">max_length_for_sort_data</code></a> is
+            deprecated due to optimizer changes that make it obsolete
+            and of no effect.
+          </p><p>
+            To increase <code class="literal">ORDER BY</code> speed, check whether
+            you can get MySQL to use indexes rather than an extra
+            sorting phase. If this is not possible, try the following
+            strategies:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                Increase the
+                <a class="link" href="server-system-variables.html#sysvar_sort_buffer_size"><code class="literal">sort_buffer_size</code></a>
+                variable value. Ideally, the value should be large
+                enough for the entire result set to fit in the sort
+                buffer (to avoid writes to disk and merge passes).
+              </p><p>
+                Take into account that the size of column values stored
+                in the sort buffer is affected by the
+                <a class="link" href="server-system-variables.html#sysvar_max_sort_length"><code class="literal">max_sort_length</code></a> system
+                variable value. For example, if tuples store values of
+                long string columns and you increase the value of
+                <a class="link" href="server-system-variables.html#sysvar_max_sort_length"><code class="literal">max_sort_length</code></a>, the
+                size of sort buffer tuples increases as well and may
+                require you to increase
+                <a class="link" href="server-system-variables.html#sysvar_sort_buffer_size"><code class="literal">sort_buffer_size</code></a>.
+              </p><p>
+                To monitor the number of merge passes (to merge
+                temporary files), check the
+                <a class="link" href="server-status-variables.html#statvar_Sort_merge_passes"><code class="literal">Sort_merge_passes</code></a>
+                status variable.
+              </p></li><li class="listitem"><p>
+                Increase the
+                <a class="link" href="server-system-variables.html#sysvar_read_rnd_buffer_size"><code class="literal">read_rnd_buffer_size</code></a>
+                variable value so that more rows are read at a time.
+              </p></li><li class="listitem"><p>
+                Change the <a class="link" href="server-system-variables.html#sysvar_tmpdir"><code class="literal">tmpdir</code></a>
+                system variable to point to a dedicated file system with
+                large amounts of free space. The variable value can list
+                several paths that are used in round-robin fashion; you
+                can use this feature to spread the load across several
+                directories. Separate the paths by colon characters
+                (<code class="literal">:</code>) on Unix and semicolon characters
+                (<code class="literal">;</code>) on Windows. The paths should name
+                directories in file systems located on different
+                <span class="emphasis"><em>physical</em></span> disks, not different
+                partitions on the same disk.
+              </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="order-by-diagnostic-information"></a>ORDER BY Execution Plan Information Available</h5></div></div></div><p>
+            With
+            <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>
+            (see <a class="xref" href="using-explain.html" title="8.8.1&nbsp;Optimizing Queries with EXPLAIN">Section&nbsp;8.8.1, &ldquo;Optimizing Queries with EXPLAIN&rdquo;</a>), you can check whether
+            MySQL can use indexes to resolve an <code class="literal">ORDER
+            BY</code> clause:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                If the <code class="literal">Extra</code> column of
+                <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output does not
+                contain <code class="literal">Using filesort</code>, the index is
+                used and a <code class="literal">filesort</code> is not performed.
+              </p></li><li class="listitem"><p>
+                If the <code class="literal">Extra</code> column of
+                <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output contains
+                <code class="literal">Using filesort</code>, the index is not used
+                and a <code class="literal">filesort</code> is performed.
+              </p></li></ul></div><p>
+            In addition, if a <code class="literal">filesort</code> is performed,
+            optimizer trace output includes a
+            <code class="literal">filesort_summary</code> block. For example:
+          </p><pre class="programlisting">&#34;filesort_summary&#34;: {
+  &#34;rows&#34;: 100,
+  &#34;examined_rows&#34;: 100,
+  &#34;number_of_tmp_files&#34;: 0,
+  &#34;peak_memory_used&#34;: 25192,
+  &#34;sort_mode&#34;: &#34;&lt;sort_key, packed_additional_fields&gt;&#34;
+}
+</pre><p>
+            <code class="literal">peak_memory_used</code> indicates the maximum
+            memory used at any one time during the sort. This is a value
+            up to but not necessarily as large as the value of the
+            <a class="link" href="server-system-variables.html#sysvar_sort_buffer_size"><code class="literal">sort_buffer_size</code></a> system
+            variable. Prior to MySQL 8.0.12, the output shows
+            <code class="literal">sort_buffer_size</code> instead, indicating the
+            value of <a class="link" href="server-system-variables.html#sysvar_sort_buffer_size"><code class="literal">sort_buffer_size</code></a>.
+            (Prior to MySQL 8.0.12, the optimizer always allocates
+            <a class="link" href="server-system-variables.html#sysvar_sort_buffer_size"><code class="literal">sort_buffer_size</code></a> bytes for
+            the sort buffer. As of 8.0.12, the optimizer allocates
+            sort-buffer memory incrementally, beginning with a small
+            amount and adding more as necessary, up to
+            <a class="link" href="server-system-variables.html#sysvar_sort_buffer_size"><code class="literal">sort_buffer_size</code></a> bytes.)
+          </p><p>
+            The <code class="literal">sort_mode</code> value provides information
+            about the contents of tuples in the sort buffer:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                <code class="literal">&lt;sort_key, rowid&gt;</code>: This
+                indicates that sort buffer tuples are pairs that contain
+                the sort key value and row ID of the original table row.
+                Tuples are sorted by sort key value and the row ID is
+                used to read the row from the table.
+              </p></li><li class="listitem"><p>
+                <code class="literal">&lt;sort_key, additional_fields&gt;</code>:
+                This indicates that sort buffer tuples contain the sort
+                key value and columns referenced by the query. Tuples
+                are sorted by sort key value and column values are read
+                directly from the tuple.
+              </p></li><li class="listitem"><p>
+                <code class="literal">&lt;sort_key,
+                packed_additional_fields&gt;</code>: Like the
+                previous variant, but the additional columns are packed
+                tightly together instead of using a fixed-length
+                encoding.
+              </p></li></ul></div><p>
+            <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> does not distinguish
+            whether the optimizer does or does not perform a
+            <code class="literal">filesort</code> in memory. Use of an in-memory
+            <code class="literal">filesort</code> can be seen in optimizer trace
+            output. Look for
+            <code class="literal">filesort_priority_queue_optimization</code>. For
+            information about the optimizer trace, see
+            <a class="ulink" href="https://dev.mysql.com/doc/internals/en/optimizer-tracing.html" target="_top">MySQL
+            Internals: Tracing the Optimizer</a>.
+          </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="is-null-optimization.html">Previous <span class="navHint"> IS NULL Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-by-optimization.html">Next <span class="navHint"> GROUP BY Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

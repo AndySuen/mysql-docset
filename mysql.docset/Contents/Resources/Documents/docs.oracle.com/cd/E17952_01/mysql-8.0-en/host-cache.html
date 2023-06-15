@@ -1,0 +1,269 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1172"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/5.1.12.3%C2%A0DNS%20Lookups%20and%20the%20Host%20Cache"></a><title>5.1.12.3&nbsp;DNS Lookups and the Host Cache</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="connection-management.html" title="5.1.12&nbsp;Connection Management"/><link rel="prev" href="administrative-connection-interface.html" title="5.1.12.2&nbsp;Administrative Connection Management"/><link rel="next" href="ipv6-support.html" title="5.1.13&nbsp;IPv6 Support"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="host-cache.html#host-cache">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="administrative-connection-interface.html">Previous <span class="navHint"> Administrative Connection Management </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="connection-management.html">Up <span class="navHint"> Connection Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="ipv6-support.html">Next <span class="navHint"> IPv6 Support </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1171"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/5.1.12.3%C2%A0DNS%20Lookups%20and%20the%20Host%20Cache"></a><h4 class="title"><a id="host-cache"></a>5.1.12.3&nbsp;DNS Lookups and the Host Cache</h4></div></div></div><a id="idm45828988446336" class="indexterm"></a><a id="idm45828988445280" class="indexterm"></a><a id="idm45828988444208" class="indexterm"></a><a id="idm45828988443136" class="indexterm"></a><a id="idm45828988442064" class="indexterm"></a><a id="idm45828988440576" class="indexterm"></a><p>
+        The MySQL server maintains an in-memory host cache that contains
+        information about clients: IP address, host name, and error
+        information. The Performance Schema
+        <a class="link" href="performance-schema-host-cache-table.html" title="27.12.21.2&nbsp;The host_cache Table"><code class="literal">host_cache</code></a> table exposes the
+        contents of the host cache so that it can be examined using
+        <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statements. This may help
+        you diagnose the causes of connection problems. See
+        <a class="xref" href="performance-schema-host-cache-table.html" title="27.12.21.2&nbsp;The host_cache Table">Section&nbsp;27.12.21.2, &ldquo;The host_cache Table&rdquo;</a>.
+      </p><p>
+        The following sections discuss how the host cache works, as well
+        as other topics such as how to configure and monitor the cache.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="host-cache.html#host-cache-operation" title="Host Cache Operation">Host Cache Operation</a></p></li><li class="listitem"><p><a class="xref" href="host-cache.html#host-cache-configuration" title="Configuring the Host Cache">Configuring the Host Cache</a></p></li><li class="listitem"><p><a class="xref" href="host-cache.html#host-cache-monitoring" title="Monitoring the Host Cache">Monitoring the Host Cache</a></p></li><li class="listitem"><p><a class="xref" href="host-cache.html#host-cache-flushing" title="Flushing the Host Cache">Flushing the Host Cache</a></p></li><li class="listitem"><p><a class="xref" href="host-cache.html#blocked-host" title="Dealing with Blocked Hosts">Dealing with Blocked Hosts</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="host-cache-operation"></a>Host Cache Operation</h5></div></div></div><p>
+          The server uses the host cache only for non-localhost TCP
+          connections. It does not use the cache for TCP connections
+          established using a loopback interface address (for example,
+          <code class="literal">127.0.0.1</code> or <code class="literal">::1</code>), or
+          for connections established using a Unix socket file, named
+          pipe, or shared memory.
+        </p><p>
+          The server uses the host cache for several purposes:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              By caching the results of IP-to-host name lookups, the
+              server avoids doing a Domain Name System (DNS) lookup for
+              each client connection. Instead, for a given host, it
+              needs to perform a lookup only for the first connection
+              from that host.
+            </p></li><li class="listitem"><p>
+              The cache contains information about errors that occur
+              during the client connection process. Some errors are
+              considered <span class="quote">&ldquo;<span class="quote">blocking.</span>&rdquo;</span> If too many of these
+              occur successively from a given host without a successful
+              connection, the server blocks further connections from
+              that host. The
+              <a class="link" href="server-system-variables.html#sysvar_max_connect_errors"><code class="literal">max_connect_errors</code></a> system
+              variable determines the permitted number of successive
+              errors before blocking occurs.
+            </p></li></ul></div><p>
+          For each applicable new client connection, the server uses the
+          client IP address to check whether the client host name is in
+          the host cache. If so, the server refuses or continues to
+          process the connection request depending on whether or not the
+          host is blocked. If the host is not in the cache, the server
+          attempts to resolve the host name. First, it resolves the IP
+          address to a host name and resolves that host name back to an
+          IP address. Then it compares the result to the original IP
+          address to ensure that they are the same. The server stores
+          information about the result of this operation in the host
+          cache. If the cache is full, the least recently used entry is
+          discarded.
+        </p><p>
+          The server performs host name resolution using the
+          <code class="literal">getaddrinfo()</code> system call.
+        </p><p>
+          The server handles entries in the host cache like this:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              When the first TCP client connection reaches the server
+              from a given IP address, a new cache entry is created to
+              record the client IP, host name, and client lookup
+              validation flag. Initially, the host name is set to
+              <code class="literal">NULL</code> and the flag is false. This entry
+              is also used for subsequent client TCP connections from
+              the same originating IP.
+            </p></li><li class="listitem"><p>
+              If the validation flag for the client IP entry is false,
+              the server attempts an IP-to-host name-to-IP DNS
+              resolution. If that is successful, the host name is
+              updated with the resolved host name and the validation
+              flag is set to true. If resolution is unsuccessful, the
+              action taken depends on whether the error is permanent or
+              transient. For permanent failures, the host name remains
+              <code class="literal">NULL</code> and the validation flag is set to
+              true. For transient failures, the host name and validation
+              flag remain unchanged. (In this case, another DNS
+              resolution attempt occurs the next time a client connects
+              from this IP.)
+            </p></li><li class="listitem"><p>
+              If an error occurs while processing an incoming client
+              connection from a given IP address, the server updates the
+              corresponding error counters in the entry for that IP. For
+              a description of the errors recorded, see
+              <a class="xref" href="performance-schema-host-cache-table.html" title="27.12.21.2&nbsp;The host_cache Table">Section&nbsp;27.12.21.2, &ldquo;The host_cache Table&rdquo;</a>.
+            </p></li></ol></div><p>
+          To unblock blocked hosts, flush the host cache; see
+          <a class="xref" href="host-cache.html#blocked-host" title="Dealing with Blocked Hosts">Dealing with Blocked Hosts</a>.
+        </p><p>
+          It is possible for a blocked host to become unblocked even
+          without flushing the host cache if activity from other hosts
+          occurs:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              If the cache is full when a connection arrives from a
+              client IP not in the cache, the server discards the least
+              recently used cache entry to make room for the new entry.
+            </p></li><li class="listitem"><p>
+              If the discarded entry is for a blocked host, that host
+              becomes unblocked.
+            </p></li></ul></div><p>
+          Some connection errors are not associated with TCP
+          connections, occur very early in the connection process (even
+          before an IP address is known), or are not specific to any
+          particular IP address (such as out-of-memory conditions). For
+          information about these errors, check the
+          <a class="link" href="server-status-variables.html#statvar_Connection_errors_xxx"><code class="literal">Connection_errors_<em class="replaceable"><code>xxx</code></em></code></a>
+          status variables (see
+          <a class="xref" href="server-status-variables.html" title="5.1.10&nbsp;Server Status Variables">Section&nbsp;5.1.10, &ldquo;Server Status Variables&rdquo;</a>).
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="host-cache-configuration"></a>Configuring the Host Cache</h5></div></div></div><p>
+          The host cache is enabled by default. The
+          <a class="link" href="server-system-variables.html#sysvar_host_cache_size"><code class="literal">host_cache_size</code></a> system
+          variable controls its size, as well as the size of the
+          Performance Schema <a class="link" href="performance-schema-host-cache-table.html" title="27.12.21.2&nbsp;The host_cache Table"><code class="literal">host_cache</code></a>
+          table that exposes the cache contents. The cache size can be
+          set at server startup and changed at runtime. For example, to
+          set the size to 100 at startup, put these lines in the server
+          <code class="filename">my.cnf</code> file:
+        </p><pre class="programlisting">[mysqld]
+host_cache_size=200
+</pre><p>
+          To change the size to 300 at runtime, do this:
+        </p><pre class="programlisting">SET GLOBAL host_cache_size=300;
+</pre><p>
+          Setting <code class="literal">host_cache_size</code> to 0, either at
+          server startup or at runtime, disables the host cache. With
+          the cache disabled, the server performs a DNS lookup every
+          time a client connects.
+        </p><p>
+          Changing the cache size at runtime causes an implicit host
+          cache flushing operation that clears the host cache, truncates
+          the <a class="link" href="performance-schema-host-cache-table.html" title="27.12.21.2&nbsp;The host_cache Table"><code class="literal">host_cache</code></a> table, and
+          unblocks any blocked hosts; see
+          <a class="xref" href="host-cache.html#host-cache-flushing" title="Flushing the Host Cache">Flushing the Host Cache</a>.
+        </p><p>
+          Using the <a class="link" href="server-options.html#option_mysqld_skip-host-cache"><code class="option">--skip-host-cache</code></a>
+          option is similar to setting the
+          <a class="link" href="server-system-variables.html#sysvar_host_cache_size"><code class="literal">host_cache_size</code></a> system
+          variable to 0, but
+          <a class="link" href="server-system-variables.html#sysvar_host_cache_size"><code class="literal">host_cache_size</code></a> is more
+          flexible because it can also be used to resize, enable, and
+          disable the host cache at runtime, not just at server startup.
+          Starting the server with
+          <a class="link" href="server-options.html#option_mysqld_skip-host-cache"><code class="option">--skip-host-cache</code></a> does not
+          prevent runtime changes to the value of
+          <a class="link" href="server-system-variables.html#sysvar_host_cache_size"><code class="literal">host_cache_size</code></a>, but such
+          changes have no effect and the cache is not re-enabled even if
+          <a class="link" href="server-system-variables.html#sysvar_host_cache_size"><code class="literal">host_cache_size</code></a> is set larger
+          than 0.
+        </p><p>
+          To disable DNS host name lookups, start the server with the
+          <a class="link" href="server-system-variables.html#sysvar_skip_name_resolve"><code class="literal">skip_name_resolve</code></a> system
+          variable enabled. In this case, the server uses only IP
+          addresses and not host names to match connecting hosts to rows
+          in the MySQL grant tables. Only accounts specified in those
+          tables using IP addresses can be used. (A client may not be
+          able to connect if no account exists that specifies the client
+          IP address.)
+        </p><p>
+          If you have a very slow DNS and many hosts, you might be able
+          to improve performance either by enabling
+          <a class="link" href="server-system-variables.html#sysvar_skip_name_resolve"><code class="literal">skip_name_resolve</code></a> to disable
+          DNS lookups, or by increasing the value of
+          <a class="link" href="server-system-variables.html#sysvar_host_cache_size"><code class="literal">host_cache_size</code></a> to make the
+          host cache larger.
+        </p><p>
+          To disallow TCP/IP connections entirely, start the server with
+          the <a class="link" href="server-system-variables.html#sysvar_skip_networking"><code class="literal">skip_networking</code></a> system
+          variable enabled.
+        </p><p>
+          To adjust the permitted number of successive connection errors
+          before host blocking occurs, set the
+          <a class="link" href="server-system-variables.html#sysvar_max_connect_errors"><code class="literal">max_connect_errors</code></a> system
+          variable. For example, to set the value at startup put these
+          lines in the server <code class="filename">my.cnf</code> file:
+        </p><pre class="programlisting">[mysqld]
+max_connect_errors=10000
+</pre><p>
+          To change the value at runtime, do this:
+        </p><pre class="programlisting">SET GLOBAL max_connect_errors=10000;
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="host-cache-monitoring"></a>Monitoring the Host Cache</h5></div></div></div><p>
+          The Performance Schema <a class="link" href="performance-schema-host-cache-table.html" title="27.12.21.2&nbsp;The host_cache Table"><code class="literal">host_cache</code></a>
+          table exposes the contents of the host cache. This table can
+          be examined using <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>
+          statements, which may help you diagnose the causes of
+          connection problems. For information about this table, see
+          <a class="xref" href="performance-schema-host-cache-table.html" title="27.12.21.2&nbsp;The host_cache Table">Section&nbsp;27.12.21.2, &ldquo;The host_cache Table&rdquo;</a>.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="host-cache-flushing"></a>Flushing the Host Cache</h5></div></div></div><p>
+          Flushing the host cache might be advisable or desirable under
+          these conditions:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Some of your client hosts change IP address.
+            </p></li><li class="listitem"><p>
+              The error message <code class="literal">Host
+              &#39;<em class="replaceable"><code>host_name</code></em>&#39; is
+              blocked</code> occurs for connections from legitimate
+              hosts. (See <a class="xref" href="host-cache.html#blocked-host" title="Dealing with Blocked Hosts">Dealing with Blocked Hosts</a>.)
+            </p></li></ul></div><p>
+          Flushing the host cache has these effects:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              It clears the in-memory host cache.
+            </p></li><li class="listitem"><p>
+              It removes all rows from the Performance Schema
+              <a class="link" href="performance-schema-host-cache-table.html" title="27.12.21.2&nbsp;The host_cache Table"><code class="literal">host_cache</code></a> table that exposes
+              the cache contents.
+            </p></li><li class="listitem"><p>
+              It unblocks any blocked hosts. This enables further
+              connection attempts from those hosts.
+            </p></li></ul></div><p>
+          To flush the host cache, use any of these methods:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Change the value of the
+              <a class="link" href="server-system-variables.html#sysvar_host_cache_size"><code class="literal">host_cache_size</code></a> system
+              variable. This requires the
+              <a class="link" href="privileges-provided.html#priv_system-variables-admin"><code class="literal">SYSTEM_VARIABLES_ADMIN</code></a>
+              privilege (or the deprecated
+              <a class="link" href="privileges-provided.html#priv_super"><code class="literal">SUPER</code></a> privilege).
+            </p></li><li class="listitem"><p>
+              Execute a <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a>
+              statement that truncates the Performance Schema
+              <a class="link" href="performance-schema-host-cache-table.html" title="27.12.21.2&nbsp;The host_cache Table"><code class="literal">host_cache</code></a> table. This
+              requires the <a class="link" href="privileges-provided.html#priv_drop"><code class="literal">DROP</code></a> privilege
+              for the table.
+            </p></li><li class="listitem"><p>
+              Execute a <a class="link" href="flush.html#flush-hosts"><code class="literal">FLUSH HOSTS</code></a>
+              statement. This requires the
+              <a class="link" href="privileges-provided.html#priv_reload"><code class="literal">RELOAD</code></a> privilege.
+            </p></li><li class="listitem"><p>
+              Execute a <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin flush-hosts</strong></span></a>
+              command. This requires the
+              <a class="link" href="privileges-provided.html#priv_drop"><code class="literal">DROP</code></a> privilege for the
+              Performance Schema <a class="link" href="performance-schema-host-cache-table.html" title="27.12.21.2&nbsp;The host_cache Table"><code class="literal">host_cache</code></a>
+              table or the <a class="link" href="privileges-provided.html#priv_reload"><code class="literal">RELOAD</code></a>
+              privilege.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="blocked-host"></a>Dealing with Blocked Hosts</h5></div></div></div><a id="idm45828988337824" class="indexterm"></a><a id="idm45828988336768" class="indexterm"></a><p>
+          The server uses the host cache to track errors that occur
+          during the client connection process. If the following error
+          occurs, it means that <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> has received
+          many connection requests from the given host that were
+          interrupted in the middle:
+        </p><pre class="programlisting">Host &#39;<em class="replaceable"><code>host_name</code></em>&#39; is blocked because of many connection errors.
+Unblock with &#39;mysqladmin flush-hosts&#39;
+</pre><p>
+          The value of the
+          <a class="link" href="server-system-variables.html#sysvar_max_connect_errors"><code class="literal">max_connect_errors</code></a> system
+          variable determines how many successive interrupted connection
+          requests the server permits before blocking a host. After
+          <a class="link" href="server-system-variables.html#sysvar_max_connect_errors"><code class="literal">max_connect_errors</code></a> failed
+          requests without a successful connection, the server assumes
+          that something is wrong (for example, that someone is trying
+          to break in), and blocks the host from further connection
+          requests.
+        </p><p>
+          To unblock blocked hosts, flush the host cache; see
+          <a class="xref" href="host-cache.html#host-cache-flushing" title="Flushing the Host Cache">Flushing the Host Cache</a>.
+        </p><p>
+          Alternatively, to avoid having the error message occur, set
+          <a class="link" href="server-system-variables.html#sysvar_max_connect_errors"><code class="literal">max_connect_errors</code></a> as
+          described in <a class="xref" href="host-cache.html#host-cache-configuration" title="Configuring the Host Cache">Configuring the Host Cache</a>. The
+          default value of
+          <a class="link" href="server-system-variables.html#sysvar_max_connect_errors"><code class="literal">max_connect_errors</code></a> is 100.
+          Increasing <a class="link" href="server-system-variables.html#sysvar_max_connect_errors"><code class="literal">max_connect_errors</code></a>
+          to a large value makes it less likely that a host reaches the
+          threshold and becomes blocked. However, if the <code class="literal">Host
+          &#39;<em class="replaceable"><code>host_name</code></em>&#39; is blocked</code>
+          error message occurs, first verify that there is nothing wrong
+          with TCP/IP connections from the blocked hosts. It does no
+          good to increase the value of
+          <a class="link" href="server-system-variables.html#sysvar_max_connect_errors"><code class="literal">max_connect_errors</code></a> if there
+          are network problems.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="administrative-connection-interface.html">Previous <span class="navHint"> Administrative Connection Management </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="connection-management.html">Up <span class="navHint"> Connection Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="ipv6-support.html">Next <span class="navHint"> IPv6 Support </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

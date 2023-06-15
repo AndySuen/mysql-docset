@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.5.1 PREPARE Statement</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="sql-prepared-statements.html" title="13.5 Prepared Statements" /><link rel="prev" href="sql-prepared-statements.html" title="13.5 Prepared Statements" /><link rel="next" href="execute.html" title="13.5.2 EXECUTE Statement" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="prepare.html#prepare">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="sql-prepared-statements.html">Previous <span class="navHint"> Prepared Statements </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="sql-prepared-statements.html">Up <span class="navHint"> Prepared Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="execute.html">Next <span class="navHint"> EXECUTE Statement </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="prepare"></a>13.5.1 PREPARE Statement</h3></div></div></div><a id="idm45828902038208" class="indexterm"></a><a id="idm45828902037136" class="indexterm"></a><pre class="programlisting">PREPARE <em class="replaceable"><code>stmt_name</code></em> FROM <em class="replaceable"><code>preparable_stmt</code></em>
+</pre><p>
+      The <a class="link" href="prepare.html" title="13.5.1 PREPARE Statement"><code class="literal">PREPARE</code></a> statement prepares a
+      SQL statement and assigns it a name,
+      <em class="replaceable"><code>stmt_name</code></em>, by which to refer to the
+      statement later. The prepared statement is executed with
+      <a class="link" href="execute.html" title="13.5.2 EXECUTE Statement"><code class="literal">EXECUTE</code></a> and released with
+      <a class="link" href="deallocate-prepare.html" title="13.5.3 DEALLOCATE PREPARE Statement"><code class="literal">DEALLOCATE PREPARE</code></a>. For examples,
+      see <a class="xref" href="sql-prepared-statements.html" title="13.5 Prepared Statements">Section 13.5, “Prepared Statements”</a>.
+    </p><p>
+      Statement names are not case-sensitive.
+      <em class="replaceable"><code>preparable_stmt</code></em> is either a string
+      literal or a user variable that contains the text of the SQL
+      statement. The text must represent a single statement, not
+      multiple statements. Within the statement, <code class="literal">?</code>
+      characters can be used as parameter markers to indicate where data
+      values are to be bound to the query later when you execute it. The
+      <code class="literal">?</code> characters should not be enclosed within
+      quotation marks, even if you intend to bind them to string values.
+      Parameter markers can be used only where data values should
+      appear, not for SQL keywords, identifiers, and so forth.
+    </p><p>
+      If a prepared statement with the given name already exists, it is
+      deallocated implicitly before the new statement is prepared. This
+      means that if the new statement contains an error and cannot be
+      prepared, an error is returned and no statement with the given
+      name exists.
+    </p><p>
+      The scope of a prepared statement is the session within which it
+      is created, which as several implications:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          A prepared statement created in one session is not available
+          to other sessions.
+        </p></li><li class="listitem"><p>
+          When a session ends, whether normally or abnormally, its
+          prepared statements no longer exist. If auto-reconnect is
+          enabled, the client is not notified that the connection was
+          lost. For this reason, clients may wish to disable
+          auto-reconnect. See <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/c-api-auto-reconnect.html" target="_top">Automatic Reconnection Control</a>.
+        </p></li><li class="listitem"><p>
+          A prepared statement created within a stored program continues
+          to exist after the program finishes executing and can be
+          executed outside the program later.
+        </p></li><li class="listitem"><p>
+          A statement prepared in stored program context cannot refer to
+          stored procedure or function parameters or local variables
+          because they go out of scope when the program ends and would
+          be unavailable were the statement to be executed later outside
+          the program. As a workaround, refer instead to user-defined
+          variables, which also have session scope; see
+          <a class="xref" href="user-variables.html" title="9.4 User-Defined Variables">Section 9.4, “User-Defined Variables”</a>.
+        </p></li></ul></div><p>
+      Beginning with MySQL 8.0.22, a parameter used in a prepared
+      statement has its type determined when the statement is first
+      prepared, and retains this type whenever
+      <a class="link" href="execute.html" title="13.5.2 EXECUTE Statement"><code class="literal">EXECUTE</code></a> is invoked for this
+      prepared statement (unless the statement is reprepared, as
+      explained later in this section). Rules for determining a
+      parameter's type are listed here:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          A parameter which is an operand of a binary arithmetic
+          operator has the same data type as the other operand.
+        </p></li><li class="listitem"><p>
+          If both operands of a binary arithmetic operator are
+          parameters, the type of the parameters is decided by the
+          context of the operator.
+        </p></li><li class="listitem"><p>
+          If a parameter is the operand of a unary arithmetic operator,
+          the parameter's type is decided by the context of the
+          operator.
+        </p></li><li class="listitem"><p>
+          If an arithmetic operator has no type-determining context, the
+          derived type for any parameters involved is
+          <a class="link" href="floating-point-types.html" title="11.1.4 Floating-Point Types (Approximate Value) - FLOAT, DOUBLE"><code class="literal">DOUBLE PRECISION</code></a>. This can
+          happen, for example, when the parameter is a top-level node in
+          a <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> list, or when it is
+          part of a comparison operator.
+        </p></li><li class="listitem"><p>
+          A parameter which is an operand of a character string operator
+          has the same derived type as the aggregated type of the other
+          operands. If all operands of the operator are parameters, the
+          derived type is <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>; its
+          collation is determined by the value of
+          <a class="link" href="server-system-variables.html#sysvar_collation_connection"><code class="literal">collation_connection</code></a>.
+        </p></li><li class="listitem"><p>
+          A parameter which is an operand of a temporal operator has
+          type <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATETIME</code></a> if the operator
+          returns a <code class="literal">DATETIME</code>,
+          <a class="link" href="time.html" title="11.2.3 The TIME Type"><code class="literal">TIME</code></a> if the operator returns a
+          <code class="literal">TIME</code>, and
+          <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a> if the operator returns a
+          <code class="literal">DATE</code>.
+        </p></li><li class="listitem"><p>
+          A parameter which is an operand of a binary comparison
+          operator has the same derived type as the other operand of the
+          comparison.
+        </p></li><li class="listitem"><p>
+          A parameter that is an operand of a ternary comparison
+          operator such as <a class="link" href="comparison-operators.html#operator_between"><code class="literal">BETWEEN</code></a> has the
+          same derived type as the aggregated type of the other
+          operands.
+        </p></li><li class="listitem"><p>
+          If all operands of a comparison operator are parameters, the
+          derived type for each of them is
+          <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>, with collation
+          determined by the value of
+          <a class="link" href="server-system-variables.html#sysvar_collation_connection"><code class="literal">collation_connection</code></a>.
+        </p></li><li class="listitem"><p>
+          A parameter that is an output operand of any of
+          <a class="link" href="flow-control-functions.html#operator_case"><code class="literal">CASE</code></a>,
+          <a class="link" href="comparison-operators.html#function_coalesce"><code class="literal">COALESCE</code></a>,
+          <a class="link" href="flow-control-functions.html#function_if"><code class="literal">IF</code></a>,
+          <a class="link" href="flow-control-functions.html#function_ifnull"><code class="literal">IFNULL</code></a>, or
+          <a class="link" href="flow-control-functions.html#function_nullif"><code class="literal">NULLIF</code></a> has the same derived
+          type as the aggregated type of the operator's other
+          output operands.
+        </p></li><li class="listitem"><p>
+          If all output operands of any of
+          <a class="link" href="flow-control-functions.html#operator_case"><code class="literal">CASE</code></a>,
+          <a class="link" href="comparison-operators.html#function_coalesce"><code class="literal">COALESCE</code></a>,
+          <a class="link" href="flow-control-functions.html#function_if"><code class="literal">IF</code></a>,
+          <a class="link" href="flow-control-functions.html#function_ifnull"><code class="literal">IFNULL</code></a>, or
+          <a class="link" href="flow-control-functions.html#function_nullif"><code class="literal">NULLIF</code></a> are parameters, or they
+          are all <code class="literal">NULL</code>, the type of the parameter is
+          decided by the context of the operator.
+        </p></li><li class="listitem"><p>
+          If the parameter is an operand of any of
+          <a class="link" href="flow-control-functions.html#operator_case"><code class="literal">CASE</code></a>,
+          <a class="link" href="comparison-operators.html#function_coalesce"><code class="literal">COALESCE()</code></a>,
+          <a class="link" href="flow-control-functions.html#function_if"><code class="literal">IF</code></a>, or
+          <a class="link" href="flow-control-functions.html#function_ifnull"><code class="literal">IFNULL</code></a>, and has no
+          type-determining context, the derived type for each of the
+          parameters involved is <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>,
+          and its collation is determined by the value of
+          <a class="link" href="server-system-variables.html#sysvar_collation_connection"><code class="literal">collation_connection</code></a>.
+        </p></li><li class="listitem"><p>
+          A parameter which is the operand of a
+          <a class="link" href="cast-functions.html#function_cast"><code class="literal">CAST()</code></a> has the same type as
+          specified by the <code class="literal">CAST()</code>.
+        </p></li><li class="listitem"><p>
+          If a parameter is an immediate member of a
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> list that is not part of
+          an <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement, the
+          derived type of the parameter is
+          <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>, and its collation is
+          determined by the value of
+          <a class="link" href="server-system-variables.html#sysvar_collation_connection"><code class="literal">collation_connection</code></a>.
+        </p></li><li class="listitem"><p>
+          If a parameter is an immediate member of a
+          <code class="literal">SELECT</code> list that is part of an
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement, the derived
+          type of the parameter is the type of the corresponding column
+          into which the parameter is inserted.
+        </p></li><li class="listitem"><p>
+          If a parameter is used as source for an assignment in a
+          <code class="literal">SET</code> clause of an
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> statement or in the
+          <code class="literal">ON DUPLICATE KEY UPDATE</code> clause of an
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement, the derived
+          type of the parameter is the type of the corresponding column
+          which is updated by the <code class="literal">SET</code> or <code class="literal">ON
+          DUPLICATE KEY UPDATE</code> clause.
+        </p></li><li class="listitem"><p>
+          If a parameter is an argument of a function, the derived type
+          depends on the function's return type.
+        </p></li></ul></div><p>
+      For some combinations of actual type and derived type, an
+      automatic repreparation of the statement is triggered, to ensure
+      closer compatibility with previous versions of MySQL.
+      Repreparation does not occur if any of the following conditions
+      are true:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">NULL</code> is used as the actual parameter value.
+        </p></li><li class="listitem"><p>
+          A parameter is an operand of a
+          <a class="link" href="cast-functions.html#function_cast"><code class="literal">CAST()</code></a>. (Instead, a cast to the
+          derived type is attempted, and an exception raised if the cast
+          fails.)
+        </p></li><li class="listitem"><p>
+          A parameter is a string. (In this case, an implicit
+          <code class="literal">CAST(? AS
+          <em class="replaceable"><code>derived_type</code></em>)</code> is
+          performed.)
+        </p></li><li class="listitem"><p>
+          The derived type and actual type of the parameter are both
+          <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INTEGER</code></a> and have the same sign.
+        </p></li><li class="listitem"><p>
+          The parameter's derived type is
+          <a class="link" href="fixed-point-types.html" title="11.1.3 Fixed-Point Types (Exact Value) - DECIMAL, NUMERIC"><code class="literal">DECIMAL</code></a> and its actual type is
+          either <code class="literal">DECIMAL</code> or
+          <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INTEGER</code></a>.
+        </p></li><li class="listitem"><p>
+          The derived type is <a class="link" href="floating-point-types.html" title="11.1.4 Floating-Point Types (Approximate Value) - FLOAT, DOUBLE"><code class="literal">DOUBLE</code></a> and
+          the actual type is any numeric type.
+        </p></li><li class="listitem"><p>
+          Both the derived type and the actual type are string types.
+        </p></li><li class="listitem"><p>
+          If the derived type is temporal and the actual type is
+          temporal. <span class="emphasis"><em>Exceptions</em></span>: The derived type is
+          <a class="link" href="time.html" title="11.2.3 The TIME Type"><code class="literal">TIME</code></a> and the actual type is not
+          <code class="literal">TIME</code>; the derived type is
+          <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a> and the actual type is not
+          <code class="literal">DATE</code>.
+        </p></li><li class="listitem"><p>
+          The derived type is temporal and the actual type is numeric.
+        </p></li></ul></div><p>
+      For cases other than those just listed, the statement is
+      reprepared and the actual parameter types are used instead of the
+      derived parameter types.
+    </p><p>
+      These rules also apply to a user variable referenced in a prepared
+      statement.
+    </p><p>
+      Using a different data type for a given parameter or user variable
+      within a prepared statement for executions of the statement
+      subsequent to the first execution causes the statement to be
+      reprepared. This is less efficient; it may also lead to the
+      parameter's (or variable's) actual type to vary, and
+      thus for results to be inconsistent, with subsequent executions of
+      the prepared statement. For these reasons, it is advisable to use
+      the same data type for a given parameter when re-executing a
+      prepared statement.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="sql-prepared-statements.html">Previous <span class="navHint"> Prepared Statements </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sql-prepared-statements.html">Up <span class="navHint"> Prepared Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="execute.html">Next <span class="navHint"> EXECUTE Statement </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

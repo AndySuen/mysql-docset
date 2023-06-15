@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>18.2.1.2 Configuring an Instance for Group Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="group-replication-deploying-in-single-primary-mode.html" title="18.2.1 Deploying Group Replication in Single-Primary Mode" /><link rel="prev" href="group-replication-deploying-instances.html" title="18.2.1.1 Deploying Instances for Group Replication" /><link rel="next" href="group-replication-user-credentials.html" title="18.2.1.3 User Credentials For Distributed Recovery" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-configuring-instances.html#group-replication-configuring-instances">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-replication-deploying-instances.html">Previous <span class="navHint"> Deploying Instances for Group Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="group-replication-deploying-in-single-primary-mode.html">Up <span class="navHint"> Deploying Group Replication in Single-Primary Mode </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-user-credentials.html">Next <span class="navHint"> User Credentials For Distributed Recovery </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="group-replication-configuring-instances"></a>18.2.1.2 Configuring an Instance for Group Replication</h4></div></div></div><a id="idm45828855288000" class="indexterm"></a><p>
+        This section explains the configuration settings required for
+        MySQL Server instances that you want to use for Group
+        Replication. For background information, see
+        <a class="xref" href="group-replication-requirements-and-limitations.html" title="18.3 Requirements and Limitations">Section 18.3, “Requirements and Limitations”</a>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="group-replication-configuring-instances.html#group-replication-storage-engines" title="Storage Engines">Storage Engines</a></p></li><li class="listitem"><p><a class="xref" href="group-replication-configuring-instances.html#group-replication-configure-replication-framework" title="Replication Framework">Replication Framework</a></p></li><li class="listitem"><p><a class="xref" href="group-replication-configuring-instances.html#group-replication-configure-plugin" title="Group Replication Settings">Group Replication Settings</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-storage-engines"></a>Storage Engines</h5></div></div></div><p>
+          For Group Replication, data must be stored in the InnoDB
+          transactional storage engine (for details of why, see
+          <a class="xref" href="group-replication-requirements.html" title="18.3.1 Group Replication Requirements">Section 18.3.1, “Group Replication Requirements”</a>). The use of
+          other storage engines, including the temporary
+          <a class="link" href="memory-storage-engine.html" title="16.3 The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> storage engine, might
+          cause errors in Group Replication. Set the
+          <a class="link" href="server-system-variables.html#sysvar_disabled_storage_engines"><code class="literal">disabled_storage_engines</code></a>
+          system variable as follows to prevent their use:
+        </p><pre class="programlisting">disabled_storage_engines="MyISAM,BLACKHOLE,FEDERATED,ARCHIVE,MEMORY"
+</pre><p>
+          Note that with the <a class="link" href="myisam-storage-engine.html" title="16.2 The MyISAM Storage Engine"><code class="literal">MyISAM</code></a> storage
+          engine disabled, when you are upgrading a MySQL instance to a
+          release where <a class="link" href="mysql-upgrade.html" title="4.4.5 mysql_upgrade — Check and Upgrade MySQL Tables"><span class="command"><strong>mysql_upgrade</strong></span></a> is still used
+          (before MySQL 8.0.16), <a class="link" href="mysql-upgrade.html" title="4.4.5 mysql_upgrade — Check and Upgrade MySQL Tables"><span class="command"><strong>mysql_upgrade</strong></span></a> might
+          fail with an error. To handle this, you can re-enable that
+          storage engine while you run <a class="link" href="mysql-upgrade.html" title="4.4.5 mysql_upgrade — Check and Upgrade MySQL Tables"><span class="command"><strong>mysql_upgrade</strong></span></a>,
+          then disable it again when you restart the server. For more
+          information, see <a class="xref" href="mysql-upgrade.html" title="4.4.5 mysql_upgrade — Check and Upgrade MySQL Tables">Section 4.4.5, “mysql_upgrade — Check and Upgrade MySQL Tables”</a>.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-configure-replication-framework"></a>Replication Framework</h5></div></div></div><p>
+          The following settings configure replication according to the
+          MySQL Group Replication requirements.
+        </p><pre class="programlisting">server_id=1
+gtid_mode=ON
+enforce_gtid_consistency=ON</pre><p>
+          These settings configure the server to use the unique
+          identifier number 1, to enable
+          <a class="xref" href="replication-gtids.html" title="17.1.3 Replication with Global Transaction Identifiers">Section 17.1.3, “Replication with Global Transaction Identifiers”</a>, and to allow execution of
+          only statements that can be safely logged using a GTID.
+        </p><p>
+          Up to and including MySQL 8.0.20, the following setting is
+          also required:
+        </p><pre class="programlisting">binlog_checksum=NONE
+</pre><p>
+          This setting disables checksums for events written to the
+          binary log, which default to being enabled. From MySQL 8.0.21,
+          Group Replication supports the presence of checksums in the
+          binary log and can use them to verify the integrity of events
+          on some channels, so you can use the default setting. For more
+          details, see <a class="xref" href="group-replication-limitations.html" title="18.3.2 Group Replication Limitations">Section 18.3.2, “Group Replication Limitations”</a>.
+        </p><p>
+          If you are using a version of MySQL earlier than 8.0.3, where
+          the defaults were improved for replication, you also need to
+          add these lines to the member's option file. If you have any
+          of these system variables in the option file in later
+          versions, ensure that they are set as shown. For more details
+          see <a class="xref" href="group-replication-requirements.html" title="18.3.1 Group Replication Requirements">Section 18.3.1, “Group Replication Requirements”</a>.
+        </p><pre class="programlisting">log_bin=binlog
+log_slave_updates=ON
+binlog_format=ROW
+master_info_repository=TABLE
+relay_log_info_repository=TABLE
+transaction_write_set_extraction=XXHASH64
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-configure-plugin"></a>Group Replication Settings</h5></div></div></div><p>
+          At this point the option file ensures that the server is
+          configured and is instructed to instantiate the replication
+          infrastructure under a given configuration. The following
+          section configures the Group Replication settings for the
+          server.
+        </p><pre class="programlisting">plugin_load_add='group_replication.so'
+group_replication_group_name="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+group_replication_start_on_boot=off
+group_replication_local_address= "s1:33061"
+group_replication_group_seeds= "s1:33061,s2:33061,s3:33061"
+group_replication_bootstrap_group=off
+</pre><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="option">plugin-load-add</code> adds the Group
+              Replication plugin to the list of plugins which the server
+              loads at startup. This is preferable in a production
+              deployment to installing the plugin manually.
+            </p></li><li class="listitem"><p>
+              Configuring
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_group_name"><code class="literal">group_replication_group_name</code></a>
+              tells the plugin that the group that it is joining, or
+              creating, is named
+              "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".
+            </p><p>
+              The value of
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_group_name"><code class="literal">group_replication_group_name</code></a>
+              must be a valid UUID. You can use <code class="literal">SELECT
+              UUID()</code> to generate one. This UUID forms part of
+              the GTIDs that are used when transactions received by
+              group members from clients, and view change events that
+              are generated internally by the group members, are written
+              to the binary log.
+            </p></li><li class="listitem"><p>
+              Configuring the
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_start_on_boot"><code class="literal">group_replication_start_on_boot</code></a>
+              variable to <code class="literal">off</code> instructs the plugin to
+              not start operations automatically when the server starts.
+              This is important when setting up Group Replication as it
+              ensures you can configure the server before manually
+              starting the plugin. Once the member is configured you can
+              set
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_start_on_boot"><code class="literal">group_replication_start_on_boot</code></a>
+              to <code class="literal">on</code> so that Group Replication starts
+              automatically upon server boot.
+            </p></li><li class="listitem"><p>
+              Configuring
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>
+              sets the network address and port which the member uses
+              for internal communication with other members in the
+              group. Group Replication uses this address for internal
+              member-to-member connections involving remote instances of
+              the group communication engine (XCom, a Paxos variant).
+            </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+                The group replication local address must be different to
+                the host name and port used for SQL client connections,
+                which are defined by MySQL Server's
+                <a class="link" href="server-system-variables.html#sysvar_hostname"><code class="literal">hostname</code></a> and
+                <a class="link" href="server-system-variables.html#sysvar_port"><code class="literal">port</code></a> system variables.
+                It must not be used for client applications. It must be
+                only be used for internal communication between the
+                members of the group while running Group Replication.
+              </p></div><p>
+              The network address configured by
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>
+              must be resolvable by all group members. For example, if
+              each server instance is on a different machine with a
+              fixed network address, you could use the IP address of the
+              machine, such as 10.0.0.1. If you use a host name, you
+              must use a fully qualified name, and ensure it is
+              resolvable through DNS, correctly configured
+              <code class="literal">/etc/hosts</code> files, or other name
+              resolution processes. From MySQL 8.0.14, IPv6 addresses
+              (or host names that resolve to them) can be used as well
+              as IPv4 addresses. A group can contain a mix of members
+              using IPv6 and members using IPv4. For more information on
+              Group Replication support for IPv6 networks and on mixed
+              IPv4 and IPv6 groups, see
+              <a class="xref" href="group-replication-ipv6.html" title="18.5.5 Support For IPv6 And For Mixed IPv6 And IPv4 Groups">Section 18.5.5, “Support For IPv6 And For Mixed IPv6 And IPv4 Groups”</a>.
+            </p><p>
+              The recommended port for
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>
+              is 33061.
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>
+              is used by Group Replication as the unique identifier for
+              a group member within the replication group. You can use
+              the same port for all members of a replication group as
+              long as the host names or IP addresses are all different,
+              as demonstrated in this tutorial. Alternatively you can
+              use the same host name or IP address for all members as
+              long as the ports are all different, for example as shown
+              in <a class="xref" href="group-replication-deploying-locally.html" title="18.2.2 Deploying Group Replication Locally">Section 18.2.2, “Deploying Group Replication Locally”</a>.
+            </p><p>
+              The connection that an existing member offers to a joining
+              member for Group Replication's distributed recovery
+              process is not the network address configured by
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>.
+              Up to MySQL 8.0.20, group members offer their standard SQL
+              client connection to joining members for distributed
+              recovery, as specified by MySQL Server's
+              <a class="link" href="server-system-variables.html#sysvar_hostname"><code class="literal">hostname</code></a> and
+              <a class="link" href="server-system-variables.html#sysvar_port"><code class="literal">port</code></a> system variables.
+              From MySQL 8.0.21, group members may advertise an
+              alternative list of distributed recovery endpoints as
+              dedicated client connections for joining members. For more
+              details, see
+              <a class="xref" href="group-replication-distributed-recovery-connections.html" title="18.5.4.1 Connections for Distributed Recovery">Section 18.5.4.1, “Connections for Distributed Recovery”</a>.
+            </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+                Distributed recovery can fail if a joining member cannot
+                correctly identify the other members using the host name
+                as defined by MySQL Server's
+                <a class="link" href="server-system-variables.html#sysvar_hostname"><code class="literal">hostname</code></a> system
+                variable. It is recommended that operating systems
+                running MySQL have a properly configured unique host
+                name, either using DNS or local settings. The host name
+                that the server is using for SQL client connections can
+                be verified in the <code class="literal">Member_host</code> column
+                of the Performance Schema table
+                <a class="link" href="performance-schema-replication-group-members-table.html" title="27.12.11.11 The replication_group_members Table"><code class="literal">replication_group_members</code></a>.
+                If multiple group members externalize a default host
+                name set by the operating system, there is a chance of
+                the joining member not resolving it to the correct
+                member address and not being able to connect for
+                distributed recovery. In this situation you can use
+                MySQL Server's
+                <a class="link" href="replication-options-replica.html#sysvar_report_host"><code class="literal">report_host</code></a> system
+                variable to configure a unique host name to be
+                externalized by each of the servers.
+              </p></div></li><li class="listitem"><p>
+              Configuring
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_group_seeds"><code class="literal">group_replication_group_seeds</code></a>
+              sets the hostname and port of the group members which are
+              used by the new member to establish its connection to the
+              group. These members are called the seed members. Once the
+              connection is established, the group membership
+              information is listed in the Performance Schema table
+              <a class="link" href="performance-schema-replication-group-members-table.html" title="27.12.11.11 The replication_group_members Table"><code class="literal">replication_group_members</code></a>.
+              Usually the
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_group_seeds"><code class="literal">group_replication_group_seeds</code></a>
+              list contains the <code class="literal">hostname:port</code> of each
+              of the group member's
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>,
+              but this is not obligatory and a subset of the group
+              members can be chosen as seeds.
+            </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+                The <code class="literal">hostname:port</code> listed in
+                <a class="link" href="group-replication-options.html#sysvar_group_replication_group_seeds"><code class="literal">group_replication_group_seeds</code></a>
+                is the seed member's internal network address,
+                configured by
+                <a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>
+                and not the <code class="literal">hostname:port</code> used for
+                SQL client connections, which is shown for example in
+                the Performance Schema table
+                <a class="link" href="performance-schema-replication-group-members-table.html" title="27.12.11.11 The replication_group_members Table"><code class="literal">replication_group_members</code></a>.
+              </p></div><p>
+              The server that starts the group does not make use of this
+              option, since it is the initial server and as such, it is
+              in charge of bootstrapping the group. In other words, any
+              existing data which is on the server bootstrapping the
+              group is what is used as the data for the next joining
+              member. The second server joining asks the one and only
+              member in the group to join, any missing data on the
+              second server is replicated from the donor data on the
+              bootstrapping member, and then the group expands. The
+              third server joining can ask any of these two to join,
+              data is synchronized to the new member, and then the group
+              expands again. Subsequent servers repeat this procedure
+              when joining.
+            </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+                When joining multiple servers at the same time, make
+                sure that they point to seed members that are already in
+                the group. Do not use members that are also joining the
+                group as seeds, because they might not yet be in the
+                group when contacted.
+              </p><p>
+                It is good practice to start the bootstrap member first,
+                and let it create the group. Then make it the seed
+                member for the rest of the members that are joining.
+                This ensures that there is a group formed when joining
+                the rest of the members.
+              </p><p>
+                Creating a group and joining multiple members at the
+                same time is not supported. It might work, but chances
+                are that the operations race and then the act of joining
+                the group ends up in an error or a time out.
+              </p></div><p>
+              A joining member must communicate with a seed member using
+              the same protocol (IPv4 or IPv6) that the seed member
+              advertises in the
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_group_seeds"><code class="literal">group_replication_group_seeds</code></a>
+              option. For the purpose of IP address permissions for
+              Group Replication, the allowlist on the seed member must
+              include an IP address for the joining member for the
+              protocol offered by the seed member, or a host name that
+              resolves to an address for that protocol. This address or
+              host name must be set up and permitted in addition to the
+              joining member's
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>
+              if the protocol for that address does not match the seed
+              member's advertised protocol. If a joining member does not
+              have a permitted address for the appropriate protocol, its
+              connection attempt is refused. For more information, see
+              <a class="xref" href="group-replication-ip-address-permissions.html" title="18.6.4 Group Replication IP Address Permissions">Section 18.6.4, “Group Replication IP Address Permissions”</a>.
+            </p></li><li class="listitem"><p>
+              Configuring
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_bootstrap_group"><code class="literal">group_replication_bootstrap_group</code></a>
+              instructs the plugin whether to bootstrap the group or
+              not. In this case, even though s1 is the first member of
+              the group we set this variable to off in the option file.
+              Instead we configure
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_bootstrap_group"><code class="literal">group_replication_bootstrap_group</code></a>
+              when the instance is running, to ensure that only one
+              member actually bootstraps the group.
+            </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+                The
+                <a class="link" href="group-replication-options.html#sysvar_group_replication_bootstrap_group"><code class="literal">group_replication_bootstrap_group</code></a>
+                variable must only be enabled on one server instance
+                belonging to a group at any time, usually the first time
+                you bootstrap the group (or in case the entire group is
+                brought down and back up again). If you bootstrap the
+                group multiple times, for example when multiple server
+                instances have this option set, then they could create
+                an artificial split brain scenario, in which two
+                distinct groups with the same name exist. Always set
+                <a class="link" href="group-replication-options.html#sysvar_group_replication_bootstrap_group"><code class="literal">group_replication_bootstrap_group=off</code></a>
+                after the first server instance comes online.
+              </p></div></li></ul></div><p>
+          The system variables described in this tutorial are the
+          required configuration settings to start a new member, but
+          further system variables are also available to configure group
+          members. These are listed in
+          <a class="xref" href="group-replication-options.html" title="18.9 Group Replication System Variables">Section 18.9, “Group Replication System Variables”</a>.
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            A number of system variables, some specific to Group
+            Replication and others not, are group-wide configuration
+            settings that must have the same value on all group members.
+            If the group members have a value set for one of these
+            system variables, and a joining member has a different value
+            set for it, the joining member cannot join the group and an
+            error message is returned. If the group members have a value
+            set for this system variable, and the joining member does
+            not support the system variable, it cannot join the group.
+            These system variables are all identified in
+            <a class="xref" href="group-replication-options.html" title="18.9 Group Replication System Variables">Section 18.9, “Group Replication System Variables”</a>.
+          </p></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-deploying-instances.html">Previous <span class="navHint"> Deploying Instances for Group Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-deploying-in-single-primary-mode.html">Up <span class="navHint"> Deploying Group Replication in Single-Primary Mode </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-user-credentials.html">Next <span class="navHint"> User Credentials For Distributed Recovery </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

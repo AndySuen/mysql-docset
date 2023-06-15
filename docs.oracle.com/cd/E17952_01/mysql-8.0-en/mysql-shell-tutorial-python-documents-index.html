@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>20.4.3.6 Create and Drop Indexes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-shell-tutorial-python-documents-collections.html" title="20.4.3 Documents and Collections" /><link rel="prev" href="mysql-shell-tutorial-python-documents-remove.html" title="20.4.3.5 Remove Documents" /><link rel="next" href="mysql-shell-tutorial-python-relational-tables.html" title="20.4.4 Relational Tables" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-shell-tutorial-python-documents-index.html#mysql-shell-tutorial-python-documents-index">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-shell-tutorial-python-documents-remove.html">Previous <span class="navHint"> Remove Documents </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-shell-tutorial-python-documents-collections.html">Up <span class="navHint"> Documents and Collections </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-shell-tutorial-python-relational-tables.html">Next <span class="navHint"> Relational Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-shell-tutorial-python-documents-index"></a>20.4.3.6 Create and Drop Indexes</h4></div></div></div><a id="idm45828848506736" class="indexterm"></a><p>
+        Indexes are used to find documents with specific field values
+        quickly. Without an index, MySQL must begin with the first
+        document and then read through the entire collection to find the
+        relevant fields. The larger the collection, the more this costs.
+        If a collection is large and queries on a specific field are
+        common, then consider creating an index on a specific field
+        inside a document.
+      </p><p>
+        For example, the following query performs better with an index
+        on the Population field:
+      </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.find("demographics.Population &lt; 100")</code></strong>
+...[<span class="emphasis"><em>output removed</em></span>]
+8 documents in set (0.00 sec)
+</pre><p>
+        The <code class="literal">create_index()</code> method creates an index
+        that you can define with a JSON document that specifies which
+        fields to use. This section is a high level overview of
+        indexing. For more information see
+        <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/x-devapi-userguide-en/collection-indexing.html" target="_top">Indexing Collections</a>.
+      </p><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="mysql-shell-tutorial-python-nonunique-index"></a>Add a Nonunique Index</h5></div></div></div><a id="idm45828848498320" class="indexterm"></a><p>
+          To create a nonunique index, pass an index name and the index
+          information to the <code class="literal">create_index()</code> method.
+          Duplicate index names are prohibited.
+        </p><p>
+          The following example specifies an index named
+          <code class="literal">popul</code>, defined against the
+          <code class="literal">Population</code> field from the
+          <code class="literal">demographics</code> object, indexed as an
+          <code class="literal">Integer</code> numeric value. The final parameter
+          indicates whether the field should require the <code class="literal">NOT
+          NULL</code> constraint. If the value is
+          <code class="literal">false</code>, the field can contain
+          <code class="literal">NULL</code> values. The index information is a
+          JSON document with details of one or more fields to include in
+          the index. Each field definition must include the full
+          document path to the field, and specify the type of the field.
+        </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.createIndex("popul", {fields:
+[{field: '$.demographics.Population', type: 'INTEGER'}]})</code></strong>
+</pre><p>
+          Here, the index is created using an integer numeric value.
+          Further options are available, including options for use with
+          GeoJSON data. You can also specify the type of index, which
+          has been omitted here because the default type
+          <span class="quote">“<span class="quote">index</span>”</span> is appropriate.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="mysql-shell-tutorial-python-unique-index"></a>Add a Unique Index</h5></div></div></div><a id="idm45828848485440" class="indexterm"></a><p>
+          To create a unique index, pass an index name, the index
+          definition, and the index type <span class="quote">“<span class="quote">unique</span>”</span> to the
+          <code class="literal">create_index()</code> method. This example shows a
+          unique index created on the country name
+          (<code class="literal">"Name"</code>), which is another common field in
+          the <code class="literal">countryinfo</code> collection to index. In the
+          index field description, <code class="literal">"TEXT(40)"</code>
+          represents the number of characters to index, and
+          <code class="literal">"required": True</code> specifies that the field
+          is required to exist in the document.
+        </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.create_index("name",
+{"fields": [{"field": "$.Name", "type": "TEXT(40)", "required": True}], "unique": True})</code></strong>
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="mysql-shell-tutorial-python-drop-index"></a>Drop an Index</h5></div></div></div><a id="idm45828848476048" class="indexterm"></a><p>
+          To drop an index, pass the name of the index to drop to the
+          <code class="literal">drop_index()</code> method. For example, you can
+          drop the <span class="quote">“<span class="quote">popul</span>”</span> index as follows:
+        </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.drop_index("popul")</code></strong>
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="idm45828848471104"></a>Related Information</h5></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              See <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/x-devapi-userguide-en/collection-indexing.html" target="_top">Indexing Collections</a> for more
+              information.
+            </p></li><li class="listitem"><p>
+              See <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/x-devapi-userguide-en/collection-indexing.html#collection-index-definitions" target="_top">Defining an Index</a> for
+              more information on the JSON document that defines an
+              index.
+            </p></li><li class="listitem"><p>
+              See
+              <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/x-devapi-userguide-en/crud-ebnf-collection-index-management-functions.html" target="_top">Collection Index Management Functions</a>
+              for the full syntax definition.
+            </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-shell-tutorial-python-documents-remove.html">Previous <span class="navHint"> Remove Documents </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-shell-tutorial-python-documents-collections.html">Up <span class="navHint"> Documents and Collections </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-shell-tutorial-python-relational-tables.html">Next <span class="navHint"> Relational Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

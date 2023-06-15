@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.7.5.1 An InnoDB Deadlock Example</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-deadlocks.html" title="15.7.5 Deadlocks in InnoDB" /><link rel="prev" href="innodb-deadlocks.html" title="15.7.5 Deadlocks in InnoDB" /><link rel="next" href="innodb-deadlock-detection.html" title="15.7.5.2 Deadlock Detection" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-deadlock-example.html#innodb-deadlock-example">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-deadlocks.html">Previous <span class="navHint"> Deadlocks in InnoDB </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-deadlocks.html">Up <span class="navHint"> Deadlocks in InnoDB </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-deadlock-detection.html">Next <span class="navHint"> Deadlock Detection </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-deadlock-example"></a>15.7.5.1 An InnoDB Deadlock Example</h4></div></div></div><a id="idm45828888863104" class="indexterm"></a><a id="idm45828888861648" class="indexterm"></a><p>
+        The following example illustrates how an error can occur when a
+        lock request causes a deadlock. The example involves two
+        clients, A and B.
+      </p><p>
+        InnoDB status contains details of the last deadlock. For
+        frequent deadlocks, enable global variable
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_print_all_deadlocks"><code class="literal">innodb_print_all_deadlocks</code></a>.
+        This adds deadlock information to the error log.
+      </p><p>
+        Client A enables
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_print_all_deadlocks"><code class="literal">innodb_print_all_deadlocks</code></a>,
+        creates two tables, 'Animals' and 'Birds', and inserts data into
+        each. Client A begins a transaction, and selects a row in
+        Animals in share mode:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET GLOBAL innodb_print_all_deadlocks = ON;</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>CREATE TABLE Animals (name VARCHAR(10) PRIMARY KEY, value INT) ENGINE = InnoDB;</code></strong>
+Query OK, 0 rows affected (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>CREATE TABLE Birds (name VARCHAR(10) PRIMARY KEY, value INT) ENGINE = InnoDB;</code></strong>
+Query OK, 0 rows affected (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO Animals (name,value) VALUES ("Aardvark",10);</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO Birds (name,value) VALUES ("Buzzard",20);</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>START TRANSACTION;</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT value FROM Animals WHERE name='Aardvark' FOR SHARE;</code></strong>
++-------+
+| value |
++-------+
+|    10 |
++-------+
+1 row in set (0.00 sec)
+</pre><p>
+        Next, client B begins a transaction, and selects a row in Birds
+        in share mode:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>START TRANSACTION;</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT value FROM Birds WHERE name='Buzzard' FOR SHARE;</code></strong>
++-------+
+| value |
++-------+
+|    20 |
++-------+
+1 row in set (0.00 sec)
+</pre><p>
+        The Performance Schema shows the locks after the two select
+        statements:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ENGINE_TRANSACTION_ID as Trx_Id, 
+              OBJECT_NAME as `Table`, 
+              INDEX_NAME as `Index`, 
+              LOCK_DATA as Data, 
+              LOCK_MODE as Mode, 
+              LOCK_STATUS as Status, 
+              LOCK_TYPE as Type 
+        FROM performance_schema.data_locks;</code></strong>
++-----------------+---------+---------+------------+---------------+---------+--------+
+| Trx_Id          | Table   | Index   | Data       | Mode          | Status  | Type   |
++-----------------+---------+---------+------------+---------------+---------+--------+
+| 421291106147544 | Animals | NULL    | NULL       | IS            | GRANTED | TABLE  |
+| 421291106147544 | Animals | PRIMARY | 'Aardvark' | S,REC_NOT_GAP | GRANTED | RECORD |
+| 421291106148352 | Birds   | NULL    | NULL       | IS            | GRANTED | TABLE  |
+| 421291106148352 | Birds   | PRIMARY | 'Buzzard'  | S,REC_NOT_GAP | GRANTED | RECORD |
++-----------------+---------+---------+------------+---------------+---------+--------+
+4 rows in set (0.00 sec)
+</pre><p>
+        Client B then updates a row in Animals:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE Animals SET value=30 WHERE name='Aardvark';</code></strong>
+</pre><p>
+        Client B has to wait. The Performance Schema shows the wait for
+        a lock:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT REQUESTING_ENGINE_LOCK_ID as Req_Lock_Id,
+              REQUESTING_ENGINE_TRANSACTION_ID as Req_Trx_Id,
+              BLOCKING_ENGINE_LOCK_ID as Blk_Lock_Id, 
+              BLOCKING_ENGINE_TRANSACTION_ID as Blk_Trx_Id
+        FROM performance_schema.data_lock_waits;</code></strong>
++----------------------------------------+------------+----------------------------------------+-----------------+
+| Req_Lock_Id                            | Req_Trx_Id | Blk_Lock_Id                            | Blk_Trx_Id      |
++----------------------------------------+------------+----------------------------------------+-----------------+
+| 139816129437696:27:4:2:139816016601240 |      43260 | 139816129436888:27:4:2:139816016594720 | 421291106147544 |
++----------------------------------------+------------+----------------------------------------+-----------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ENGINE_LOCK_ID as Lock_Id, 
+              ENGINE_TRANSACTION_ID as Trx_id, 
+              OBJECT_NAME as `Table`, 
+              INDEX_NAME as `Index`, 
+              LOCK_DATA as Data, 
+              LOCK_MODE as Mode, 
+              LOCK_STATUS as Status, 
+              LOCK_TYPE as Type 
+        FROM performance_schema.data_locks;</code></strong>
++----------------------------------------+-----------------+---------+---------+------------+---------------+---------+--------+
+| Lock_Id                                | Trx_Id          | Table   | Index   | Data       | Mode          | Status  | Type   |
++----------------------------------------+-----------------+---------+---------+------------+---------------+---------+--------+
+| 139816129437696:1187:139816016603896   |           43260 | Animals | NULL    | NULL       | IX            | GRANTED | TABLE  |
+| 139816129437696:1188:139816016603808   |           43260 | Birds   | NULL    | NULL       | IS            | GRANTED | TABLE  |
+| 139816129437696:28:4:2:139816016600896 |           43260 | Birds   | PRIMARY | 'Buzzard'  | S,REC_NOT_GAP | GRANTED | RECORD |
+| 139816129437696:27:4:2:139816016601240 |           43260 | Animals | PRIMARY | 'Aardvark' | X,REC_NOT_GAP | WAITING | RECORD |
+| 139816129436888:1187:139816016597712   | 421291106147544 | Animals | NULL    | NULL       | IS            | GRANTED | TABLE  |
+| 139816129436888:27:4:2:139816016594720 | 421291106147544 | Animals | PRIMARY | 'Aardvark' | S,REC_NOT_GAP | GRANTED | RECORD |
++----------------------------------------+-----------------+---------+---------+------------+---------------+---------+--------+
+6 rows in set (0.00 sec)
+</pre><p>
+        InnoDB only uses sequential transaction ids when a transaction
+        attempts to modify the database. Thererfore, the previous
+        read-only transaction id changes from 421291106148352 to 43260.
+      </p><p>
+        If client A attempts to update a row in Birds at the same time,
+        this will lead to a deadlock:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE Birds SET value=40 WHERE name='Buzzard';</code></strong>
+ERROR 1213 (40001): Deadlock found when trying to get lock; try restarting transaction
+</pre><p>
+        InnoDB rolls back the transaction that caused the deadlock. The
+        first update, from Client B, can now proceed.
+      </p><p>
+        The Information Schema contains the number of deadlocks:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT `count` FROM INFORMATION_SCHEMA.INNODB_METRICS
+          WHERE NAME="lock_deadlocks";</code></strong>
++-------+
+| count |
++-------+
+|     1 |
++-------+
+1 row in set (0.00 sec)
+</pre><p>
+        The InnoDB status contains the following information about the
+        deadlock and transactions. It also shows that the read-only
+        transaction id 421291106147544 changes to sequential transaction
+        id 43261.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW ENGINE INNODB STATUS;</code></strong>
+------------------------
+LATEST DETECTED DEADLOCK
+------------------------
+2022-11-25 15:58:22 139815661168384
+*** (1) TRANSACTION:
+TRANSACTION 43260, ACTIVE 186 sec starting index read
+mysql tables in use 1, locked 1
+LOCK WAIT 4 lock struct(s), heap size 1128, 2 row lock(s)
+MySQL thread id 19, OS thread handle 139815619204864, query id 143 localhost u2 updating
+UPDATE Animals SET value=30 WHERE name='Aardvark'
+
+*** (1) HOLDS THE LOCK(S):
+RECORD LOCKS space id 28 page no 4 n bits 72 index PRIMARY of table `test`.`Birds` trx id 43260 lock mode S locks rec but not gap
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
+ 0: len 7; hex 42757a7a617264; asc Buzzard;;
+ 1: len 6; hex 00000000a8fb; asc       ;;
+ 2: len 7; hex 82000000e40110; asc        ;;
+ 3: len 4; hex 80000014; asc     ;;
+
+
+*** (1) WAITING FOR THIS LOCK TO BE GRANTED:
+RECORD LOCKS space id 27 page no 4 n bits 72 index PRIMARY of table `test`.`Animals` trx id 43260 lock_mode X locks rec but not gap waiting
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
+ 0: len 8; hex 416172647661726b; asc Aardvark;;
+ 1: len 6; hex 00000000a8f9; asc       ;;
+ 2: len 7; hex 82000000e20110; asc        ;;
+ 3: len 4; hex 8000000a; asc     ;;
+
+
+*** (2) TRANSACTION:
+TRANSACTION 43261, ACTIVE 209 sec starting index read
+mysql tables in use 1, locked 1
+LOCK WAIT 4 lock struct(s), heap size 1128, 2 row lock(s)
+MySQL thread id 18, OS thread handle 139815618148096, query id 146 localhost u1 updating
+UPDATE Birds SET value=40 WHERE name='Buzzard'
+
+*** (2) HOLDS THE LOCK(S):
+RECORD LOCKS space id 27 page no 4 n bits 72 index PRIMARY of table `test`.`Animals` trx id 43261 lock mode S locks rec but not gap
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
+ 0: len 8; hex 416172647661726b; asc Aardvark;;
+ 1: len 6; hex 00000000a8f9; asc       ;;
+ 2: len 7; hex 82000000e20110; asc        ;;
+ 3: len 4; hex 8000000a; asc     ;;
+
+
+*** (2) WAITING FOR THIS LOCK TO BE GRANTED:
+RECORD LOCKS space id 28 page no 4 n bits 72 index PRIMARY of table `test`.`Birds` trx id 43261 lock_mode X locks rec but not gap waiting
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
+ 0: len 7; hex 42757a7a617264; asc Buzzard;;
+ 1: len 6; hex 00000000a8fb; asc       ;;
+ 2: len 7; hex 82000000e40110; asc        ;;
+ 3: len 4; hex 80000014; asc     ;;
+
+*** WE ROLL BACK TRANSACTION (2)
+------------
+TRANSACTIONS
+------------
+Trx id counter 43262
+Purge done for trx's n:o &lt; 43256 undo n:o &lt; 0 state: running but idle
+History list length 0
+LIST OF TRANSACTIONS FOR EACH SESSION:
+---TRANSACTION 421291106147544, not started
+0 lock struct(s), heap size 1128, 0 row lock(s)
+---TRANSACTION 421291106146736, not started
+0 lock struct(s), heap size 1128, 0 row lock(s)
+---TRANSACTION 421291106145928, not started
+0 lock struct(s), heap size 1128, 0 row lock(s)
+---TRANSACTION 43260, ACTIVE 219 sec
+4 lock struct(s), heap size 1128, 2 row lock(s), undo log entries 1
+MySQL thread id 19, OS thread handle 139815619204864, query id 143 localhost u2
+</pre><p>
+        The error log contains this information about transactions and
+        locks:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT @@log_error;</code></strong>
++---------------------+
+| @@log_error         |
++---------------------+
+| /var/log/mysqld.log |
++---------------------+
+1 row in set (0.00 sec)
+
+TRANSACTION 43260, ACTIVE 186 sec starting index read
+mysql tables in use 1, locked 1
+LOCK WAIT 4 lock struct(s), heap size 1128, 2 row lock(s)
+MySQL thread id 19, OS thread handle 139815619204864, query id 143 localhost u2 updating
+UPDATE Animals SET value=30 WHERE name='Aardvark'
+RECORD LOCKS space id 28 page no 4 n bits 72 index PRIMARY of table `test`.`Birds` trx id 43260 lock mode S locks rec but not gap
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
+ 0: len 7; hex 42757a7a617264; asc Buzzard;;
+ 1: len 6; hex 00000000a8fb; asc       ;;
+ 2: len 7; hex 82000000e40110; asc        ;;
+ 3: len 4; hex 80000014; asc     ;;
+
+RECORD LOCKS space id 27 page no 4 n bits 72 index PRIMARY of table `test`.`Animals` trx id 43260 lock_mode X locks rec but not gap waiting
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
+ 0: len 8; hex 416172647661726b; asc Aardvark;;
+ 1: len 6; hex 00000000a8f9; asc       ;;
+ 2: len 7; hex 82000000e20110; asc        ;;
+ 3: len 4; hex 8000000a; asc     ;;
+
+TRANSACTION 43261, ACTIVE 209 sec starting index read
+mysql tables in use 1, locked 1
+LOCK WAIT 4 lock struct(s), heap size 1128, 2 row lock(s)
+MySQL thread id 18, OS thread handle 139815618148096, query id 146 localhost u1 updating
+UPDATE Birds SET value=40 WHERE name='Buzzard'
+RECORD LOCKS space id 27 page no 4 n bits 72 index PRIMARY of table `test`.`Animals` trx id 43261 lock mode S locks rec but not gap
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
+ 0: len 8; hex 416172647661726b; asc Aardvark;;
+ 1: len 6; hex 00000000a8f9; asc       ;;
+ 2: len 7; hex 82000000e20110; asc        ;;
+ 3: len 4; hex 8000000a; asc     ;;
+
+RECORD LOCKS space id 28 page no 4 n bits 72 index PRIMARY of table `test`.`Birds` trx id 43261 lock_mode X locks rec but not gap waiting
+Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
+ 0: len 7; hex 42757a7a617264; asc Buzzard;;
+ 1: len 6; hex 00000000a8fb; asc       ;;
+ 2: len 7; hex 82000000e40110; asc        ;;
+ 3: len 4; hex 80000014; asc     ;;
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-deadlocks.html">Previous <span class="navHint"> Deadlocks in InnoDB </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-deadlocks.html">Up <span class="navHint"> Deadlocks in InnoDB </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-deadlock-detection.html">Next <span class="navHint"> Deadlock Detection </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

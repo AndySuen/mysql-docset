@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.1.2.8 Adding Replicas to a Replication Environment</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-howto.html" title="17.1.2 Setting Up Binary Log File Position Based Replication" /><link rel="prev" href="replication-howto-slaveinit.html" title="17.1.2.7 Setting the Source Configuration on the Replica" /><link rel="next" href="replication-gtids.html" title="17.1.3 Replication with Global Transaction Identifiers" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-howto-additionalslaves.html#replication-howto-additionalslaves">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-howto-slaveinit.html">Previous <span class="navHint"> Setting the Source Configuration on the Replica </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-howto.html">Up <span class="navHint"> Setting Up Binary Log File Position Based Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-gtids.html">Next <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-howto-additionalslaves"></a>17.1.2.8 Adding Replicas to a Replication Environment</h4></div></div></div><p>
+        You can add another replica to an existing replication
+        configuration without stopping the source server. To do this,
+        you can set up the new replica by copying the data directory of
+        an existing replica, and giving the new replica a different
+        server ID (which is user-specified) and server UUID (which is
+        generated at startup).
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          If the replication source server or existing replica that you
+          are copying to create the new replica has any scheduled
+          events, ensure that these are disabled on the new replica
+          before you start it. If an event runs on the new replica that
+          has already run on the source, the duplicated operation causes
+          an error. The Event Scheduler is controlled by the
+          <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> system
+          variable, which defaults to <code class="literal">ON</code> from MySQL
+          8.0, so events that are active on the original server run by
+          default when the new replica starts up. To stop all events
+          from running on the new replica, set the
+          <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> system
+          variable to <code class="literal">OFF</code> or
+          <code class="literal">DISABLED</code> on the new replica. Alternatively,
+          you can use the <a class="link" href="alter-event.html" title="13.1.3 ALTER EVENT Statement"><code class="literal">ALTER EVENT</code></a>
+          statement to set individual events to
+          <code class="literal">DISABLE</code> or <code class="literal">DISABLE ON
+          SLAVE</code> to prevent them from running on the new
+          replica. You can list the events on a server using the
+          <a class="link" href="show.html" title="13.7.7 SHOW Statements"><code class="literal">SHOW</code></a> statement or the
+          Information Schema <a class="link" href="information-schema-events-table.html" title="26.3.14 The INFORMATION_SCHEMA EVENTS Table"><code class="literal">EVENTS</code></a> table.
+          For more information, see
+          <a class="xref" href="replication-features-invoked.html" title="17.5.1.16 Replication of Invoked Features">Section 17.5.1.16, “Replication of Invoked Features”</a>.
+        </p></div><p>
+        As an alternative to creating a new replica in this way, MySQL
+        Server's clone plugin can be used to transfer all the data and
+        replication settings from an existing replica to a clone. For
+        instructions to use this method, see
+        <a class="xref" href="clone-plugin-replication.html" title="5.6.7.7 Cloning for Replication">Section 5.6.7.7, “Cloning for Replication”</a>.
+      </p><p>
+        To duplicate an existing replica without cloning, follow these
+        steps:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Stop the existing replica and record the replica status
+            information, particularly the source binary log file and
+            relay log file positions. You can view the replica status
+            either in the Performance Schema replication tables (see
+            <a class="xref" href="performance-schema-replication-tables.html" title="27.12.11 Performance Schema Replication Tables">Section 27.12.11, “Performance Schema Replication Tables”</a>), or
+            by issuing
+            <a class="link" href="show-replica-status.html" title="13.7.7.35 SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+            REPLICA STATUS</code></a> as follows:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>STOP SLAVE;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW SLAVE STATUS\G</code></strong>
+Or from MySQL 8.0.22:
+mysql&gt; <strong class="userinput"><code>STOP REPLICA;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW REPLICA STATUS\G</code></strong>
+</pre></li><li class="listitem"><p>
+            Shut down the existing replica:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqladmin shutdown</code></strong>
+</pre></li><li class="listitem"><p>
+            Copy the data directory from the existing replica to the new
+            replica, including the log files and relay log files. You
+            can do this by creating an archive using
+            <span class="command"><strong>tar</strong></span> or <code class="literal">WinZip</code>, or by
+            performing a direct copy using a tool such as
+            <span class="command"><strong>cp</strong></span> or <span class="command"><strong>rsync</strong></span>.
+          </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  Before copying, verify that all the files relating to
+                  the existing replica actually are stored in the data
+                  directory. For example, the <code class="literal">InnoDB</code>
+                  system tablespace, undo tablespace, and redo log might
+                  be stored in an alternative location.
+                  <code class="literal">InnoDB</code> tablespace files and
+                  file-per-table tablespaces might have been created in
+                  other directories. The binary logs and relay logs for
+                  the replica might be in their own directories outside
+                  the data directory. Check through the system variables
+                  that are set for the existing replica and look for any
+                  alternative paths that have been specified. If you
+                  find any, copy these directories over as well.
+                </p></li><li class="listitem"><p>
+                  During copying, if files have been used for the
+                  replication metadata repositories (see
+                  <a class="xref" href="replica-logs.html" title="17.2.4 Relay Log and Replication Metadata Repositories">Section 17.2.4, “Relay Log and Replication Metadata Repositories”</a>), ensure that you also
+                  copy these files from the existing replica to the new
+                  replica. If tables have been used for the
+                  repositories, which is the default from MySQL 8.0, the
+                  tables are in the data directory.
+                </p></li><li class="listitem"><p>
+                  After copying, delete the
+                  <code class="filename">auto.cnf</code> file from the copy of
+                  the data directory on the new replica, so that the new
+                  replica is started with a different generated server
+                  UUID. The server UUID must be unique.
+                </p></li></ul></div></div><p>
+            A common problem that is encountered when adding new
+            replicas is that the new replica fails with a series of
+            warning and error messages like these:
+          </p><pre class="programlisting">071118 16:44:10 [Warning] Neither --relay-log nor --relay-log-index were used; so
+replication may break when this MySQL server acts as a replica and has his hostname
+changed!! Please use '--relay-log=<em class="replaceable"><code>new_replica_hostname</code></em>-relay-bin' to avoid this problem.
+<span class="errortext">071118 16:44:10 [ERROR] Failed to open the relay log './<em class="replaceable"><code>old_replica_hostname</code></em>-relay-bin.003525'
+(relay_log_pos 22940879)</span>
+071118 16:44:10 <span class="errortext">[ERROR] Could not find target log during relay log initialization</span>
+071118 16:44:10 <span class="errortext">[ERROR] Failed to initialize the master info structure</span>
+</pre><p>
+            This situation can occur if the
+            <a class="link" href="replication-options-replica.html#sysvar_relay_log"><code class="literal">relay_log</code></a> system variable
+            is not specified, as the relay log files contain the host
+            name as part of their file names. This is also true of the
+            relay log index file if the
+            <a class="link" href="replication-options-replica.html#sysvar_relay_log_index"><code class="literal">relay_log_index</code></a> system
+            variable is not used. For more information about these
+            variables, see <a class="xref" href="replication-options.html" title="17.1.6 Replication and Binary Logging Options and Variables">Section 17.1.6, “Replication and Binary Logging Options and Variables”</a>.
+          </p><p>
+            To avoid this problem, use the same value for
+            <a class="link" href="replication-options-replica.html#sysvar_relay_log"><code class="literal">relay_log</code></a> on the new
+            replica that was used on the existing replica. If this
+            option was not set explicitly on the existing replica, use
+            <code class="literal"><em class="replaceable"><code>existing_replica_hostname</code></em>-relay-bin</code>.
+            If this is not possible, copy the existing replica's relay
+            log index file to the new replica and set the
+            <a class="link" href="replication-options-replica.html#sysvar_relay_log_index"><code class="literal">relay_log_index</code></a> system
+            variable on the new replica to match what was used on the
+            existing replica. If this option was not set explicitly on
+            the existing replica, use
+            <code class="literal"><em class="replaceable"><code>existing_replica_hostname</code></em>-relay-bin.index</code>.
+            Alternatively, if you have already tried to start the new
+            replica after following the remaining steps in this section
+            and have encountered errors like those described previously,
+            then perform the following steps:
+          </p><div class="orderedlist"><ol class="orderedlist" type="a"><li class="listitem"><p>
+                If you have not already done so, issue
+                <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+                REPLICA</code></a> on the new replica.
+              </p><p>
+                If you have already started the existing replica again,
+                issue <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+                REPLICA</code></a> on the existing replica as well.
+              </p></li><li class="listitem"><p>
+                Copy the contents of the existing replica's relay log
+                index file into the new replica's relay log index file,
+                making sure to overwrite any content already in the
+                file.
+              </p></li><li class="listitem"><p>
+                Proceed with the remaining steps in this section.
+              </p></li></ol></div></li><li class="listitem"><p>
+            When copying is complete, restart the existing replica.
+          </p></li><li class="listitem"><p>
+            On the new replica, edit the configuration and give the new
+            replica a unique server ID (using the
+            <a class="link" href="replication-options.html#sysvar_server_id"><code class="literal">server_id</code></a> system variable)
+            that is not used by the source or any of the existing
+            replicas.
+          </p></li><li class="listitem"><p>
+            Start the new replica server, ensuring that replication does
+            not start yet by specifying the
+            <a class="link" href="replication-options-replica.html#option_mysqld_skip-slave-start"><code class="option">--skip-slave-start</code></a> option, or
+            from MySQL 8.0.24, the
+            <a class="link" href="replication-options-replica.html#sysvar_skip_slave_start"><code class="literal">skip_slave_start</code></a> system
+            variable. Use the Performance Schema replication tables or
+            issue
+            <a class="link" href="show-replica-status.html" title="13.7.7.35 SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+            REPLICA STATUS</code></a> to confirm that the new replica has
+            the correct settings when compared with the existing
+            replica. Also display the server ID and server UUID and
+            verify that these are correct and unique for the new
+            replica.
+          </p></li><li class="listitem"><p>
+            Start the replica threads by issuing a
+            <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+            REPLICA</code></a> statement. The new replica now uses the
+            information in its connection metadata repository to start
+            the replication process.
+          </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-howto-slaveinit.html">Previous <span class="navHint"> Setting the Source Configuration on the Replica </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-howto.html">Up <span class="navHint"> Setting Up Binary Log File Position Based Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-gtids.html">Next <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,395 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>12.17.8 JSON Utility Functions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="json-functions.html" title="12.17 JSON Functions" /><link rel="prev" href="json-validation-functions.html" title="12.17.7 JSON Schema Validation Functions" /><link rel="next" href="gtid-functions.html" title="12.18 Functions Used with Global Transaction Identifiers (GTIDs)" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="json-utility-functions.html#json-utility-functions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="json-validation-functions.html">Previous <span class="navHint"> JSON Schema Validation Functions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="json-functions.html">Up <span class="navHint"> JSON Functions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="gtid-functions.html">Next <span class="navHint"> Functions Used with Global Transaction Identifiers (GTIDs) </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="json-utility-functions"></a>12.17.8 JSON Utility Functions</h3></div></div></div><p>
+      This section documents utility functions that act on JSON values,
+      or strings that can be parsed as JSON values.
+      <a class="link" href="json-utility-functions.html#function_json-pretty"><code class="literal">JSON_PRETTY()</code></a> prints out a JSON
+      value in a format that is easy to read.
+      <a class="link" href="json-utility-functions.html#function_json-storage-size"><code class="literal">JSON_STORAGE_SIZE()</code></a> and
+      <a class="link" href="json-utility-functions.html#function_json-storage-free"><code class="literal">JSON_STORAGE_FREE()</code></a> show,
+      respectively, the amount of storage space used by a given JSON
+      value and the amount of space remaining in a
+      <code class="literal">JSON</code> column following a partial update.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><a id="function_json-pretty"></a><p>
+          <a class="link" href="json-utility-functions.html#function_json-pretty"><code class="literal">JSON_PRETTY(<em class="replaceable"><code>json_val</code></em>)</code></a>
+        </p><a id="idm45828920380896" class="indexterm"></a><p>
+          Provides pretty-printing of JSON values similar to that
+          implemented in PHP and by other languages and database
+          systems. The value supplied must be a JSON value or a valid
+          string representation of a JSON value. Extraneous whitespaces
+          and newlines present in this value have no effect on the
+          output. For a <code class="literal">NULL</code> value, the function
+          returns <code class="literal">NULL</code>. If the value is not a JSON
+          document, or if it cannot be parsed as one, the function fails
+          with an error.
+        </p><p>
+          Formatting of the output from this function adheres to the
+          following rules:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              Each array element or object member appears on a separate
+              line, indented by one additional level as compared to its
+              parent.
+            </p></li><li class="listitem"><p>
+              Each level of indentation adds two leading spaces.
+            </p></li><li class="listitem"><p>
+              A comma separating individual array elements or object
+              members is printed before the newline that separates the
+              two elements or members.
+            </p></li><li class="listitem"><p>
+              The key and the value of an object member are separated by
+              a colon followed by a space ('<code class="literal">: </code>').
+            </p></li><li class="listitem"><p>
+              An empty object or array is printed on a single line. No
+              space is printed between the opening and closing brace.
+            </p></li><li class="listitem"><p>
+              Special characters in string scalars and key names are
+              escaped employing the same rules used by the
+              <a class="link" href="json-creation-functions.html#function_json-quote"><code class="literal">JSON_QUOTE()</code></a> function.
+            </p></li></ul></div><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT JSON_PRETTY('123'); # scalar</code></strong>
++--------------------+
+| JSON_PRETTY('123') |
++--------------------+
+| 123                |
++--------------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT JSON_PRETTY("[1,3,5]"); # array</code></strong>
++------------------------+
+| JSON_PRETTY("[1,3,5]") |
++------------------------+
+| [
+  1,
+  3,
+  5
+]      |
++------------------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT JSON_PRETTY('{"a":"10","b":"15","x":"25"}'); # object</code></strong>
++---------------------------------------------+
+| JSON_PRETTY('{"a":"10","b":"15","x":"25"}') |
++---------------------------------------------+
+| {
+  "a": "10",
+  "b": "15",
+  "x": "25"
+}   |
++---------------------------------------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT JSON_PRETTY('["a",1,{"key1":</code></strong>
+    '&gt;    <strong class="userinput"><code>"value1"},"5",     "77" ,</code></strong>
+    '&gt;       <strong class="userinput"><code>{"key2":["value3","valueX",</code></strong>
+    '&gt; <strong class="userinput"><code>"valueY"]},"j", "2"   ]')\G  # nested arrays and objects</code></strong>
+*************************** 1. row ***************************
+JSON_PRETTY('["a",1,{"key1":
+             "value1"},"5",     "77" ,
+                {"key2":["value3","valuex",
+          "valuey"]},"j", "2"   ]'): [
+  "a",
+  1,
+  {
+    "key1": "value1"
+  },
+  "5",
+  "77",
+  {
+    "key2": [
+      "value3",
+      "valuex",
+      "valuey"
+    ]
+  },
+  "j",
+  "2"
+]
+</pre></li><li class="listitem"><a id="function_json-storage-free"></a><p>
+          <a class="link" href="json-utility-functions.html#function_json-storage-free"><code class="literal">JSON_STORAGE_FREE(<em class="replaceable"><code>json_val</code></em>)</code></a>
+        </p><a id="idm45828920355088" class="indexterm"></a><p>
+          For a <a class="link" href="json.html" title="11.5 The JSON Data Type"><code class="literal">JSON</code></a> column value, this
+          function shows how much storage space was freed in its binary
+          representation after it was updated in place using
+          <a class="link" href="json-modification-functions.html#function_json-set"><code class="literal">JSON_SET()</code></a>,
+          <a class="link" href="json-modification-functions.html#function_json-replace"><code class="literal">JSON_REPLACE()</code></a>, or
+          <a class="link" href="json-modification-functions.html#function_json-remove"><code class="literal">JSON_REMOVE()</code></a>. The argument can
+          also be a valid JSON document or a string which can be parsed
+          as one—either as a literal value or as the value of a
+          user variable—in which case the function returns 0. It
+          returns a positive, nonzero value if the argument is a
+          <code class="literal">JSON</code> column value which has been updated as
+          described previously, such that its binary representation
+          takes up less space than it did prior to the update. For a
+          <code class="literal">JSON</code> column which has been updated such
+          that its binary representation is the same as or larger than
+          before, or if the update was not able to take advantage of a
+          partial update, it returns 0; it returns
+          <code class="literal">NULL</code> if the argument is
+          <code class="literal">NULL</code>.
+        </p><p>
+          If <em class="replaceable"><code>json_val</code></em> is not
+          <code class="literal">NULL</code>, and neither is a valid JSON document
+          nor can be successfully parsed as one, an error results.
+        </p><p>
+          In this example, we create a table containing a
+          <code class="literal">JSON</code> column, then insert a row containing a
+          JSON object:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE jtable (jcol JSON);</code></strong>
+Query OK, 0 rows affected (0.38 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO jtable VALUES</code></strong>
+    -&gt;     <strong class="userinput"><code>('{"a": 10, "b": "wxyz", "c": "[true, false]"}');</code></strong>
+Query OK, 1 row affected (0.04 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM jtable;</code></strong>
++----------------------------------------------+
+| jcol                                         |
++----------------------------------------------+
+| {"a": 10, "b": "wxyz", "c": "[true, false]"} |
++----------------------------------------------+
+1 row in set (0.00 sec)
+</pre><p>
+          Now we update the column value using
+          <code class="literal">JSON_SET()</code> such that a partial update can
+          be performed; in this case, we replace the value pointed to by
+          the <code class="literal">c</code> key (the array <code class="literal">[true,
+          false]</code>) with one that takes up less space (the
+          integer <code class="literal">1</code>):
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE jtable</code></strong>
+    -&gt;     <strong class="userinput"><code>SET jcol = JSON_SET(jcol, "$.a", 10, "$.b", "wxyz", "$.c", 1);</code></strong>
+Query OK, 1 row affected (0.03 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM jtable;</code></strong>
++--------------------------------+
+| jcol                           |
++--------------------------------+
+| {"a": 10, "b": "wxyz", "c": 1} |
++--------------------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT JSON_STORAGE_FREE(jcol) FROM jtable;</code></strong>
++-------------------------+
+| JSON_STORAGE_FREE(jcol) |
++-------------------------+
+|                      14 |
++-------------------------+
+1 row in set (0.00 sec)
+</pre><p>
+          The effects of successive partial updates on this free space
+          are cumulative, as shown in this example using
+          <code class="literal">JSON_SET()</code> to reduce the space taken up by
+          the value having key <code class="literal">b</code> (and making no other
+          changes):
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE jtable</code></strong>
+    -&gt;     <strong class="userinput"><code>SET jcol = JSON_SET(jcol, "$.a", 10, "$.b", "wx", "$.c", 1);</code></strong>
+Query OK, 1 row affected (0.03 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>SELECT JSON_STORAGE_FREE(jcol) FROM jtable;</code></strong>
++-------------------------+
+| JSON_STORAGE_FREE(jcol) |
++-------------------------+
+|                      16 |
++-------------------------+
+1 row in set (0.00 sec)
+</pre><p>
+          Updating the column without using
+          <code class="literal">JSON_SET()</code>,
+          <code class="literal">JSON_REPLACE()</code>, or
+          <code class="literal">JSON_REMOVE()</code> means that the optimizer
+          cannot perform the update in place; in this case,
+          <code class="literal">JSON_STORAGE_FREE()</code> returns 0, as shown
+          here:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE jtable SET jcol = '{"a": 10, "b": 1}';</code></strong>
+Query OK, 1 row affected (0.05 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>SELECT JSON_STORAGE_FREE(jcol) FROM jtable;</code></strong>
++-------------------------+
+| JSON_STORAGE_FREE(jcol) |
++-------------------------+
+|                       0 |
++-------------------------+
+1 row in set (0.00 sec)
+</pre><p>
+          Partial updates of JSON documents can be performed only on
+          column values. For a user variable that stores a JSON value,
+          the value is always completely replaced, even when the update
+          is performed using <code class="literal">JSON_SET()</code>:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @j = '{"a": 10, "b": "wxyz", "c": "[true, false]"}';</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SET @j = JSON_SET(@j, '$.a', 10, '$.b', 'wxyz', '$.c', '1');</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @j, JSON_STORAGE_FREE(@j) AS Free;</code></strong>
++----------------------------------+------+
+| @j                               | Free |
++----------------------------------+------+
+| {"a": 10, "b": "wxyz", "c": "1"} |    0 |
++----------------------------------+------+
+1 row in set (0.00 sec)
+</pre><p>
+          For a JSON literal, this function always returns 0:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT JSON_STORAGE_FREE('{"a": 10, "b": "wxyz", "c": "1"}') AS Free;</code></strong>
++------+
+| Free |
++------+
+|    0 |
++------+
+1 row in set (0.00 sec)
+</pre></li><li class="listitem"><a id="function_json-storage-size"></a><p>
+          <a class="link" href="json-utility-functions.html#function_json-storage-size"><code class="literal">JSON_STORAGE_SIZE(<em class="replaceable"><code>json_val</code></em>)</code></a>
+        </p><a id="idm45828920304096" class="indexterm"></a><p>
+          This function returns the number of bytes used to store the
+          binary representation of a JSON document. When the argument is
+          a <code class="literal">JSON</code> column, this is the space used to
+          store the JSON document as it was inserted into the column,
+          prior to any partial updates that may have been performed on
+          it afterwards. <em class="replaceable"><code>json_val</code></em> must be a
+          valid JSON document or a string which can be parsed as one. In
+          the case where it is string, the function returns the amount
+          of storage space in the JSON binary representation that is
+          created by parsing the string as JSON and converting it to
+          binary. It returns <code class="literal">NULL</code> if the argument is
+          <code class="literal">NULL</code>.
+        </p><p>
+          An error results when <em class="replaceable"><code>json_val</code></em> is
+          not <code class="literal">NULL</code>, and is not—or cannot be
+          successfully parsed as—a JSON document.
+        </p><p>
+          To illustrate this function's behavior when used with a
+          <code class="literal">JSON</code> column as its argument, we create a
+          table named <code class="literal">jtable</code> containing a
+          <code class="literal">JSON</code> column <code class="literal">jcol</code>, insert
+          a JSON value into the table, then obtain the storage space
+          used by this column with
+          <code class="literal">JSON_STORAGE_SIZE()</code>, as shown here:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE jtable (jcol JSON);</code></strong>
+Query OK, 0 rows affected (0.42 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO jtable VALUES</code></strong>
+    -&gt;     <strong class="userinput"><code>('{"a": 1000, "b": "wxyz", "c": "[1, 3, 5, 7]"}');</code></strong>
+Query OK, 1 row affected (0.04 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+    -&gt;     <strong class="userinput"><code>jcol,</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_STORAGE_SIZE(jcol) AS Size,</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_STORAGE_FREE(jcol) AS Free</code></strong>
+    -&gt; <strong class="userinput"><code>FROM jtable;</code></strong>
++-----------------------------------------------+------+------+
+| jcol                                          | Size | Free |
++-----------------------------------------------+------+------+
+| {"a": 1000, "b": "wxyz", "c": "[1, 3, 5, 7]"} |   47 |    0 |
++-----------------------------------------------+------+------+
+1 row in set (0.00 sec)
+</pre><p>
+          According to the output of
+          <code class="literal">JSON_STORAGE_SIZE()</code>, the JSON document
+          inserted into the column takes up 47 bytes. We also checked
+          the amount of space freed by any previous partial updates of
+          the column using
+          <a class="link" href="json-utility-functions.html#function_json-storage-free"><code class="literal">JSON_STORAGE_FREE()</code></a>; since no
+          updates have yet been performed, this is 0, as expected.
+        </p><p>
+          Next we perform an <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> on
+          the table that should result in a partial update of the
+          document stored in <code class="literal">jcol</code>, and then test the
+          result as shown here:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE jtable SET jcol = </code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_SET(jcol, "$.b", "a");</code></strong>
+Query OK, 1 row affected (0.04 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+    -&gt;     <strong class="userinput"><code>jcol,</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_STORAGE_SIZE(jcol) AS Size,</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_STORAGE_FREE(jcol) AS Free</code></strong>
+    -&gt; <strong class="userinput"><code>FROM jtable;</code></strong>
++--------------------------------------------+------+------+
+| jcol                                       | Size | Free |
++--------------------------------------------+------+------+
+| {"a": 1000, "b": "a", "c": "[1, 3, 5, 7]"} |   47 |    3 |
++--------------------------------------------+------+------+
+1 row in set (0.00 sec)
+</pre><p>
+          The value returned by <code class="literal">JSON_STORAGE_FREE()</code>
+          in the previous query indicates that a partial update of the
+          JSON document was performed, and that this freed 3 bytes of
+          space used to store it. The result returned by
+          <code class="literal">JSON_STORAGE_SIZE()</code> is unchanged by the
+          partial update.
+        </p><p>
+          Partial updates are supported for updates using
+          <a class="link" href="json-modification-functions.html#function_json-set"><code class="literal">JSON_SET()</code></a>,
+          <a class="link" href="json-modification-functions.html#function_json-replace"><code class="literal">JSON_REPLACE()</code></a>, or
+          <a class="link" href="json-modification-functions.html#function_json-remove"><code class="literal">JSON_REMOVE()</code></a>. The direct
+          assignment of a value to a <code class="literal">JSON</code> column
+          cannot be partially updated; following such an update,
+          <code class="literal">JSON_STORAGE_SIZE()</code> always shows the
+          storage used for the newly-set value:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE jtable</code></strong>
+mysql&gt;     <strong class="userinput"><code>SET jcol = '{"a": 4.55, "b": "wxyz", "c": "[true, false]"}';</code></strong>
+Query OK, 1 row affected (0.04 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+    -&gt;     <strong class="userinput"><code>jcol,</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_STORAGE_SIZE(jcol) AS Size,</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_STORAGE_FREE(jcol) AS Free</code></strong>
+    -&gt; <strong class="userinput"><code>FROM jtable;</code></strong>
++------------------------------------------------+------+------+
+| jcol                                           | Size | Free |
++------------------------------------------------+------+------+
+| {"a": 4.55, "b": "wxyz", "c": "[true, false]"} |   56 |    0 |
++------------------------------------------------+------+------+
+1 row in set (0.00 sec)
+</pre><p>
+          A JSON user variable cannot be partially updated. This means
+          that this function always shows the space currently used to
+          store a JSON document in a user variable:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @j = '[100, "sakila", [1, 3, 5], 425.05]';</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @j, JSON_STORAGE_SIZE(@j) AS Size;</code></strong>
++------------------------------------+------+
+| @j                                 | Size |
++------------------------------------+------+
+| [100, "sakila", [1, 3, 5], 425.05] |   45 |
++------------------------------------+------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SET @j = JSON_SET(@j, '$[1]', "json");</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @j, JSON_STORAGE_SIZE(@j) AS Size;</code></strong>
++----------------------------------+------+
+| @j                               | Size |
++----------------------------------+------+
+| [100, "json", [1, 3, 5], 425.05] |   43 |
++----------------------------------+------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SET @j = JSON_SET(@j, '$[2][0]', JSON_ARRAY(10, 20, 30));</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @j, JSON_STORAGE_SIZE(@j) AS Size;</code></strong>
++---------------------------------------------+------+
+| @j                                          | Size |
++---------------------------------------------+------+
+| [100, "json", [[10, 20, 30], 3, 5], 425.05] |   56 |
++---------------------------------------------+------+
+1 row in set (0.00 sec)
+</pre><p>
+          For a JSON literal, this function always returns the current
+          storage space used:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_STORAGE_SIZE('[100, "sakila", [1, 3, 5], 425.05]') AS A,</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_STORAGE_SIZE('{"a": 1000, "b": "a", "c": "[1, 3, 5, 7]"}') AS B,</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_STORAGE_SIZE('{"a": 1000, "b": "wxyz", "c": "[1, 3, 5, 7]"}') AS C,</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_STORAGE_SIZE('[100, "json", [[10, 20, 30], 3, 5], 425.05]') AS D;</code></strong>
++----+----+----+----+
+| A  | B  | C  | D  |
++----+----+----+----+
+| 45 | 44 | 47 | 56 |
++----+----+----+----+
+1 row in set (0.00 sec)
+</pre></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="json-validation-functions.html">Previous <span class="navHint"> JSON Schema Validation Functions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="json-functions.html">Up <span class="navHint"> JSON Functions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="gtid-functions.html">Next <span class="navHint"> Functions Used with Global Transaction Identifiers (GTIDs) </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

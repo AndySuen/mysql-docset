@@ -1,0 +1,258 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1167"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.4%C2%A0Hash%20Join%20Optimization"></a><title>8.2.1.4&nbsp;Hash Join Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="index-merge-optimization.html" title="8.2.1.3&nbsp;Index Merge Optimization"/><link rel="next" href="engine-condition-pushdown-optimization.html" title="8.2.1.5&nbsp;Engine Condition Pushdown Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="hash-joins.html#hash-joins">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="index-merge-optimization.html">Previous <span class="navHint"> Index Merge Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="engine-condition-pushdown-optimization.html">Next <span class="navHint"> Engine Condition Pushdown Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1166"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.4%C2%A0Hash%20Join%20Optimization"></a><h4 class="title"><a id="hash-joins"></a>8.2.1.4&nbsp;Hash Join Optimization</h4></div></div></div><p>
+          By default, MySQL (8.0.18 and later) employs hash joins
+          whenever possible. It is possible to control whether hash
+          joins are employed using one of the
+          <a class="link" href="optimizer-hints.html#optimizer-hints-table-level" title="Table-Level Optimizer Hints"><code class="literal">BNL</code></a> and
+          <a class="link" href="optimizer-hints.html#optimizer-hints-table-level" title="Table-Level Optimizer Hints"><code class="literal">NO_BNL</code></a> optimizer hints, or
+          by setting
+          <a class="link" href="switchable-optimizations.html#optflag_block-nested-loop"><code class="literal">block_nested_loop=on</code></a> or
+          <code class="literal">block_nested_loop=off</code> as part of the
+          setting for the optimizer_switch server system variable.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            MySQL 8.0.18 supported setting a
+            <a class="link" href="switchable-optimizations.html#optflag_hash-join"><code class="literal">hash_join</code></a> flag in
+            <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a>, as well
+            as the optimizer hints
+            <a class="link" href="optimizer-hints.html#optimizer-hints-table-level" title="Table-Level Optimizer Hints"><code class="literal">HASH_JOIN</code></a> and
+            <code class="literal">NO_HASH_JOIN</code>. In MySQL 8.0.19 and later,
+            none of these have any effect any longer.
+          </p></div><p>
+          Beginning with MySQL 8.0.18, MySQL employs a hash join for any
+          query for which each join has an equi-join condition, and in
+          which there are no indexes that can be applied to any join
+          conditions, such as this one:
+        </p><pre class="programlisting">SELECT *
+    FROM t1
+    JOIN t2
+        ON t1.c1=t2.c1;
+</pre><p>
+          A hash join can also be used when there are one or more
+          indexes that can be used for single-table predicates.
+        </p><p>
+          A hash join is usually faster than and is intended to be used
+          in such cases instead of the block nested loop algorithm (see
+          <a class="xref" href="nested-loop-joins.html#block-nested-loop-join-algorithm" title="Block Nested-Loop Join Algorithm">Block Nested-Loop Join Algorithm</a>) employed
+          in previous versions of MySQL. Beginning with MySQL 8.0.20,
+          support for block nested loop is removed, and the server
+          employs a hash join wherever a block nested loop would have
+          been used previously.
+        </p><p>
+          In the example just shown and the remaining examples in this
+          section, we assume that the three tables
+          <code class="literal">t1</code>, <code class="literal">t2</code>, and
+          <code class="literal">t3</code> have been created using the following
+          statements:
+        </p><pre class="programlisting">CREATE TABLE t1 (c1 INT, c2 INT);
+CREATE TABLE t2 (c1 INT, c2 INT);
+CREATE TABLE t3 (c1 INT, c2 INT);
+</pre><p>
+          You can see that a hash join is being employed by using
+          <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>,
+          like this:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN</code></strong>
+    -&gt; <strong class="userinput"><code>SELECT * FROM t1</code></strong>
+    -&gt;     <strong class="userinput"><code>JOIN t2 ON t1.c1=t2.c1\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t1
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 1
+     filtered: 100.00
+        Extra: NULL
+*************************** 2. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t2
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 1
+     filtered: 100.00
+        Extra: Using where; Using join buffer (hash join)
+</pre><p>
+          (Prior to MySQL 8.0.20, it was necessary to include the
+          <code class="literal">FORMAT=TREE</code> option to see whether hash
+          joins were being used for a given join.)
+        </p><p>
+          <a class="link" href="explain.html#explain-analyze" title="Obtaining Information with EXPLAIN ANALYZE"><code class="literal">EXPLAIN ANALYZE</code></a> also displays
+          information about hash joins used.
+        </p><p>
+          The hash join is used for queries involving multiple joins as
+          well, as long as at least one join condition for each pair of
+          tables is an equi-join, like the query shown here:
+        </p><pre class="programlisting">SELECT * FROM t1
+    JOIN t2 ON (t1.c1 = t2.c1 AND t1.c2 &lt; t2.c2)
+    JOIN t3 ON (t2.c1 = t3.c1);
+</pre><p>
+          In cases like the one just shown, which makes use of an inner
+          join, any extra conditions which are not equi-joins are
+          applied as filters after the join is executed. (For outer
+          joins, such as left joins, semijoins, and antijoins, they are
+          printed as part of the join.) This can be seen here in the
+          output of <code class="literal">EXPLAIN</code>:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN FORMAT=TREE</code></strong>
+    -&gt; <strong class="userinput"><code>SELECT *</code></strong>
+    -&gt;     <strong class="userinput"><code>FROM t1</code></strong>
+    -&gt;     <strong class="userinput"><code>JOIN t2</code></strong>
+    -&gt;         <strong class="userinput"><code>ON (t1.c1 = t2.c1 AND t1.c2 &lt; t2.c2)</code></strong>
+    -&gt;     <strong class="userinput"><code>JOIN t3</code></strong>
+    -&gt;         <strong class="userinput"><code>ON (t2.c1 = t3.c1)\G</code></strong>
+*************************** 1. row ***************************
+EXPLAIN: -&gt; Inner hash join (t3.c1 = t1.c1)  (cost=1.05 rows=1)
+    -&gt; Table scan on t3  (cost=0.35 rows=1)
+    -&gt; Hash
+        -&gt; Filter: (t1.c2 &lt; t2.c2)  (cost=0.70 rows=1)
+            -&gt; Inner hash join (t2.c1 = t1.c1)  (cost=0.70 rows=1)
+                -&gt; Table scan on t2  (cost=0.35 rows=1)
+                -&gt; Hash
+                    -&gt; Table scan on t1  (cost=0.35 rows=1)
+</pre><p>
+          As also can be seen from the output just shown, multiple hash
+          joins can be (and are) used for joins having multiple
+          equi-join conditions.
+        </p><p>
+          Prior to MySQL 8.0.20, a hash join could not be used if any
+          pair of joined tables did not have at least one equi-join
+          condition, and the slower block nested loop algorithm was
+          employed. In MySQL 8.0.20 and later, the hash join is used in
+          such cases, as shown here:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN FORMAT=TREE</code></strong>
+    -&gt; <strong class="userinput"><code>SELECT * FROM t1</code></strong>
+    -&gt;     <strong class="userinput"><code>JOIN t2 ON (t1.c1 = t2.c1)</code></strong>
+    -&gt;     <strong class="userinput"><code>JOIN t3 ON (t2.c1 &lt; t3.c1)\G</code></strong>
+*************************** 1. row ***************************
+EXPLAIN: -&gt; Filter: (t1.c1 &lt; t3.c1)  (cost=1.05 rows=1)
+    -&gt; Inner hash join (no condition)  (cost=1.05 rows=1)
+        -&gt; Table scan on t3  (cost=0.35 rows=1)
+        -&gt; Hash
+            -&gt; Inner hash join (t2.c1 = t1.c1)  (cost=0.70 rows=1)
+                -&gt; Table scan on t2  (cost=0.35 rows=1)
+                -&gt; Hash
+                    -&gt; Table scan on t1  (cost=0.35 rows=1)
+</pre><p>
+          (Additional examples are provided later in this section.)
+        </p><p>
+          A hash join is also applied for a Cartesian product&mdash;that
+          is, when no join condition is specified, as shown here:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN FORMAT=TREE</code></strong>
+    -&gt; <strong class="userinput"><code>SELECT *</code></strong>
+    -&gt;     <strong class="userinput"><code>FROM t1</code></strong>
+    -&gt;     <strong class="userinput"><code>JOIN t2</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE t1.c2 &gt; 50\G</code></strong>
+*************************** 1. row ***************************
+EXPLAIN: -&gt; Inner hash join  (cost=0.70 rows=1)
+    -&gt; Table scan on t2  (cost=0.35 rows=1)
+    -&gt; Hash
+        -&gt; Filter: (t1.c2 &gt; 50)  (cost=0.35 rows=1)
+            -&gt; Table scan on t1  (cost=0.35 rows=1)
+</pre><p>
+          In MySQL 8.0.20 and later, it is no longer necessary for the
+          join to contain at least one equi-join condition in order for
+          a hash join to be used. This means that the types of queries
+          which can be optimized using hash joins include those in the
+          following list (with examples):
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <span class="emphasis"><em>Inner non-equi-join</em></span>:
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN FORMAT=TREE SELECT * FROM t1 JOIN t2 ON t1.c1 &lt; t2.c1\G</code></strong>
+*************************** 1. row ***************************
+EXPLAIN: -&gt; Filter: (t1.c1 &lt; t2.c1)  (cost=4.70 rows=12)
+    -&gt; Inner hash join (no condition)  (cost=4.70 rows=12)
+        -&gt; Table scan on t2  (cost=0.08 rows=6)
+        -&gt; Hash
+            -&gt; Table scan on t1  (cost=0.85 rows=6)
+</pre></li><li class="listitem"><p>
+              <span class="emphasis"><em>Semijoin</em></span>:
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN FORMAT=TREE SELECT * FROM t1 </code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE t1.c1 IN (SELECT t2.c2 FROM t2)\G</code></strong>
+*************************** 1. row ***************************
+EXPLAIN: -&gt; Hash semijoin (t2.c2 = t1.c1)  (cost=0.70 rows=1)
+    -&gt; Table scan on t1  (cost=0.35 rows=1)
+    -&gt; Hash
+        -&gt; Table scan on t2  (cost=0.35 rows=1)
+</pre></li><li class="listitem"><p>
+              <span class="emphasis"><em>Antijoin</em></span>:
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN FORMAT=TREE SELECT * FROM t2 </code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE NOT EXISTS (SELECT * FROM t1 WHERE t1.c1 = t2.c1)\G</code></strong>
+*************************** 1. row ***************************
+EXPLAIN: -&gt; Hash antijoin (t1.c1 = t2.c1)  (cost=0.70 rows=1)
+    -&gt; Table scan on t2  (cost=0.35 rows=1)
+    -&gt; Hash
+        -&gt; Table scan on t1  (cost=0.35 rows=1)
+
+1 row in set, 1 warning (0.00 sec)
+
+mysql&gt; SHOW WARNINGS\G
+*************************** 1. row ***************************
+  Level: Note
+   Code: 1276
+Message: Field or reference &#39;t3.t2.c1&#39; of SELECT #2 was resolved in SELECT #1
+</pre></li><li class="listitem"><p>
+              <span class="emphasis"><em>Left outer join</em></span>:
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN FORMAT=TREE SELECT * FROM t1 LEFT JOIN t2 ON t1.c1 = t2.c1\G</code></strong>
+*************************** 1. row ***************************
+EXPLAIN: -&gt; Left hash join (t2.c1 = t1.c1)  (cost=0.70 rows=1)
+    -&gt; Table scan on t1  (cost=0.35 rows=1)
+    -&gt; Hash
+        -&gt; Table scan on t2  (cost=0.35 rows=1)
+</pre></li><li class="listitem"><p>
+              <span class="emphasis"><em>Right outer join</em></span> (observe that MySQL
+              rewrites all right outer joins as left outer joins):
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN FORMAT=TREE SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 = t2.c1\G</code></strong>
+*************************** 1. row ***************************
+EXPLAIN: -&gt; Left hash join (t1.c1 = t2.c1)  (cost=0.70 rows=1)
+    -&gt; Table scan on t2  (cost=0.35 rows=1)
+    -&gt; Hash
+        -&gt; Table scan on t1  (cost=0.35 rows=1)
+</pre></li></ul></div><p>
+          By default, MySQL 8.0.18 and later employs hash joins whenever
+          possible. It is possible to control whether hash joins are
+          employed using one of the
+          <a class="link" href="optimizer-hints.html#optimizer-hints-table-level" title="Table-Level Optimizer Hints"><code class="literal">BNL</code></a> and
+          <code class="literal">NO_BNL</code> optimizer hints.
+        </p><p>
+          (MySQL 8.0.18 supported
+          <a class="link" href="switchable-optimizations.html#optflag_hash-join"><code class="literal">hash_join=on</code></a> or
+          <a class="link" href="switchable-optimizations.html#optflag_hash-join"><code class="literal">hash_join=off</code></a> as part of the
+          setting for the
+          <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> server
+          system variable as well as the optimizer hints
+          <a class="link" href="optimizer-hints.html#optimizer-hints-table-level" title="Table-Level Optimizer Hints"><code class="literal">HASH_JOIN</code></a> or
+          <a class="link" href="optimizer-hints.html#optimizer-hints-table-level" title="Table-Level Optimizer Hints"><code class="literal">NO_HASH_JOIN</code></a>. In MySQL
+          8.0.19 and later, these no longer have any effect.)
+        </p><p>
+          Memory usage by hash joins can be controlled using the
+          <a class="link" href="server-system-variables.html#sysvar_join_buffer_size"><code class="literal">join_buffer_size</code></a> system
+          variable; a hash join cannot use more memory than this amount.
+          When the memory required for a hash join exceeds the amount
+          available, MySQL handles this by using files on disk. If this
+          happens, you should be aware that the join may not succeed if
+          a hash join cannot fit into memory and it creates more files
+          than set for
+          <a class="link" href="server-system-variables.html#sysvar_open_files_limit"><code class="literal">open_files_limit</code></a>. To avoid
+          such problems, make either of the following changes:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Increase <code class="literal">join_buffer_size</code> so that the
+              hash join does not spill over to disk.
+            </p></li><li class="listitem"><p>
+              Increase <code class="literal">open_files_limit</code>.
+            </p></li></ul></div><p>
+          Beginning with MySQL 8.0.18, join buffers for hash joins are
+          allocated incrementally; thus, you can set
+          <a class="link" href="server-system-variables.html#sysvar_join_buffer_size"><code class="literal">join_buffer_size</code></a> higher
+          without small queries allocating very large amounts of RAM,
+          but outer joins allocate the entire buffer. In MySQL 8.0.20
+          and later, hash joins are used for outer joins (including
+          antijoins and semijoins) as well, so this is no longer an
+          issue.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="index-merge-optimization.html">Previous <span class="navHint"> Index Merge Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="engine-condition-pushdown-optimization.html">Next <span class="navHint"> Engine Condition Pushdown Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

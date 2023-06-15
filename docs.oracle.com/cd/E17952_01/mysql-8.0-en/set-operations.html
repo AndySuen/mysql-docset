@@ -1,0 +1,413 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.2.14 Set Operations with UNION, INTERSECT, and EXCEPT</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="sql-data-manipulation-statements.html" title="13.2 Data Manipulation Statements" /><link rel="prev" href="join.html" title="13.2.13.2 JOIN Clause" /><link rel="next" href="subqueries.html" title="13.2.15 Subqueries" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="set-operations.html#set-operations">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="join.html">Previous <span class="navHint"> JOIN Clause </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="sql-data-manipulation-statements.html">Up <span class="navHint"> Data Manipulation Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="subqueries.html">Next <span class="navHint"> Subqueries </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="set-operations"></a>13.2.14 Set Operations with UNION, INTERSECT, and EXCEPT</h3></div></div></div><a id="idm45828906761824" class="indexterm"></a><a id="idm45828906760400" class="indexterm"></a><a id="idm45828906758912" class="indexterm"></a><a id="idm45828906757424" class="indexterm"></a><a id="idm45828906755936" class="indexterm"></a><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="set-operations.html#set-operations-result-set-columns" title="Result Set Column Names and Data Types">Result Set Column Names and Data Types</a></p></li><li class="listitem"><p><a class="xref" href="set-operations.html#set-operations-table-values" title="Set Operations with TABLE and VALUES Statements">Set Operations with TABLE and VALUES Statements</a></p></li><li class="listitem"><p><a class="xref" href="set-operations.html#set-operations-distinct-all" title="Set Operations using DISTINCT and ALL">Set Operations using DISTINCT and ALL</a></p></li><li class="listitem"><p><a class="xref" href="set-operations.html#set-operations-order-by-limit" title="Set Operations with ORDER BY and LIMIT">Set Operations with ORDER BY and LIMIT</a></p></li><li class="listitem"><p><a class="xref" href="set-operations.html#set-operations-limitations" title="Limitations of Set Operations">Limitations of Set Operations</a></p></li></ul></div><p>
+      SQL set operations combine the results of multiple query blocks
+      into a single result. A <span class="emphasis"><em>query block</em></span>,
+      sometimes also known as a <span class="emphasis"><em>simple table</em></span>, is
+      any SQL statement that returns a result set, such as
+      <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>. MySQL 8.0 (8.0.19 and
+      later) also supports <a class="link" href="table.html" title="13.2.16 TABLE Statement"><code class="literal">TABLE</code></a> and
+      <a class="link" href="values.html" title="13.2.19 VALUES Statement"><code class="literal">VALUES</code></a> statements. See the
+      individual descriptions of these statements elsewhere in this
+      chapter for additional information.
+    </p><p>
+      The SQL standard defines the following three set operations:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <a class="link" href="union.html" title="13.2.18 UNION Clause"><code class="literal">UNION</code></a>: Combine all results from
+          two query blocks into a single result, omitting any
+          duplicates.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="intersect.html" title="13.2.8 INTERSECT Clause"><code class="literal">INTERSECT</code></a>: Combine only those
+          rows which the results of two query blocks have in common,
+          omitting any duplicates.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="except.html" title="13.2.4 EXCEPT Clause"><code class="literal">EXCEPT</code></a>: For two query blocks
+          <em class="replaceable"><code>A</code></em> and <em class="replaceable"><code>B</code></em>,
+          return all results from <em class="replaceable"><code>A</code></em> which are
+          not also present in <em class="replaceable"><code>B</code></em>, omitting any
+          duplicates.
+        </p><p>
+          (Some database systems, such as Oracle, use
+          <code class="literal">MINUS</code> for the name of this operator. This
+          is not supported in MySQL.)
+        </p></li></ul></div><p>
+      MySQL has long supported <code class="literal">UNION</code>; MySQL 8.0 adds
+      support for <code class="literal">INTERSECT</code> and
+      <code class="literal">EXCEPT</code> (MySQL 8.0.31 and later).
+    </p><p>
+      Each of these set operators supports an <code class="literal">ALL</code>
+      modifier. When the <code class="literal">ALL</code> keyword follows a set
+      operator, this causes duplicates to be included in the result. See
+      the following sections covering the individual operators for more
+      information and examples.
+    </p><p>
+      All three set operators also support a <code class="literal">DISTINCT</code>
+      keyword, which suppresses duplicates in the result. Since this is
+      the default behavior for set operators, it is usually not
+      necessary to specify <code class="literal">DISTINCT</code> explicitly.
+    </p><p>
+      In general, query blocks and set operations can be combined in any
+      number and order. A greatly simplified representation is shown
+      here:
+    </p><pre class="programlisting"><em class="replaceable"><code>query_block</code></em> [<em class="replaceable"><code>set_op</code></em> <em class="replaceable"><code>query_block</code></em>] [<em class="replaceable"><code>set_op</code></em> <em class="replaceable"><code>query_block</code></em>] ...
+
+<em class="replaceable"><code>query_block</code></em>:
+    SELECT | TABLE | VALUES
+
+<em class="replaceable"><code>set_op</code></em>:
+    UNION | INTERSECT | EXCEPT
+</pre><p>
+      This can be represented more accurately, and in greater detail,
+      like this:
+    </p><pre class="programlisting"><em class="replaceable"><code>query_expression</code></em>:
+  [<em class="replaceable"><code>with_clause</code></em>] /* <a class="link" href="with.html" title="13.2.20 WITH (Common Table Expressions)"><code class="literal">WITH</code></a> clause */ 
+  <em class="replaceable"><code>query_expression_body</code></em>
+  [<em class="replaceable"><code>order_by_clause</code></em>] [<em class="replaceable"><code>limit_clause</code></em>] [<em class="replaceable"><code>into_clause</code></em>]
+
+<em class="replaceable"><code>query_expression_body</code></em>:
+    <em class="replaceable"><code>query_term</code></em>
+ |  <em class="replaceable"><code>query_expression_body</code></em> <a class="link" href="union.html" title="13.2.18 UNION Clause"><code class="literal">UNION</code></a> [ALL | DISTINCT] <em class="replaceable"><code>query_term</code></em>
+ |  <em class="replaceable"><code>query_expression_body</code></em> <a class="link" href="except.html" title="13.2.4 EXCEPT Clause"><code class="literal">EXCEPT</code></a> [ALL | DISTINCT] <em class="replaceable"><code>query_term</code></em>
+
+<em class="replaceable"><code>query_term</code></em>:
+    <em class="replaceable"><code>query_primary</code></em>
+ |  <em class="replaceable"><code>query_term</code></em> <a class="link" href="intersect.html" title="13.2.8 INTERSECT Clause"><code class="literal">INTERSECT</code></a> [ALL | DISTINCT] <em class="replaceable"><code>query_primary</code></em>
+
+<em class="replaceable"><code>query_primary</code></em>:
+    <em class="replaceable"><code>query_block</code></em>
+ |  '(' <em class="replaceable"><code>query_expression_body</code></em> [<em class="replaceable"><code>order_by_clause</code></em>] [<em class="replaceable"><code>limit_clause</code></em>] [<em class="replaceable"><code>into_clause</code></em>] ')'
+
+<em class="replaceable"><code>query_block</code></em>:   /* also known as a simple table */
+    <em class="replaceable"><code>query_specification</code></em>                     /* <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statement */
+ |  <em class="replaceable"><code>table_value_constructor</code></em>                 /* <a class="link" href="values.html" title="13.2.19 VALUES Statement"><code class="literal">VALUES</code></a> statement */
+ |  <em class="replaceable"><code>explicit_table</code></em>                          /* <a class="link" href="table.html" title="13.2.16 TABLE Statement"><code class="literal">TABLE</code></a> statement  */
+</pre><p>
+      You should be aware that <code class="literal">INTERSECT</code> is evaluated
+      before <code class="literal">UNION</code> or <code class="literal">EXCEPT</code>. This
+      means that, for example, <code class="literal">TABLE x UNION TABLE y INTERSECT
+      TABLE z</code> is always evaluated as <code class="literal">TABLE x UNION
+      (TABLE y INTERSECT TABLE z)</code>. See
+      <a class="xref" href="intersect.html" title="13.2.8 INTERSECT Clause">Section 13.2.8, “INTERSECT Clause”</a>, for more information.
+    </p><p>
+      In addition, you should keep in mind that, while the
+      <code class="literal">UNION</code> and <code class="literal">INTERSECT</code> set
+      operators are commutative (ordering is not significant),
+      <code class="literal">EXCEPT</code> is not (order of operands affects the
+      outcome). In other words, all of the following statements are
+      true:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">TABLE x UNION TABLE y</code> and <code class="literal">TABLE y
+          UNION TABLE x</code> produce the same result, although the
+          ordering of the rows may differ. You can force them to be the
+          same using <code class="literal">ORDER BY</code>; see
+          <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-5.7-en/union.html#union-order-by-limit" target="_top">ORDER BY and LIMIT in Unions</a>.
+        </p></li><li class="listitem"><p>
+          <code class="literal">TABLE x INTERSECT TABLE y</code> and
+          <code class="literal">TABLE y INTERSECT TABLE x</code> return the same
+          result.
+        </p></li><li class="listitem"><p>
+          <code class="literal">TABLE x EXCEPT TABLE y</code> and <code class="literal">TABLE y
+          EXCEPT TABLE x</code> do <span class="emphasis"><em>not</em></span> yield the
+          same result. See <a class="xref" href="except.html" title="13.2.4 EXCEPT Clause">Section 13.2.4, “EXCEPT Clause”</a>, for an example.
+        </p></li></ul></div><p>
+      More information and examples can be found in the sections that
+      follow.
+    </p><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="set-operations-result-set-columns"></a>Result Set Column Names and Data Types</h4></div></div></div><p>
+        The column names for the result of a set operation are taken
+        from the column names of the first query block. Example:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t1 (x INT, y INT);</code></strong>
+Query OK, 0 rows affected (0.04 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES ROW(4,-2), ROW(5,9);</code></strong>
+Query OK, 2 rows affected (0.00 sec)
+Records: 2  Duplicates: 0  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>CREATE TABLE t2 (a INT, b INT);</code></strong>
+Query OK, 0 rows affected (0.04 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO t2 VALUES ROW(1,2), ROW(3,4);</code></strong>
+Query OK, 2 rows affected (0.01 sec)
+Records: 2  Duplicates: 0  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>TABLE t1 UNION TABLE t2;</code></strong>
++------+------+
+| x    | y    |
++------+------+
+|    4 |   -2 |
+|    5 |    9 |
+|    1 |    2 |
+|    3 |    4 |
++------+------+
+4 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>TABLE t2 UNION TABLE t1;</code></strong>
++------+------+
+| a    | b    |
++------+------+
+|    1 |    2 |
+|    3 |    4 |
+|    4 |   -2 |
+|    5 |    9 |
++------+------+
+4 rows in set (0.00 sec)
+</pre><p>
+        This is true for <code class="literal">UNION</code>,
+        <code class="literal">EXCEPT</code>, and <code class="literal">INTERSECT</code>
+        queries.
+      </p><p>
+        Selected columns listed in corresponding positions of each query
+        block should have the same data type. For example, the first
+        column selected by the first statement should have the same type
+        as the first column selected by the other statements. If the
+        data types of corresponding result columns do not match, the
+        types and lengths of the columns in the result take into account
+        the values retrieved by all of the query blocks. For example,
+        the column length in the result set is not constrained to the
+        length of the value from the first statement, as shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT REPEAT('a',1) UNION SELECT REPEAT('b',20);</code></strong>
++----------------------+
+| REPEAT('a',1)        |
++----------------------+
+| a                    |
+| bbbbbbbbbbbbbbbbbbbb |
++----------------------+
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="set-operations-table-values"></a>Set Operations with TABLE and VALUES Statements</h4></div></div></div><p>
+        Beginning with MySQL 8.0.19, you can also use a
+        <a class="link" href="table.html" title="13.2.16 TABLE Statement"><code class="literal">TABLE</code></a> statement or
+        <a class="link" href="values.html" title="13.2.19 VALUES Statement"><code class="literal">VALUES</code></a> statement wherever you can
+        employ the equivalent <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>
+        statement. Assume that tables <code class="literal">t1</code> and
+        <code class="literal">t2</code> are created and populated as shown here:
+      </p><pre class="programlisting">CREATE TABLE t1 (x INT, y INT);
+INSERT INTO t1 VALUES ROW(4,-2),ROW(5,9);
+
+CREATE TABLE t2 (a INT, b INT);
+INSERT INTO t2 VALUES ROW(1,2),ROW(3,4);
+</pre><p>
+        The preceding being the case, and disregarding the column names
+        in the output of the queries beginning with
+        <a class="link" href="values.html" title="13.2.19 VALUES Statement"><code class="literal">VALUES</code></a>, all of the following
+        <code class="literal">UNION</code> queries yield the same result:
+      </p><pre class="programlisting">SELECT * FROM t1 UNION SELECT * FROM t2;
+TABLE t1 UNION SELECT * FROM t2;
+VALUES ROW(4,-2), ROW(5,9) UNION SELECT * FROM t2;
+SELECT * FROM t1 UNION TABLE t2;
+TABLE t1 UNION TABLE t2;
+VALUES ROW(4,-2), ROW(5,9) UNION TABLE t2;
+SELECT * FROM t1 UNION VALUES ROW(4,-2),ROW(5,9);
+TABLE t1 UNION VALUES ROW(4,-2),ROW(5,9);
+VALUES ROW(4,-2), ROW(5,9) UNION VALUES ROW(4,-2),ROW(5,9);
+</pre><p>
+        To force the column names to be the same, wrap the query block
+        on the left-hand side in a <code class="literal">SELECT</code> statement,
+        and use aliases, like this:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM (TABLE t2) AS t(x,y) UNION TABLE t1;</code></strong>
++------+------+
+| x    | y    |
++------+------+
+|    1 |    2 |
+|    3 |    4 |
+|    4 |   -2 |
+|    5 |    9 |
++------+------+
+4 rows in set (0.00 sec)
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="set-operations-distinct-all"></a>Set Operations using DISTINCT and ALL</h4></div></div></div><p>
+        By default, duplicate rows are removed from results of set
+        operations. The optional <code class="literal">DISTINCT</code> keyword has
+        the same effect but makes it explicit. With the optional
+        <code class="literal">ALL</code> keyword, duplicate-row removal does not
+        occur and the result includes all matching rows from all queries
+        in the union.
+      </p><p>
+        You can mix <code class="literal">ALL</code> and
+        <code class="literal">DISTINCT</code> in the same query. Mixed types are
+        treated such that a set operation using
+        <code class="literal">DISTINCT</code> overrides any such operation using
+        <code class="literal">ALL</code> to its left. A
+        <code class="literal">DISTINCT</code> set can be produced explicitly by
+        using <code class="literal">DISTINCT</code> with
+        <a class="link" href="union.html" title="13.2.18 UNION Clause"><code class="literal">UNION</code></a>,
+        <a class="link" href="intersect.html" title="13.2.8 INTERSECT Clause"><code class="literal">INTERSECT</code></a>, or
+        <a class="link" href="except.html" title="13.2.4 EXCEPT Clause"><code class="literal">EXCEPT</code></a>, or implicitly by using
+        the set operations with no following <code class="literal">DISTINCT</code>
+        or <code class="literal">ALL</code> keyword.
+      </p><p>
+        In MySQL 8.0.19 and later, set operations work the same way when
+        one or more <a class="link" href="table.html" title="13.2.16 TABLE Statement"><code class="literal">TABLE</code></a> statements,
+        <a class="link" href="values.html" title="13.2.19 VALUES Statement"><code class="literal">VALUES</code></a> statements, or both, are
+        used to generate the set.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="set-operations-order-by-limit"></a>Set Operations with ORDER BY and LIMIT</h4></div></div></div><p>
+        To apply an <code class="literal">ORDER BY</code> or
+        <code class="literal">LIMIT</code> clause to an individual query block
+        used as part of a union, intersection, or other set operation,
+        parenthesize the query block, placing the clause inside the
+        parentheses, like this:
+      </p><pre class="programlisting">(SELECT a FROM t1 WHERE a=10 AND b=1 ORDER BY a LIMIT 10)
+UNION
+(SELECT a FROM t2 WHERE a=11 AND b=2 ORDER BY a LIMIT 10);
+
+(TABLE t1 ORDER BY x LIMIT 10) 
+INTERSECT 
+(TABLE t2 ORDER BY a LIMIT 10);
+</pre><p>
+        Use of <code class="literal">ORDER BY</code> for individual query blocks
+        or statements implies nothing about the order in which the rows
+        appear in the final result because the rows produced by a set
+        operation are by default unordered. Therefore, <code class="literal">ORDER
+        BY</code> in this context typically is used in conjunction
+        with <code class="literal">LIMIT</code>, to determine the subset of the
+        selected rows to retrieve, even though it does not necessarily
+        affect the order of those rows in the final result. If
+        <code class="literal">ORDER BY</code> appears without
+        <code class="literal">LIMIT</code> within a query block, it is optimized
+        away because it has no effect in any case.
+      </p><p>
+        To use an <code class="literal">ORDER BY</code> or
+        <code class="literal">LIMIT</code> clause to sort or limit the entire
+        result of a set operation, place the <code class="literal">ORDER BY</code>
+        or <code class="literal">LIMIT</code> after the last statement:
+      </p><pre class="programlisting">SELECT a FROM t1
+EXCEPT
+SELECT a FROM t2 WHERE a=11 AND b=2
+ORDER BY a LIMIT 10;
+
+TABLE t1
+UNION 
+TABLE t2
+ORDER BY a LIMIT 10;
+</pre><p>
+        If one or more individual statements make use of <code class="literal">ORDER
+        BY</code>, <code class="literal">LIMIT</code>, or both, and, in
+        addition, you wish to apply an ORDER BY, LIMIT, or both to the
+        entire result, then each such individual statement must be
+        enclosed in parentheses.
+      </p><pre class="programlisting">(SELECT a FROM t1 WHERE a=10 AND b=1)
+EXCEPT
+(SELECT a FROM t2 WHERE a=11 AND b=2)
+ORDER BY a LIMIT 10;
+
+(TABLE t1 ORDER BY a LIMIT 10) 
+UNION 
+TABLE t2 
+ORDER BY a LIMIT 10;
+</pre><p>
+        A statement with no <code class="literal">ORDER BY</code> or
+        <code class="literal">LIMIT</code> clause does need to be parenthesized;
+        replacing <code class="literal">TABLE t2</code> with <code class="literal">(TABLE
+        t2)</code> in the second statement of the two just shown does
+        not alter the result of the <code class="literal">UNION</code>.
+      </p><p>
+        You can also use <code class="literal">ORDER BY</code> and
+        <code class="literal">LIMIT</code> with
+        <a class="link" href="values.html" title="13.2.19 VALUES Statement"><code class="literal">VALUES</code></a> statements in set
+        operations, as shown in this example using the
+        <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>VALUES ROW(4,-2), ROW(5,9), ROW(-1,3)</code></strong> 
+    -&gt; <strong class="userinput"><code>UNION</code></strong> 
+    -&gt; <strong class="userinput"><code>VALUES ROW(1,2), ROW(3,4), ROW(-1,3)</code></strong> 
+    -&gt; <strong class="userinput"><code>ORDER BY column_0 DESC LIMIT 3;</code></strong>
++----------+----------+
+| column_0 | column_1 |
++----------+----------+
+|        5 |        9 |
+|        4 |       -2 |
+|        3 |        4 |
++----------+----------+
+3 rows in set (0.00 sec)
+</pre><p>
+        (You should keep in mind that neither <code class="literal">TABLE</code>
+        statements nor <code class="literal">VALUES</code> statements accept a
+        <code class="literal">WHERE</code> clause.)
+      </p><p>
+        This kind of <code class="literal">ORDER BY</code> cannot use column
+        references that include a table name (that is, names in
+        <em class="replaceable"><code>tbl_name</code></em>.<em class="replaceable"><code>col_name</code></em>
+        format). Instead, provide a column alias in the first query
+        block, and refer to the alias in the <code class="literal">ORDER BY</code>
+        clause. (You can also refer to the column in the <code class="literal">ORDER
+        BY</code> clause using its column position, but such use of
+        column positions is deprecated, and thus subject to eventual
+        removal in a future MySQL release.)
+      </p><p>
+        If a column to be sorted is aliased, the <code class="literal">ORDER
+        BY</code> clause <span class="emphasis"><em>must</em></span> refer to the
+        alias, not the column name. The first of the following
+        statements is permitted, but the second fails with an
+        <code class="literal">Unknown column 'a' in 'order clause'</code> error:
+      </p><pre class="programlisting">(SELECT a AS b FROM t) UNION (SELECT ...) ORDER BY b;
+(SELECT a AS b FROM t) UNION (SELECT ...) ORDER BY a;
+</pre><p>
+        To cause rows in a <a class="link" href="union.html" title="13.2.18 UNION Clause"><code class="literal">UNION</code></a> result
+        to consist of the sets of rows retrieved by each query block one
+        after the other, select an additional column in each query block
+        to use as a sort column and add an <code class="literal">ORDER BY</code>
+        clause that sorts on that column following the last query block:
+      </p><pre class="programlisting">(SELECT 1 AS sort_col, col1a, col1b, ... FROM t1)
+UNION
+(SELECT 2, col2a, col2b, ... FROM t2) ORDER BY sort_col;
+</pre><p>
+        To maintain sort order within individual results, add a
+        secondary column to the <code class="literal">ORDER BY</code> clause:
+      </p><pre class="programlisting">(SELECT 1 AS sort_col, col1a, col1b, ... FROM t1)
+UNION
+(SELECT 2, col2a, col2b, ... FROM t2) ORDER BY sort_col, col1a;
+</pre><p>
+        Use of an additional column also enables you to determine which
+        query block each row comes from. Extra columns can provide other
+        identifying information as well, such as a string that indicates
+        a table name.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="set-operations-limitations"></a>Limitations of Set Operations</h4></div></div></div><p>
+        Set operations in MySQL are subject to some limitations, which
+        are described in the next few paragraphs.
+      </p><p>
+        Set operations including <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>
+        statements have the following limitations:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">HIGH_PRIORITY</code> in the first
+            <code class="literal">SELECT</code> has no effect.
+            <code class="literal">HIGH_PRIORITY</code> in any subsequent
+            <code class="literal">SELECT</code> produces a syntax error.
+          </p></li><li class="listitem"><p>
+            Only the last <code class="literal">SELECT</code> statement can use an
+            <code class="literal">INTO</code> clause. However, the entire
+            <code class="literal">UNION</code> result is written to the
+            <code class="literal">INTO</code> output destination.
+          </p></li></ul></div><p>
+        As of MySQL 8.0.20, these two <code class="literal">UNION</code> variants
+        containing <code class="literal">INTO</code> are deprecated; you should
+        expect support for them to be removed in a future version of
+        MySQL:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            In the trailing query block of a query expression, use of
+            <code class="literal">INTO</code> before <code class="literal">FROM</code>
+            produces a warning. Example:
+          </p><pre class="programlisting">... UNION SELECT * INTO OUTFILE '<em class="replaceable"><code>file_name</code></em>' FROM <em class="replaceable"><code>table_name</code></em>;
+</pre></li><li class="listitem"><p>
+            In a parenthesized trailing block of a query expression, use
+            of <code class="literal">INTO</code> (regardless of its position
+            relative to <code class="literal">FROM</code>) produces a warning.
+            Example:
+          </p><pre class="programlisting">... UNION (SELECT * INTO OUTFILE '<em class="replaceable"><code>file_name</code></em>' FROM <em class="replaceable"><code>table_name</code></em>);
+</pre><p>
+            Those variants are deprecated because they are confusing, as
+            if they collect information from the named table rather than
+            the entire query expression (the <code class="literal">UNION</code>).
+          </p></li></ul></div><p>
+        Set operations with an aggregate function in an <code class="literal">ORDER
+        BY</code> clause are rejected with
+        <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_aggregate_order_for_union" target="_top"><code class="literal">ER_AGGREGATE_ORDER_FOR_UNION</code></a>.
+        Although the error name might suggest that this is exclusive to
+        <code class="literal">UNION</code> queries, the preceding is also true for
+        <code class="literal">EXCEPT</code> and <code class="literal">INTERSECT</code>
+        queries, as shown here:
+      </p><pre class="programlisting">mysql&gt; TABLE t1 INTERSECT TABLE t2 ORDER BY MAX(x);
+<span class="errortext">ERROR 3028 (HY000): Expression #1 of ORDER BY contains aggregate function and applies to a UNION, EXCEPT or INTERSECT</span>
+</pre><p>
+        A locking clause (such as <code class="literal">FOR UPDATE</code> or
+        <code class="literal">LOCK IN SHARE MODE</code>) applies to the query
+        block it follows. This means that, in a
+        <code class="literal">SELECT</code> statement used with set operations, a
+        locking clause can be used only if the query block and locking
+        clause are enclosed in parentheses.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="join.html">Previous <span class="navHint"> JOIN Clause </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sql-data-manipulation-statements.html">Up <span class="navHint"> Data Manipulation Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="subqueries.html">Next <span class="navHint"> Subqueries </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

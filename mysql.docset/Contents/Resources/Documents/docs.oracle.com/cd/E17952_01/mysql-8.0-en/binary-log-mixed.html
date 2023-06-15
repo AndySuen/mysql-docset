@@ -1,0 +1,449 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-134"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/5.4.4.3%C2%A0Mixed%20Binary%20Logging%20Format"></a><title>5.4.4.3&nbsp;Mixed Binary Logging Format</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="binary-log.html" title="5.4.4&nbsp;The Binary Log"/><link rel="prev" href="binary-log-setting.html" title="5.4.4.2&nbsp;Setting The Binary Log Format"/><link rel="next" href="binary-log-mysql-database.html" title="5.4.4.4&nbsp;Logging Format for Changes to mysql Database Tables"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="binary-log-mixed.html#binary-log-mixed">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="binary-log-setting.html">Previous <span class="navHint"> Setting The Binary Log Format </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="binary-log.html">Up <span class="navHint"> The Binary Log </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="binary-log-mysql-database.html">Next <span class="navHint"> Logging Format for Changes to mysql Database Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-135"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/5.4.4.3%C2%A0Mixed%20Binary%20Logging%20Format"></a><h4 class="title"><a id="binary-log-mixed"></a>5.4.4.3&nbsp;Mixed Binary Logging Format</h4></div></div></div><p>
+        When running in <code class="literal">MIXED</code> logging format, the
+        server automatically switches from statement-based to row-based
+        logging under the following conditions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            When a function contains
+            <a class="link" href="miscellaneous-functions.html#function_uuid"><code class="literal">UUID()</code></a>.
+          </p></li><li class="listitem"><p>
+            When one or more tables with
+            <code class="literal">AUTO_INCREMENT</code> columns are updated and a
+            trigger or stored function is invoked. Like all other unsafe
+            statements, this generates a warning if
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format = STATEMENT</code></a>.
+          </p><p>
+            For more information, see
+            <a class="xref" href="replication-features-auto-increment.html" title="17.5.1.1&nbsp;Replication and AUTO_INCREMENT">Section&nbsp;17.5.1.1, &ldquo;Replication and AUTO_INCREMENT&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            When the body of a view requires row-based replication, the
+            statement creating the view also uses it. For example, this
+            occurs when the statement creating a view uses the
+            <a class="link" href="miscellaneous-functions.html#function_uuid"><code class="literal">UUID()</code></a> function.
+          </p></li><li class="listitem"><p>
+            When a call to a loadable function is involved.
+          </p></li><li class="listitem"><p>
+            When <a class="link" href="information-functions.html#function_found-rows"><code class="literal">FOUND_ROWS()</code></a> or
+            <a class="link" href="information-functions.html#function_row-count"><code class="literal">ROW_COUNT()</code></a> is used. (Bug
+            #12092, Bug #30244)
+          </p></li><li class="listitem"><p>
+            When <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a>,
+            <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a>, or
+            <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER</code></a> is used. (Bug
+            #28086)
+          </p></li><li class="listitem"><p>
+            When one of the tables involved is a log table in the
+            <code class="literal">mysql</code> database.
+          </p></li><li class="listitem"><p>
+            When the <a class="link" href="string-functions.html#function_load-file"><code class="literal">LOAD_FILE()</code></a> function
+            is used. (Bug #39701)
+          </p></li><li class="listitem"><p>
+            When a statement refers to one or more system variables.
+            (Bug #31168)
+          </p><p><strong>Exception.&nbsp;</strong>
+              The following system variables, when used with session
+              scope (only), do not cause the logging format to switch:
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <a class="link" href="replication-options-source.html#sysvar_auto_increment_increment"><code class="literal">auto_increment_increment</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="replication-options-source.html#sysvar_auto_increment_offset"><code class="literal">auto_increment_offset</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_character_set_client"><code class="literal">character_set_client</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_character_set_connection"><code class="literal">character_set_connection</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_character_set_database"><code class="literal">character_set_database</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_character_set_server"><code class="literal">character_set_server</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_collation_connection"><code class="literal">collation_connection</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_collation_database"><code class="literal">collation_database</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_collation_server"><code class="literal">collation_server</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_foreign_key_checks"><code class="literal">foreign_key_checks</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_identity"><code class="literal">identity</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_last_insert_id"><code class="literal">last_insert_id</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_lc_time_names"><code class="literal">lc_time_names</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_pseudo_thread_id"><code class="literal">pseudo_thread_id</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_sql_auto_is_null"><code class="literal">sql_auto_is_null</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_time_zone"><code class="literal">time_zone</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_timestamp"><code class="literal">timestamp</code></a>
+              </p></li><li class="listitem"><p>
+                <a class="link" href="server-system-variables.html#sysvar_unique_checks"><code class="literal">unique_checks</code></a>
+              </p></li></ul></div><p>
+            For information about determining system variable scope, see
+            <a class="xref" href="using-system-variables.html" title="5.1.9&nbsp;Using System Variables">Section&nbsp;5.1.9, &ldquo;Using System Variables&rdquo;</a>.
+          </p><p>
+            For information about how replication treats
+            <a class="link" href="server-system-variables.html#sysvar_sql_mode"><code class="literal">sql_mode</code></a>, see
+            <a class="xref" href="replication-features-variables.html" title="17.5.1.39&nbsp;Replication and Variables">Section&nbsp;17.5.1.39, &ldquo;Replication and Variables&rdquo;</a>.
+          </p></li></ul></div><p>
+        In earlier releases, when mixed binary logging format was in
+        use, if a statement was logged by row and the session that
+        executed the statement had any temporary tables, all subsequent
+        statements were treated as unsafe and logged in row-based format
+        until all temporary tables in use by that session were dropped.
+        As of MySQL 8.0, operations on temporary tables are not logged
+        in mixed binary logging format, and the presence of temporary
+        tables in the session has no impact on the logging mode used for
+        each statement.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          A warning is generated if you try to execute a statement using
+          statement-based logging that should be written using row-based
+          logging. The warning is shown both in the client (in the
+          output of <a class="link" href="show-warnings.html" title="13.7.7.42&nbsp;SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a>) and
+          through the <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> error log. A warning is
+          added to the <a class="link" href="show-warnings.html" title="13.7.7.42&nbsp;SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a>
+          table each time such a statement is executed. However, only
+          the first statement that generated the warning for each client
+          session is written to the error log to prevent flooding the
+          log.
+        </p></div><p>
+        In addition to the decisions above, individual engines can also
+        determine the logging format used when information in a table is
+        updated. The logging capabilities of an individual engine can be
+        defined as follows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If an engine supports row-based logging, the engine is said
+            to be <span class="firstterm">row-logging
+            capable</span>.
+          </p></li><li class="listitem"><p>
+            If an engine supports statement-based logging, the engine is
+            said to be <span class="firstterm">statement-logging
+            capable</span>.
+          </p></li></ul></div><p>
+        A given storage engine can support either or both logging
+        formats. The following table lists the formats supported by each
+        engine.
+      </p><div class="informaltable"><a id="storage-engine-logging-format-support"></a><table summary="Logging formats supported by each storage engine."><colgroup><col style="width: 50%"/><col style="width: 25%"/><col style="width: 25%"/></colgroup><thead><tr>
+            <th scope="col">Storage Engine</th>
+            <th scope="col">Row Logging Supported</th>
+            <th scope="col">Statement Logging Supported</th>
+          </tr></thead><tbody><tr>
+            <th scope="row"><code class="literal">ARCHIVE</code></th>
+            <td>Yes</td>
+            <td>Yes</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">BLACKHOLE</code></th>
+            <td>Yes</td>
+            <td>Yes</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">CSV</code></th>
+            <td>Yes</td>
+            <td>Yes</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">EXAMPLE</code></th>
+            <td>Yes</td>
+            <td>No</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">FEDERATED</code></th>
+            <td>Yes</td>
+            <td>Yes</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">HEAP</code></th>
+            <td>Yes</td>
+            <td>Yes</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">InnoDB</code></th>
+            <td>Yes</td>
+            <td>Yes when the transaction isolation level is
+              <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_repeatable-read"><code class="literal">REPEATABLE READ</code></a> or
+              <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_serializable"><code class="literal">SERIALIZABLE</code></a>; No
+              otherwise.</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">MyISAM</code></th>
+            <td>Yes</td>
+            <td>Yes</td>
+          </tr><tr>
+            <th scope="row"><code class="literal">MERGE</code></th>
+            <td>Yes</td>
+            <td>Yes</td>
+          </tr><tr>
+            <th scope="row"><a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a></th>
+            <td>Yes</td>
+            <td>No</td>
+          </tr></tbody></table></div><p>
+        Whether a statement is to be logged and the logging mode to be
+        used is determined according to the type of statement (safe,
+        unsafe, or binary injected), the binary logging format
+        (<code class="literal">STATEMENT</code>, <code class="literal">ROW</code>, or
+        <code class="literal">MIXED</code>), and the logging capabilities of the
+        storage engine (statement capable, row capable, both, or
+        neither). (Binary injection refers to logging a change that must
+        be logged using <code class="literal">ROW</code> format.)
+      </p><p>
+        Statements may be logged with or without a warning; failed
+        statements are not logged, but generate errors in the log. This
+        is shown in the following decision table.
+        <span class="bold"><strong>Type</strong></span>,
+        <span class="bold"><strong>binlog_format</strong></span>,
+        <span class="bold"><strong>SLC</strong></span>, and
+        <span class="bold"><strong>RLC</strong></span> columns outline the
+        conditions, and <span class="bold"><strong>Error / Warning</strong></span>
+        and <span class="bold"><strong>Logged as</strong></span> columns represent
+        the corresponding actions. <span class="bold"><strong>SLC</strong></span>
+        stands for <span class="quote">&ldquo;<span class="quote">statement-logging capable</span>&rdquo;</span>, and
+        <span class="bold"><strong>RLC</strong></span> stands for
+        <span class="quote">&ldquo;<span class="quote">row-logging capable</span>&rdquo;</span>.
+      </p><div class="informaltable"><table summary="The information in this table is used to determine if a statement is to be logged and the logging mode to be used. The table outlines conditions (Safe/unsafe, binlog_format, SLC, RLR) and corresponding actions."><colgroup><col style="width: 10%"/><col style="width: 25%"/><col style="width: 10%"/><col style="width: 10%"/><col style="width: 20%"/><col style="width: 25%"/></colgroup><thead><tr>
+            <th scope="col">Type</th>
+            <th scope="col"><a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a></th>
+            <th scope="col">SLC</th>
+            <th scope="col">RLC</th>
+            <th scope="col">Error / Warning</th>
+            <th scope="col">Logged as</th>
+          </tr></thead><tbody><tr>
+            <th scope="row">*</th>
+            <td><code class="literal">*</code></td>
+            <td>No</td>
+            <td>No</td>
+            <td><span class="errortext">Error: Cannot execute statement</span>: Binary logging
+              is impossible since at least one engine is involved that
+              is both row-incapable and statement-incapable.</td>
+            <td><code class="literal">-</code></td>
+          </tr><tr>
+            <th scope="row">Safe</th>
+            <td><code class="literal">STATEMENT</code></td>
+            <td>Yes</td>
+            <td>No</td>
+            <td>-</td>
+            <td><code class="literal">STATEMENT</code></td>
+          </tr><tr>
+            <th scope="row">Safe</th>
+            <td><code class="literal">MIXED</code></td>
+            <td>Yes</td>
+            <td>No</td>
+            <td>-</td>
+            <td><code class="literal">STATEMENT</code></td>
+          </tr><tr>
+            <th scope="row">Safe</th>
+            <td><code class="literal">ROW</code></td>
+            <td>Yes</td>
+            <td>No</td>
+            <td><span class="errortext">Error: Cannot execute statement</span>: Binary logging
+              is impossible since <code class="literal">BINLOG_FORMAT = ROW</code>
+              and at least one table uses a storage engine that is not
+              capable of row-based logging.</td>
+            <td><code class="literal">-</code></td>
+          </tr><tr>
+            <th scope="row">Unsafe</th>
+            <td><code class="literal">STATEMENT</code></td>
+            <td>Yes</td>
+            <td>No</td>
+            <td><span class="errortext">Warning: Unsafe statement binlogged in statement
+              format</span>, since <code class="literal">BINLOG_FORMAT =
+              STATEMENT</code></td>
+            <td><code class="literal">STATEMENT</code></td>
+          </tr><tr>
+            <th scope="row">Unsafe</th>
+            <td><code class="literal">MIXED</code></td>
+            <td>Yes</td>
+            <td>No</td>
+            <td><span class="errortext">Error: Cannot execute statement</span>: Binary logging
+              of an unsafe statement is impossible when the storage
+              engine is limited to statement-based logging, even if
+              <code class="literal">BINLOG_FORMAT = MIXED</code>.</td>
+            <td><code class="literal">-</code></td>
+          </tr><tr>
+            <th scope="row">Unsafe</th>
+            <td><code class="literal">ROW</code></td>
+            <td>Yes</td>
+            <td>No</td>
+            <td><span class="errortext">Error: Cannot execute statement</span>: Binary logging
+              is impossible since <code class="literal">BINLOG_FORMAT = ROW</code>
+              and at least one table uses a storage engine that is not
+              capable of row-based logging.</td>
+            <td>-</td>
+          </tr><tr>
+            <th scope="row">Row Injection</th>
+            <td><code class="literal">STATEMENT</code></td>
+            <td>Yes</td>
+            <td>No</td>
+            <td><span class="errortext">Error: Cannot execute row injection</span>: Binary
+              logging is not possible since at least one table uses a
+              storage engine that is not capable of row-based logging.</td>
+            <td>-</td>
+          </tr><tr>
+            <th scope="row">Row Injection</th>
+            <td><code class="literal">MIXED</code></td>
+            <td>Yes</td>
+            <td>No</td>
+            <td><span class="errortext">Error: Cannot execute row injection</span>: Binary
+              logging is not possible since at least one table uses a
+              storage engine that is not capable of row-based logging.</td>
+            <td>-</td>
+          </tr><tr>
+            <th scope="row">Row Injection</th>
+            <td><code class="literal">ROW</code></td>
+            <td>Yes</td>
+            <td>No</td>
+            <td><span class="errortext">Error: Cannot execute row injection</span>: Binary
+              logging is not possible since at least one table uses a
+              storage engine that is not capable of row-based logging.</td>
+            <td>-</td>
+          </tr><tr>
+            <th scope="row">Safe</th>
+            <td><code class="literal">STATEMENT</code></td>
+            <td>No</td>
+            <td>Yes</td>
+            <td><span class="errortext">Error: Cannot execute statement</span>: Binary logging
+              is impossible since <code class="literal">BINLOG_FORMAT =
+              STATEMENT</code> and at least one table uses a storage
+              engine that is not capable of statement-based logging.</td>
+            <td><code class="literal">-</code></td>
+          </tr><tr>
+            <th scope="row">Safe</th>
+            <td><code class="literal">MIXED</code></td>
+            <td>No</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr><tr>
+            <th scope="row">Safe</th>
+            <td><code class="literal">ROW</code></td>
+            <td>No</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr><tr>
+            <th scope="row">Unsafe</th>
+            <td><code class="literal">STATEMENT</code></td>
+            <td>No</td>
+            <td>Yes</td>
+            <td><span class="errortext">Error: Cannot execute statement</span>: Binary logging
+              is impossible since <code class="literal">BINLOG_FORMAT =
+              STATEMENT</code> and at least one table uses a storage
+              engine that is not capable of statement-based logging.</td>
+            <td>-</td>
+          </tr><tr>
+            <th scope="row">Unsafe</th>
+            <td><code class="literal">MIXED</code></td>
+            <td>No</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr><tr>
+            <th scope="row">Unsafe</th>
+            <td><code class="literal">ROW</code></td>
+            <td>No</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr><tr>
+            <th scope="row">Row Injection</th>
+            <td><code class="literal">STATEMENT</code></td>
+            <td>No</td>
+            <td>Yes</td>
+            <td><span class="errortext">Error: Cannot execute row injection</span>: Binary
+              logging is not possible since <code class="literal">BINLOG_FORMAT =
+              STATEMENT</code>.</td>
+            <td><code class="literal">-</code></td>
+          </tr><tr>
+            <th scope="row">Row Injection</th>
+            <td><code class="literal">MIXED</code></td>
+            <td>No</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr><tr>
+            <th scope="row">Row Injection</th>
+            <td><code class="literal">ROW</code></td>
+            <td>No</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr><tr>
+            <th scope="row">Safe</th>
+            <td><code class="literal">STATEMENT</code></td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">STATEMENT</code></td>
+          </tr><tr>
+            <th scope="row">Safe</th>
+            <td><code class="literal">MIXED</code></td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">STATEMENT</code></td>
+          </tr><tr>
+            <th scope="row">Safe</th>
+            <td><code class="literal">ROW</code></td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr><tr>
+            <th scope="row">Unsafe</th>
+            <td><code class="literal">STATEMENT</code></td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td><span class="errortext">Warning: Unsafe statement binlogged in statement
+              format</span> since <code class="literal">BINLOG_FORMAT =
+              STATEMENT</code>.</td>
+            <td><code class="literal">STATEMENT</code></td>
+          </tr><tr>
+            <th scope="row">Unsafe</th>
+            <td><code class="literal">MIXED</code></td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr><tr>
+            <th scope="row">Unsafe</th>
+            <td><code class="literal">ROW</code></td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr><tr>
+            <th scope="row">Row Injection</th>
+            <td><code class="literal">STATEMENT</code></td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td><span class="errortext">Error: Cannot execute row injection</span>: Binary
+              logging is not possible because <code class="literal">BINLOG_FORMAT =
+              STATEMENT</code>.</td>
+            <td>-</td>
+          </tr><tr>
+            <th scope="row">Row Injection</th>
+            <td><code class="literal">MIXED</code></td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr><tr>
+            <th scope="row">Row Injection</th>
+            <td><code class="literal">ROW</code></td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td>-</td>
+            <td><code class="literal">ROW</code></td>
+          </tr></tbody></table></div><p>
+        When a warning is produced by the determination, a standard
+        MySQL warning is produced (and is available using
+        <a class="link" href="show-warnings.html" title="13.7.7.42&nbsp;SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a>). The information
+        is also written to the <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> error log. Only
+        one error for each error instance per client connection is
+        logged to prevent flooding the log. The log message includes the
+        SQL statement that was attempted.
+      </p><p>
+        If a replica has
+        <a class="link" href="server-system-variables.html#sysvar_log_error_verbosity"><code class="literal">log_error_verbosity</code></a> set to
+        display warnings, the replica prints messages to the error log
+        to provide information about its status, such as the binary log
+        and relay log coordinates where it starts its job, when it is
+        switching to another relay log, when it reconnects after a
+        disconnect, statements that are unsafe for statement-based
+        logging, and so forth.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="binary-log-setting.html">Previous <span class="navHint"> Setting The Binary Log Format </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="binary-log.html">Up <span class="navHint"> The Binary Log </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="binary-log-mysql-database.html">Next <span class="navHint"> Logging Format for Changes to mysql Database Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

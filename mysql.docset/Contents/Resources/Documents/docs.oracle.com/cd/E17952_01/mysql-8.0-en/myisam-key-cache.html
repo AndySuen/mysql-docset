@@ -1,0 +1,82 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1961"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.10.2%C2%A0The%20MyISAM%20Key%20Cache"></a><title>8.10.2&nbsp;The MyISAM Key Cache</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="buffering-caching.html" title="8.10&nbsp;Buffering and Caching"/><link rel="prev" href="innodb-buffer-pool-optimization.html" title="8.10.1&nbsp;InnoDB Buffer Pool Optimization"/><link rel="next" href="shared-key-cache.html" title="8.10.2.1&nbsp;Shared Key Cache Access"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="myisam-key-cache.html#myisam-key-cache">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-buffer-pool-optimization.html">Previous <span class="navHint"> InnoDB Buffer Pool Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="buffering-caching.html">Up <span class="navHint"> Buffering and Caching </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="shared-key-cache.html">Next <span class="navHint"> Shared Key Cache Access </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="myisam-key-cache"></a>8.10.2&nbsp;The MyISAM Key Cache</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="shared-key-cache.html">8.10.2.1 Shared Key Cache Access</a></span></li><li><span class="section"><a href="multiple-key-caches.html">8.10.2.2 Multiple Key Caches</a></span></li><li><span class="section"><a href="midpoint-insertion.html">8.10.2.3 Midpoint Insertion Strategy</a></span></li><li><span class="section"><a href="index-preloading.html">8.10.2.4 Index Preloading</a></span></li><li><span class="section"><a href="key-cache-block-size.html">8.10.2.5 Key Cache Block Size</a></span></li><li><span class="section"><a href="key-cache-restructuring.html">8.10.2.6 Restructuring a Key Cache</a></span></li></ul></div><a id="idm45828949886736" class="indexterm"></a><a id="idm45828949885664" class="indexterm"></a><p>
+        To minimize disk I/O, the <code class="literal">MyISAM</code> storage
+        engine exploits a strategy that is used by many database
+        management systems. It employs a cache mechanism to keep the
+        most frequently accessed table blocks in memory:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For index blocks, a special structure called the
+            <span class="firstterm">key cache</span> (or
+            <span class="firstterm">key buffer</span>) is
+            maintained. The structure contains a number of block buffers
+            where the most-used index blocks are placed.
+          </p></li><li class="listitem"><p>
+            For data blocks, MySQL uses no special cache. Instead it
+            relies on the native operating system file system cache.
+          </p></li></ul></div><p>
+        This section first describes the basic operation of the
+        <code class="literal">MyISAM</code> key cache. Then it discusses features
+        that improve key cache performance and that enable you to better
+        control cache operation:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Multiple sessions can access the cache concurrently.
+          </p></li><li class="listitem"><p>
+            You can set up multiple key caches and assign table indexes
+            to specific caches.
+          </p></li></ul></div><p>
+        To control the size of the key cache, use the
+        <a class="link" href="server-system-variables.html#sysvar_key_buffer_size"><code class="literal">key_buffer_size</code></a> system
+        variable. If this variable is set equal to zero, no key cache is
+        used. The key cache also is not used if the
+        <a class="link" href="server-system-variables.html#sysvar_key_buffer_size"><code class="literal">key_buffer_size</code></a> value is too
+        small to allocate the minimal number of block buffers (8).
+      </p><p>
+        When the key cache is not operational, index files are accessed
+        using only the native file system buffering provided by the
+        operating system. (In other words, table index blocks are
+        accessed using the same strategy as that employed for table data
+        blocks.)
+      </p><p>
+        An index block is a contiguous unit of access to the
+        <code class="literal">MyISAM</code> index files. Usually the size of an
+        index block is equal to the size of nodes of the index B-tree.
+        (Indexes are represented on disk using a B-tree data structure.
+        Nodes at the bottom of the tree are leaf nodes. Nodes above the
+        leaf nodes are nonleaf nodes.)
+      </p><p>
+        All block buffers in a key cache structure are the same size.
+        This size can be equal to, greater than, or less than the size
+        of a table index block. Usually one these two values is a
+        multiple of the other.
+      </p><p>
+        When data from any table index block must be accessed, the
+        server first checks whether it is available in some block buffer
+        of the key cache. If it is, the server accesses data in the key
+        cache rather than on disk. That is, it reads from the cache or
+        writes into it rather than reading from or writing to disk.
+        Otherwise, the server chooses a cache block buffer containing a
+        different table index block (or blocks) and replaces the data
+        there by a copy of required table index block. As soon as the
+        new index block is in the cache, the index data can be accessed.
+      </p><p>
+        If it happens that a block selected for replacement has been
+        modified, the block is considered <span class="quote">&ldquo;<span class="quote">dirty.</span>&rdquo;</span> In this
+        case, prior to being replaced, its contents are flushed to the
+        table index from which it came.
+      </p><p>
+        Usually the server follows an <span class="firstterm">LRU
+        (Least Recently Used)</span> strategy: When choosing a block
+        for replacement, it selects the least recently used index block.
+        To make this choice easier, the key cache module maintains all
+        used blocks in a special list (<span class="firstterm">LRU
+        chain</span>) ordered by time of use. When a block is
+        accessed, it is the most recently used and is placed at the end
+        of the list. When blocks need to be replaced, blocks at the
+        beginning of the list are the least recently used and become the
+        first candidates for eviction.
+      </p><p>
+        The <code class="literal">InnoDB</code> storage engine also uses an LRU
+        algorithm, to manage its buffer pool. See
+        <a class="xref" href="innodb-buffer-pool.html" title="15.5.1&nbsp;Buffer Pool">Section&nbsp;15.5.1, &ldquo;Buffer Pool&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-buffer-pool-optimization.html">Previous <span class="navHint"> InnoDB Buffer Pool Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="buffering-caching.html">Up <span class="navHint"> Buffering and Caching </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="shared-key-cache.html">Next <span class="navHint"> Shared Key Cache Access </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,99 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1132"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.7.7%C2%A0Responses%20to%20Failure%20Detection%20and%20Network%20Partitioning"></a><title>18.7.7&nbsp;Responses to Failure Detection and Network Partitioning</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-performance.html" title="18.7&nbsp;Group Replication Performance and Troubleshooting"/><link rel="prev" href="group-replication-performance-xcom-cache-reduce.html" title="18.7.6.2&nbsp;Reducing the cache size"/><link rel="next" href="group-replication-responses-failure-expel.html" title="18.7.7.1&nbsp;Expel Timeout"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-responses-failure.html#group-replication-responses-failure">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-performance-xcom-cache-reduce.html">Previous <span class="navHint"> Reducing the cache size </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-performance.html">Up <span class="navHint"> Group Replication Performance and Troubleshooting </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-responses-failure-expel.html">Next <span class="navHint"> Expel Timeout </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-replication-responses-failure"></a>18.7.7&nbsp;Responses to Failure Detection and Network Partitioning</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="group-replication-responses-failure-expel.html">18.7.7.1 Expel Timeout</a></span></li><li><span class="section"><a href="group-replication-responses-failure-partition.html">18.7.7.2 Unreachable Majority Timeout</a></span></li><li><span class="section"><a href="group-replication-responses-failure-rejoin.html">18.7.7.3 Auto-Rejoin</a></span></li><li><span class="section"><a href="group-replication-responses-failure-exit.html">18.7.7.4 Exit Action</a></span></li></ul></div><a id="idm45828852960448" class="indexterm"></a><a id="idm45828852958992" class="indexterm"></a><a id="idm45828852957504" class="indexterm"></a><p>
+      Group Replication&#39;s failure detection mechanism is designed to
+      identify group members that are no longer communicating with the
+      group, and expel them as and when it seems likely that they have
+      failed. Having a failure detection mechanism increases the chance
+      that the group contains a majority of correctly working members,
+      and that requests from clients are therefore processed correctly.
+    </p><p>
+      Normally, all group members regularly exchange messages with all
+      other group members. If a group member does not receive any
+      messages from a particular fellow member for 5 seconds, when this
+      detection period ends, it creates a suspicion of the fellow
+      member. When a suspicion times out, the suspected member is
+      assumed to have failed, and is expelled from the group. An
+      expelled member is removed from the membership list seen by the
+      other members, but it does not know that it has been expelled from
+      the group, so it sees itself as online and the other members as
+      unreachable. If the member has not in fact failed (for example,
+      because it was just disconnected due to a temporary network issue)
+      and it is able to resume communication with the other members, it
+      receives a view containing the information that it has been
+      expelled from the group.
+    </p><p>
+      The responses of group members, including the failed member
+      itself, to these situations can be configured at a number of
+      points in the process. By default, the following behaviors happen
+      if a member is suspected of having failed:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Up to MySQL 8.0.20, when a suspicion is created, it times out
+          immediately. The suspected member is liable for expulsion as
+          soon as the expired suspicion is identified by the group. The
+          member could potentially survive for a further few seconds
+          after the timeout because the check for expired suspicions is
+          carried out periodically. From MySQL 8.0.21, a waiting period
+          of 5 seconds is added before the suspicion times out and the
+          suspected member is liable for expulsion.
+        </p></li><li class="listitem"><p>
+          If an expelled member resumes communication and realises that
+          it was expelled, up to MySQL 8.0.20, it does not try to rejoin
+          the group. From MySQL 8.0.21, it makes three automatic
+          attempts to rejoin the group (with 5 minutes between each
+          attempt), and if this auto-rejoin procedure does not work, it
+          then stops trying to rejoin the group.
+        </p></li><li class="listitem"><p>
+          When an expelled member is not trying to rejoin the group, it
+          switches to super read only mode and awaits operator
+          attention. (The exception is in releases from MySQL 8.0.12 to
+          8.0.15, where the default was for the member to shut itself
+          down. From MySQL 8.0.16, the behavior was changed to match the
+          behavior in MySQL 5.7.)
+        </p></li></ol></div><p>
+      You can use the Group Replication configuration options described
+      in this section to change these behaviors either permanently or
+      temporarily, to suit your system&#39;s requirements and your
+      priorities. If you are experiencing unnecessary expulsions caused
+      by slower networks or machines, networks with a high rate of
+      unexpected transient outages, or planned network outages, consider
+      increasing the expel timeout and auto-rejoin attempts. From MySQL
+      8.0.21, the default settings have been changed in this direction
+      to reduce the frequency of the need for operator intervention to
+      reinstate expelled members in these situations. Note that while a
+      member is undergoing any of the default behaviors described above,
+      although it does not accept writes, reads can still be made if the
+      member is still communicating with clients, with an increasing
+      likelihood of stale reads over time. If avoiding stale reads is a
+      higher priority for you than avoiding operator intervention,
+      consider reducing the expel timeout and auto-rejoin attempts or
+      setting them to zero.
+    </p><p>
+      Members that have not failed might lose contact with part, but not
+      all, of the replication group due to a network partition. For
+      example, in a group of 5 servers (S1,S2,S3,S4,S5), if there is a
+      disconnection between (S1,S2) and (S3,S4,S5) there is a network
+      partition. The first group (S1,S2) is now in a minority because it
+      cannot contact more than half of the group. Any transactions that
+      are processed by the members in the minority group are blocked,
+      because the majority of the group is unreachable, therefore the
+      group cannot achieve quorum. For a detailed description of this
+      scenario, see
+      <a class="xref" href="group-replication-network-partitioning.html" title="18.7.8&nbsp;Handling a Network Partition and Loss of Quorum">Section&nbsp;18.7.8, &ldquo;Handling a Network Partition and Loss of Quorum&rdquo;</a>.
+      In this situation, the default behavior is for the members in both
+      the minority and the majority to remain in the group, continue to
+      accept transactions (although they are blocked on the members in
+      the minority), and wait for operator intervention. This behavior
+      is also configurable.
+    </p><p>
+      Note that where group members are at an older MySQL Server release
+      that does not support a relevant setting, or at a release with a
+      different default, they act towards themselves and other group
+      members according to the default behaviors stated above. For
+      example, a member that does not support the
+      <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>
+      system variable expels other members as soon as an expired
+      suspicion is detected, and this expulsion is accepted by other
+      members even if they support the system variable and have a longer
+      timeout set.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-performance-xcom-cache-reduce.html">Previous <span class="navHint"> Reducing the cache size </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-performance.html">Up <span class="navHint"> Group Replication Performance and Troubleshooting </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-responses-failure-expel.html">Next <span class="navHint"> Expel Timeout </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

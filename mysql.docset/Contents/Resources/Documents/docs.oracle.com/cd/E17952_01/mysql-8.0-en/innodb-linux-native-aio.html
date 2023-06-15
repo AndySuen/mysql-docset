@@ -1,0 +1,60 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1518"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.8.6%C2%A0Using%20Asynchronous%20I%2FO%20on%20Linux"></a><title>15.8.6&nbsp;Using Asynchronous I/O on Linux</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-configuration.html" title="15.8&nbsp;InnoDB Configuration"/><link rel="prev" href="innodb-performance-multiple_io_threads.html" title="15.8.5&nbsp;Configuring the Number of Background InnoDB I/O Threads"/><link rel="next" href="innodb-configuring-io-capacity.html" title="15.8.7&nbsp;Configuring InnoDB I/O Capacity"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-linux-native-aio.html#innodb-linux-native-aio">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-performance-multiple_io_threads.html">Previous <span class="navHint"> Configuring the Number of Background InnoDB I/O Threads </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-configuration.html">Up <span class="navHint"> InnoDB Configuration </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-configuring-io-capacity.html">Next <span class="navHint"> Configuring InnoDB I/O Capacity </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-linux-native-aio"></a>15.8.6&nbsp;Using Asynchronous I/O on Linux</h3></div></div></div><a id="idm45828887749680" class="indexterm"></a><a id="idm45828887748224" class="indexterm"></a><a id="idm45828887746736" class="indexterm"></a><a id="idm45828887745664" class="indexterm"></a><p>
+      <code class="literal">InnoDB</code> uses the asynchronous I/O subsystem
+      (native AIO) on Linux to perform read-ahead and write requests for
+      data file pages. This behavior is controlled by the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_use_native_aio"><code class="literal">innodb_use_native_aio</code></a>
+      configuration option, which applies to Linux systems only and is
+      enabled by default. On other Unix-like systems,
+      <code class="literal">InnoDB</code> uses synchronous I/O only. Historically,
+      <code class="literal">InnoDB</code> only used asynchronous I/O on Windows
+      systems. Using the asynchronous I/O subsystem on Linux requires
+      the <code class="literal">libaio</code> library.
+    </p><p>
+      With synchronous I/O, query threads queue I/O requests, and
+      <code class="literal">InnoDB</code> background threads retrieve the queued
+      requests one at a time, issuing a synchronous I/O call for each.
+      When an I/O request is completed and the I/O call returns, the
+      <code class="literal">InnoDB</code> background thread that is handling the
+      request calls an I/O completion routine and returns to process the
+      next request. The number of requests that can be processed in
+      parallel is <em class="replaceable"><code>n</code></em>, where
+      <em class="replaceable"><code>n</code></em> is the number of
+      <code class="literal">InnoDB</code> background threads. The number of
+      <code class="literal">InnoDB</code> background threads is controlled by
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_read_io_threads"><code class="literal">innodb_read_io_threads</code></a> and
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_write_io_threads"><code class="literal">innodb_write_io_threads</code></a>. See
+      <a class="xref" href="innodb-performance-multiple_io_threads.html" title="15.8.5&nbsp;Configuring the Number of Background InnoDB I/O Threads">Section&nbsp;15.8.5, &ldquo;Configuring the Number of Background InnoDB I/O Threads&rdquo;</a>.
+    </p><p>
+      With native AIO, query threads dispatch I/O requests directly to
+      the operating system, thereby removing the limit imposed by the
+      number of background threads. <code class="literal">InnoDB</code> background
+      threads wait for I/O events to signal completed requests. When a
+      request is completed, a background thread calls an I/O completion
+      routine and resumes waiting for I/O events.
+    </p><p>
+      The advantage of native AIO is scalability for heavily I/O-bound
+      systems that typically show many pending reads/writes in
+      <code class="literal">SHOW ENGINE INNODB STATUS\G</code> output. The
+      increase in parallel processing when using native AIO means that
+      the type of I/O scheduler or properties of the disk array
+      controller have a greater influence on I/O performance.
+    </p><p>
+      A potential disadvantage of native AIO for heavily I/O-bound
+      systems is lack of control over the number of I/O write requests
+      dispatched to the operating system at once. Too many I/O write
+      requests dispatched to the operating system for parallel
+      processing could, in some cases, result in I/O read starvation,
+      depending on the amount of I/O activity and system capabilities.
+    </p><p>
+      If a problem with the asynchronous I/O subsystem in the OS
+      prevents <code class="literal">InnoDB</code> from starting, you can start
+      the server with
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_use_native_aio"><code class="literal">innodb_use_native_aio=0</code></a>. This
+      option may also be disabled automatically during startup if
+      <code class="literal">InnoDB</code> detects a potential problem such as a
+      combination of <code class="literal">tmpdir</code> location,
+      <code class="literal">tmpfs</code> file system, and Linux kernel that does
+      not support asynchronous I/O on <code class="literal">tmpfs</code>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-performance-multiple_io_threads.html">Previous <span class="navHint"> Configuring the Number of Background InnoDB I/O Threads </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-configuration.html">Up <span class="navHint"> InnoDB Configuration </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-configuring-io-capacity.html">Next <span class="navHint"> Configuring InnoDB I/O Capacity </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

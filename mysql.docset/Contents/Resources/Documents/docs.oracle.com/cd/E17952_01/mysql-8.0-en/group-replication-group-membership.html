@@ -1,0 +1,79 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1046"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.1.4.1%C2%A0Group%20Membership"></a><title>18.1.4.1&nbsp;Group Membership</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-details.html" title="18.1.4&nbsp;Group Replication Services"/><link rel="prev" href="group-replication-details.html" title="18.1.4&nbsp;Group Replication Services"/><link rel="next" href="group-replication-failure-detection.html" title="18.1.4.2&nbsp;Failure Detection"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-group-membership.html#group-replication-group-membership">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-details.html">Previous <span class="navHint"> Group Replication Services </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-details.html">Up <span class="navHint"> Group Replication Services </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-failure-detection.html">Next <span class="navHint"> Failure Detection </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1045"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/18.1.4.1%C2%A0Group%20Membership"></a><h4 class="title"><a id="group-replication-group-membership"></a>18.1.4.1&nbsp;Group Membership</h4></div></div></div><a id="idm45828855410768" class="indexterm"></a><a id="idm45828855409280" class="indexterm"></a><a id="idm45828855407792" class="indexterm"></a><p>
+        In MySQL Group Replication, a set of servers forms a replication
+        group. A group has a name, which takes the form of a UUID. The
+        group is dynamic and servers can leave (either voluntarily or
+        involuntarily) and join it at any time. The group adjusts itself
+        whenever servers join or leave.
+      </p><p>
+        If a server joins the group, it automatically brings itself up
+        to date by fetching the missing state from an existing server.
+        If a server leaves the group, for instance it was taken down for
+        maintenance, the remaining servers notice that it has left and
+        reconfigure the group automatically.
+      </p><p>
+        Group Replication has a group membership service that defines
+        which servers are online and participating in the group. The
+        list of online servers is referred to as a
+        <span class="emphasis"><em>view</em></span>. Every server in the group has a
+        consistent view of which servers are the members participating
+        actively in the group at a given moment in time.
+      </p><p>
+        Group members must agree not only on transaction commits, but
+        also on which is the current view. If existing members agree
+        that a new server should become part of the group, the group is
+        reconfigured to integrate that server in it, which triggers a
+        view change. If a server leaves the group, either voluntarily or
+        not, the group dynamically rearranges its configuration and a
+        view change is triggered.
+      </p><p>
+        In the case where a member leaves the group voluntarily, it
+        first initiates a dynamic group reconfiguration, during which
+        all members have to agree on a new view without the leaving
+        server. However, if a member leaves the group involuntarily, for
+        example because it has stopped unexpectedly or the network
+        connection is down, it cannot initiate the reconfiguration. In
+        this situation, Group Replication&#39;s failure detection mechanism
+        recognizes after a short period of time that the member has
+        left, and a reconfiguration of the group without the failed
+        member is proposed. As with a member that leaves voluntarily,
+        the reconfiguration requires agreement from the majority of
+        servers in the group. However, if the group is not able to reach
+        agreement, for example because it partitioned in such a way that
+        there is no majority of servers online, the system is not able
+        to dynamically change the configuration, and blocks to prevent a
+        split-brain situation. This situation requires intervention from
+        an administrator.
+      </p><p>
+        It is possible for a member to go offline for a short time, then
+        attempt to rejoin the group again before the failure detection
+        mechanism has detected its failure, and before the group has
+        been reconfigured to remove the member. In this situation, the
+        rejoining member forgets its previous state, but if other
+        members send it messages that are intended for its pre-crash
+        state, this can cause issues including possible data
+        inconsistency. If a member in this situation participates in
+        XCom&#39;s consensus protocol, it could potentially cause XCom to
+        deliver different values for the same consensus round, by making
+        a different decision before and after failure.
+      </p><p>
+        To counter this possibility, from MySQL 5.7.22 and in MySQL 8.0,
+        Group Replication checks for the situation where a new
+        incarnation of the same server is trying to join the group while
+        its old incarnation (with the same address and port number) is
+        still listed as a member. The new incarnation is blocked from
+        joining the group until the old incarnation can be removed by a
+        reconfiguration. Note that if a waiting period has been added by
+        the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_member_expel_timeout"><code class="literal">group_replication_member_expel_timeout</code></a>
+        system variable to allow additional time for members to
+        reconnect with the group before they are expelled, a member
+        under suspicion can become active in the group again as its
+        current incarnation if it reconnects to the group before the
+        suspicion times out. When a member exceeds the expel timeout and
+        is expelled from the group, or when Group Replication is stopped
+        on the server by a <a class="link" href="stop-group-replication.html" title="13.4.3.2&nbsp;STOP GROUP_REPLICATION Statement"><code class="literal">STOP
+        GROUP_REPLICATION</code></a> statement or a server failure, it
+        must rejoin as a new incarnation.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-details.html">Previous <span class="navHint"> Group Replication Services </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-details.html">Up <span class="navHint"> Group Replication Services </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-failure-detection.html">Next <span class="navHint"> Failure Detection </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

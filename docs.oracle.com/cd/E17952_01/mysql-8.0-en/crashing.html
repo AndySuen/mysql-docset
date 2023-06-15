@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>B.3.3.3 What to Do If MySQL Keeps Crashing</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="administration-issues.html" title="B.3.3 Administration-Related Issues" /><link rel="prev" href="resetting-permissions.html" title="B.3.3.2 How to Reset the Root Password" /><link rel="next" href="full-disk.html" title="B.3.3.4 How MySQL Handles a Full Disk" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="crashing.html#crashing">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="resetting-permissions.html">Previous <span class="navHint"> How to Reset the Root Password </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="administration-issues.html">Up <span class="navHint"> Administration-Related Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="full-disk.html">Next <span class="navHint"> How MySQL Handles a Full Disk </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="crashing"></a>B.3.3.3 What to Do If MySQL Keeps Crashing</h4></div></div></div><a id="idm45828774871920" class="indexterm"></a><p>
+          Each MySQL version is tested on many platforms before it is
+          released. This does not mean that there are no bugs in MySQL,
+          but if there are bugs, they should be very few and can be hard
+          to find. If you have a problem, it always helps if you try to
+          find out exactly what crashes your system, because you have a
+          much better chance of getting the problem fixed quickly.
+        </p><p>
+          First, you should try to find out whether the problem is that
+          the <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> server dies or whether your
+          problem has to do with your client. You can check how long
+          your <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> server has been up by executing
+          <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin version</strong></span></a>. If
+          <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> has died and restarted, you may find
+          the reason by looking in the server's error log. See
+          <a class="xref" href="error-log.html" title="5.4.2 The Error Log">Section 5.4.2, “The Error Log”</a>.
+        </p><p>
+          On some systems, you can find in the error log a stack trace
+          of where <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> died. Note that the
+          variable values written in the error log may not always be
+          100% correct.
+        </p><p>
+          If you find that <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> fails at startup
+          during <code class="literal">InnoDB</code> recovery, refer to
+          <a class="xref" href="innodb-troubleshooting-recovery.html" title="15.21.2 Troubleshooting Recovery Failures">Section 15.21.2, “Troubleshooting Recovery Failures”</a>.
+        </p><p>
+          Many unexpected server exits are caused by corrupted data
+          files or index files. MySQL updates the files on disk with the
+          <code class="literal">write()</code> system call after every SQL
+          statement and before the client is notified about the result.
+          (This is not true if you are running with the
+          <a class="link" href="server-system-variables.html#sysvar_delay_key_write"><code class="literal">delay_key_write</code></a> system
+          variable enabled, in which case data files are written but not
+          index files.) This means that data file contents are safe even
+          if <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> crashes, because the operating
+          system ensures that the unflushed data is written to disk. You
+          can force MySQL to flush everything to disk after every SQL
+          statement by starting <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> with the
+          <a class="link" href="server-options.html#option_mysqld_flush"><code class="option">--flush</code></a> option.
+        </p><p>
+          The preceding means that normally you should not get corrupted
+          tables unless one of the following happens:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The MySQL server or the server host was killed in the
+              middle of an update.
+            </p></li><li class="listitem"><p>
+              You have found a bug in <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> that
+              caused it to die in the middle of an update.
+            </p></li><li class="listitem"><p>
+              Some external program is manipulating data files or index
+              files at the same time as <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+              without locking the table properly.
+            </p></li><li class="listitem"><p>
+              You are running many <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> servers
+              using the same data directory on a system that does not
+              support good file system locks (normally handled by the
+              <code class="literal">lockd</code> lock manager), or you are running
+              multiple servers with external locking disabled.
+            </p></li><li class="listitem"><p>
+              You have a crashed data file or index file that contains
+              very corrupt data that confused <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>.
+            </p></li><li class="listitem"><p>
+              You have found a bug in the data storage code. This isn't
+              likely, but it is at least possible. In this case, you can
+              try to change the storage engine to another engine by
+              using <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> on a
+              repaired copy of the table.
+            </p></li></ul></div><p>
+          Because it is very difficult to know why something is
+          crashing, first try to check whether things that work for
+          others result in an unexpected exit for you. Try the following
+          things:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Stop the <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> server with
+              <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin shutdown</strong></span></a>, run
+              <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk --silent --force */*.MYI</strong></span></a> from
+              the data directory to check all <code class="literal">MyISAM</code>
+              tables, and restart <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>. This
+              ensures that you are running from a clean state. See
+              <a class="xref" href="server-administration.html" title="Chapter 5 MySQL Server Administration">Chapter 5, <em>MySQL Server Administration</em></a>.
+            </p></li><li class="listitem"><p>
+              Start <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> with the general query log
+              enabled (see <a class="xref" href="query-log.html" title="5.4.3 The General Query Log">Section 5.4.3, “The General Query Log”</a>). Then try to
+              determine from the information written to the log whether
+              some specific query kills the server. About 95% of all
+              bugs are related to a particular query. Normally, this is
+              one of the last queries in the log file just before the
+              server restarts. See <a class="xref" href="query-log.html" title="5.4.3 The General Query Log">Section 5.4.3, “The General Query Log”</a>. If you
+              can repeatedly kill MySQL with a specific query, even when
+              you have checked all tables just before issuing it, then
+              you have isolated the bug and should submit a bug report
+              for it. See <a class="xref" href="bug-reports.html" title="1.5 How to Report Bugs or Problems">Section 1.5, “How to Report Bugs or Problems”</a>.
+            </p></li><li class="listitem"><p>
+              Try to make a test case that we can use to repeat the
+              problem. See <a class="xref" href="debugging-mysql.html" title="5.9 Debugging MySQL">Section 5.9, “Debugging MySQL”</a>.
+            </p></li><li class="listitem"><p>
+              Try the <code class="literal">fork_big.pl</code> script. (It is
+              located in the <code class="filename">tests</code> directory of
+              source distributions.)
+            </p></li><li class="listitem"><p>
+              Configuring MySQL for debugging makes it much easier to
+              gather information about possible errors if something goes
+              wrong. Reconfigure MySQL with the
+              <a class="link" href="source-configuration-options.html#option_cmake_with_debug"><code class="option">-DWITH_DEBUG=1</code></a> option to
+              <span class="command"><strong>CMake</strong></span> and then recompile. See
+              <a class="xref" href="debugging-mysql.html" title="5.9 Debugging MySQL">Section 5.9, “Debugging MySQL”</a>.
+            </p></li><li class="listitem"><p>
+              Make sure that you have applied the latest patches for
+              your operating system.
+            </p></li><li class="listitem"><p>
+              Use the
+              <a class="link" href="server-options.html#option_mysqld_external-locking"><code class="option">--skip-external-locking</code></a>
+              option to <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>. On some systems, the
+              <code class="literal">lockd</code> lock manager does not work
+              properly; the
+              <a class="link" href="server-options.html#option_mysqld_external-locking"><code class="option">--skip-external-locking</code></a>
+              option tells <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> not to use external
+              locking. (This means that you cannot run two
+              <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> servers on the same data
+              directory and that you must be careful if you use
+              <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a>. Nevertheless, it may be
+              instructive to try the option as a test.)
+            </p></li><li class="listitem"><p>
+              If <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> appears to be running but not
+              responding, try <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin -u root
+              processlist</strong></span></a>. Sometimes <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+              is not hung even though it seems unresponsive. The problem
+              may be that all connections are in use, or there may be
+              some internal lock problem. <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin -u root
+              processlist</strong></span></a> usually is able to make a connection
+              even in these cases, and can provide useful information
+              about the current number of connections and their status.
+            </p></li><li class="listitem"><p>
+              Run the command <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin -i 5 status</strong></span></a>
+              or <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin -i 5 -r status</strong></span></a> in a
+              separate window to produce statistics while running other
+              queries.
+            </p></li><li class="listitem"><p>
+              Try the following:
+            </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                  Start <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> from
+                  <span class="command"><strong>gdb</strong></span> (or another debugger). See
+                  <a class="xref" href="debugging-mysql.html" title="5.9 Debugging MySQL">Section 5.9, “Debugging MySQL”</a>.
+                </p></li><li class="listitem"><p>
+                  Run your test scripts.
+                </p></li><li class="listitem"><p>
+                  Print the backtrace and the local variables at the
+                  three lowest levels. In <span class="command"><strong>gdb</strong></span>, you
+                  can do this with the following commands when
+                  <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> has crashed inside
+                  <span class="command"><strong>gdb</strong></span>:
+                </p><pre class="programlisting">backtrace
+info local
+up
+info local
+up
+info local
+</pre><p>
+                  With <span class="command"><strong>gdb</strong></span>, you can also examine
+                  which threads exist with <code class="literal">info
+                  threads</code> and switch to a specific thread with
+                  <code class="literal">thread
+                  <em class="replaceable"><code>N</code></em></code>, where
+                  <em class="replaceable"><code>N</code></em> is the thread ID.
+                </p></li></ol></div></li><li class="listitem"><p>
+              Try to simulate your application with a Perl script to
+              force MySQL to exit or misbehave.
+            </p></li><li class="listitem"><p>
+              Send a normal bug report. See
+              <a class="xref" href="bug-reports.html" title="1.5 How to Report Bugs or Problems">Section 1.5, “How to Report Bugs or Problems”</a>. Be even more detailed than
+              usual. Because MySQL works for many people, the crash
+              might result from something that exists only on your
+              computer (for example, an error that is related to your
+              particular system libraries).
+            </p></li><li class="listitem"><p>
+              If you have a problem with tables containing
+              dynamic-length rows and you are using only
+              <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a> columns (not
+              <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a> or
+              <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">TEXT</code></a> columns), you can try
+              to change all <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a> to
+              <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a> with
+              <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>. This forces
+              MySQL to use fixed-size rows. Fixed-size rows take a
+              little extra space, but are much more tolerant to
+              corruption.
+            </p><p>
+              The current dynamic row code has been in use for several
+              years with very few problems, but dynamic-length rows are
+              by nature more prone to errors, so it may be a good idea
+              to try this strategy to see whether it helps.
+            </p></li><li class="listitem"><p>
+              Consider the possibility of hardware faults when
+              diagnosing problems. Defective hardware can be the cause
+              of data corruption. Pay particular attention to your
+              memory and disk subsystems when troubleshooting hardware.
+            </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="resetting-permissions.html">Previous <span class="navHint"> How to Reset the Root Password </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="administration-issues.html">Up <span class="navHint"> Administration-Related Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="full-disk.html">Next <span class="navHint"> How MySQL Handles a Full Disk </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

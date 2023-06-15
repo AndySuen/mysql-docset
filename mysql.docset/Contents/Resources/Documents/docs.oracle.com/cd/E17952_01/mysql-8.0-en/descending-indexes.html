@@ -1,0 +1,111 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-616"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.3.13%C2%A0Descending%20Indexes"></a><title>8.3.13&nbsp;Descending Indexes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimization-indexes.html" title="8.3&nbsp;Optimization and Indexes"/><link rel="prev" href="invisible-indexes.html" title="8.3.12&nbsp;Invisible Indexes"/><link rel="next" href="timestamp-lookups.html" title="8.3.14&nbsp;Indexed Lookups from TIMESTAMP Columns"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="descending-indexes.html#descending-indexes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="invisible-indexes.html">Previous <span class="navHint"> Invisible Indexes </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="timestamp-lookups.html">Next <span class="navHint"> Indexed Lookups from TIMESTAMP Columns </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="descending-indexes"></a>8.3.13&nbsp;Descending Indexes</h3></div></div></div><a id="idm45828953782032" class="indexterm"></a><a id="idm45828953780960" class="indexterm"></a><p>
+        MySQL supports descending indexes: <code class="literal">DESC</code> in an
+        index definition is no longer ignored but causes storage of key
+        values in descending order. Previously, indexes could be scanned
+        in reverse order but at a performance penalty. A descending
+        index can be scanned in forward order, which is more efficient.
+        Descending indexes also make it possible for the optimizer to
+        use multiple-column indexes when the most efficient scan order
+        mixes ascending order for some columns and descending order for
+        others.
+      </p><p>
+        Consider the following table definition, which contains two
+        columns and four two-column index definitions for the various
+        combinations of ascending and descending indexes on the columns:
+      </p><pre class="programlisting">CREATE TABLE t (
+  c1 INT, c2 INT,
+  INDEX idx1 (c1 ASC, c2 ASC),
+  INDEX idx2 (c1 ASC, c2 DESC),
+  INDEX idx3 (c1 DESC, c2 ASC),
+  INDEX idx4 (c1 DESC, c2 DESC)
+);
+</pre><p>
+        The table definition results in four distinct indexes. The
+        optimizer can perform a forward index scan for each of the
+        <code class="literal">ORDER BY</code> clauses and need not use a
+        <code class="literal">filesort</code> operation:
+      </p><pre class="programlisting">ORDER BY c1 ASC, c2 ASC    -- optimizer can use idx1
+ORDER BY c1 DESC, c2 DESC  -- optimizer can use idx4
+ORDER BY c1 ASC, c2 DESC   -- optimizer can use idx2
+ORDER BY c1 DESC, c2 ASC   -- optimizer can use idx3
+</pre><p>
+        Use of descending indexes is subject to these conditions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Descending indexes are supported only for the
+            <code class="literal">InnoDB</code> storage engine, with these
+            limitations:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                Change buffering is not supported for a secondary index
+                if the index contains a descending index key column or
+                if the primary key includes a descending index column.
+              </p></li><li class="listitem"><p>
+                The <code class="literal">InnoDB</code> SQL parser does not use
+                descending indexes. For <code class="literal">InnoDB</code>
+                full-text search, this means that the index required on
+                the <code class="literal">FTS_DOC_ID</code> column of the indexed
+                table cannot be defined as a descending index. For more
+                information, see
+                <a class="xref" href="innodb-fulltext-index.html" title="15.6.2.4&nbsp;InnoDB Full-Text Indexes">Section&nbsp;15.6.2.4, &ldquo;InnoDB Full-Text Indexes&rdquo;</a>.
+              </p></li></ul></div></li><li class="listitem"><p>
+            Descending indexes are supported for all data types for
+            which ascending indexes are available.
+          </p></li><li class="listitem"><p>
+            Descending indexes are supported for ordinary (nongenerated)
+            and generated columns (both <code class="literal">VIRTUAL</code> and
+            <code class="literal">STORED</code>).
+          </p></li><li class="listitem"><p>
+            <code class="literal">DISTINCT</code> can use any index containing
+            matching columns, including descending key parts.
+          </p></li><li class="listitem"><p>
+            Indexes that have descending key parts are not used for
+            <a class="link" href="aggregate-functions.html#function_min"><code class="literal">MIN()</code></a>/<a class="link" href="aggregate-functions.html#function_max"><code class="literal">MAX()</code></a>
+            optimization of queries that invoke aggregate functions but
+            do not have a <code class="literal">GROUP BY</code> clause.
+          </p></li><li class="listitem"><p>
+            Descending indexes are supported for
+            <code class="literal">BTREE</code> but not <code class="literal">HASH</code>
+            indexes. Descending indexes are not supported for
+            <code class="literal">FULLTEXT</code> or <code class="literal">SPATIAL</code>
+            indexes.
+          </p><p>
+            Explicitly specified <code class="literal">ASC</code> and
+            <code class="literal">DESC</code> designators for
+            <code class="literal">HASH</code>, <code class="literal">FULLTEXT</code>, and
+            <code class="literal">SPATIAL</code> indexes results in an error.
+          </p></li></ul></div><p>
+        You can see in the <strong class="userinput"><code>Extra</code></strong> column of the
+        output of <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> that the
+        optimizer is able to use a descending index, as shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t1 (</code></strong>
+    -&gt; <strong class="userinput"><code>a INT,</code></strong> 
+    -&gt; <strong class="userinput"><code>b INT,</code></strong> 
+    -&gt; <strong class="userinput"><code>INDEX a_desc_b_asc (a DESC, b ASC)</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t1 ORDER BY a ASC\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t1
+   partitions: NULL
+         type: index
+possible_keys: NULL
+          key: a_desc_b_asc
+      key_len: 10
+          ref: NULL
+         rows: 1
+     filtered: 100.00
+        Extra: Backward index scan; Using index
+</pre><p>
+        In <code class="literal">EXPLAIN FORMAT=TREE</code> output, use of a
+        descending index is indicated by the addition of
+        <code class="literal">(reverse)</code> following the name of the index,
+        like this:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY a ASC\G</code></strong> 
+*************************** 1. row ***************************
+EXPLAIN: -&gt; Index scan on t1 using a_desc_b_asc (reverse)  (cost=0.35 rows=1)
+</pre><p>
+        See also <a class="xref" href="explain-output.html#explain-extra-information" title="EXPLAIN Extra Information">EXPLAIN Extra Information</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="invisible-indexes.html">Previous <span class="navHint"> Invisible Indexes </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="timestamp-lookups.html">Next <span class="navHint"> Indexed Lookups from TIMESTAMP Columns </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

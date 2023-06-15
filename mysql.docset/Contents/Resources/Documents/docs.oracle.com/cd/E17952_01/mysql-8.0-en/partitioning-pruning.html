@@ -1,0 +1,257 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3075"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/24.4%C2%A0Partition%20Pruning"></a><title>24.4&nbsp;Partition Pruning</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="partitioning.html" title="Chapter&nbsp;24&nbsp;Partitioning"/><link rel="prev" href="partitioning-info.html" title="24.3.5&nbsp;Obtaining Information About Partitions"/><link rel="next" href="partitioning-selection.html" title="24.5&nbsp;Partition Selection"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partitioning-pruning.html#partitioning-pruning">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="partitioning-info.html">Previous <span class="navHint"> Obtaining Information About Partitions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="partitioning.html">Up <span class="navHint"> Partitioning </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="partitioning-selection.html">Next <span class="navHint"> Partition Selection </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="partitioning-pruning"></a>24.4&nbsp;Partition Pruning</h2></div></div></div><a id="idm45828801067072" class="indexterm"></a><a id="idm45828801066000" class="indexterm"></a><p>
+      The optimization known as <span class="firstterm">partition
+      pruning</span> is based on a relatively simple concept which
+      can be described as <span class="quote">&ldquo;<span class="quote">Do not scan partitions where there can
+      be no matching values</span>&rdquo;</span>. Suppose a partitioned table
+      <code class="literal">t1</code> is created by this statement:
+    </p><pre class="programlisting">CREATE TABLE t1 (
+    fname VARCHAR(50) NOT NULL,
+    lname VARCHAR(50) NOT NULL,
+    region_code TINYINT UNSIGNED NOT NULL,
+    dob DATE NOT NULL
+)
+PARTITION BY RANGE( region_code ) (
+    PARTITION p0 VALUES LESS THAN (64),
+    PARTITION p1 VALUES LESS THAN (128),
+    PARTITION p2 VALUES LESS THAN (192),
+    PARTITION p3 VALUES LESS THAN MAXVALUE
+);
+</pre><p>
+      Suppose that you wish to obtain results from a
+      <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statement such as this one:
+    </p><pre class="programlisting">SELECT fname, lname, region_code, dob
+    FROM t1
+    WHERE region_code &gt; 125 AND region_code &lt; 130;
+</pre><p>
+      It is easy to see that none of the rows which ought to be returned
+      are in either of the partitions <code class="literal">p0</code> or
+      <code class="literal">p3</code>; that is, we need search only in partitions
+      <code class="literal">p1</code> and <code class="literal">p2</code> to find matching
+      rows. By limiting the search, it is possible to expend much less
+      time and effort in finding matching rows than by scanning all
+      partitions in the table. This <span class="quote">&ldquo;<span class="quote">cutting away</span>&rdquo;</span> of
+      unneeded partitions is known as
+      <span class="firstterm">pruning</span>. When the optimizer
+      can make use of partition pruning in performing this query,
+      execution of the query can be an order of magnitude faster than
+      the same query against a nonpartitioned table containing the same
+      column definitions and data.
+    </p><p>
+      The optimizer can perform pruning whenever a
+      <code class="literal">WHERE</code> condition can be reduced to either one of
+      the following two cases:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal"><em class="replaceable"><code>partition_column</code></em> =
+          <em class="replaceable"><code>constant</code></em></code>
+        </p></li><li class="listitem"><p>
+          <code class="literal"><em class="replaceable"><code>partition_column</code></em> IN
+          (<em class="replaceable"><code>constant1</code></em>,
+          <em class="replaceable"><code>constant2</code></em>, ...,
+          <em class="replaceable"><code>constantN</code></em>)</code>
+        </p></li></ul></div><p>
+      In the first case, the optimizer simply evaluates the partitioning
+      expression for the value given, determines which partition
+      contains that value, and scans only this partition. In many cases,
+      the equal sign can be replaced with another arithmetic comparison,
+      including <code class="literal">&lt;</code>, <code class="literal">&gt;</code>,
+      <code class="literal">&lt;=</code>, <code class="literal">&gt;=</code>, and
+      <code class="literal">&lt;&gt;</code>. Some queries using
+      <code class="literal">BETWEEN</code> in the <code class="literal">WHERE</code> clause
+      can also take advantage of partition pruning. See the examples
+      later in this section.
+    </p><p>
+      In the second case, the optimizer evaluates the partitioning
+      expression for each value in the list, creates a list of matching
+      partitions, and then scans only the partitions in this partition
+      list.
+    </p><p>
+      <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>,
+      <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a>, and
+      <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> statements support partition
+      pruning. An <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> statement also
+      accesses only one partition per inserted row; this is true even
+      for a table that is partitioned by <code class="literal">HASH</code> or
+      <code class="literal">KEY</code> although this is not currently shown in the
+      output of <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>.
+    </p><p>
+      Pruning can also be applied to short ranges, which the optimizer
+      can convert into equivalent lists of values. For instance, in the
+      previous example, the <code class="literal">WHERE</code> clause can be
+      converted to <code class="literal">WHERE region_code IN (126, 127, 128,
+      129)</code>. Then the optimizer can determine that the first
+      two values in the list are found in partition
+      <code class="literal">p1</code>, the remaining two values in partition
+      <code class="literal">p2</code>, and that the other partitions contain no
+      relevant values and so do not need to be searched for matching
+      rows.
+    </p><p>
+      The optimizer can also perform pruning for
+      <code class="literal">WHERE</code> conditions that involve comparisons of
+      the preceding types on multiple columns for tables that use
+      <code class="literal">RANGE COLUMNS</code> or <code class="literal">LIST
+      COLUMNS</code> partitioning.
+    </p><a id="idm45828801025440" class="indexterm"></a><p>
+      This type of optimization can be applied whenever the partitioning
+      expression consists of an equality or a range which can be reduced
+      to a set of equalities, or when the partitioning expression
+      represents an increasing or decreasing relationship. Pruning can
+      also be applied for tables partitioned on a
+      <a class="link" href="datetime.html" title="11.2.2&nbsp;The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a> or
+      <a class="link" href="datetime.html" title="11.2.2&nbsp;The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATETIME</code></a> column when the
+      partitioning expression uses the
+      <a class="link" href="date-and-time-functions.html#function_year"><code class="literal">YEAR()</code></a> or
+      <a class="link" href="date-and-time-functions.html#function_to-days"><code class="literal">TO_DAYS()</code></a> function. Pruning can
+      also be applied for such tables when the partitioning expression
+      uses the <a class="link" href="date-and-time-functions.html#function_to-seconds"><code class="literal">TO_SECONDS()</code></a> function.
+    </p><p>
+      Suppose that table <code class="literal">t2</code>, partitioned on a
+      <a class="link" href="datetime.html" title="11.2.2&nbsp;The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a> column, is created using the
+      statement shown here:
+    </p><pre class="programlisting">CREATE TABLE t2 (
+    fname VARCHAR(50) NOT NULL,
+    lname VARCHAR(50) NOT NULL,
+    region_code TINYINT UNSIGNED NOT NULL,
+    dob DATE NOT NULL
+)
+PARTITION BY RANGE( YEAR(dob) ) (
+    PARTITION d0 VALUES LESS THAN (1970),
+    PARTITION d1 VALUES LESS THAN (1975),
+    PARTITION d2 VALUES LESS THAN (1980),
+    PARTITION d3 VALUES LESS THAN (1985),
+    PARTITION d4 VALUES LESS THAN (1990),
+    PARTITION d5 VALUES LESS THAN (2000),
+    PARTITION d6 VALUES LESS THAN (2005),
+    PARTITION d7 VALUES LESS THAN MAXVALUE
+);
+</pre><p>
+      The following statements using <code class="literal">t2</code> can make of
+      use partition pruning:
+    </p><pre class="programlisting">SELECT * FROM t2 WHERE dob = &#39;1982-06-23&#39;;
+
+UPDATE t2 SET region_code = 8 WHERE dob BETWEEN &#39;1991-02-15&#39; AND &#39;1997-04-25&#39;;
+
+DELETE FROM t2 WHERE dob &gt;= &#39;1984-06-21&#39; AND dob &lt;= &#39;1999-06-21&#39;
+</pre><p>
+      In the case of the last statement, the optimizer can also act as
+      follows:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          <span class="emphasis"><em>Find the partition containing the low end of the
+          range</em></span>.
+        </p><p>
+          <a class="link" href="date-and-time-functions.html#function_year"><code class="literal">YEAR(&#39;1984-06-21&#39;)</code></a> yields the
+          value <code class="literal">1984</code>, which is found in partition
+          <code class="literal">d3</code>.
+        </p></li><li class="listitem"><p>
+          <span class="emphasis"><em>Find the partition containing the high end of the
+          range</em></span>.
+        </p><p>
+          <a class="link" href="date-and-time-functions.html#function_year"><code class="literal">YEAR(&#39;1999-06-21&#39;)</code></a> evaluates to
+          <code class="literal">1999</code>, which is found in partition
+          <code class="literal">d5</code>.
+        </p></li><li class="listitem"><p>
+          <span class="emphasis"><em>Scan only these two partitions and any partitions
+          that may lie between them</em></span>.
+        </p><p>
+          In this case, this means that only partitions
+          <code class="literal">d3</code>, <code class="literal">d4</code>, and
+          <code class="literal">d5</code> are scanned. The remaining partitions
+          may be safely ignored (and are ignored).
+        </p></li></ol></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        Invalid <code class="literal">DATE</code> and <code class="literal">DATETIME</code>
+        values referenced in the <code class="literal">WHERE</code> condition of a
+        statement against a partitioned table are treated as
+        <code class="literal">NULL</code>. This means that a query such as
+        <code class="literal">SELECT * FROM
+        <em class="replaceable"><code>partitioned_table</code></em> WHERE
+        <em class="replaceable"><code>date_column</code></em> &lt;
+        &#39;2008-12-00&#39;</code> does not return any values (see Bug
+        #40972).
+      </p></div><p>
+      So far, we have looked only at examples using
+      <code class="literal">RANGE</code> partitioning, but pruning can be applied
+      with other partitioning types as well.
+    </p><p>
+      Consider a table that is partitioned by <code class="literal">LIST</code>,
+      where the partitioning expression is increasing or decreasing,
+      such as the table <code class="literal">t3</code> shown here. (In this
+      example, we assume for the sake of brevity that the
+      <code class="literal">region_code</code> column is limited to values between
+      1 and 10 inclusive.)
+    </p><pre class="programlisting">CREATE TABLE t3 (
+    fname VARCHAR(50) NOT NULL,
+    lname VARCHAR(50) NOT NULL,
+    region_code TINYINT UNSIGNED NOT NULL,
+    dob DATE NOT NULL
+)
+PARTITION BY LIST(region_code) (
+    PARTITION r0 VALUES IN (1, 3),
+    PARTITION r1 VALUES IN (2, 5, 8),
+    PARTITION r2 VALUES IN (4, 9),
+    PARTITION r3 VALUES IN (6, 7, 10)
+);
+</pre><p>
+      For a statement such as <code class="literal">SELECT * FROM t3 WHERE
+      region_code BETWEEN 1 AND 3</code>, the optimizer determines in
+      which partitions the values 1, 2, and 3 are found
+      (<code class="literal">r0</code> and <code class="literal">r1</code>) and skips the
+      remaining ones (<code class="literal">r2</code> and <code class="literal">r3</code>).
+    </p><p>
+      For tables that are partitioned by <code class="literal">HASH</code> or
+      <code class="literal">[LINEAR] KEY</code>, partition pruning is also
+      possible in cases in which the <code class="literal">WHERE</code> clause
+      uses a simple <code class="literal">=</code> relation against a column used
+      in the partitioning expression. Consider a table created like
+      this:
+    </p><pre class="programlisting">CREATE TABLE t4 (
+    fname VARCHAR(50) NOT NULL,
+    lname VARCHAR(50) NOT NULL,
+    region_code TINYINT UNSIGNED NOT NULL,
+    dob DATE NOT NULL
+)
+PARTITION BY KEY(region_code)
+PARTITIONS 8;
+</pre><p>
+      A statement that compares a column value with a constant can be
+      pruned:
+    </p><pre class="programlisting">UPDATE t4 WHERE region_code = 7;
+</pre><p>
+      Pruning can also be employed for short ranges, because the
+      optimizer can turn such conditions into <code class="literal">IN</code>
+      relations. For example, using the same table <code class="literal">t4</code>
+      as defined previously, queries such as these can be pruned:
+    </p><pre class="programlisting">SELECT * FROM t4 WHERE region_code &gt; 2 AND region_code &lt; 6;
+
+SELECT * FROM t4 WHERE region_code BETWEEN 3 AND 5;
+</pre><p>
+      In both these cases, the <code class="literal">WHERE</code> clause is
+      transformed by the optimizer into <code class="literal">WHERE region_code IN
+      (3, 4, 5)</code>.
+    </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        This optimization is used only if the range size is smaller than
+        the number of partitions. Consider this statement:
+      </p><pre class="programlisting">DELETE FROM t4 WHERE region_code BETWEEN 4 AND 12;
+</pre><p>
+        The range in the <code class="literal">WHERE</code> clause covers 9 values
+        (4, 5, 6, 7, 8, 9, 10, 11, 12), but <code class="literal">t4</code> has
+        only 8 partitions. This means that the <code class="literal">DELETE</code>
+        cannot be pruned.
+      </p></div><p>
+      When a table is partitioned by <code class="literal">HASH</code> or
+      <code class="literal">[LINEAR] KEY</code>, pruning can be used only on
+      integer columns. For example, this statement cannot use pruning
+      because <code class="literal">dob</code> is a
+      <a class="link" href="datetime.html" title="11.2.2&nbsp;The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a> column:
+    </p><pre class="programlisting">SELECT * FROM t4 WHERE dob &gt;= &#39;2001-04-14&#39; AND dob &lt;= &#39;2005-10-15&#39;;
+</pre><p>
+      However, if the table stores year values in an
+      <a class="link" href="integer-types.html" title="11.1.2&nbsp;Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INT</code></a> column, then a query having
+      <code class="literal">WHERE year_col &gt;= 2001 AND year_col &lt;=
+      2005</code> can be pruned.
+    </p><p>
+      Tables using a storage engine that provides automatic
+      partitioning, such as the <code class="literal">NDB</code> storage engine
+      used by MySQL Cluster can be pruned if they are explicitly
+      partitioned.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partitioning-info.html">Previous <span class="navHint"> Obtaining Information About Partitions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="partitioning.html">Up <span class="navHint"> Partitioning </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="partitioning-selection.html">Next <span class="navHint"> Partition Selection </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>27.9 Performance Schema Tables for Current and Historical Events</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="performance-schema.html" title="Chapter 27 MySQL Performance Schema" /><link rel="prev" href="performance-schema-atom-molecule-events.html" title="27.8 Performance Schema Atom and Molecule Events" /><link rel="next" href="performance-schema-statement-digests.html" title="27.10 Performance Schema Statement Digests and Sampling" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-event-tables.html#performance-schema-event-tables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="performance-schema-atom-molecule-events.html">Previous <span class="navHint"> Performance Schema Atom and Molecule Events </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="performance-schema-statement-digests.html">Next <span class="navHint"> Performance Schema Statement Digests and Sampling </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="performance-schema-event-tables"></a>27.9 Performance Schema Tables for Current and Historical Events</h2></div></div></div><p>
+      For wait, stage, statement, and transaction events, the
+      Performance Schema can monitor and store current events. In
+      addition, when events end, the Performance Schema can store them
+      in history tables. For each event type, the Performance Schema
+      uses three tables for storing current and historical events. The
+      tables have names of the following forms, where
+      <em class="replaceable"><code>xxx</code></em> indicates the event type
+      (<code class="literal">waits</code>, <code class="literal">stages</code>,
+      <code class="literal">statements</code>, <code class="literal">transactions</code>):
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">events_<em class="replaceable"><code>xxx</code></em>_current</code>:
+          The <span class="quote">“<span class="quote">current events</span>”</span> table stores the current
+          monitored event for each thread (one row per thread).
+        </p></li><li class="listitem"><p>
+          <code class="literal">events_<em class="replaceable"><code>xxx</code></em>_history</code>:
+          The <span class="quote">“<span class="quote">recent history</span>”</span> table stores the most recent
+          events that have ended per thread (up to a maximum number of
+          rows per thread).
+        </p></li><li class="listitem"><p>
+          <code class="literal">events_<em class="replaceable"><code>xxx</code></em>_history_long</code>:
+          The <span class="quote">“<span class="quote">long history</span>”</span> table stores the most recent
+          events that have ended globally (across all threads, up to a
+          maximum number of rows per table).
+        </p></li></ul></div><p>
+      The <code class="literal">_current</code> table for each event type contains
+      one row per thread, so there is no system variable for configuring
+      its maximum size. The Performance Schema autosizes the history
+      tables, or the sizes can be configured explicitly at server
+      startup using table-specific system variables, as indicated in the
+      sections that describe the individual history tables. Typical
+      autosized values are 10 rows per thread for
+      <code class="literal">_history</code> tables, and 10,000 rows total for
+      <code class="literal">_history_long</code> tables.
+    </p><p>
+      For each event type, the <code class="literal">_current</code>,
+      <code class="literal">_history</code>, and <code class="literal">_history_long</code>
+      tables have the same columns. The <code class="literal">_current</code> and
+      <code class="literal">_history</code> tables have the same indexing. The
+      <code class="literal">_history_long</code> table has no indexing.
+    </p><p>
+      The <code class="literal">_current</code> tables show what is currently
+      happening within the server. When a current event ends, it is
+      removed from its <code class="literal">_current</code> table.
+    </p><p>
+      The <code class="literal">_history</code> and
+      <code class="literal">_history_long</code> tables show what has happened in
+      the recent past. When the history tables become full, old events
+      are discarded as new events are added. Rows expire from the
+      <code class="literal">_history</code> and <code class="literal">_history_long</code>
+      tables in different ways because the tables serve different
+      purposes:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">_history</code> is meant to investigate individual
+          threads, independently of the global server load.
+        </p></li><li class="listitem"><p>
+          <code class="literal">_history_long</code> is meant to investigate the
+          server globally, not each thread.
+        </p></li></ul></div><p>
+      The difference between the two types of history tables relates to
+      the data retention policy. Both tables contains the same data when
+      an event is first seen. However, data within each table expires
+      differently over time, so that data might be preserved for a
+      longer or shorter time in each table:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          For <code class="literal">_history</code>, when the table contains the
+          maximum number of rows for a given thread, the oldest thread
+          row is discarded when a new row for that thread is added.
+        </p></li><li class="listitem"><p>
+          For <code class="literal">_history_long</code>, when the table becomes
+          full, the oldest row is discarded when a new row is added,
+          regardless of which thread generated either row.
+        </p></li></ul></div><p>
+      When a thread ends, all its rows are discarded from the
+      <code class="literal">_history</code> table but not from the
+      <code class="literal">_history_long</code> table.
+    </p><p>
+      The following example illustrates the differences in how events
+      are added to and discarded from the two types of history tables.
+      The principles apply equally to all event types. The example is
+      based on these assumptions:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The Performance Schema is configured to retain 10 rows per
+          thread in the <code class="literal">_history</code> table and 10,000
+          rows total in the <code class="literal">_history_long</code> table.
+        </p></li><li class="listitem"><p>
+          Thread A generates 1 event per second.
+        </p><p>
+          Thread B generates 100 events per second.
+        </p></li><li class="listitem"><p>
+          No other threads are running.
+        </p></li></ul></div><p>
+      After 5 seconds of execution:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          A and B have generated 5 and 500 events, respectively.
+        </p></li><li class="listitem"><p>
+          <code class="literal">_history</code> contains 5 rows for A and 10 rows
+          for B. Because storage per thread is limited to 10 rows, no
+          rows have been discarded for A, whereas 490 rows have been
+          discarded for B.
+        </p></li><li class="listitem"><p>
+          <code class="literal">_history_long</code> contains 5 rows for A and 500
+          rows for B. Because the table has a maximum size of 10,000
+          rows, no rows have been discarded for either thread.
+        </p></li></ul></div><p>
+      After 5 minutes (300 seconds) of execution:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          A and B have generated 300 and 30,000 events, respectively.
+        </p></li><li class="listitem"><p>
+          <code class="literal">_history</code> contains 10 rows for A and 10 rows
+          for B. Because storage per thread is limited to 10 rows, 290
+          rows have been discarded for A, whereas 29,990 rows have been
+          discarded for B. Rows for A include data up to 10 seconds old,
+          whereas rows for B include data up to only .1 seconds old.
+        </p></li><li class="listitem"><p>
+          <code class="literal">_history_long</code> contains 10,000 rows. Because
+          A and B together generate 101 events per second, the table
+          contains data up to approximately 10,000/101 = 99 seconds old,
+          with a mix of rows approximately 100 to 1 from B as opposed to
+          A.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="performance-schema-atom-molecule-events.html">Previous <span class="navHint"> Performance Schema Atom and Molecule Events </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-statement-digests.html">Next <span class="navHint"> Performance Schema Statement Digests and Sampling </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

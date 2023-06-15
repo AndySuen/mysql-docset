@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.4.1 Optimizing Data Size</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="optimizing-database-structure.html" title="8.4 Optimizing Database Structure" /><link rel="prev" href="optimizing-database-structure.html" title="8.4 Optimizing Database Structure" /><link rel="next" href="optimize-data-types.html" title="8.4.2 Optimizing MySQL Data Types" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="data-size.html#data-size">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="optimizing-database-structure.html">Previous <span class="navHint"> Optimizing Database Structure </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="optimizing-database-structure.html">Up <span class="navHint"> Optimizing Database Structure </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="optimize-data-types.html">Next <span class="navHint"> Optimizing MySQL Data Types </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="data-size"></a>8.4.1 Optimizing Data Size</h3></div></div></div><a id="idm45828953669984" class="indexterm"></a><a id="idm45828953668496" class="indexterm"></a><a id="idm45828953667008" class="indexterm"></a><a id="idm45828953665520" class="indexterm"></a><a id="idm45828953664032" class="indexterm"></a><p>
+        Design your tables to minimize their space on the disk. This can
+        result in huge improvements by reducing the amount of data
+        written to and read from disk. Smaller tables normally require
+        less main memory while their contents are being actively
+        processed during query execution. Any space reduction for table
+        data also results in smaller indexes that can be processed
+        faster.
+      </p><p>
+        MySQL supports many different storage engines (table types) and
+        row formats. For each table, you can decide which storage and
+        indexing method to use. Choosing the proper table format for
+        your application can give you a big performance gain. See
+        <a class="xref" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine">Chapter 15, <em>The InnoDB Storage Engine</em></a>, and
+        <a class="xref" href="storage-engines.html" title="Chapter 16 Alternative Storage Engines">Chapter 16, <em>Alternative Storage Engines</em></a>.
+      </p><p>
+        You can get better performance for a table and minimize storage
+        space by using the techniques listed here:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="data-size.html#data-size-table-columns" title="Table Columns">Table Columns</a></p></li><li class="listitem"><p><a class="xref" href="data-size.html#data-size-row-format" title="Row Format">Row Format</a></p></li><li class="listitem"><p><a class="xref" href="data-size.html#data-size-indexes" title="Indexes">Indexes</a></p></li><li class="listitem"><p><a class="xref" href="data-size.html#data-size-joins" title="Joins">Joins</a></p></li><li class="listitem"><p><a class="xref" href="data-size.html#data-size-normalization" title="Normalization">Normalization</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="data-size-table-columns"></a>Table Columns</h4></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Use the most efficient (smallest) data types possible.
+              MySQL has many specialized types that save disk space and
+              memory. For example, use the smaller integer types if
+              possible to get smaller tables.
+              <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">MEDIUMINT</code></a> is often a better
+              choice than <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INT</code></a> because a
+              <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">MEDIUMINT</code></a> column uses 25%
+              less space.
+            </p></li><li class="listitem"><p>
+              Declare columns to be <code class="literal">NOT NULL</code> if
+              possible. It makes SQL operations faster, by enabling
+              better use of indexes and eliminating overhead for testing
+              whether each value is <code class="literal">NULL</code>. You also
+              save some storage space, one bit per column. If you really
+              need <code class="literal">NULL</code> values in your tables, use
+              them. Just avoid the default setting that allows
+              <code class="literal">NULL</code> values in every column.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="data-size-row-format"></a>Row Format</h4></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">InnoDB</code> tables are created using the
+              <code class="literal">DYNAMIC</code> row format by default. To use a
+              row format other than <code class="literal">DYNAMIC</code>,
+              configure
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_default_row_format"><code class="literal">innodb_default_row_format</code></a>,
+              or specify the <code class="literal">ROW_FORMAT</code> option
+              explicitly in a <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE
+              TABLE</code></a> or <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+              TABLE</code></a> statement.
+            </p><p>
+              The compact family of row formats, which includes
+              <code class="literal">COMPACT</code>, <code class="literal">DYNAMIC</code>,
+              and <code class="literal">COMPRESSED</code>, decreases row storage
+              space at the cost of increasing CPU use for some
+              operations. If your workload is a typical one that is
+              limited by cache hit rates and disk speed it is likely to
+              be faster. If it is a rare case that is limited by CPU
+              speed, it might be slower.
+            </p><p>
+              The compact family of row formats also optimizes
+              <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a> column storage when
+              using a variable-length character set such as
+              <code class="literal">utf8mb3</code> or <code class="literal">utf8mb4</code>.
+              With <code class="literal">ROW_FORMAT=REDUNDANT</code>,
+              <code class="literal">CHAR(<em class="replaceable"><code>N</code></em>)</code>
+              occupies <em class="replaceable"><code>N</code></em> × the maximum
+              byte length of the character set. Many languages can be
+              written primarily using single-byte
+              <code class="literal">utf8mb3</code>or <code class="literal">utf8mb4</code>
+              characters, so a fixed storage length often wastes space.
+              With the compact family of rows formats,
+              <code class="literal">InnoDB</code> allocates a variable amount of
+              storage in the range of <em class="replaceable"><code>N</code></em> to
+              <em class="replaceable"><code>N</code></em> × the maximum byte
+              length of the character set for these columns by stripping
+              trailing spaces. The minimum storage length is
+              <em class="replaceable"><code>N</code></em> bytes to facilitate in-place
+              updates in typical cases. For more information, see
+              <a class="xref" href="innodb-row-format.html" title="15.10 InnoDB Row Formats">Section 15.10, “InnoDB Row Formats”</a>.
+            </p></li><li class="listitem"><p>
+              To minimize space even further by storing table data in
+              compressed form, specify
+              <code class="literal">ROW_FORMAT=COMPRESSED</code> when creating
+              <code class="literal">InnoDB</code> tables, or run the
+              <a class="link" href="myisampack.html" title="4.6.6 myisampack — Generate Compressed, Read-Only MyISAM Tables"><span class="command"><strong>myisampack</strong></span></a> command on an existing
+              <code class="literal">MyISAM</code> table.
+              (<code class="literal">InnoDB</code> compressed tables are readable
+              and writable, while <code class="literal">MyISAM</code> compressed
+              tables are read-only.)
+            </p></li><li class="listitem"><p>
+              For <code class="literal">MyISAM</code> tables, if you do not have
+              any variable-length columns
+              (<a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>,
+              <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">TEXT</code></a>, or
+              <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a> columns), a fixed-size
+              row format is used. This is faster but may waste some
+              space. See <a class="xref" href="myisam-table-formats.html" title="16.2.3 MyISAM Table Storage Formats">Section 16.2.3, “MyISAM Table Storage Formats”</a>. You can
+              hint that you want to have fixed length rows even if you
+              have <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a> columns with
+              the <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> option
+              <code class="literal">ROW_FORMAT=FIXED</code>.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="data-size-indexes"></a>Indexes</h4></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The primary index of a table should be as short as
+              possible. This makes identification of each row easy and
+              efficient. For <code class="literal">InnoDB</code> tables, the
+              primary key columns are duplicated in each secondary index
+              entry, so a short primary key saves considerable space if
+              you have many secondary indexes.
+            </p></li><li class="listitem"><p>
+              Create only the indexes that you need to improve query
+              performance. Indexes are good for retrieval, but slow down
+              insert and update operations. If you access a table mostly
+              by searching on a combination of columns, create a single
+              composite index on them rather than a separate index for
+              each column. The first part of the index should be the
+              column most used. If you <span class="emphasis"><em>always</em></span> use
+              many columns when selecting from the table, the first
+              column in the index should be the one with the most
+              duplicates, to obtain better compression of the index.
+            </p></li><li class="listitem"><p>
+              If it is very likely that a long string column has a
+              unique prefix on the first number of characters, it is
+              better to index only this prefix, using MySQL's
+              support for creating an index on the leftmost part of the
+              column (see <a class="xref" href="create-index.html" title="13.1.15 CREATE INDEX Statement">Section 13.1.15, “CREATE INDEX Statement”</a>). Shorter
+              indexes are faster, not only because they require less
+              disk space, but because they also give you more hits in
+              the index cache, and thus fewer disk seeks. See
+              <a class="xref" href="server-configuration.html" title="5.1.1 Configuring the Server">Section 5.1.1, “Configuring the Server”</a>.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="data-size-joins"></a>Joins</h4></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              In some circumstances, it can be beneficial to split into
+              two a table that is scanned very often. This is especially
+              true if it is a dynamic-format table and it is possible to
+              use a smaller static format table that can be used to find
+              the relevant rows when scanning the table.
+            </p></li><li class="listitem"><p>
+              Declare columns with identical information in different
+              tables with identical data types, to speed up joins based
+              on the corresponding columns.
+            </p></li><li class="listitem"><p>
+              Keep column names simple, so that you can use the same
+              name across different tables and simplify join queries.
+              For example, in a table named <code class="literal">customer</code>,
+              use a column name of <code class="literal">name</code> instead of
+              <code class="literal">customer_name</code>. To make your names
+              portable to other SQL servers, consider keeping them
+              shorter than 18 characters.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="data-size-normalization"></a>Normalization</h4></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Normally, try to keep all data nonredundant (observing
+              what is referred to in database theory as
+              <span class="firstterm">third normal form</span>).
+              Instead of repeating lengthy values such as names and
+              addresses, assign them unique IDs, repeat these IDs as
+              needed across multiple smaller tables, and join the tables
+              in queries by referencing the IDs in the join clause.
+            </p></li><li class="listitem"><p>
+              If speed is more important than disk space and the
+              maintenance costs of keeping multiple copies of data, for
+              example in a business intelligence scenario where you
+              analyze all the data from large tables, you can relax the
+              normalization rules, duplicating information or creating
+              summary tables to gain more speed.
+            </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimizing-database-structure.html">Previous <span class="navHint"> Optimizing Database Structure </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimizing-database-structure.html">Up <span class="navHint"> Optimizing Database Structure </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="optimize-data-types.html">Next <span class="navHint"> Optimizing MySQL Data Types </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

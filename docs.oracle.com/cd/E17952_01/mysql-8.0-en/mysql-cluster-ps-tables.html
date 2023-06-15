@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.6.18 NDB Cluster and the Performance Schema</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-management.html" title="23.6 Management of NDB Cluster" /><link rel="prev" href="mysql-cluster-information-schema-tables.html" title="23.6.17 INFORMATION_SCHEMA Tables for NDB Cluster" /><link rel="next" href="mysql-cluster-sql-statements.html" title="23.6.19 Quick Reference: NDB Cluster SQL Statements" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-ps-tables.html#mysql-cluster-ps-tables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-information-schema-tables.html">Previous <span class="navHint"> INFORMATION_SCHEMA Tables for NDB Cluster </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-management.html">Up <span class="navHint"> Management of NDB Cluster </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-sql-statements.html">Next <span class="navHint"> Quick Reference: NDB Cluster SQL Statements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-ps-tables"></a>23.6.18 NDB Cluster and the Performance Schema</h3></div></div></div><a id="idm45828805150000" class="indexterm"></a><a id="idm45828805148544" class="indexterm"></a><p>
+      NDB 8.0 provides information in the MySQL Performance Schema about
+      threads and transaction memory usage; NDB 8.0.29 adds
+      <code class="literal">ndbcluster</code> plugin threads, and NDB 8.0.30 adds
+      instrumenting for transaction batch memory. These features are
+      described in greater detail in the sections which follow.
+    </p><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-cluster-plugin-threads"></a>ndbcluster Plugin Threads</h4></div></div></div><a id="idm45828805144480" class="indexterm"></a><p>
+        Beginning with NDB 8.0.29, <code class="literal">ndbcluster</code> plugin
+        threads are visible in the Performance Schema
+        <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a> table, as shown in the
+        following query:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT name, type, thread_id, thread_os_id</code></strong>
+    -&gt; <strong class="userinput"><code>FROM performance_schema.threads</code></strong>
+    -&gt; <strong class="userinput"><code>WHERE name LIKE '%ndbcluster%'\G</code></strong>
++----------------------------------+------------+-----------+--------------+
+| name                             | type       | thread_id | thread_os_id |
++----------------------------------+------------+-----------+--------------+
+| thread/ndbcluster/ndb_binlog     | BACKGROUND |        30 |        11980 |
+| thread/ndbcluster/ndb_index_stat | BACKGROUND |        31 |        11981 |
+| thread/ndbcluster/ndb_metadata   | BACKGROUND |        32 |        11982 |
++----------------------------------+------------+-----------+--------------+
+</pre><p>
+        The <code class="literal">threads</code> table shows all three of the
+        threads listed here:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">ndb_binlog</code>: Binary logging thread
+          </p></li><li class="listitem"><p>
+            <code class="literal">ndb_index_stat</code>: Index statistics thread
+          </p></li><li class="listitem"><p>
+            <code class="literal">ndb_metadata</code>: Metadata thread
+          </p></li></ul></div><p>
+        These threads are also shown by name in the
+        <a class="link" href="performance-schema-setup-threads-table.html" title="27.12.2.5 The setup_threads Table"><code class="literal">setup_threads</code></a> table.
+      </p><p>
+        Thread names are shown in the <code class="literal">name</code> column of
+        the <code class="literal">threads</code> and
+        <code class="literal">setup_threads</code> tables using the format
+        <code class="literal"><em class="replaceable"><code>prefix</code></em>/<em class="replaceable"><code>plugin_name</code></em>/<em class="replaceable"><code>thread_name</code></em></code>.
+        <em class="replaceable"><code>prefix</code></em>, the object type as determined
+        by the <a class="link" href="performance-schema.html" title="Chapter 27 MySQL Performance Schema"><code class="literal">performance_schema</code></a> engine,
+        is <code class="literal">thread</code> for plugin threads (see
+        <a class="xref" href="performance-schema-instrument-naming.html#performance-schema-thread-instrument-elements" title="Thread Instrument Elements">Thread Instrument Elements</a>).
+        The <em class="replaceable"><code>plugin_name</code></em> is
+        <code class="literal">ndbcluster</code>.
+        <em class="replaceable"><code>thread_name</code></em> is the standalone name of
+        the thread (<code class="literal">ndb_binlog</code>,
+        <code class="literal">ndb_index_stat</code>, or
+        <code class="literal">ndb_metadata</code>).
+      </p><p>
+        Using the thread ID or OS thread ID for a given thread in the
+        <code class="literal">threads</code> or <code class="literal">setup_threads</code>
+        table, it is possible to obtain considerable information from
+        Performance Schema about plugin execution and resource usage.
+        This example shows how to obtain the amount of memory allocated
+        by the threads created by the <code class="literal">ndbcluster</code>
+        plugin from the <code class="literal">mem_root</code> arena by joining the
+        <code class="literal">threads</code> and
+        <a class="link" href="performance-schema-memory-summary-tables.html" title="27.12.20.10 Memory Summary Tables"><code class="literal">memory_summary_by_thread_by_event_name</code></a>
+        tables:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+    -&gt;   <strong class="userinput"><code>t.name,</code></strong>
+    -&gt;   <strong class="userinput"><code>m.sum_number_of_bytes_alloc,</code></strong>
+    -&gt;   <strong class="userinput"><code>IF(m.sum_number_of_bytes_alloc &gt; 0, "true", "false") AS 'Has allocated memory'</code></strong>
+    -&gt; <strong class="userinput"><code>FROM performance_schema.memory_summary_by_thread_by_event_name m</code></strong>
+    -&gt; <strong class="userinput"><code>JOIN performance_schema.threads t</code></strong>
+    -&gt; <strong class="userinput"><code>ON m.thread_id = t.thread_id</code></strong>
+    -&gt; <strong class="userinput"><code>WHERE t.name LIKE '%ndbcluster%'</code></strong>
+    -&gt;   <strong class="userinput"><code>AND event_name LIKE '%THD::main_mem_root%';</code></strong>
++----------------------------------+---------------------------+----------------------+
+| name                             | sum_number_of_bytes_alloc | Has allocated memory |
++----------------------------------+---------------------------+----------------------+
+| thread/ndbcluster/ndb_binlog     |                     20576 | true                 |
+| thread/ndbcluster/ndb_index_stat |                         0 | false                |
+| thread/ndbcluster/ndb_metadata   |                      8240 | true                 |
++----------------------------------+---------------------------+----------------------+
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-cluster-trx-batch-memory"></a>Transaction Memory Usage</h4></div></div></div><a id="idm45828805102704" class="indexterm"></a><p>
+        Starting with NDB 8.0.30, you can see the amount of memory used
+        for transaction batching by querying the Performance Schema
+        <a class="link" href="performance-schema-memory-summary-tables.html" title="27.12.20.10 Memory Summary Tables"><code class="literal">memory_summary_by_thread_by_event_name</code></a>
+        table, similar to what is shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT EVENT_NAME</code></strong>
+    -&gt;   <strong class="userinput"><code>FROM performance_schema.memory_summary_by_thread_by_event_name</code></strong>
+    -&gt;   <strong class="userinput"><code>WHERE THREAD_ID = PS_CURRENT_THREAD_ID()</code></strong>
+    -&gt;     <strong class="userinput"><code>AND EVENT_NAME LIKE 'memory/ndbcluster/%';</code></strong>
++-------------------------------------------+
+| EVENT_NAME                                |
++-------------------------------------------+
+| memory/ndbcluster/Thd_ndb::batch_mem_root |
++-------------------------------------------+
+1 row in set (0.01 sec)
+</pre><p>
+        The <code class="literal">ndbcluster</code> transaction memory instrument
+        is also visible in the Performance Schema
+        <a class="link" href="performance-schema-setup-instruments-table.html" title="27.12.2.3 The setup_instruments Table"><code class="literal">setup_instruments</code></a> table, as shown
+        here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * from performance_schema.setup_instruments</code></strong> 
+    -&gt;   <strong class="userinput"><code>WHERE NAME LIKE '%ndb%'\G</code></strong>
+*************************** 1. row ***************************
+         NAME: memory/ndbcluster/Thd_ndb::batch_mem_root
+      ENABLED: YES
+        TIMED: NULL
+   PROPERTIES: 
+   VOLATILITY: 0
+DOCUMENTATION: Memory used for transaction batching
+1 row in set (0.01 sec)
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-information-schema-tables.html">Previous <span class="navHint"> INFORMATION_SCHEMA Tables for NDB Cluster </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-management.html">Up <span class="navHint"> Management of NDB Cluster </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-sql-statements.html">Next <span class="navHint"> Quick Reference: NDB Cluster SQL Statements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

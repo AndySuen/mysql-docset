@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.5.3 Optimizing InnoDB Read-Only Transactions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="optimizing-innodb.html" title="8.5 Optimizing for InnoDB Tables" /><link rel="prev" href="optimizing-innodb-transaction-management.html" title="8.5.2 Optimizing InnoDB Transaction Management" /><link rel="next" href="optimizing-innodb-logging.html" title="8.5.4 Optimizing InnoDB Redo Logging" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-performance-ro-txn.html#innodb-performance-ro-txn">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="optimizing-innodb-transaction-management.html">Previous <span class="navHint"> Optimizing InnoDB Transaction Management </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="optimizing-innodb.html">Up <span class="navHint"> Optimizing for InnoDB Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="optimizing-innodb-logging.html">Next <span class="navHint"> Optimizing InnoDB Redo Logging </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-performance-ro-txn"></a>8.5.3 Optimizing InnoDB Read-Only Transactions</h3></div></div></div><p>
+        <code class="literal">InnoDB</code> can avoid the overhead associated with
+        setting up the <a class="link" href="glossary.html#glos_transaction_id" title="transaction ID">transaction
+        ID</a> (<code class="literal">TRX_ID</code> field) for transactions
+        that are known to be read-only. A transaction ID is only needed
+        for a <a class="link" href="glossary.html#glos_transaction" title="transaction">transaction</a> that
+        might perform write operations or
+        <a class="link" href="glossary.html#glos_locking_read" title="locking read">locking reads</a> such as
+        <code class="literal">SELECT ... FOR UPDATE</code>. Eliminating
+        unnecessary transaction IDs reduces the size of internal data
+        structures that are consulted each time a query or data change
+        statement constructs a <a class="link" href="glossary.html#glos_read_view" title="read view">read
+        view</a>.
+      </p><p>
+        <code class="literal">InnoDB</code> detects read-only transactions when:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The transaction is started with the
+            <a class="link" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">START TRANSACTION
+            READ ONLY</code></a> statement. In this case, attempting to
+            make changes to the database (for <code class="literal">InnoDB</code>,
+            <code class="literal">MyISAM</code>, or other types of tables) causes
+            an error, and the transaction continues in read-only state:
+          </p><pre class="programlisting">ERROR 1792 (25006): Cannot execute statement in a READ ONLY transaction.
+</pre><p>
+            You can still make changes to session-specific temporary
+            tables in a read-only transaction, or issue locking queries
+            for them, because those changes and locks are not visible to
+            any other transaction.
+          </p></li><li class="listitem"><p>
+            The <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">autocommit</code></a> setting is
+            turned on, so that the transaction is guaranteed to be a
+            single statement, and the single statement making up the
+            transaction is a <span class="quote">“<span class="quote">non-locking</span>”</span>
+            <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statement. That is, a
+            <code class="literal">SELECT</code> that does not use a <code class="literal">FOR
+            UPDATE</code> or <code class="literal">LOCK IN SHARED MODE</code>
+            clause.
+          </p></li><li class="listitem"><p>
+            The transaction is started without the <code class="literal">READ
+            ONLY</code> option, but no updates or statements that
+            explicitly lock rows have been executed yet. Until updates
+            or explicit locks are required, a transaction stays in
+            read-only mode.
+          </p></li></ul></div><p>
+        Thus, for a read-intensive application such as a report
+        generator, you can tune a sequence of <code class="literal">InnoDB</code>
+        queries by grouping them inside
+        <a class="link" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">START TRANSACTION READ
+        ONLY</code></a> and
+        <a class="link" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">COMMIT</code></a>, or by
+        turning on the <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">autocommit</code></a>
+        setting before running the <code class="literal">SELECT</code> statements,
+        or simply by avoiding any data change statements interspersed
+        with the queries.
+      </p><p>
+        For information about
+        <a class="link" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">START
+        TRANSACTION</code></a> and
+        <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">autocommit</code></a>, see
+        <a class="xref" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements">Section 13.3.1, “START TRANSACTION, COMMIT, and ROLLBACK Statements”</a>.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Transactions that qualify as auto-commit, non-locking, and
+          read-only (AC-NL-RO) are kept out of certain internal
+          <code class="literal">InnoDB</code> data structures and are therefore
+          not listed in
+          <a class="link" href="show-engine.html" title="13.7.7.15 SHOW ENGINE Statement"><code class="literal">SHOW ENGINE
+          INNODB STATUS</code></a> output.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimizing-innodb-transaction-management.html">Previous <span class="navHint"> Optimizing InnoDB Transaction Management </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimizing-innodb.html">Up <span class="navHint"> Optimizing for InnoDB Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="optimizing-innodb-logging.html">Next <span class="navHint"> Optimizing InnoDB Redo Logging </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

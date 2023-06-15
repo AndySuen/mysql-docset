@@ -1,0 +1,58 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1455"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.11.1%C2%A0InnoDB%20Disk%20I%2FO"></a><title>15.11.1&nbsp;InnoDB Disk I/O</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-disk-management.html" title="15.11&nbsp;InnoDB Disk I/O and File Space Management"/><link rel="prev" href="innodb-disk-management.html" title="15.11&nbsp;InnoDB Disk I/O and File Space Management"/><link rel="next" href="innodb-file-space.html" title="15.11.2&nbsp;File Space Management"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-disk-io.html#innodb-disk-io">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-disk-management.html">Previous <span class="navHint"> InnoDB Disk I/O and File Space Management </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-disk-management.html">Up <span class="navHint"> InnoDB Disk I/O and File Space Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-file-space.html">Next <span class="navHint"> File Space Management </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-disk-io"></a>15.11.1&nbsp;InnoDB Disk I/O</h3></div></div></div><a id="idm45828885716336" class="indexterm"></a><p>
+      <code class="literal">InnoDB</code> uses asynchronous disk I/O where
+      possible, by creating a number of threads to handle I/O
+      operations, while permitting other database operations to proceed
+      while the I/O is still in progress. On Linux and Windows
+      platforms, <code class="literal">InnoDB</code> uses the available OS and
+      library functions to perform <span class="quote">&ldquo;<span class="quote">native</span>&rdquo;</span> asynchronous
+      I/O. On other platforms, <code class="literal">InnoDB</code> still uses I/O
+      threads, but the threads may actually wait for I/O requests to
+      complete; this technique is known as <span class="quote">&ldquo;<span class="quote">simulated</span>&rdquo;</span>
+      asynchronous I/O.
+    </p><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1453"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Read-Ahead"></a><h4 class="title"><a id="innodb-disk-io-read-ahead"></a>Read-Ahead</h4></div></div></div><p>
+        If <code class="literal">InnoDB</code> can determine there is a high
+        probability that data might be needed soon, it performs
+        read-ahead operations to bring that data into the buffer pool so
+        that it is available in memory. Making a few large read requests
+        for contiguous data can be more efficient than making several
+        small, spread-out requests. There are two read-ahead heuristics
+        in <code class="literal">InnoDB</code>:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            In sequential read-ahead, if <code class="literal">InnoDB</code>
+            notices that the access pattern to a segment in the
+            tablespace is sequential, it posts in advance a batch of
+            reads of database pages to the I/O system.
+          </p></li><li class="listitem"><p>
+            In random read-ahead, if <code class="literal">InnoDB</code> notices
+            that some area in a tablespace seems to be in the process of
+            being fully read into the buffer pool, it posts the
+            remaining reads to the I/O system.
+          </p></li></ul></div><p>
+        For information about configuring read-ahead heuristics, see
+        <a class="xref" href="innodb-performance-read_ahead.html" title="15.8.3.4&nbsp;Configuring InnoDB Buffer Pool Prefetching (Read-Ahead)">Section&nbsp;15.8.3.4, &ldquo;Configuring InnoDB Buffer Pool Prefetching (Read-Ahead)&rdquo;</a>.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1454"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Doublewrite%20Buffer"></a><h4 class="title"><a id="innodb-disk-io-doublewrite"></a>Doublewrite Buffer</h4></div></div></div><a id="idm45828885701152" class="indexterm"></a><a id="idm45828885700080" class="indexterm"></a><p>
+        <code class="literal">InnoDB</code> uses a novel file flush technique
+        involving a structure called the
+        <a class="link" href="glossary.html#glos_doublewrite_buffer" title="doublewrite buffer">doublewrite
+        buffer</a>, which is enabled by default in most cases
+        (<a class="link" href="innodb-parameters.html#sysvar_innodb_doublewrite"><code class="literal">innodb_doublewrite=ON</code></a>). It
+        adds safety to recovery following an unexpected exit or power
+        outage, and improves performance on most varieties of Unix by
+        reducing the need for <code class="literal">fsync()</code> operations.
+      </p><p>
+        Before writing pages to a data file, <code class="literal">InnoDB</code>
+        first writes them to a storage area called the doublewrite
+        buffer. Only after the write and the flush to the doublewrite
+        buffer has completed does <code class="literal">InnoDB</code> write the
+        pages to their proper positions in the data file. If there is an
+        operating system, storage subsystem, or unexpected
+        <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> process exit in the middle of a page
+        write (causing a <a class="link" href="glossary.html#glos_torn_page" title="torn page">torn page</a>
+        condition), <code class="literal">InnoDB</code> can later find a good copy
+        of the page from the doublewrite buffer during recovery.
+      </p><p>
+        For more information about the doublewrite buffer, see
+        <a class="xref" href="innodb-doublewrite-buffer.html" title="15.6.4&nbsp;Doublewrite Buffer">Section&nbsp;15.6.4, &ldquo;Doublewrite Buffer&rdquo;</a>.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-disk-management.html">Previous <span class="navHint"> InnoDB Disk I/O and File Space Management </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-disk-management.html">Up <span class="navHint"> InnoDB Disk I/O and File Space Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-file-space.html">Next <span class="navHint"> File Space Management </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>16.2.3.1 Static (Fixed-Length) Table Characteristics</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="myisam-table-formats.html" title="16.2.3 MyISAM Table Storage Formats" /><link rel="prev" href="myisam-table-formats.html" title="16.2.3 MyISAM Table Storage Formats" /><link rel="next" href="dynamic-format.html" title="16.2.3.2 Dynamic Table Characteristics" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="static-format.html#static-format">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="myisam-table-formats.html">Previous <span class="navHint"> MyISAM Table Storage Formats </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="myisam-table-formats.html">Up <span class="navHint"> MyISAM Table Storage Formats </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="dynamic-format.html">Next <span class="navHint"> Dynamic Table Characteristics </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="static-format"></a>16.2.3.1 Static (Fixed-Length) Table Characteristics</h4></div></div></div><p>
+        Static format is the default for <code class="literal">MyISAM</code>
+        tables. It is used when the table contains no variable-length
+        columns (<a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>,
+        <a class="link" href="binary-varbinary.html" title="11.3.3 The BINARY and VARBINARY Types"><code class="literal">VARBINARY</code></a>,
+        <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a>, or
+        <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">TEXT</code></a>). Each row is stored using a
+        fixed number of bytes.
+      </p><p>
+        Of the three <code class="literal">MyISAM</code> storage formats, static
+        format is the simplest and most secure (least subject to
+        corruption). It is also the fastest of the on-disk formats due
+        to the ease with which rows in the data file can be found on
+        disk: To look up a row based on a row number in the index,
+        multiply the row number by the row length to calculate the row
+        position. Also, when scanning a table, it is very easy to read a
+        constant number of rows with each disk read operation.
+      </p><p>
+        The security is evidenced if your computer crashes while the
+        MySQL server is writing to a fixed-format
+        <code class="literal">MyISAM</code> file. In this case,
+        <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> can easily determine where each row
+        starts and ends, so it can usually reclaim all rows except the
+        partially written one. <code class="literal">MyISAM</code> table indexes
+        can always be reconstructed based on the data rows.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Fixed-length row format is available only for tables having no
+          <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a> or
+          <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">TEXT</code></a> columns. Creating a table
+          having such columns with an explicit
+          <code class="literal">ROW_FORMAT</code> clause does not raise an error
+          or warning; the format specification is ignored.
+        </p></div><p>
+        Static-format tables have these characteristics:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a> and
+            <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a> columns are
+            space-padded to the specified column width, although the
+            column type is not altered.
+            <a class="link" href="binary-varbinary.html" title="11.3.3 The BINARY and VARBINARY Types"><code class="literal">BINARY</code></a> and
+            <a class="link" href="binary-varbinary.html" title="11.3.3 The BINARY and VARBINARY Types"><code class="literal">VARBINARY</code></a> columns are padded
+            with <code class="literal">0x00</code> bytes to the column width.
+          </p></li><li class="listitem"><p>
+            <code class="literal">NULL</code> columns require additional space in
+            the row to record whether their values are
+            <code class="literal">NULL</code>. Each <code class="literal">NULL</code> column
+            takes one bit extra, rounded up to the nearest byte.
+          </p></li><li class="listitem"><p>
+            Very quick.
+          </p></li><li class="listitem"><p>
+            Easy to cache.
+          </p></li><li class="listitem"><p>
+            Easy to reconstruct after a crash, because rows are located
+            in fixed positions.
+          </p></li><li class="listitem"><p>
+            Reorganization is unnecessary unless you delete a huge
+            number of rows and want to return free disk space to the
+            operating system. To do this, use
+            <a class="link" href="optimize-table.html" title="13.7.3.4 OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> or
+            <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk -r</strong></span></a>.
+          </p></li><li class="listitem"><p>
+            Usually require more disk space than dynamic-format tables.
+          </p></li><li class="listitem"><p>
+            The expected row length in bytes for static-sized rows is
+            calculated using the following expression:
+          </p><pre class="programlisting">row length = 1
+             + (<em class="replaceable"><code>sum of column lengths</code></em>)
+             + (<em class="replaceable"><code>number of NULL columns</code></em> + <em class="replaceable"><code>delete_flag</code></em> + 7)/8
+             + (<em class="replaceable"><code>number of variable-length columns</code></em>)
+</pre><p>
+            <em class="replaceable"><code>delete_flag</code></em> is 1 for tables with
+            static row format. Static tables use a bit in the row record
+            for a flag that indicates whether the row has been deleted.
+            <em class="replaceable"><code>delete_flag</code></em> is 0 for dynamic
+            tables because the flag is stored in the dynamic row header.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="myisam-table-formats.html">Previous <span class="navHint"> MyISAM Table Storage Formats </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="myisam-table-formats.html">Up <span class="navHint"> MyISAM Table Storage Formats </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="dynamic-format.html">Next <span class="navHint"> Dynamic Table Characteristics </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

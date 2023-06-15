@@ -1,0 +1,291 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-424"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.9.5%C2%A0The%20Optimizer%20Cost%20Model"></a><title>8.9.5&nbsp;The Optimizer Cost Model</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="controlling-optimizer.html" title="8.9&nbsp;Controlling the Query Optimizer"/><link rel="prev" href="index-hints.html" title="8.9.4&nbsp;Index Hints"/><link rel="next" href="optimizer-statistics.html" title="8.9.6&nbsp;Optimizer Statistics"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="cost-model.html#cost-model">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="index-hints.html">Previous <span class="navHint"> Index Hints </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="controlling-optimizer.html">Up <span class="navHint"> Controlling the Query Optimizer </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="optimizer-statistics.html">Next <span class="navHint"> Optimizer Statistics </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="cost-model"></a>8.9.5&nbsp;The Optimizer Cost Model</h3></div></div></div><a id="idm45828950144752" class="indexterm"></a><a id="idm45828950143296" class="indexterm"></a><p>
+        To generate execution plans, the optimizer uses a cost model
+        that is based on estimates of the cost of various operations
+        that occur during query execution. The optimizer has a set of
+        compiled-in default <span class="quote">&ldquo;<span class="quote">cost constants</span>&rdquo;</span> available to
+        it to make decisions regarding execution plans.
+      </p><p>
+        The optimizer also has a database of cost estimates to use
+        during execution plan construction. These estimates are stored
+        in the <code class="literal">server_cost</code> and
+        <code class="literal">engine_cost</code> tables in the
+        <code class="literal">mysql</code> system database and are configurable at
+        any time. The intent of these tables is to make it possible to
+        easily adjust the cost estimates that the optimizer uses when it
+        attempts to arrive at query execution plans.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="cost-model.html#cost-model-operation" title="Cost Model General Operation">Cost Model General Operation</a></p></li><li class="listitem"><p><a class="xref" href="cost-model.html#cost-model-database" title="The Cost Model Database">The Cost Model Database</a></p></li><li class="listitem"><p><a class="xref" href="cost-model.html#cost-model-database-modifications" title="Making Changes to the Cost Model Database">Making Changes to the Cost Model Database</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-421"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Cost%20Model%20General%20Operation"></a><h4 class="title"><a id="cost-model-operation"></a>Cost Model General Operation</h4></div></div></div><p>
+          The configurable optimizer cost model works like this:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The server reads the cost model tables into memory at
+              startup and uses the in-memory values at runtime. Any
+              non-<code class="literal">NULL</code> cost estimate specified in the
+              tables takes precedence over the corresponding compiled-in
+              default cost constant. Any <code class="literal">NULL</code>
+              estimate indicates to the optimizer to use the compiled-in
+              default.
+            </p></li><li class="listitem"><p>
+              At runtime, the server may re-read the cost tables. This
+              occurs when a storage engine is dynamically loaded or when
+              a <a class="link" href="flush.html#flush-optimizer-costs"><code class="literal">FLUSH OPTIMIZER_COSTS</code></a>
+              statement is executed.
+            </p></li><li class="listitem"><p>
+              Cost tables enable server administrators to easily adjust
+              cost estimates by changing entries in the tables. It is
+              also easy to revert to a default by setting an
+              entry&#39;s cost to <code class="literal">NULL</code>. The
+              optimizer uses the in-memory cost values, so changes to
+              the tables should be followed by
+              <a class="link" href="flush.html#flush-optimizer-costs"><code class="literal">FLUSH OPTIMIZER_COSTS</code></a> to
+              take effect.
+            </p></li><li class="listitem"><p>
+              The in-memory cost estimates that are current when a
+              client session begins apply throughout that session until
+              it ends. In particular, if the server re-reads the cost
+              tables, any changed estimates apply only to subsequently
+              started sessions. Existing sessions are unaffected.
+            </p></li><li class="listitem"><p>
+              Cost tables are specific to a given server instance. The
+              server does not replicate cost table changes to replicas.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-422"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/The%20Cost%20Model%20Database"></a><h4 class="title"><a id="cost-model-database"></a>The Cost Model Database</h4></div></div></div><p>
+          The optimizer cost model database consists of two tables in
+          the <code class="literal">mysql</code> system database that contain cost
+          estimate information for operations that occur during query
+          execution:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <a id="idm45828950119136" class="indexterm"></a>
+
+              <a id="idm45828950117648" class="indexterm"></a>
+
+              <code class="literal">server_cost</code>: Optimizer cost estimates
+              for general server operations
+            </p></li><li class="listitem"><p>
+              <a id="idm45828950114608" class="indexterm"></a>
+
+              <a id="idm45828950113120" class="indexterm"></a>
+
+              <code class="literal">engine_cost</code>: Optimizer cost estimates
+              for operations specific to particular storage engines
+            </p></li></ul></div><p>
+          The <code class="literal">server_cost</code> table contains these
+          columns:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">cost_name</code>
+            </p><p>
+              The name of a cost estimate used in the cost model. The
+              name is not case-sensitive. If the server does not
+              recognize the cost name when it reads this table, it
+              writes a warning to the error log.
+            </p></li><li class="listitem"><p>
+              <code class="literal">cost_value</code>
+            </p><p>
+              The cost estimate value. If the value is
+              non-<code class="literal">NULL</code>, the server uses it as the
+              cost. Otherwise, it uses the default estimate (the
+              compiled-in value). DBAs can change a cost estimate by
+              updating this column. If the server finds that the cost
+              value is invalid (nonpositive) when it reads this table,
+              it writes a warning to the error log.
+            </p><p>
+              To override a default cost estimate (for an entry that
+              specifies <code class="literal">NULL</code>), set the cost to a
+              non-<code class="literal">NULL</code> value. To revert to the
+              default, set the value to <code class="literal">NULL</code>. Then
+              execute <a class="link" href="flush.html#flush-optimizer-costs"><code class="literal">FLUSH
+              OPTIMIZER_COSTS</code></a> to tell the server to re-read
+              the cost tables.
+            </p></li><li class="listitem"><p>
+              <code class="literal">last_update</code>
+            </p><p>
+              The time of the last row update.
+            </p></li><li class="listitem"><p>
+              <code class="literal">comment</code>
+            </p><p>
+              A descriptive comment associated with the cost estimate.
+              DBAs can use this column to provide information about why
+              a cost estimate row stores a particular value.
+            </p></li><li class="listitem"><p>
+              <code class="literal">default_value</code>
+            </p><p>
+              The default (compiled-in) value for the cost estimate.
+              This column is a read-only generated column that retains
+              its value even if the associated cost estimate is changed.
+              For rows added to the table at runtime, the value of this
+              column is <code class="literal">NULL</code>.
+            </p></li></ul></div><p>
+          The primary key for the <code class="literal">server_cost</code> table
+          is the <code class="literal">cost_name</code> column, so it is not
+          possible to create multiple entries for any cost estimate.
+        </p><p>
+          The server recognizes these <code class="literal">cost_name</code>
+          values for the <code class="literal">server_cost</code> table:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">disk_temptable_create_cost</code>,
+              <code class="literal">disk_temptable_row_cost</code>
+            </p><p>
+              The cost estimates for internally created temporary tables
+              stored in a disk-based storage engine (either
+              <code class="literal">InnoDB</code> or <code class="literal">MyISAM</code>).
+              Increasing these values increases the cost estimate of
+              using internal temporary tables and makes the optimizer
+              prefer query plans with less use of them. For information
+              about such tables, see
+              <a class="xref" href="internal-temporary-tables.html" title="8.4.4&nbsp;Internal Temporary Table Use in MySQL">Section&nbsp;8.4.4, &ldquo;Internal Temporary Table Use in MySQL&rdquo;</a>.
+            </p><p>
+              The larger default values for these disk parameters
+              compared to the default values for the corresponding
+              memory parameters
+              (<code class="literal">memory_temptable_create_cost</code>,
+              <code class="literal">memory_temptable_row_cost</code>) reflects the
+              greater cost of processing disk-based tables.
+            </p></li><li class="listitem"><p>
+              <code class="literal">key_compare_cost</code>
+            </p><a id="idm45828950079872" class="indexterm"></a><a id="idm45828950078800" class="indexterm"></a><p>
+              The cost of comparing record keys. Increasing this value
+              causes a query plan that compares many keys to become more
+              expensive. For example, a query plan that performs a
+              <code class="literal">filesort</code> becomes relatively more
+              expensive compared to a query plan that avoids sorting by
+              using an index.
+            </p></li><li class="listitem"><p>
+              <code class="literal">memory_temptable_create_cost</code>,
+              <code class="literal">memory_temptable_row_cost</code>
+            </p><p>
+              The cost estimates for internally created temporary tables
+              stored in the <code class="literal">MEMORY</code> storage engine.
+              Increasing these values increases the cost estimate of
+              using internal temporary tables and makes the optimizer
+              prefer query plans with less use of them. For information
+              about such tables, see
+              <a class="xref" href="internal-temporary-tables.html" title="8.4.4&nbsp;Internal Temporary Table Use in MySQL">Section&nbsp;8.4.4, &ldquo;Internal Temporary Table Use in MySQL&rdquo;</a>.
+            </p><p>
+              The smaller default values for these memory parameters
+              compared to the default values for the corresponding disk
+              parameters (<code class="literal">disk_temptable_create_cost</code>,
+              <code class="literal">disk_temptable_row_cost</code>) reflects the
+              lesser cost of processing memory-based tables.
+            </p></li><li class="listitem"><p>
+              <code class="literal">row_evaluate_cost</code>
+            </p><p>
+              The cost of evaluating record conditions. Increasing this
+              value causes a query plan that examines many rows to
+              become more expensive compared to a query plan that
+              examines fewer rows. For example, a table scan becomes
+              relatively more expensive compared to a range scan that
+              reads fewer rows.
+            </p></li></ul></div><p>
+          The <code class="literal">engine_cost</code> table contains these
+          columns:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">engine_name</code>
+            </p><p>
+              The name of the storage engine to which this cost estimate
+              applies. The name is not case-sensitive. If the value is
+              <code class="literal">default</code>, it applies to all storage
+              engines that have no named entry of their own. If the
+              server does not recognize the engine name when it reads
+              this table, it writes a warning to the error log.
+            </p></li><li class="listitem"><p>
+              <code class="literal">device_type</code>
+            </p><p>
+              The device type to which this cost estimate applies. The
+              column is intended for specifying different cost estimates
+              for different storage device types, such as hard disk
+              drives versus solid state drives. Currently, this
+              information is not used and 0 is the only permitted value.
+            </p></li><li class="listitem"><p>
+              <code class="literal">cost_name</code>
+            </p><p>
+              Same as in the <code class="literal">server_cost</code> table.
+            </p></li><li class="listitem"><p>
+              <code class="literal">cost_value</code>
+            </p><p>
+              Same as in the <code class="literal">server_cost</code> table.
+            </p></li><li class="listitem"><p>
+              <code class="literal">last_update</code>
+            </p><p>
+              Same as in the <code class="literal">server_cost</code> table.
+            </p></li><li class="listitem"><p>
+              <code class="literal">comment</code>
+            </p><p>
+              Same as in the <code class="literal">server_cost</code> table.
+            </p></li><li class="listitem"><p>
+              <code class="literal">default_value</code>
+            </p><p>
+              The default (compiled-in) value for the cost estimate.
+              This column is a read-only generated column that retains
+              its value even if the associated cost estimate is changed.
+              For rows added to the table at runtime, the value of this
+              column is <code class="literal">NULL</code>, with the exception that
+              if the row has the same <code class="literal">cost_name</code> value
+              as one of the original rows, the
+              <code class="literal">default_value</code> column has the same value
+              as that row.
+            </p></li></ul></div><p>
+          The primary key for the <code class="literal">engine_cost</code> table
+          is a tuple comprising the (<code class="literal">cost_name</code>,
+          <code class="literal">engine_name</code>,
+          <code class="literal">device_type</code>) columns, so it is not possible
+          to create multiple entries for any combination of values in
+          those columns.
+        </p><p>
+          The server recognizes these <code class="literal">cost_name</code>
+          values for the <code class="literal">engine_cost</code> table:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">io_block_read_cost</code>
+            </p><p>
+              The cost of reading an index or data block from disk.
+              Increasing this value causes a query plan that reads many
+              disk blocks to become more expensive compared to a query
+              plan that reads fewer disk blocks. For example, a table
+              scan becomes relatively more expensive compared to a range
+              scan that reads fewer blocks.
+            </p></li><li class="listitem"><p>
+              <code class="literal">memory_block_read_cost</code>
+            </p><p>
+              Similar to <code class="literal">io_block_read_cost</code>, but
+              represents the cost of reading an index or data block from
+              an in-memory database buffer.
+            </p></li></ul></div><p>
+          If the <code class="literal">io_block_read_cost</code> and
+          <code class="literal">memory_block_read_cost</code> values differ, the
+          execution plan may change between two runs of the same query.
+          Suppose that the cost for memory access is less than the cost
+          for disk access. In that case, at server startup before data
+          has been read into the buffer pool, you may get a different
+          plan than after the query has been run because then the data
+          is in memory.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-423"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Making%20Changes%20to%20the%20Cost%20Model%20Database"></a><h4 class="title"><a id="cost-model-database-modifications"></a>Making Changes to the Cost Model Database</h4></div></div></div><p>
+          For DBAs who wish to change the cost model parameters from
+          their defaults, try doubling or halving the value and
+          measuring the effect.
+        </p><p>
+          Changes to the <code class="literal">io_block_read_cost</code> and
+          <code class="literal">memory_block_read_cost</code> parameters are most
+          likely to yield worthwhile results. These parameter values
+          enable cost models for data access methods to take into
+          account the costs of reading information from different
+          sources; that is, the cost of reading information from disk
+          versus reading information already in a memory buffer. For
+          example, all other things being equal, setting
+          <code class="literal">io_block_read_cost</code> to a value larger than
+          <code class="literal">memory_block_read_cost</code> causes the optimizer
+          to prefer query plans that read information already held in
+          memory to plans that must read from disk.
+        </p><p>
+          This example shows how to change the default value for
+          <code class="literal">io_block_read_cost</code>:
+        </p><pre class="programlisting">UPDATE mysql.engine_cost
+  SET cost_value = 2.0
+  WHERE cost_name = &#39;io_block_read_cost&#39;;
+FLUSH OPTIMIZER_COSTS;
+</pre><p>
+          This example shows how to change the value of
+          <code class="literal">io_block_read_cost</code> only for the
+          <code class="literal">InnoDB</code> storage engine:
+        </p><pre class="programlisting">INSERT INTO mysql.engine_cost
+  VALUES (&#39;InnoDB&#39;, 0, &#39;io_block_read_cost&#39;, 3.0,
+  CURRENT_TIMESTAMP, &#39;Using a slower disk for InnoDB&#39;);
+FLUSH OPTIMIZER_COSTS;
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="index-hints.html">Previous <span class="navHint"> Index Hints </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="controlling-optimizer.html">Up <span class="navHint"> Controlling the Query Optimizer </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="optimizer-statistics.html">Next <span class="navHint"> Optimizer Statistics </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

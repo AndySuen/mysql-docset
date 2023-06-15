@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.1.3.2 GTID Life Cycle</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-gtids.html" title="17.1.3 Replication with Global Transaction Identifiers" /><link rel="prev" href="replication-gtids-concepts.html" title="17.1.3.1 GTID Format and Storage" /><link rel="next" href="replication-gtids-auto-positioning.html" title="17.1.3.3 GTID Auto-Positioning" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-gtids-lifecycle.html#replication-gtids-lifecycle">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-gtids-concepts.html">Previous <span class="navHint"> GTID Format and Storage </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-gtids-auto-positioning.html">Next <span class="navHint"> GTID Auto-Positioning </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-gtids-lifecycle"></a>17.1.3.2 GTID Life Cycle</h4></div></div></div><a id="idm45828868887440" class="indexterm"></a><p>
+      The life cycle of a GTID consists of the following steps:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          A transaction is executed and committed on the source. This
+          client transaction is assigned a GTID composed of the source's
+          UUID and the smallest nonzero transaction sequence number not
+          yet used on this server. The GTID is written to the source's
+          binary log (immediately preceding the transaction itself in
+          the log). If a client transaction is not written to the binary
+          log (for example, because the transaction was filtered out, or
+          the transaction was read-only), it is not assigned a GTID.
+        </p></li><li class="listitem"><p>
+          If a GTID was assigned for the transaction, the GTID is
+          persisted atomically at commit time by writing it to the
+          binary log at the beginning of the transaction (as a
+          <code class="literal">Gtid_log_event</code>). Whenever the binary log is
+          rotated or the server is shut down, the server writes GTIDs
+          for all transactions that were written into the previous
+          binary log file into the
+          <code class="literal">mysql.gtid_executed</code> table.
+        </p></li><li class="listitem"><p>
+          If a GTID was assigned for the transaction, the GTID is
+          externalized non-atomically (very shortly after the
+          transaction is committed) by adding it to the set of GTIDs in
+          the <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> system
+          variable (<code class="literal">@@GLOBAL.gtid_executed</code>). This
+          GTID set contains a representation of the set of all committed
+          GTID transactions, and it is used in replication as a token
+          that represents the server state. With binary logging enabled
+          (as required for the source), the set of GTIDs in the
+          <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> system variable
+          is a complete record of the transactions applied, but the
+          <code class="literal">mysql.gtid_executed</code> table is not, because
+          the most recent history is still in the current binary log
+          file.
+        </p></li><li class="listitem"><p>
+          After the binary log data is transmitted to the replica and
+          stored in the replica's relay log (using established
+          mechanisms for this process, see
+          <a class="xref" href="replication-implementation.html" title="17.2 Replication Implementation">Section 17.2, “Replication Implementation”</a>, for details),
+          the replica reads the GTID and sets the value of its
+          <a class="link" href="replication-options-gtids.html#sysvar_gtid_next"><code class="literal">gtid_next</code></a> system variable as
+          this GTID. This tells the replica that the next transaction
+          must be logged using this GTID. It is important to note that
+          the replica sets <code class="literal">gtid_next</code> in a session
+          context.
+        </p></li><li class="listitem"><p>
+          The replica verifies that no thread has yet taken ownership of
+          the GTID in <a class="link" href="replication-options-gtids.html#sysvar_gtid_next"><code class="literal">gtid_next</code></a> in
+          order to process the transaction. By reading and checking the
+          replicated transaction's GTID first, before processing the
+          transaction itself, the replica guarantees not only that no
+          previous transaction having this GTID has been applied on the
+          replica, but also that no other session has already read this
+          GTID but has not yet committed the associated transaction. So
+          if multiple clients attempt to apply the same transaction
+          concurrently, the server resolves this by letting only one of
+          them execute. The <a class="link" href="replication-options-gtids.html#sysvar_gtid_owned"><code class="literal">gtid_owned</code></a>
+          system variable (<code class="literal">@@GLOBAL.gtid_owned</code>) for
+          the replica shows each GTID that is currently in use and the
+          ID of the thread that owns it. If the GTID has already been
+          used, no error is raised, and the auto-skip function is used
+          to ignore the transaction.
+        </p></li><li class="listitem"><p>
+          If the GTID has not been used, the replica applies the
+          replicated transaction. Because
+          <a class="link" href="replication-options-gtids.html#sysvar_gtid_next"><code class="literal">gtid_next</code></a> is set to the GTID
+          already assigned by the source, the replica does not attempt
+          to generate a new GTID for this transaction, but instead uses
+          the GTID stored in <a class="link" href="replication-options-gtids.html#sysvar_gtid_next"><code class="literal">gtid_next</code></a>.
+        </p></li><li class="listitem"><p>
+          If binary logging is enabled on the replica, the GTID is
+          persisted atomically at commit time by writing it to the
+          binary log at the beginning of the transaction (as a
+          <code class="literal">Gtid_log_event</code>). Whenever the binary log is
+          rotated or the server is shut down, the server writes GTIDs
+          for all transactions that were written into the previous
+          binary log file into the
+          <code class="literal">mysql.gtid_executed</code> table.
+        </p></li><li class="listitem"><p>
+          If binary logging is disabled on the replica, the GTID is
+          persisted atomically by writing it directly into the
+          <code class="literal">mysql.gtid_executed</code> table. MySQL appends a
+          statement to the transaction to insert the GTID into the
+          table. From MySQL 8.0, this operation is atomic for DDL
+          statements as well as for DML statements. In this situation,
+          the <code class="literal">mysql.gtid_executed</code> table is a complete
+          record of the transactions applied on the replica.
+        </p></li><li class="listitem"><p>
+          Very shortly after the replicated transaction is committed on
+          the replica, the GTID is externalized non-atomically by adding
+          it to the set of GTIDs in the
+          <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> system variable
+          (<code class="literal">@@GLOBAL.gtid_executed</code>) for the replica.
+          As for the source, this GTID set contains a representation of
+          the set of all committed GTID transactions. If binary logging
+          is disabled on the replica, the
+          <code class="literal">mysql.gtid_executed</code> table is also a
+          complete record of the transactions applied on the replica. If
+          binary logging is enabled on the replica, meaning that some
+          GTIDs are only recorded in the binary log, the set of GTIDs in
+          the <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> system
+          variable is the only complete record.
+        </p></li></ol></div><p>
+      Client transactions that are completely filtered out on the source
+      are not assigned a GTID, therefore they are not added to the set
+      of transactions in the
+      <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> system variable, or
+      added to the <code class="literal">mysql.gtid_executed</code> table.
+      However, the GTIDs of replicated transactions that are completely
+      filtered out on the replica are persisted. If binary logging is
+      enabled on the replica, the filtered-out transaction is written to
+      the binary log as a <code class="literal">Gtid_log_event</code> followed by
+      an empty transaction containing only <code class="literal">BEGIN</code> and
+      <code class="literal">COMMIT</code> statements. If binary logging is
+      disabled, the GTID of the filtered-out transaction is written to
+      the <code class="literal">mysql.gtid_executed</code> table. Preserving the
+      GTIDs for filtered-out transactions ensures that the
+      <code class="literal">mysql.gtid_executed</code> table and the set of GTIDs
+      in the <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> system
+      variable can be compressed. It also ensures that the filtered-out
+      transactions are not retrieved again if the replica reconnects to
+      the source, as explained in
+      <a class="xref" href="replication-gtids-auto-positioning.html" title="17.1.3.3 GTID Auto-Positioning">Section 17.1.3.3, “GTID Auto-Positioning”</a>.
+    </p><p>
+      On a multithreaded replica (with
+      <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_workers"><code class="literal">replica_parallel_workers &gt; 0</code></a> or
+      <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_workers"><code class="literal">slave_parallel_workers &gt; 0</code></a> ),
+      transactions can be applied in parallel, so replicated
+      transactions can commit out of order (unless
+      <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order=1</code></a>
+      or <a class="link" href="replication-options-replica.html#sysvar_slave_preserve_commit_order"><code class="literal">slave_preserve_commit_order=1</code></a>
+      is set). When that happens, the set of GTIDs in the
+      <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> system variable
+      contains multiple GTID ranges with gaps between them. (On a source
+      or a single-threaded replica, there are monotonically increasing
+      GTIDs without gaps between the numbers.) Gaps on multithreaded
+      replicas only occur among the most recently applied transactions,
+      and are filled in as replication progresses. When replication
+      threads are stopped cleanly using the
+      <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+      REPLICA</code></a> statement, ongoing transactions are applied so
+      that the gaps are filled in. In the event of a shutdown such as a
+      server failure or the use of the
+      <a class="link" href="kill.html" title="13.7.8.4 KILL Statement"><code class="literal">KILL</code></a> statement to stop replication
+      threads, the gaps might remain.
+    </p><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="replication-gtids-assign"></a>What changes are assigned a GTID?</h5></div></div></div><p>
+        The typical scenario is that the server generates a new GTID for
+        a committed transaction. However, GTIDs can also be assigned to
+        other changes besides transactions, and in some cases a single
+        transaction can be assigned multiple GTIDs.
+      </p><p>
+        Every database change (DDL or DML) that is written to the binary
+        log is assigned a GTID. This includes changes that are
+        autocommitted, and changes that are committed using
+        <code class="literal">BEGIN</code> and <code class="literal">COMMIT</code> or
+        <code class="literal">START TRANSACTION</code> statements. A GTID is also
+        assigned to the creation, alteration, or deletion of a database,
+        and of a non-table database object such as a procedure,
+        function, trigger, event, view, user, role, or grant.
+      </p><p>
+        Non-transactional updates as well as transactional updates are
+        assigned GTIDs. In addition, for a non-transactional update, if
+        a disk write failure occurs while attempting to write to the
+        binary log cache and a gap is therefore created in the binary
+        log, the resulting incident log event is assigned a GTID.
+      </p><p>
+        When a table is automatically dropped by a generated statement
+        in the binary log, a GTID is assigned to the statement.
+        Temporary tables are dropped automatically when a replica begins
+        to apply events from a source that has just been started, and
+        when statement-based replication is in use
+        (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=STATEMENT</code></a>) and a
+        user session that has open temporary tables disconnects. Tables
+        that use the <a class="link" href="memory-storage-engine.html" title="16.3 The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> storage engine
+        are deleted automatically the first time they are accessed after
+        the server is started, because rows might have been lost during
+        the shutdown.
+      </p><p>
+        When a transaction is not written to the binary log on the
+        server of origin, the server does not assign a GTID to it. This
+        includes transactions that are rolled back and transactions that
+        are executed while binary logging is disabled on the server of
+        origin, either globally (with <code class="literal">--skip-log-bin</code>
+        specified in the server's configuration) or for the session
+        (<code class="literal">SET @@SESSION.sql_log_bin = 0</code>). This also
+        includes no-op transactions when row-based replication is in use
+        (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a>).
+      </p><p>
+        XA transactions are assigned separate GTIDs for the <code class="literal">XA
+        PREPARE</code> phase of the transaction and the <code class="literal">XA
+        COMMIT</code> or <code class="literal">XA ROLLBACK</code> phase of the
+        transaction. XA transactions are persistently prepared so that
+        users can commit them or roll them back in the case of a failure
+        (which in a replication topology might include a failover to
+        another server). The two parts of the transaction are therefore
+        replicated separately, so they must have their own GTIDs, even
+        though a non-XA transaction that is rolled back would not have a
+        GTID.
+      </p><p>
+        In the following special cases, a single statement can generate
+        multiple transactions, and therefore be assigned multiple GTIDs:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A stored procedure is invoked that commits multiple
+            transactions. One GTID is generated for each transaction
+            that the procedure commits.
+          </p></li><li class="listitem"><p>
+            A multi-table <a class="link" href="drop-table.html" title="13.1.32 DROP TABLE Statement"><code class="literal">DROP TABLE</code></a>
+            statement drops tables of different types. Multiple GTIDs
+            can be generated if any of the tables use storage engines
+            that do not support atomic DDL, or if any of the tables are
+            temporary tables.
+          </p></li><li class="listitem"><p>
+            A
+            <a class="link" href="create-table-select.html" title="13.1.20.4 CREATE TABLE ... SELECT Statement"><code class="literal">CREATE
+            TABLE ... SELECT</code></a> statement is issued when
+            row-based replication is in use
+            (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a>). One
+            GTID is generated for the <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE
+            TABLE</code></a> action and one GTID is generated for the
+            row-insert actions.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="replication-gtids-gtid-next"></a>The <code class="literal">gtid_next</code> System Variable</h5></div></div></div><p>
+        By default, for new transactions committed in user sessions, the
+        server automatically generates and assigns a new GTID. When the
+        transaction is applied on a replica, the GTID from the server of
+        origin is preserved. You can change this behavior by setting the
+        session value of the <a class="link" href="replication-options-gtids.html#sysvar_gtid_next"><code class="literal">gtid_next</code></a>
+        system variable:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            When <a class="link" href="replication-options-gtids.html#sysvar_gtid_next"><code class="literal">gtid_next</code></a> is set to
+            <code class="literal">AUTOMATIC</code>, which is the default, and a
+            transaction is committed and written to the binary log, the
+            server automatically generates and assigns a new GTID. If a
+            transaction is rolled back or not written to the binary log
+            for another reason, the server does not generate and assign
+            a GTID.
+          </p></li><li class="listitem"><p>
+            If you set <a class="link" href="replication-options-gtids.html#sysvar_gtid_next"><code class="literal">gtid_next</code></a> to a
+            valid GTID (consisting of a UUID and a transaction sequence
+            number, separated by a colon), the server assigns that GTID
+            to your transaction. This GTID is assigned and added to
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> even when the
+            transaction is not written to the binary log, or when the
+            transaction is empty.
+          </p></li></ul></div><p>
+        Note that after you set
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_next"><code class="literal">gtid_next</code></a> to a specific GTID,
+        and the transaction has been committed or rolled back, an
+        explicit <code class="literal">SET @@SESSION.gtid_next</code> statement
+        must be issued before any other statement. You can use this to
+        set the GTID value back to <code class="literal">AUTOMATIC</code> if you
+        do not want to assign any more GTIDs explicitly.
+      </p><p>
+        When replication applier threads apply replicated transactions,
+        they use this technique, setting
+        <code class="literal">@@SESSION.gtid_next</code> explicitly to the GTID of
+        the replicated transaction as assigned on the server of origin.
+        This means the GTID from the server of origin is retained,
+        rather than a new GTID being generated and assigned by the
+        replica. It also means the GTID is added to
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> on the replica
+        even when binary logging or replica update logging is disabled
+        on the replica, or when the transaction is a no-op or is
+        filtered out on the replica.
+      </p><p>
+        It is possible for a client to simulate a replicated transaction
+        by setting <code class="literal">@@SESSION.gtid_next</code> to a specific
+        GTID before executing the transaction. This technique is used by
+        <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> to generate a dump of the binary
+        log that the client can replay to preserve GTIDs. A simulated
+        replicated transaction committed through a client is completely
+        equivalent to a replicated transaction committed through a
+        replication applier thread, and they cannot be distinguished
+        after the fact.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="replication-gtids-gtid-purged"></a>The <code class="literal">gtid_purged</code> System Variable</h5></div></div></div><a id="idm45828868786224" class="indexterm"></a><a id="idm45828868784736" class="indexterm"></a><p>
+        The set of GTIDs in the
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> system variable
+        (<code class="literal">@@GLOBAL.gtid_purged</code>) contains the GTIDs of
+        all the transactions that have been committed on the server, but
+        do not exist in any binary log file on the server.
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> is a subset of
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a>. The following
+        categories of GTIDs are in
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a>:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            GTIDs of replicated transactions that were committed with
+            binary logging disabled on the replica.
+          </p></li><li class="listitem"><p>
+            GTIDs of transactions that were written to a binary log file
+            that has now been purged.
+          </p></li><li class="listitem"><p>
+            GTIDs that were added explicitly to the set by the statement
+            <code class="literal">SET @@GLOBAL.gtid_purged</code>.
+          </p></li></ul></div><p>
+        You can change the value of
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> in order to record
+        on the server that the transactions in a certain GTID set have
+        been applied, although they do not exist in any binary log on
+        the server. When you add GTIDs to
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a>, they are also
+        added to <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a>. An
+        example use case for this action is when you are restoring a
+        backup of one or more databases on a server, but you do not have
+        the relevant binary logs containing the transactions on the
+        server. Before MySQL 8.0, you could only change the value of
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> when
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> (and therefore
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a>) was empty. From
+        MySQL 8.0, this restriction does not apply, and you can also
+        choose whether to replace the whole GTID set in
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> with a specified
+        GTID set, or to add a specified GTID set to the GTIDs already in
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a>. For details of how
+        to do this, see the description for
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a>.
+      </p><p>
+        The sets of GTIDs in the
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> and
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> system variables
+        are initialized when the server starts. Every binary log file
+        begins with the event
+        <code class="literal">Previous_gtids_log_event</code>, which contains the
+        set of GTIDs in all previous binary log files (composed from the
+        GTIDs in the preceding file's
+        <code class="literal">Previous_gtids_log_event</code>, and the GTIDs of
+        every <code class="literal">Gtid_log_event</code> in the preceding file
+        itself). The contents of
+        <code class="literal">Previous_gtids_log_event</code> in the oldest and
+        most recent binary log files are used to compute the
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> and
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> sets at server
+        startup:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> is computed
+            as the union of the GTIDs in
+            <code class="literal">Previous_gtids_log_event</code> in the most
+            recent binary log file, the GTIDs of transactions in that
+            binary log file, and the GTIDs stored in the
+            <code class="literal">mysql.gtid_executed</code> table. This GTID set
+            contains all the GTIDs that have been used (or added
+            explicitly to <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a>)
+            on the server, whether or not they are currently in a binary
+            log file on the server. It does not include the GTIDs for
+            transactions that are currently being processed on the
+            server (<code class="literal">@@GLOBAL.gtid_owned</code>).
+          </p></li><li class="listitem"><p>
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> is computed by
+            first adding the GTIDs in
+            <code class="literal">Previous_gtids_log_event</code> in the most
+            recent binary log file and the GTIDs of transactions in that
+            binary log file. This step gives the set of GTIDs that are
+            currently, or were once, recorded in a binary log on the
+            server (<code class="literal">gtids_in_binlog</code>). Next, the GTIDs
+            in <code class="literal">Previous_gtids_log_event</code> in the oldest
+            binary log file are subtracted from
+            <code class="literal">gtids_in_binlog</code>. This step gives the set
+            of GTIDs that are currently recorded in a binary log on the
+            server (<code class="literal">gtids_in_binlog_not_purged</code>).
+            Finally, <code class="literal">gtids_in_binlog_not_purged</code> is
+            subtracted from
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a>. The result
+            is the set of GTIDs that have been used on the server, but
+            are not currently recorded in a binary log file on the
+            server, and this result is used to initialize
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a>.
+          </p></li></ul></div><p>
+        If binary logs from MySQL 5.7.7 or older are involved in these
+        computations, it is possible for incorrect GTID sets to be
+        computed for <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> and
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a>, and they remain
+        incorrect even if the server is later restarted. For details,
+        see the description for the
+        <a class="link" href="replication-options-gtids.html#sysvar_binlog_gtid_simple_recovery"><code class="literal">binlog_gtid_simple_recovery</code></a>
+        system variable, which controls how the binary logs are iterated
+        to compute the GTID sets. If one of the situations described
+        there applies on a server, set
+        <a class="link" href="replication-options-gtids.html#sysvar_binlog_gtid_simple_recovery"><code class="literal">binlog_gtid_simple_recovery=FALSE</code></a>
+        in the server's configuration file before starting it. That
+        setting makes the server iterate all the binary log files (not
+        just the newest and oldest) to find where GTID events start to
+        appear. This process could take a long time if the server has a
+        large number of binary log files without GTID events.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="replication-gtids-execution-history"></a>Resetting the GTID Execution History</h5></div></div></div><p>
+        If you need to reset the GTID execution history on a server, use
+        the <a class="link" href="reset-master.html" title="13.4.1.2 RESET MASTER Statement"><code class="literal">RESET MASTER</code></a> statement. For
+        example, you might need to do this after carrying out test
+        queries to verify a replication setup on new GTID-enabled
+        servers, or when you want to join a new server to a replication
+        group but it contains some unwanted local transactions that are
+        not accepted by Group Replication.
+      </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+          Use <a class="link" href="reset-master.html" title="13.4.1.2 RESET MASTER Statement"><code class="literal">RESET MASTER</code></a> with caution
+          to avoid losing any wanted GTID execution history and binary
+          log files.
+        </p></div><p>
+        Before issuing <a class="link" href="reset-master.html" title="13.4.1.2 RESET MASTER Statement"><code class="literal">RESET MASTER</code></a>,
+        ensure that you have backups of the server's binary log files
+        and binary log index file, if any, and obtain and save the GTID
+        set held in the global value of the
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> system variable
+        (for example, by issuing a <code class="literal">SELECT
+        @@GLOBAL.gtid_executed</code> statement and saving the
+        results). If you are removing unwanted transactions from that
+        GTID set, use <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> to examine the
+        contents of the transactions to ensure that they have no value,
+        contain no data that must be saved or replicated, and did not
+        result in data changes on the server.
+      </p><p>
+        When you issue <a class="link" href="reset-master.html" title="13.4.1.2 RESET MASTER Statement"><code class="literal">RESET MASTER</code></a>, the
+        following reset operations are carried out:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The value of the
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> system variable
+            is set to an empty string (<code class="literal">''</code>).
+          </p></li><li class="listitem"><p>
+            The global value (but not the session value) of the
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> system
+            variable is set to an empty string.
+          </p></li><li class="listitem"><p>
+            The <code class="literal">mysql.gtid_executed</code> table is cleared
+            (see
+            <a class="xref" href="replication-gtids-concepts.html#replication-gtids-gtid-executed-table" title="mysql.gtid_executed Table">mysql.gtid_executed Table</a>).
+          </p></li><li class="listitem"><p>
+            If the server has binary logging enabled, the existing
+            binary log files are deleted and the binary log index file
+            is cleared.
+          </p></li></ul></div><p>
+        Note that <a class="link" href="reset-master.html" title="13.4.1.2 RESET MASTER Statement"><code class="literal">RESET MASTER</code></a> is the
+        method to reset the GTID execution history even if the server is
+        a replica where binary logging is disabled.
+        <a class="link" href="reset-replica.html" title="13.4.2.5 RESET REPLICA Statement"><code class="literal">RESET
+        REPLICA</code></a> has no effect on the GTID execution history.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-gtids-concepts.html">Previous <span class="navHint"> GTID Format and Storage </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-gtids-auto-positioning.html">Next <span class="navHint"> GTID Auto-Positioning </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

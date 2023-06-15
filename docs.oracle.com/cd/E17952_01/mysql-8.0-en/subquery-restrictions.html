@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.2.15.12 Restrictions on Subqueries</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="subqueries.html" title="13.2.15 Subqueries" /><link rel="prev" href="optimizing-subqueries.html" title="13.2.15.11 Optimizing Subqueries" /><link rel="next" href="table.html" title="13.2.16 TABLE Statement" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="subquery-restrictions.html#subquery-restrictions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="optimizing-subqueries.html">Previous <span class="navHint"> Optimizing Subqueries </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="table.html">Next <span class="navHint"> TABLE Statement </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="subquery-restrictions"></a>13.2.15.12 Restrictions on Subqueries</h4></div></div></div><a id="idm45828906040000" class="indexterm"></a><a id="idm45828906038544" class="indexterm"></a><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            In general, you cannot modify a table and select from the
+            same table in a subquery. For example, this limitation
+            applies to statements of the following forms:
+          </p><pre class="programlisting">DELETE FROM t WHERE ... (SELECT ... FROM t ...);
+UPDATE t ... WHERE col = (SELECT ... FROM t ...);
+{INSERT|REPLACE} INTO t (SELECT ... FROM t ...);
+</pre><p>
+            Exception: The preceding prohibition does not apply if for
+            the modified table you are using a derived table and that
+            derived table is materialized rather than merged into the
+            outer query. (See
+            <a class="xref" href="derived-table-optimization.html" title="8.2.2.4 Optimizing Derived Tables, View References, and Common Table Expressions with Merging or Materialization">Section 8.2.2.4, “Optimizing Derived Tables, View References, and Common Table Expressions
+          with Merging or Materialization”</a>.) Example:
+          </p><pre class="programlisting">UPDATE t ... WHERE col = (SELECT * FROM (SELECT ... FROM t...) AS dt ...);
+</pre><p>
+            Here the result from the derived table is materialized as a
+            temporary table, so the relevant rows in
+            <code class="literal">t</code> have already been selected by the time
+            the update to <code class="literal">t</code> takes place.
+          </p><p>
+            In general, you may be able to influence the optimizer to
+            materialize a derived table by adding a
+            <a class="link" href="optimizer-hints.html#optimizer-hints-table-level" title="Table-Level Optimizer Hints"><code class="literal">NO_MERGE</code></a> optimizer hint.
+            See <a class="xref" href="optimizer-hints.html" title="8.9.3 Optimizer Hints">Section 8.9.3, “Optimizer Hints”</a>.
+          </p></li><li class="listitem"><p>
+            Row comparison operations are only partially supported:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                For <code class="literal"><em class="replaceable"><code>expr</code></em> [NOT] IN
+                <em class="replaceable"><code>subquery</code></em></code>,
+                <em class="replaceable"><code>expr</code></em> can be an
+                <em class="replaceable"><code>n</code></em>-tuple (specified using row
+                constructor syntax) and the subquery can return rows of
+                <em class="replaceable"><code>n</code></em>-tuples. The permitted
+                syntax is therefore more specifically expressed as
+                <code class="literal"><em class="replaceable"><code>row_constructor</code></em>
+                [NOT] IN
+                <em class="replaceable"><code>table_subquery</code></em></code>
+              </p></li><li class="listitem"><p>
+                For <code class="literal"><em class="replaceable"><code>expr</code></em>
+                <em class="replaceable"><code>op</code></em> {ALL|ANY|SOME}
+                <em class="replaceable"><code>subquery</code></em></code>,
+                <em class="replaceable"><code>expr</code></em> must be a scalar value
+                and the subquery must be a column subquery; it cannot
+                return multiple-column rows.
+              </p></li></ul></div><p>
+            In other words, for a subquery that returns rows of
+            <em class="replaceable"><code>n</code></em>-tuples, this is supported:
+          </p><pre class="programlisting">(<em class="replaceable"><code>expr_1</code></em>, ..., <em class="replaceable"><code>expr_n</code></em>) [NOT] IN <em class="replaceable"><code>table_subquery</code></em>
+</pre><p>
+            But this is not supported:
+          </p><pre class="programlisting">(<em class="replaceable"><code>expr_1</code></em>, ..., <em class="replaceable"><code>expr_n</code></em>) <em class="replaceable"><code>op</code></em> {ALL|ANY|SOME} <em class="replaceable"><code>subquery</code></em>
+</pre><p>
+            The reason for supporting row comparisons for
+            <code class="literal">IN</code> but not for the others is that
+            <code class="literal">IN</code> is implemented by rewriting it as a
+            sequence of <a class="link" href="comparison-operators.html#operator_equal"><code class="literal">=</code></a>
+            comparisons and <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a> operations.
+            This approach cannot be used for <code class="literal">ALL</code>,
+            <code class="literal">ANY</code>, or <code class="literal">SOME</code>.
+          </p></li><li class="listitem"><p>
+            Prior to MySQL 8.0.14, subqueries in the
+            <code class="literal">FROM</code> clause cannot be correlated
+            subqueries. They are materialized in whole (evaluated to
+            produce a result set) during query execution, so they cannot
+            be evaluated per row of the outer query. The optimizer
+            delays materialization until the result is needed, which may
+            permit materialization to be avoided. See
+            <a class="xref" href="derived-table-optimization.html" title="8.2.2.4 Optimizing Derived Tables, View References, and Common Table Expressions with Merging or Materialization">Section 8.2.2.4, “Optimizing Derived Tables, View References, and Common Table Expressions
+          with Merging or Materialization”</a>.
+          </p></li><li class="listitem"><p>
+            MySQL does not support <code class="literal">LIMIT</code> in
+            subqueries for certain subquery operators:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM t1</code></strong>
+       <strong class="userinput"><code>WHERE s1 IN (SELECT s2 FROM t2 ORDER BY s1 LIMIT 1);</code></strong>
+ERROR 1235 (42000): This version of MySQL doesn't yet support
+ 'LIMIT &amp; IN/ALL/ANY/SOME subquery'
+</pre><p>
+            See <a class="xref" href="subquery-errors.html" title="13.2.15.10 Subquery Errors">Section 13.2.15.10, “Subquery Errors”</a>.
+          </p></li><li class="listitem"><p>
+            MySQL permits a subquery to refer to a stored function that
+            has data-modifying side effects such as inserting rows into
+            a table. For example, if <code class="literal">f()</code> inserts
+            rows, the following query can modify data:
+          </p><pre class="programlisting">SELECT ... WHERE x IN (SELECT f() ...);
+</pre><p>
+            This behavior is an extension to the SQL standard. In MySQL,
+            it can produce nondeterministic results because
+            <code class="literal">f()</code> might be executed a different number
+            of times for different executions of a given query depending
+            on how the optimizer chooses to handle it.
+          </p><p>
+            For statement-based or mixed-format replication, one
+            implication of this indeterminism is that such a query can
+            produce different results on the source and its replicas.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimizing-subqueries.html">Previous <span class="navHint"> Optimizing Subqueries </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="table.html">Next <span class="navHint"> TABLE Statement </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

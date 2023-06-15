@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>18.7.7.3 Auto-Rejoin</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="group-replication-responses-failure.html" title="18.7.7 Responses to Failure Detection and Network Partitioning" /><link rel="prev" href="group-replication-responses-failure-partition.html" title="18.7.7.2 Unreachable Majority Timeout" /><link rel="next" href="group-replication-responses-failure-exit.html" title="18.7.7.4 Exit Action" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-responses-failure-rejoin.html#group-replication-responses-failure-rejoin">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-replication-responses-failure-partition.html">Previous <span class="navHint"> Unreachable Majority Timeout </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="group-replication-responses-failure.html">Up <span class="navHint"> Responses to Failure Detection and Network Partitioning </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-responses-failure-exit.html">Next <span class="navHint"> Exit Action </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="group-replication-responses-failure-rejoin"></a>18.7.7.3 Auto-Rejoin</h4></div></div></div><p>
+        The
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_autorejoin_tries"><code class="literal">group_replication_autorejoin_tries</code></a>
+        system variable, which is available from MySQL 8.0.16, makes a
+        member that has been expelled or reached its unreachable
+        majority timeout try to rejoin the group automatically. Up to
+        MySQL 8.0.20, the value of the system variable defaults to 0, so
+        auto-rejoin is not activated by default. From MySQL 8.0.21, the
+        value of the system variable defaults to 3, meaning that the
+        member automatically makes 3 attempts to rejoin the group, with
+        5 minutes between each.
+      </p><p>
+        When auto-rejoin is not activated, a member accepts its
+        expulsion as soon as it resumes communication, and proceeds to
+        the action specified by the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_exit_state_action"><code class="literal">group_replication_exit_state_action</code></a>
+        system variable. After this, manual intervention is needed to
+        bring the member back into the group. Using the auto-rejoin
+        feature is appropriate if you can tolerate the possibility of
+        stale reads and want to minimize the need for manual
+        intervention, especially where transient network issues fairly
+        often result in the expulsion of members.
+      </p><p>
+        With auto-rejoin, when the member's expulsion or unreachable
+        majority timeout is reached, it makes an attempt to rejoin
+        (using the current plugin option values), then continues to make
+        further auto-rejoin attempts up to the specified number of
+        tries. After an unsuccessful auto-rejoin attempt, the member
+        waits 5 minutes before the next try. The auto-rejoin attempts
+        and the time between them are called the auto-rejoin procedure.
+        If the specified number of tries is exhausted without the member
+        rejoining or being stopped, the member proceeds to the action
+        specified by the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_exit_state_action"><code class="literal">group_replication_exit_state_action</code></a>
+        system variable.
+      </p><p>
+        During and between auto-rejoin attempts, a member remains in
+        super read only mode and displays an <code class="literal">ERROR</code>
+        state on its view of the replication group. During this time,
+        the member does not accept writes. However, reads can still be
+        made on the member, with an increasing likelihood of stale reads
+        over time. If you do want to intervene to take the member
+        offline during the auto-rejoin procedure, the member can be
+        stopped manually at any time by using a
+        <a class="link" href="stop-group-replication.html" title="13.4.3.2 STOP GROUP_REPLICATION Statement"><code class="literal">STOP GROUP_REPLICATION</code></a>
+        statement or shutting down the server. If you cannot tolerate
+        the possibility of stale reads for any period of time, set the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_autorejoin_tries"><code class="literal">group_replication_autorejoin_tries</code></a>
+        system variable to 0.
+      </p><p>
+        You can monitor the auto-rejoin procedure using the Performance
+        Schema. While an auto-rejoin procedure is taking place, the
+        Performance Schema table
+        <a class="link" href="performance-schema-events-stages-current-table.html" title="27.12.5.1 The events_stages_current Table"><code class="literal">events_stages_current</code></a> shows the
+        event <span class="quote">“<span class="quote">Undergoing auto-rejoin procedure</span>”</span>, with the
+        number of retries that have been attempted so far during this
+        instance of the procedure (in the
+        <code class="literal">WORK_COMPLETED</code> field). The
+        <a class="link" href="performance-schema-stage-summary-tables.html" title="27.12.20.2 Stage Summary Tables"><code class="literal">events_stages_summary_global_by_event_name</code></a>
+        table shows the number of times the server instance has
+        initiated the auto-rejoin procedure (in the
+        <code class="literal">COUNT_STAR</code> field). The
+        <a class="link" href="performance-schema-events-stages-history-long-table.html" title="27.12.5.3 The events_stages_history_long Table"><code class="literal">events_stages_history_long</code></a>
+        table shows the time each of these auto-rejoin procedures was
+        completed (in the <code class="literal">TIMER_END</code> field). While a
+        member is rejoining a replication group, its status can be
+        displayed as <code class="literal">OFFLINE</code> or
+        <code class="literal">ERROR</code> before the group completes the
+        compatibility checks and accepts it as a member. When the member
+        is catching up with the group's transactions, its status is
+        <code class="literal">RECOVERING</code>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-responses-failure-partition.html">Previous <span class="navHint"> Unreachable Majority Timeout </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-responses-failure.html">Up <span class="navHint"> Responses to Failure Detection and Network Partitioning </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-responses-failure-exit.html">Next <span class="navHint"> Exit Action </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

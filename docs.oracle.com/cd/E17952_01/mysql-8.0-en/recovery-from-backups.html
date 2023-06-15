@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>7.3.2 Using Backups for Recovery</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="backup-strategy-example.html" title="7.3 Example Backup and Recovery Strategy" /><link rel="prev" href="backup-policy.html" title="7.3.1 Establishing a Backup Policy" /><link rel="next" href="backup-strategy-summary.html" title="7.3.3 Backup Strategy Summary" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="recovery-from-backups.html#recovery-from-backups">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="backup-policy.html">Previous <span class="navHint"> Establishing a Backup Policy </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="backup-strategy-example.html">Up <span class="navHint"> Example Backup and Recovery Strategy </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="backup-strategy-summary.html">Next <span class="navHint"> Backup Strategy Summary </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="recovery-from-backups"></a>7.3.2 Using Backups for Recovery</h3></div></div></div><p>
+        Now, suppose that we have a catastrophic unexpected exit on
+        Wednesday at 8 a.m. that requires recovery from backups. To
+        recover, first we restore the last full backup we have (the one
+        from Sunday 1 p.m.). The full backup file is just a set of SQL
+        statements, so restoring it is very easy:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql &lt; backup_sunday_1_PM.sql</code></strong>
+</pre><p>
+        At this point, the data is restored to its state as of Sunday 1
+        p.m.. To restore the changes made since then, we must use the
+        incremental backups; that is, the
+        <code class="filename">gbichot2-bin.000007</code> and
+        <code class="filename">gbichot2-bin.000008</code> binary log files. Fetch
+        the files if necessary from where they were backed up, and then
+        process their contents like this:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog gbichot2-bin.000007 gbichot2-bin.000008 | mysql</code></strong>
+</pre><p>
+        We now have recovered the data to its state as of Tuesday 1
+        p.m., but still are missing the changes from that date to the
+        date of the crash. To not lose them, we would have needed to
+        have the MySQL server store its MySQL binary logs into a safe
+        location (RAID disks, SAN, ...) different from the place where
+        it stores its data files, so that these logs were not on the
+        destroyed disk. (That is, we can start the server with a
+        <a class="link" href="replication-options-binary-log.html#option_mysqld_log-bin"><code class="option">--log-bin</code></a> option that specifies a
+        location on a different physical device from the one on which
+        the data directory resides. That way, the logs are safe even if
+        the device containing the directory is lost.) If we had done
+        this, we would have the <code class="filename">gbichot2-bin.000009</code>
+        file (and any subsequent files) at hand, and we could apply them
+        using <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> and
+        <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> to restore the most recent data changes
+        with no loss up to the moment of the crash:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog gbichot2-bin.000009 ... | mysql</code></strong>
+</pre><p>
+        For more information about using <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>
+        to process binary log files, see
+        <a class="xref" href="point-in-time-recovery.html" title="7.5 Point-in-Time (Incremental) Recovery">Section 7.5, “Point-in-Time (Incremental) Recovery”</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="backup-policy.html">Previous <span class="navHint"> Establishing a Backup Policy </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="backup-strategy-example.html">Up <span class="navHint"> Example Backup and Recovery Strategy </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="backup-strategy-summary.html">Next <span class="navHint"> Backup Strategy Summary </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

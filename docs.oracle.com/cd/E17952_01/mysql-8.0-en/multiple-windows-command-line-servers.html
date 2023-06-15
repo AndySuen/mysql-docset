@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.8.2.1 Starting Multiple MySQL Instances at the Windows Command Line</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="multiple-windows-servers.html" title="5.8.2 Running Multiple MySQL Instances on Windows" /><link rel="prev" href="multiple-windows-servers.html" title="5.8.2 Running Multiple MySQL Instances on Windows" /><link rel="next" href="multiple-windows-services.html" title="5.8.2.2 Starting Multiple MySQL Instances as Windows Services" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="multiple-windows-command-line-servers.html#multiple-windows-command-line-servers">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="multiple-windows-servers.html">Previous <span class="navHint"> Running Multiple MySQL Instances on Windows </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="multiple-windows-servers.html">Up <span class="navHint"> Running Multiple MySQL Instances on Windows </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="multiple-windows-services.html">Next <span class="navHint"> Starting Multiple MySQL Instances as Windows Services </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="multiple-windows-command-line-servers"></a>5.8.2.1 Starting Multiple MySQL Instances at the Windows Command Line</h4></div></div></div><p>
+        The procedure for starting a single MySQL server manually from
+        the command line is described in
+        <a class="xref" href="windows-start-command-line.html" title="2.3.4.6 Starting MySQL from the Windows Command Line">Section 2.3.4.6, “Starting MySQL from the Windows Command Line”</a>. To start multiple
+        servers this way, you can specify the appropriate options on the
+        command line or in an option file. It is more convenient to
+        place the options in an option file, but it is necessary to make
+        sure that each server gets its own set of options. To do this,
+        create an option file for each server and tell the server the
+        file name with a <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a>
+        option when you run it.
+      </p><p>
+        Suppose that you want to run one instance of
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> on port 3307 with a data directory of
+        <code class="filename">C:\mydata1</code>, and another instance on port
+        3308 with a data directory of <code class="filename">C:\mydata2</code>.
+        Use this procedure:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Make sure that each data directory exists, including its own
+            copy of the <code class="literal">mysql</code> database that contains
+            the grant tables.
+          </p></li><li class="listitem"><p>
+            Create two option files. For example, create one file named
+            <code class="filename">C:\my-opts1.cnf</code> that looks like this:
+          </p><pre class="programlisting">[mysqld]
+datadir = C:/mydata1
+port = 3307
+</pre><p>
+            Create a second file named
+            <code class="filename">C:\my-opts2.cnf</code> that looks like this:
+          </p><pre class="programlisting">[mysqld]
+datadir = C:/mydata2
+port = 3308
+</pre></li><li class="listitem"><p>
+            Use the <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a>
+            option to start each server with its own option file:
+          </p><pre class="programlisting">C:\&gt; <strong class="userinput"><code>C:\mysql\bin\mysqld --defaults-file=C:\my-opts1.cnf</code></strong>
+C:\&gt; <strong class="userinput"><code>C:\mysql\bin\mysqld --defaults-file=C:\my-opts2.cnf</code></strong>
+</pre><p>
+            Each server starts in the foreground (no new prompt appears
+            until the server exits later), so you need to issue those
+            two commands in separate console windows.
+          </p></li></ol></div><p>
+        To shut down the servers, connect to each using the appropriate
+        port number:
+      </p><pre class="programlisting">C:\&gt; <strong class="userinput"><code>C:\mysql\bin\mysqladmin --port=3307 --host=127.0.0.1 --user=root --password shutdown</code></strong>
+C:\&gt; <strong class="userinput"><code>C:\mysql\bin\mysqladmin --port=3308 --host=127.0.0.1 --user=root --password shutdown</code></strong>
+</pre><p>
+        Servers configured as just described permit clients to connect
+        over TCP/IP. If your version of Windows supports named pipes and
+        you also want to permit named-pipe connections, specify options
+        that enable the named pipe and specify its name. Each server
+        that supports named-pipe connections must use a unique pipe
+        name. For example, the <code class="filename">C:\my-opts1.cnf</code> file
+        might be written like this:
+      </p><pre class="programlisting">[mysqld]
+datadir = C:/mydata1
+port = 3307
+enable-named-pipe
+socket = mypipe1
+</pre><p>
+        Modify <code class="filename">C:\my-opts2.cnf</code> similarly for use by
+        the second server. Then start the servers as described
+        previously.
+      </p><p>
+        A similar procedure applies for servers that you want to permit
+        shared-memory connections. Enable such connections by starting
+        the server with the
+        <a class="link" href="server-system-variables.html#sysvar_shared_memory"><code class="literal">shared_memory</code></a> system variable
+        enabled and specify a unique shared-memory name for each server
+        by setting the
+        <a class="link" href="server-system-variables.html#sysvar_shared_memory_base_name"><code class="literal">shared_memory_base_name</code></a> system
+        variable.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="multiple-windows-servers.html">Previous <span class="navHint"> Running Multiple MySQL Instances on Windows </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="multiple-windows-servers.html">Up <span class="navHint"> Running Multiple MySQL Instances on Windows </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="multiple-windows-services.html">Next <span class="navHint"> Starting Multiple MySQL Instances as Windows Services </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

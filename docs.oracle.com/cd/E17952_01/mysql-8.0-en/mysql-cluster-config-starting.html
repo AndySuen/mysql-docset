@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.4.3.2 Recommended Starting Configuration for NDB Cluster</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-config-file.html" title="23.4.3 NDB Cluster Configuration Files" /><link rel="prev" href="mysql-cluster-config-example.html" title="23.4.3.1 NDB Cluster Configuration: Basic Example" /><link rel="next" href="mysql-cluster-connection-strings.html" title="23.4.3.3 NDB Cluster Connection Strings" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-config-starting.html#mysql-cluster-config-starting">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-config-example.html">Previous <span class="navHint"> NDB Cluster Configuration: Basic Example </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-config-file.html">Up <span class="navHint"> NDB Cluster Configuration Files </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-connection-strings.html">Next <span class="navHint"> NDB Cluster Connection Strings </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-cluster-config-starting"></a>23.4.3.2 Recommended Starting Configuration for NDB Cluster</h4></div></div></div><p>
+        Achieving the best performance from an NDB Cluster depends on a
+        number of factors including the following:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            NDB Cluster software version
+          </p></li><li class="listitem"><p>
+            Numbers of data nodes and SQL nodes
+          </p></li><li class="listitem"><p>
+            Hardware
+          </p></li><li class="listitem"><p>
+            Operating system
+          </p></li><li class="listitem"><p>
+            Amount of data to be stored
+          </p></li><li class="listitem"><p>
+            Size and type of load under which the cluster is to operate
+          </p></li></ul></div><p>
+        Therefore, obtaining an optimum configuration is likely to be an
+        iterative process, the outcome of which can vary widely with the
+        specifics of each NDB Cluster deployment. Changes in
+        configuration are also likely to be indicated when changes are
+        made in the platform on which the cluster is run, or in
+        applications that use the NDB Cluster 's data. For these
+        reasons, it is not possible to offer a single configuration that
+        is ideal for all usage scenarios. However, in this section, we
+        provide a recommended base configuration.
+      </p><p><strong>Starting config.ini file. </strong>
+          The following <code class="filename">config.ini</code> file is a
+          recommended starting point for configuring a cluster running
+          NDB Cluster 8.0:
+        </p><pre class="programlisting"># TCP PARAMETERS
+
+[tcp default]
+<a class="link" href="mysql-cluster-tcp-definition.html#ndbparam-tcp-sendbuffermemory"><code class="literal">SendBufferMemory</code></a>=2M
+<a class="link" href="mysql-cluster-tcp-definition.html#ndbparam-tcp-receivebuffermemory"><code class="literal">ReceiveBufferMemory</code></a>=2M
+
+# Increasing the sizes of these 2 buffers beyond the default values
+# helps prevent bottlenecks due to slow disk I/O.
+
+# MANAGEMENT NODE PARAMETERS
+
+[ndb_mgmd default]
+<a class="link" href="mysql-cluster-mgm-definition.html#ndbparam-mgmd-datadir"><code class="literal">DataDir</code></a>=<em class="replaceable"><code>path/to/management/server/data/directory</code></em>
+
+# It is possible to use a different data directory for each management
+# server, but for ease of administration it is preferable to be
+# consistent.
+
+[ndb_mgmd]
+<a class="link" href="mysql-cluster-mgm-definition.html#ndbparam-mgmd-hostname"><code class="literal">HostName</code></a>=<em class="replaceable"><code>management-server-A-hostname</code></em>
+# <a class="link" href="mysql-cluster-mgm-definition.html#ndbparam-mgmd-nodeid"><code class="literal">NodeId</code></a>=<em class="replaceable"><code>management-server-A-nodeid</code></em>
+
+[ndb_mgmd]
+<a class="link" href="mysql-cluster-mgm-definition.html#ndbparam-mgmd-hostname"><code class="literal">HostName</code></a>=<em class="replaceable"><code>management-server-B-hostname</code></em>
+# <a class="link" href="mysql-cluster-mgm-definition.html#ndbparam-mgmd-nodeid"><code class="literal">NodeId</code></a>=<em class="replaceable"><code>management-server-B-nodeid</code></em>
+
+# Using 2 management servers helps guarantee that there is always an
+# arbitrator in the event of network partitioning, and so is
+# recommended for high availability. Each management server must be
+# identified by a HostName. You may for the sake of convenience specify
+# a NodeId for any management server, although one is allocated
+# for it automatically; if you do so, it must be in the range 1-255
+# inclusive and must be unique among all IDs specified for cluster
+# nodes.
+
+# DATA NODE PARAMETERS
+
+[ndbd default]
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-noofreplicas"><code class="literal">NoOfReplicas</code></a>=2
+
+# Using two fragment replicas is recommended to guarantee availability of data;
+# using only one fragment replica does not provide any redundancy, which means
+# that the failure of a single data node causes the entire cluster to shut down. 
+# It is also possible (but not required) in NDB 8.0 to use more than two
+# fragment replicas, although two fragment replicas are sufficient to provide
+# high availability. 
+
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-lockpagesinmainmemory"><code class="literal">LockPagesInMainMemory</code></a>=1
+
+# On Linux and Solaris systems, setting this parameter locks data node
+# processes into memory. Doing so prevents them from swapping to disk,
+# which can severely degrade cluster performance.
+
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-datamemory"><code class="literal">DataMemory</code></a>=3456M
+
+# The value provided for DataMemory assumes 4 GB RAM
+# per data node. However, for best results, you should first calculate
+# the memory that would be used based on the data you actually plan to
+# store (you may find the <a class="link" href="mysql-cluster-programs-ndb-size-pl.html" title="23.5.28 ndb_size.pl — NDBCLUSTER Size Requirement Estimator">ndb_size.pl</a> utility helpful in estimating
+# this), then allow an extra 20% over the calculated values. Naturally,
+# you should ensure that each data node host has at least as much
+# physical memory as the sum of these two values.
+
+# <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-odirect"><code class="literal">ODirect</code></a>=1
+
+# Enabling this parameter causes NDBCLUSTER to try using O_DIRECT
+# writes for local checkpoints and redo logs; this can reduce load on
+# CPUs. We recommend doing so when using NDB Cluster on systems running
+# Linux kernel 2.6 or later.
+
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-nooffragmentlogfiles"><code class="literal">NoOfFragmentLogFiles</code></a>=300
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-datadir"><code class="literal">DataDir</code></a>=<em class="replaceable"><code>path/to/data/node/data/directory</code></em>
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-maxnoofconcurrentoperations"><code class="literal">MaxNoOfConcurrentOperations</code></a>=100000
+
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-schedulerspintimer"><code class="literal">SchedulerSpinTimer</code></a>=400
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-schedulerexecutiontimer"><code class="literal">SchedulerExecutionTimer</code></a>=100
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-realtimescheduler"><code class="literal">RealTimeScheduler</code></a>=1
+# Setting these parameters allows you to take advantage of real-time scheduling
+# of NDB threads to achieve increased throughput when using <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a>. They
+# are not needed when using <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a>; in particular, you should not set
+# <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-realtimescheduler"><code class="literal">RealTimeScheduler</code></a> for <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a> data nodes.
+
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-timebetweenglobalcheckpoints"><code class="literal">TimeBetweenGlobalCheckpoints</code></a>=1000
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-timebetweenepochs"><code class="literal">TimeBetweenEpochs</code></a>=200
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-redobuffer"><code class="literal">RedoBuffer</code></a>=32M
+
+# <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-compressedlcp"><code class="literal">CompressedLCP</code></a>=1
+# <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-compressedbackup"><code class="literal">CompressedBackup</code></a>=1
+# Enabling CompressedLCP and CompressedBackup causes, respectively, local
+checkpoint files and backup files to be compressed, which can result in a space
+savings of up to 50% over noncompressed LCPs and backups.
+
+# <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-maxnooflocalscans"><code class="literal">MaxNoOfLocalScans</code></a>=64
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-maxnooftables"><code class="literal">MaxNoOfTables</code></a>=1024
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-maxnooforderedindexes"><code class="literal">MaxNoOfOrderedIndexes</code></a>=256
+
+[ndbd]
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-hostname"><code class="literal">HostName</code></a>=<em class="replaceable"><code>data-node-A-hostname</code></em>
+# <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-nodeid"><code class="literal">NodeId</code></a>=<em class="replaceable"><code>data-node-A-nodeid</code></em>
+
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-lockexecutethreadtocpu"><code class="literal">LockExecuteThreadToCPU</code></a>=1
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-lockmaintthreadstocpu"><code class="literal">LockMaintThreadsToCPU</code></a>=0
+# On systems with multiple CPUs, these parameters can be used to lock NDBCLUSTER
+# threads to specific CPUs
+
+[ndbd]
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-hostname"><code class="literal">HostName</code></a>=<em class="replaceable"><code>data-node-B-hostname</code></em>
+# <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-nodeid"><code class="literal">NodeId</code></a>=<em class="replaceable"><code>data-node-B-nodeid</code></em>
+
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-lockexecutethreadtocpu"><code class="literal">LockExecuteThreadToCPU</code></a>=1
+<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-lockmaintthreadstocpu"><code class="literal">LockMaintThreadsToCPU</code></a>=0
+
+# You must have an [ndbd] section for every data node in the cluster;
+# each of these sections must include a HostName. Each section may
+# optionally include a NodeId for convenience, but in most cases, it is
+# sufficient to allow the cluster to allocate node IDs dynamically. If
+# you do specify the node ID for a data node, it must be in the range 1
+# to 144 inclusive and must be unique among all IDs specified for
+# cluster nodes.
+
+# SQL NODE / API NODE PARAMETERS
+
+[mysqld]
+# <a class="link" href="mysql-cluster-api-definition.html#ndbparam-api-hostname"><code class="literal">HostName</code></a>=<em class="replaceable"><code>sql-node-A-hostname</code></em>
+# <a class="link" href="mysql-cluster-api-definition.html#ndbparam-api-nodeid"><code class="literal">NodeId</code></a>=<em class="replaceable"><code>sql-node-A-nodeid</code></em>
+
+[mysqld]
+
+[mysqld]
+
+# Each API or SQL node that connects to the cluster requires a [mysqld]
+# or [api] section of its own. Each such section defines a connection
+# <span class="quote">“<span class="quote">slot</span>”</span>; you should have at least as many of these sections in the
+# config.ini file as the total number of API nodes and SQL nodes that
+# you wish to have connected to the cluster at any given time. There is
+# no performance or other penalty for having extra slots available in
+# case you find later that you want or need more API or SQL nodes to
+# connect to the cluster at the same time.
+# If no HostName is specified for a given [mysqld] or [api] section,
+# then <span class="emphasis"><em>any</em></span> API or SQL node may use that slot to connect to the
+# cluster. You may wish to use an explicit HostName for one connection slot
+# to guarantee that an API or SQL node from that host can always
+# connect to the cluster. If you wish to prevent API or SQL nodes from
+# connecting from other than a desired host or hosts, then use a
+# HostName for every [mysqld] or [api] section in the config.ini file.
+# You can if you wish define a node ID (NodeId parameter) for any API or
+# SQL node, but this is not necessary; if you do so, it must be in the
+# range 1 to 255 inclusive and must be unique among all IDs specified
+# for cluster nodes.
+</pre><p><strong>Required my.cnf options for SQL nodes. </strong>
+          MySQL servers acting as NDB Cluster SQL nodes must always be
+          started with the <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndbcluster"><code class="option">--ndbcluster</code></a>
+          and <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-connectstring"><code class="option">--ndb-connectstring</code></a>
+          options, either on the command line or in
+          <code class="filename">my.cnf</code>.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-config-example.html">Previous <span class="navHint"> NDB Cluster Configuration: Basic Example </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-config-file.html">Up <span class="navHint"> NDB Cluster Configuration Files </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-connection-strings.html">Next <span class="navHint"> NDB Cluster Connection Strings </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

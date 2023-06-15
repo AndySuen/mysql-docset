@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>24.2.4.1 LINEAR HASH Partitioning</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="partitioning-hash.html" title="24.2.4 HASH Partitioning" /><link rel="prev" href="partitioning-hash.html" title="24.2.4 HASH Partitioning" /><link rel="next" href="partitioning-key.html" title="24.2.5 KEY Partitioning" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partitioning-linear-hash.html#partitioning-linear-hash">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="partitioning-hash.html">Previous <span class="navHint"> HASH Partitioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="partitioning-hash.html">Up <span class="navHint"> HASH Partitioning </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="partitioning-key.html">Next <span class="navHint"> KEY Partitioning </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="partitioning-linear-hash"></a>24.2.4.1 LINEAR HASH Partitioning</h4></div></div></div><a id="idm45828801974816" class="indexterm"></a><a id="idm45828801973328" class="indexterm"></a><p>
+          MySQL also supports linear hashing, which differs from regular
+          hashing in that linear hashing utilizes a linear powers-of-two
+          algorithm whereas regular hashing employs the modulus of the
+          hashing function's value.
+        </p><p>
+          Syntactically, the only difference between linear-hash
+          partitioning and regular hashing is the addition of the
+          <code class="literal">LINEAR</code> keyword in the <code class="literal">PARTITION
+          BY</code> clause, as shown here:
+        </p><pre class="programlisting">CREATE TABLE employees (
+    id INT NOT NULL,
+    fname VARCHAR(30),
+    lname VARCHAR(30),
+    hired DATE NOT NULL DEFAULT '1970-01-01',
+    separated DATE NOT NULL DEFAULT '9999-12-31',
+    job_code INT,
+    store_id INT
+)
+PARTITION BY LINEAR HASH( YEAR(hired) )
+PARTITIONS 4;
+</pre><p>
+          Given an expression <em class="replaceable"><code>expr</code></em>, the
+          partition in which the record is stored when linear hashing is
+          used is partition number <em class="replaceable"><code>N</code></em> from
+          among <em class="replaceable"><code>num</code></em> partitions, where
+          <em class="replaceable"><code>N</code></em> is derived according to the
+          following algorithm:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              Find the next power of 2 greater than
+              <em class="replaceable"><code>num</code></em>. We call this value
+              <em class="replaceable"><code>V</code></em>; it can be calculated as:
+            </p><pre class="programlisting"><em class="replaceable"><code>V</code></em> = POWER(2, CEILING(LOG(2, <em class="replaceable"><code>num</code></em>)))
+</pre><p>
+              (Suppose that <em class="replaceable"><code>num</code></em> is 13. Then
+              <a class="link" href="mathematical-functions.html#function_log"><code class="literal">LOG(2,13)</code></a> is
+              3.7004397181411.
+              <a class="link" href="mathematical-functions.html#function_ceiling"><code class="literal">CEILING(3.7004397181411)</code></a> is
+              4, and <em class="replaceable"><code>V</code></em> =
+              <a class="link" href="mathematical-functions.html#function_power"><code class="literal">POWER(2,4)</code></a>, which is 16.)
+            </p></li><li class="listitem"><p>
+              Set <em class="replaceable"><code>N</code></em> =
+              <em class="replaceable"><code>F</code></em>(<em class="replaceable"><code>column_list</code></em>)
+              &amp; (<em class="replaceable"><code>V</code></em> - 1).
+            </p></li><li class="listitem"><p>
+              While <em class="replaceable"><code>N</code></em> &gt;=
+              <em class="replaceable"><code>num</code></em>:
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  Set <em class="replaceable"><code>V</code></em> =
+                  <em class="replaceable"><code>V</code></em> / 2
+                </p></li><li class="listitem"><p>
+                  Set <em class="replaceable"><code>N</code></em> =
+                  <em class="replaceable"><code>N</code></em> &amp;
+                  (<em class="replaceable"><code>V</code></em> - 1)
+                </p></li></ul></div></li></ol></div><p>
+          Suppose that the table <code class="literal">t1</code>, using linear
+          hash partitioning and having 6 partitions, is created using
+          this statement:
+        </p><pre class="programlisting">CREATE TABLE t1 (col1 INT, col2 CHAR(5), col3 DATE)
+    PARTITION BY LINEAR HASH( YEAR(col3) )
+    PARTITIONS 6;
+</pre><p>
+          Now assume that you want to insert two records into
+          <code class="literal">t1</code> having the <code class="literal">col3</code>
+          column values <code class="literal">'2003-04-14'</code> and
+          <code class="literal">'1998-10-19'</code>. The partition number for the
+          first of these is determined as follows:
+        </p><pre class="programlisting"><em class="replaceable"><code>V</code></em> = POWER(2, CEILING( LOG(2,6) )) = 8
+<em class="replaceable"><code>N</code></em> = YEAR('2003-04-14') &amp; (8 - 1)
+   = 2003 &amp; 7
+   = 3
+
+(<span class="emphasis"><em>3 &gt;= 6 is FALSE: record stored in partition #3</em></span>)
+</pre><p>
+          The number of the partition where the second record is stored
+          is calculated as shown here:
+        </p><pre class="programlisting"><em class="replaceable"><code>V</code></em> = 8
+<em class="replaceable"><code>N</code></em> = YEAR('1998-10-19') &amp; (8 - 1)
+  = 1998 &amp; 7
+  = 6
+
+(<span class="emphasis"><em>6 &gt;= 6 is TRUE: additional step required</em></span>)
+
+<em class="replaceable"><code>N</code></em> = 6 &amp; ((8 / 2) - 1)
+  = 6 &amp; 3
+  = 2
+
+(<span class="emphasis"><em>2 &gt;= 6 is FALSE: record stored in partition #2</em></span>)
+</pre><p>
+          The advantage in partitioning by linear hash is that the
+          adding, dropping, merging, and splitting of partitions is made
+          much faster, which can be beneficial when dealing with tables
+          containing extremely large amounts (terabytes) of data. The
+          disadvantage is that data is less likely to be evenly
+          distributed between partitions as compared with the
+          distribution obtained using regular hash partitioning.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partitioning-hash.html">Previous <span class="navHint"> HASH Partitioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="partitioning-hash.html">Up <span class="navHint"> HASH Partitioning </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="partitioning-key.html">Next <span class="navHint"> KEY Partitioning </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

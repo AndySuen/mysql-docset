@@ -1,0 +1,118 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1020"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.5.4.4%C2%A0Fault%20Tolerance%20for%20Distributed%20Recovery"></a><title>18.5.4.4&nbsp;Fault Tolerance for Distributed Recovery</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-distributed-recovery.html" title="18.5.4&nbsp;Distributed Recovery"/><link rel="prev" href="group-replication-tuning-recovery.html" title="18.5.4.3&nbsp;Configuring Distributed Recovery"/><link rel="next" href="group-replication-view-changes.html" title="18.5.4.5&nbsp;How Distributed Recovery Works"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-distributed-recovery-fault.html#group-replication-distributed-recovery-fault">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-tuning-recovery.html">Previous <span class="navHint"> Configuring Distributed Recovery </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-distributed-recovery.html">Up <span class="navHint"> Distributed Recovery </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-view-changes.html">Next <span class="navHint"> How Distributed Recovery Works </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1019"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/18.5.4.4%C2%A0Fault%20Tolerance%20for%20Distributed%20Recovery"></a><h4 class="title"><a id="group-replication-distributed-recovery-fault"></a>18.5.4.4&nbsp;Fault Tolerance for Distributed Recovery</h4></div></div></div><p>
+        Group Replication&#39;s distributed recovery process has a number of
+        built-in measures to ensure fault tolerance in the event of any
+        problems during the process.
+      </p><p>
+        The donor for distributed recovery is selected randomly from the
+        existing list of suitable online group members in the current
+        view. Selecting a random donor means that there is a good chance
+        that the same server is not selected more than once when
+        multiple members enter the group. From MySQL 8.0.17, for state
+        transfer from the binary log, the joiner only selects a donor
+        that is running a lower or equal patch version of MySQL Server
+        compared to itself. For earlier releases, all of the online
+        members are allowed to be a donor. For a remote cloning
+        operation, the joiner only selects a donor that is running the
+        same patch version as itself. Note that when the joining member
+        has restarted at the end of the operation, it establishes a
+        connection with a new donor for state transfer from the binary
+        log, which might be a different member from the original donor
+        used for the remote cloning operation.
+      </p><p>
+        In the following situations, Group Replication detects an error
+        in distributed recovery, automatically switches over to a new
+        donor, and retries the state transfer:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <span class="emphasis"><em>Connection error</em></span> - There is an
+            authentication issue or another problem with making the
+            connection to a candidate donor.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Replication errors</em></span> - One of the
+            replication threads (the receiver or applier threads) being
+            used for state transfer from the binary log fails. Because
+            this method of state transfer uses the existing MySQL
+            replication framework, it is possible that some transient
+            errors could cause errors in the receiver or applier
+            threads.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Remote cloning operation errors</em></span> - A
+            remote cloning operation fails or is stopped before it
+            completes.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Donor leaves the group</em></span> - The donor
+            leaves the group, or Group Replication is stopped on the
+            donor, while state transfer is in progress.
+          </p></li></ul></div><p>
+        The Performance Schema table
+        <a class="link" href="performance-schema-replication-applier-status-by-worker-table.html" title="27.12.11.8&nbsp;The replication_applier_status_by_worker Table"><code class="literal">replication_applier_status_by_worker</code></a>
+        displays the error that caused the last retry. In these
+        situations, the new connection following the error is attempted
+        with a new candidate donor. Selecting a different donor in the
+        event of an error means that there is a chance the new candidate
+        donor does not have the same error. If the clone plugin is
+        installed, Group Replication attempts a remote cloning operation
+        with each of the suitable online clone-supporting donors first.
+        If all those attempts fail, Group Replication attempts state
+        transfer from the binary log with all the suitable donors in
+        turn, if that is possible.
+      </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+          For a remote cloning operation, user-created tablespaces and
+          data on the recipient (the joining member) are dropped before
+          the remote cloning operation begins to transfer the data from
+          the donor. If the remote cloning operation starts but does not
+          complete, the joining member might be left with a partial set
+          of its original data files, or with no user data. Data
+          transferred by the donor is removed from the recipient if the
+          cloning operation is stopped before the data is fully cloned.
+          This situation can be repaired by retrying the cloning
+          operation, which Group Replication does automatically.
+        </p></div><p>
+        In the following situations, the distributed recovery process
+        cannot be completed, and the joining member leaves the group:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <span class="emphasis"><em>Purged transactions</em></span> - Transactions that
+            are required by the joining member are not present in any
+            online group member&#39;s binary log files, and the data cannot
+            be obtained by a remote cloning operation (because the clone
+            plugin is not installed, or because cloning was attempted
+            with all possible donors but failed). The joining member is
+            therefore unable to catch up with the group.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Extra transactions</em></span> - The joining member
+            already contains some transactions that are not present in
+            the group. If a remote cloning operation was carried out,
+            these transactions would be deleted and lost, because the
+            data directory on the joining member is erased. If state
+            transfer from a donor&#39;s binary log was carried out, these
+            transactions could conflict with the group&#39;s transactions.
+            For advice on dealing with this situation, see
+            <a class="xref" href="group-replication-gtids.html#group-replication-gtids-extra" title="Extra Transactions">Extra Transactions</a>.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Connection retry limit reached</em></span> - The
+            joining member has made all the connection attempts allowed
+            by the connection retry limit. You can configure this using
+            the
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_retry_count"><code class="literal">group_replication_recovery_retry_count</code></a>
+            system variable (see
+            <a class="xref" href="group-replication-tuning-recovery.html" title="18.5.4.3&nbsp;Configuring Distributed Recovery">Section&nbsp;18.5.4.3, &ldquo;Configuring Distributed Recovery&rdquo;</a>).
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>No more donors</em></span> - The joining member has
+            unsuccessfully attempted a remote cloning operation with
+            each of the online clone-supporting donors in turn (if the
+            clone plugin is installed), then has unsuccessfully
+            attempted state transfer from the binary log with each of
+            the suitable online donors in turn, if possible.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Joining member leaves the group</em></span> - The
+            joining member leaves the group or Group Replication is
+            stopped on the joining member while state transfer is in
+            progress.
+          </p></li></ul></div><p>
+        If the joining member left the group unintentionally, so in any
+        situation listed above except the last, it proceeds to take the
+        action specified by the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_exit_state_action"><code class="literal">group_replication_exit_state_action</code></a>
+        system variable.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-tuning-recovery.html">Previous <span class="navHint"> Configuring Distributed Recovery </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-distributed-recovery.html">Up <span class="navHint"> Distributed Recovery </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-view-changes.html">Next <span class="navHint"> How Distributed Recovery Works </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

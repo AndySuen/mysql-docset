@@ -1,0 +1,74 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1877"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/13.6.4.2%C2%A0Local%20Variable%20Scope%20and%20Resolution"></a><title>13.6.4.2&nbsp;Local Variable Scope and Resolution</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="stored-program-variables.html" title="13.6.4&nbsp;Variables in Stored Programs"/><link rel="prev" href="declare-local-variable.html" title="13.6.4.1&nbsp;Local Variable DECLARE Statement"/><link rel="next" href="flow-control-statements.html" title="13.6.5&nbsp;Flow Control Statements"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="local-variable-scope.html#local-variable-scope">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="declare-local-variable.html">Previous <span class="navHint"> Local Variable DECLARE Statement </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="stored-program-variables.html">Up <span class="navHint"> Variables in Stored Programs </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="flow-control-statements.html">Next <span class="navHint"> Flow Control Statements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1878"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/13.6.4.2%C2%A0Local%20Variable%20Scope%20and%20Resolution"></a><h4 class="title"><a id="local-variable-scope"></a>13.6.4.2&nbsp;Local Variable Scope and Resolution</h4></div></div></div><p>
+        The scope of a local variable is the
+        <a class="link" href="begin-end.html" title="13.6.1&nbsp;BEGIN ... END Compound Statement"><code class="literal">BEGIN ...
+        END</code></a> block within which it is declared. The variable
+        can be referred to in blocks nested within the declaring block,
+        except those blocks that declare a variable with the same name.
+      </p><p>
+        Because local variables are in scope only during stored program
+        execution, references to them are not permitted in prepared
+        statements created within a stored program. Prepared statement
+        scope is the current session, not the stored program, so the
+        statement could be executed after the program ends, at which
+        point the variables would no longer be in scope. For example,
+        <code class="literal">SELECT ... INTO
+        <em class="replaceable"><code>local_var</code></em></code> cannot be used as
+        a prepared statement. This restriction also applies to stored
+        procedure and function parameters. See
+        <a class="xref" href="prepare.html" title="13.5.1&nbsp;PREPARE Statement">Section&nbsp;13.5.1, &ldquo;PREPARE Statement&rdquo;</a>.
+      </p><p>
+        A local variable should not have the same name as a table
+        column. If an SQL statement, such as a
+        <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT ...
+        INTO</code></a> statement, contains a reference to a column and a
+        declared local variable with the same name, MySQL currently
+        interprets the reference as the name of a variable. Consider the
+        following procedure definition:
+      </p><pre class="programlisting">CREATE PROCEDURE sp1 (x VARCHAR(5))
+BEGIN
+  DECLARE xname VARCHAR(5) DEFAULT &#39;bob&#39;;
+  DECLARE newname VARCHAR(5);
+  DECLARE xid INT;
+
+  SELECT xname, id INTO newname, xid
+    FROM table1 WHERE xname = xname;
+  SELECT newname;
+END;
+</pre><p>
+        MySQL interprets <code class="literal">xname</code> in the
+        <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statement as a reference
+        to the <code class="literal">xname</code> <span class="emphasis"><em>variable</em></span>
+        rather than the <code class="literal">xname</code>
+        <span class="emphasis"><em>column</em></span>. Consequently, when the procedure
+        <code class="literal">sp1()</code>is called, the
+        <code class="literal">newname</code> variable returns the value
+        <code class="literal">&#39;bob&#39;</code> regardless of the value of the
+        <code class="literal">table1.xname</code> column.
+      </p><p>
+        Similarly, the cursor definition in the following procedure
+        contains a <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statement that
+        refers to <code class="literal">xname</code>. MySQL interprets this as a
+        reference to the variable of that name rather than a column
+        reference.
+      </p><pre class="programlisting">CREATE PROCEDURE sp2 (x VARCHAR(5))
+BEGIN
+  DECLARE xname VARCHAR(5) DEFAULT &#39;bob&#39;;
+  DECLARE newname VARCHAR(5);
+  DECLARE xid INT;
+  DECLARE done TINYINT DEFAULT 0;
+  DECLARE cur1 CURSOR FOR SELECT xname, id FROM table1;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+  OPEN cur1;
+  read_loop: LOOP
+    FETCH FROM cur1 INTO newname, xid;
+    IF done THEN LEAVE read_loop; END IF;
+    SELECT newname;
+  END LOOP;
+  CLOSE cur1;
+END;
+</pre><p>
+        See also <a class="xref" href="stored-program-restrictions.html" title="25.8&nbsp;Restrictions on Stored Programs">Section&nbsp;25.8, &ldquo;Restrictions on Stored Programs&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="declare-local-variable.html">Previous <span class="navHint"> Local Variable DECLARE Statement </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="stored-program-variables.html">Up <span class="navHint"> Variables in Stored Programs </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="flow-control-statements.html">Next <span class="navHint"> Flow Control Statements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

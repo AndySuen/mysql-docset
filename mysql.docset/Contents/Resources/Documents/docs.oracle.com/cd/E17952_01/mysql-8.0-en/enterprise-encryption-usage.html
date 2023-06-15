@@ -1,0 +1,124 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-688"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/6.6.3%C2%A0MySQL%20Enterprise%20Encryption%20Usage%20and%20Examples"></a><title>6.6.3&nbsp;MySQL Enterprise Encryption Usage and Examples</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="enterprise-encryption.html" title="6.6&nbsp;MySQL Enterprise Encryption"/><link rel="prev" href="enterprise-encryption-configuring.html" title="6.6.2&nbsp;Configuring MySQL Enterprise Encryption"/><link rel="next" href="enterprise-encryption-function-reference.html" title="6.6.4&nbsp;MySQL Enterprise Encryption Function Reference"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="enterprise-encryption-usage.html#enterprise-encryption-usage">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="enterprise-encryption-configuring.html">Previous <span class="navHint"> Configuring MySQL Enterprise Encryption </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="enterprise-encryption.html">Up <span class="navHint"> MySQL Enterprise Encryption </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="enterprise-encryption-function-reference.html">Next <span class="navHint"> MySQL Enterprise Encryption Function Reference </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="enterprise-encryption-usage"></a>6.6.3&nbsp;MySQL Enterprise Encryption Usage and Examples</h3></div></div></div><p>
+      To use MySQL Enterprise Encryption in applications, invoke the functions that are
+      appropriate for the operations you wish to perform. This section
+      demonstrates how to carry out some representative tasks.
+    </p><p>
+      In releases before MySQL 8.0.30, MySQL Enterprise Encryption&#39;s functions are based
+      on the <code class="literal">openssl_udf</code> shared library. From MySQL
+      8.0.30, the functions are provided by a MySQL component
+      <code class="literal">component_enterprise_encryption</code>. In some cases,
+      the behavior of the component functions differs from the behavior
+      of the legacy functions provided by the
+      <code class="literal">openssl_udf</code>. For a list of the differences, see
+      <a class="xref" href="enterprise-encryption-installation.html#enterprise-encryption-upgrading" title="Upgrading MySQL Enterprise Encryption">Upgrading MySQL Enterprise Encryption</a>. For
+      full details of the behavior of each component&#39;s functions, see
+      <a class="xref" href="enterprise-encryption-function-reference.html" title="6.6.4&nbsp;MySQL Enterprise Encryption Function Reference">Section&nbsp;6.6.4, &ldquo;MySQL Enterprise Encryption Function Reference&rdquo;</a>.
+    </p><p>
+      If you install the legacy functions then upgrade to MySQL 8.0.30
+      or later, the functions you created remain available, are
+      supported, and continue to work in the same way. However, they are
+      deprecated from MySQL 8.0.30, and it is recommended that you
+      install the MySQL Enterprise Encryption component
+      <code class="literal">component_enterprise_encryption</code> instead. For
+      instructions to upgrade, see
+      <a class="xref" href="enterprise-encryption-installation.html#enterprise-encryption-installation-30" title="Installation From MySQL 8.0.30">Installation From MySQL 8.0.30</a>.
+    </p><p>
+      The following general considerations apply when choosing key
+      lengths and encryption algorithms:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The strength of encryption for private and public keys
+          increases with the key size, but the time for key generation
+          increases as well.
+        </p></li><li class="listitem"><p>
+          For the legacy functions, generation of DH keys takes much
+          longer than RSA or DSA keys. The component functions from
+          MySQL 8.0.30 only support RSA keys.
+        </p></li><li class="listitem"><p>
+          Asymmetric encryption functions consume more resources
+          compared to symmetric functions. They are good for encrypting
+          small amounts of data and creating and verifying signatures.
+          For encrypting large amounts of data, symmetric encryption
+          functions are faster. MySQL Server provides the
+          <a class="link" href="encryption-functions.html#function_aes-encrypt"><code class="literal">AES_ENCRYPT()</code></a> and
+          <a class="link" href="encryption-functions.html#function_aes-decrypt"><code class="literal">AES_DECRYPT()</code></a> functions for
+          symmetric encryption.
+        </p></li></ul></div><p>
+      Key string values can be created at runtime and stored into a
+      variable or table using
+      <a class="link" href="set-variable.html" title="13.7.6.1&nbsp;SET Syntax for Variable Assignment"><code class="literal">SET</code></a>,
+      <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>, or
+      <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a>. This example works with
+      both the component function and the legacy function:
+    </p><pre class="programlisting">SET @priv1 = create_asymmetric_priv_key(&#39;RSA&#39;, 2048);
+SELECT create_asymmetric_priv_key(&#39;RSA&#39;, 2048) INTO @priv2;
+INSERT INTO t (key_col) VALUES(create_asymmetric_priv_key(&#39;RSA&#39;, 1024));
+</pre><p>
+      Key string values stored in files can be read using the
+      <a class="link" href="string-functions.html#function_load-file"><code class="literal">LOAD_FILE()</code></a> function by users who
+      have the <a class="link" href="privileges-provided.html#priv_file"><code class="literal">FILE</code></a> privilege. Digest and
+      signature strings can be handled similarly.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="enterprise-encryption-usage.html#enterprise-encryption-usage-create-key-pair" title="Create a private/public key pair">Create a private/public key pair</a></p></li><li class="listitem"><p><a class="xref" href="enterprise-encryption-usage.html#enterprise-encryption-usage-encrypt-decrypt" title="Use the public key to encrypt data and the private key to decrypt it">Use the public key to encrypt data and the private key to decrypt it</a></p></li><li class="listitem"><p><a class="xref" href="enterprise-encryption-usage.html#enterprise-encryption-usage-create-digest" title="Generate a digest from a string">Generate a digest from a string</a></p></li><li class="listitem"><p><a class="xref" href="enterprise-encryption-usage.html#enterprise-encryption-usage-digital-signing" title="Use the digest with a key pair">Use the digest with a key pair</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-684"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Create%20a%20private%2Fpublic%20key%20pair"></a><h4 class="title"><a id="enterprise-encryption-usage-create-key-pair"></a>Create a private/public key pair</h4></div></div></div><p>
+        This example works with both the component functions and the
+        legacy functions:
+      </p><pre class="programlisting">-- Encryption algorithm
+SET @algo = &#39;RSA&#39;;
+-- Key length in bits; make larger for stronger keys
+SET @key_len = 2048;
+
+-- Create private key
+SET @priv = create_asymmetric_priv_key(@algo, @key_len);
+-- Derive corresponding public key from private key, using same algorithm
+SET @pub = create_asymmetric_pub_key(@algo, @priv);
+</pre><p>
+        You can use the key pair to encrypt and decrypt data or to sign
+        and verify data.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-685"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Use%20the%20public%20key%20to%20encrypt%20data%20and%20the%20private%20key%20to%20decrypt%20it"></a><h4 class="title"><a id="enterprise-encryption-usage-encrypt-decrypt"></a>Use the public key to encrypt data and the private key to decrypt it</h4></div></div></div><p>
+        This example works with both the component functions and the
+        legacy functions. In both cases, the members of the key pair
+        must be RSA keys:
+      </p><pre class="programlisting">SET @ciphertext = asymmetric_encrypt(@algo, &#39;My secret text&#39;, @pub);
+SET @plaintext = asymmetric_decrypt(@algo, @ciphertext, @priv);
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-686"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Generate%20a%20digest%20from%20a%20string"></a><h4 class="title"><a id="enterprise-encryption-usage-create-digest"></a>Generate a digest from a string</h4></div></div></div><p>
+        This example works with both the component functions and the
+        legacy functions:
+      </p><pre class="programlisting">-- Digest type
+SET @dig_type = &#39;SHA512&#39;;
+
+-- Generate digest string
+SET @dig = create_digest(@dig_type, &#39;My text to digest&#39;);
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-687"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Use%20the%20digest%20with%20a%20key%20pair"></a><h4 class="title"><a id="enterprise-encryption-usage-digital-signing"></a>Use the digest with a key pair</h4></div></div></div><p>
+        The key pair can be used to sign data, then verify that the
+        signature matches the digest. This example works with both the
+        component functions and the legacy functions:
+      </p><pre class="programlisting">-- Encryption algorithm; keys must
+-- have been created using same algorithm
+SET @algo = &#39;RSA&#39;;
+&ndash;- Digest algorithm to sign the data
+SET @dig_type = &#39;SHA512&#39;;
+
+-- Generate signature for digest and verify signature against digest
+SET @sig = asymmetric_sign(@algo, @dig, @priv, @dig_type);
+-- Verify signature against digest
+SET @verf = asymmetric_verify(@algo, @dig, @sig, @pub, @dig_type);
+</pre><p>
+        For the legacy functions, signatures require a digest. For the
+        component functions, signatures do not require a digest, and can
+        use any data string. The digest type in these functions refers
+        to the algorithm that is used to sign the data, not the
+        algorithm that was used to create the original input for the
+        signature. This example is for the component functions:
+      </p><pre class="programlisting">-- Encryption algorithm; keys must
+-- have been created using same algorithm
+SET @algo = &#39;RSA&#39;;
+&ndash;- Arbitrary text string for signature
+SET @text = repeat(&#39;j&#39;, 256);
+&ndash;- Digest algorithm to sign the data
+SET @dig_type = &#39;SHA512&#39;;
+
+-- Generate signature for digest and verify signature against digest
+SET @sig = asymmetric_sign(@algo, @text, @priv, @dig_type);
+-- Verify signature against digest
+SET @verf = asymmetric_verify(@algo, @text, @sig, @pub, @dig_type);
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="enterprise-encryption-configuring.html">Previous <span class="navHint"> Configuring MySQL Enterprise Encryption </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="enterprise-encryption.html">Up <span class="navHint"> MySQL Enterprise Encryption </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="enterprise-encryption-function-reference.html">Next <span class="navHint"> MySQL Enterprise Encryption Function Reference </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.5.1 Optimizing INSERT Statements</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="data-change-optimization.html" title="8.2.5 Optimizing Data Change Statements" /><link rel="prev" href="data-change-optimization.html" title="8.2.5 Optimizing Data Change Statements" /><link rel="next" href="update-optimization.html" title="8.2.5.2 Optimizing UPDATE Statements" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="insert-optimization.html#insert-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="data-change-optimization.html">Previous <span class="navHint"> Optimizing Data Change Statements </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="data-change-optimization.html">Up <span class="navHint"> Optimizing Data Change Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="update-optimization.html">Next <span class="navHint"> Optimizing UPDATE Statements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="insert-optimization"></a>8.2.5.1 Optimizing INSERT Statements</h4></div></div></div><a id="idm45828954472160" class="indexterm"></a><a id="idm45828954471120" class="indexterm"></a><a id="idm45828954469632" class="indexterm"></a><a id="idm45828954468144" class="indexterm"></a><p>
+          To optimize insert speed, combine many small operations into a
+          single large operation. Ideally, you make a single connection,
+          send the data for many new rows at once, and delay all index
+          updates and consistency checking until the very end.
+        </p><p>
+          The time required for inserting a row is determined by the
+          following factors, where the numbers indicate approximate
+          proportions:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Connecting: (3)
+            </p></li><li class="listitem"><p>
+              Sending query to server: (2)
+            </p></li><li class="listitem"><p>
+              Parsing query: (2)
+            </p></li><li class="listitem"><p>
+              Inserting row: (1 × size of row)
+            </p></li><li class="listitem"><p>
+              Inserting indexes: (1 × number of indexes)
+            </p></li><li class="listitem"><p>
+              Closing: (1)
+            </p></li></ul></div><p>
+          This does not take into consideration the initial overhead to
+          open tables, which is done once for each concurrently running
+          query.
+        </p><p>
+          The size of the table slows down the insertion of indexes by
+          log <em class="replaceable"><code>N</code></em>, assuming B-tree indexes.
+        </p><p>
+          You can use the following methods to speed up inserts:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              If you are inserting many rows from the same client at the
+              same time, use <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+              statements with multiple <code class="literal">VALUES</code> lists
+              to insert several rows at a time. This is considerably
+              faster (many times faster in some cases) than using
+              separate single-row <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+              statements. If you are adding data to a nonempty table,
+              you can tune the
+              <a class="link" href="server-system-variables.html#sysvar_bulk_insert_buffer_size"><code class="literal">bulk_insert_buffer_size</code></a>
+              variable to make data insertion even faster. See
+              <a class="xref" href="server-system-variables.html" title="5.1.8 Server System Variables">Section 5.1.8, “Server System Variables”</a>.
+            </p></li><li class="listitem"><p>
+              When loading a table from a text file, use
+              <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA</code></a>. This is usually
+              20 times faster than using
+              <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements. See
+              <a class="xref" href="load-data.html" title="13.2.9 LOAD DATA Statement">Section 13.2.9, “LOAD DATA Statement”</a>.
+            </p></li><li class="listitem"><p>
+              Take advantage of the fact that columns have default
+              values. Insert values explicitly only when the value to be
+              inserted differs from the default. This reduces the
+              parsing that MySQL must do and improves the insert speed.
+            </p></li><li class="listitem"><p>
+              See <a class="xref" href="optimizing-innodb-bulk-data-loading.html" title="8.5.5 Bulk Data Loading for InnoDB Tables">Section 8.5.5, “Bulk Data Loading for InnoDB Tables”</a>
+              for tips specific to <code class="literal">InnoDB</code> tables.
+            </p></li><li class="listitem"><p>
+              See <a class="xref" href="optimizing-myisam-bulk-data-loading.html" title="8.6.2 Bulk Data Loading for MyISAM Tables">Section 8.6.2, “Bulk Data Loading for MyISAM Tables”</a>
+              for tips specific to <code class="literal">MyISAM</code> tables.
+            </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="data-change-optimization.html">Previous <span class="navHint"> Optimizing Data Change Statements </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="data-change-optimization.html">Up <span class="navHint"> Optimizing Data Change Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="update-optimization.html">Next <span class="navHint"> Optimizing UPDATE Statements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

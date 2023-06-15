@@ -1,0 +1,106 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1941"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.3.6%C2%A0Multiple-Column%20Indexes"></a><title>8.3.6&nbsp;Multiple-Column Indexes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimization-indexes.html" title="8.3&nbsp;Optimization and Indexes"/><link rel="prev" href="column-indexes.html" title="8.3.5&nbsp;Column Indexes"/><link rel="next" href="verifying-index-usage.html" title="8.3.7&nbsp;Verifying Index Usage"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="multiple-column-indexes.html#multiple-column-indexes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="column-indexes.html">Previous <span class="navHint"> Column Indexes </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="verifying-index-usage.html">Next <span class="navHint"> Verifying Index Usage </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="multiple-column-indexes"></a>8.3.6&nbsp;Multiple-Column Indexes</h3></div></div></div><a id="idm45828954179536" class="indexterm"></a><a id="idm45828954178464" class="indexterm"></a><a id="idm45828954176976" class="indexterm"></a><p>
+        MySQL can create composite indexes (that is, indexes on multiple
+        columns). An index may consist of up to 16 columns. For certain
+        data types, you can index a prefix of the column (see
+        <a class="xref" href="column-indexes.html" title="8.3.5&nbsp;Column Indexes">Section&nbsp;8.3.5, &ldquo;Column Indexes&rdquo;</a>).
+      </p><p>
+        MySQL can use multiple-column indexes for queries that test all
+        the columns in the index, or queries that test just the first
+        column, the first two columns, the first three columns, and so
+        on. If you specify the columns in the right order in the index
+        definition, a single composite index can speed up several kinds
+        of queries on the same table.
+      </p><p>
+        A multiple-column index can be considered a sorted array, the
+        rows of which contain values that are created by concatenating
+        the values of the indexed columns.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          As an alternative to a composite index, you can introduce a
+          column that is <span class="quote">&ldquo;<span class="quote">hashed</span>&rdquo;</span> based on information from
+          other columns. If this column is short, reasonably unique, and
+          indexed, it might be faster than a <span class="quote">&ldquo;<span class="quote">wide</span>&rdquo;</span> index
+          on many columns. In MySQL, it is very easy to use this extra
+          column:
+        </p><pre class="programlisting">SELECT * FROM <em class="replaceable"><code>tbl_name</code></em>
+  WHERE <em class="replaceable"><code>hash_col</code></em>=MD5(CONCAT(<em class="replaceable"><code>val1</code></em>,<em class="replaceable"><code>val2</code></em>))
+  AND <em class="replaceable"><code>col1</code></em>=<em class="replaceable"><code>val1</code></em> AND <em class="replaceable"><code>col2</code></em>=<em class="replaceable"><code>val2</code></em>;
+</pre></div><p>
+        Suppose that a table has the following specification:
+      </p><pre class="programlisting">CREATE TABLE test (
+    id         INT NOT NULL,
+    last_name  CHAR(30) NOT NULL,
+    first_name CHAR(30) NOT NULL,
+    PRIMARY KEY (id),
+    INDEX name (last_name,first_name)
+);
+</pre><p>
+        The <code class="literal">name</code> index is an index over the
+        <code class="literal">last_name</code> and <code class="literal">first_name</code>
+        columns. The index can be used for lookups in queries that
+        specify values in a known range for combinations of
+        <code class="literal">last_name</code> and <code class="literal">first_name</code>
+        values. It can also be used for queries that specify just a
+        <code class="literal">last_name</code> value because that column is a
+        leftmost prefix of the index (as described later in this
+        section). Therefore, the <code class="literal">name</code> index is used
+        for lookups in the following queries:
+      </p><pre class="programlisting">SELECT * FROM test WHERE last_name=&#39;Jones&#39;;
+
+SELECT * FROM test
+  WHERE last_name=&#39;Jones&#39; AND first_name=&#39;John&#39;;
+
+SELECT * FROM test
+  WHERE last_name=&#39;Jones&#39;
+  AND (first_name=&#39;John&#39; OR first_name=&#39;Jon&#39;);
+
+SELECT * FROM test
+  WHERE last_name=&#39;Jones&#39;
+  AND first_name &gt;=&#39;M&#39; AND first_name &lt; &#39;N&#39;;
+</pre><p>
+        However, the <code class="literal">name</code> index is
+        <span class="emphasis"><em>not</em></span> used for lookups in the following
+        queries:
+      </p><pre class="programlisting">SELECT * FROM test WHERE first_name=&#39;John&#39;;
+
+SELECT * FROM test
+  WHERE last_name=&#39;Jones&#39; OR first_name=&#39;John&#39;;
+</pre><p>
+        Suppose that you issue the following
+        <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statement:
+      </p><pre class="programlisting">SELECT * FROM <em class="replaceable"><code>tbl_name</code></em>
+  WHERE col1=<em class="replaceable"><code>val1</code></em> AND col2=<em class="replaceable"><code>val2</code></em>;
+</pre><p>
+        If a multiple-column index exists on <code class="literal">col1</code> and
+        <code class="literal">col2</code>, the appropriate rows can be fetched
+        directly. If separate single-column indexes exist on
+        <code class="literal">col1</code> and <code class="literal">col2</code>, the
+        optimizer attempts to use the Index Merge optimization (see
+        <a class="xref" href="index-merge-optimization.html" title="8.2.1.3&nbsp;Index Merge Optimization">Section&nbsp;8.2.1.3, &ldquo;Index Merge Optimization&rdquo;</a>), or attempts to find
+        the most restrictive index by deciding which index excludes more
+        rows and using that index to fetch the rows.
+      </p><a id="idm45828954146592" class="indexterm"></a><a id="idm45828954145104" class="indexterm"></a><p>
+        If the table has a multiple-column index, any leftmost prefix of
+        the index can be used by the optimizer to look up rows. For
+        example, if you have a three-column index on <code class="literal">(col1,
+        col2, col3)</code>, you have indexed search capabilities on
+        <code class="literal">(col1)</code>, <code class="literal">(col1, col2)</code>, and
+        <code class="literal">(col1, col2, col3)</code>.
+      </p><p>
+        MySQL cannot use the index to perform lookups if the columns do
+        not form a leftmost prefix of the index. Suppose that you have
+        the <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statements shown here:
+      </p><pre class="programlisting">SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE col1=<em class="replaceable"><code>val1</code></em>;
+SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE col1=<em class="replaceable"><code>val1</code></em> AND col2=<em class="replaceable"><code>val2</code></em>;
+
+SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE col2=<em class="replaceable"><code>val2</code></em>;
+SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE col2=<em class="replaceable"><code>val2</code></em> AND col3=<em class="replaceable"><code>val3</code></em>;
+</pre><p>
+        If an index exists on <code class="literal">(col1, col2, col3)</code>,
+        only the first two queries use the index. The third and fourth
+        queries do involve indexed columns, but do not use an index to
+        perform lookups because <code class="literal">(col2)</code> and
+        <code class="literal">(col2, col3)</code> are not leftmost prefixes of
+        <code class="literal">(col1, col2, col3)</code>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="column-indexes.html">Previous <span class="navHint"> Column Indexes </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="verifying-index-usage.html">Next <span class="navHint"> Verifying Index Usage </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

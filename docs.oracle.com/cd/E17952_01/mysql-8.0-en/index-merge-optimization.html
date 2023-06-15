@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.1.3 Index Merge Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="select-optimization.html" title="8.2.1 Optimizing SELECT Statements" /><link rel="prev" href="range-optimization.html" title="8.2.1.2 Range Optimization" /><link rel="next" href="hash-joins.html" title="8.2.1.4 Hash Join Optimization" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="index-merge-optimization.html#index-merge-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="range-optimization.html">Previous <span class="navHint"> Range Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="hash-joins.html">Next <span class="navHint"> Hash Join Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="index-merge-optimization"></a>8.2.1.3 Index Merge Optimization</h4></div></div></div><a id="idm45828956775248" class="indexterm"></a><a id="idm45828956774208" class="indexterm"></a><a id="idm45828956773120" class="indexterm"></a><p>
+          The <span class="firstterm">Index Merge</span> access
+          method retrieves rows with multiple
+          <a class="link" href="explain-output.html#jointype_range"><code class="literal">range</code></a> scans and merges
+          their results into one. This access method merges index scans
+          from a single table only, not scans across multiple tables.
+          The merge can produce unions, intersections, or
+          unions-of-intersections of its underlying scans.
+        </p><p>
+          Example queries for which Index Merge may be used:
+        </p><pre class="programlisting">SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE <em class="replaceable"><code>key1</code></em> = 10 OR <em class="replaceable"><code>key2</code></em> = 20;
+
+SELECT * FROM <em class="replaceable"><code>tbl_name</code></em>
+  WHERE (<em class="replaceable"><code>key1</code></em> = 10 OR <em class="replaceable"><code>key2</code></em> = 20) AND <em class="replaceable"><code>non_key</code></em> = 30;
+
+SELECT * FROM t1, t2
+  WHERE (t1.<em class="replaceable"><code>key1</code></em> IN (1,2) OR t1.<em class="replaceable"><code>key2</code></em> LIKE '<em class="replaceable"><code>value</code></em>%')
+  AND t2.<em class="replaceable"><code>key1</code></em> = t1.<em class="replaceable"><code>some_col</code></em>;
+
+SELECT * FROM t1, t2
+  WHERE t1.<em class="replaceable"><code>key1</code></em> = 1
+  AND (t2.<em class="replaceable"><code>key1</code></em> = t1.<em class="replaceable"><code>some_col</code></em> OR t2.<em class="replaceable"><code>key2</code></em> = t1.<em class="replaceable"><code>some_col2</code></em>);
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            The Index Merge optimization algorithm has the following
+            known limitations:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                If your query has a complex <code class="literal">WHERE</code>
+                clause with deep
+                <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a>/<a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a>
+                nesting and MySQL does not choose the optimal plan, try
+                distributing terms using the following identity
+                transformations:
+              </p><pre class="programlisting">(<em class="replaceable"><code>x</code></em> AND <em class="replaceable"><code>y</code></em>) OR <em class="replaceable"><code>z</code></em> =&gt; (<em class="replaceable"><code>x</code></em> OR <em class="replaceable"><code>z</code></em>) AND (<em class="replaceable"><code>y</code></em> OR <em class="replaceable"><code>z</code></em>)
+(<em class="replaceable"><code>x</code></em> OR <em class="replaceable"><code>y</code></em>) AND <em class="replaceable"><code>z</code></em> =&gt; (<em class="replaceable"><code>x</code></em> AND <em class="replaceable"><code>z</code></em>) OR (<em class="replaceable"><code>y</code></em> AND <em class="replaceable"><code>z</code></em>)
+</pre></li><li class="listitem"><p>
+                Index Merge is not applicable to full-text indexes.
+              </p></li></ul></div></div><p>
+          In <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output, the Index
+          Merge method appears as
+          <a class="link" href="explain-output.html#jointype_index_merge"><code class="literal">index_merge</code></a> in the
+          <code class="literal">type</code> column. In this case, the
+          <code class="literal">key</code> column contains a list of indexes used,
+          and <code class="literal">key_len</code> contains a list of the longest
+          key parts for those indexes.
+        </p><p>
+          The Index Merge access method has several algorithms, which
+          are displayed in the <code class="literal">Extra</code> field of
+          <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">Using intersect(...)</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">Using union(...)</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">Using sort_union(...)</code>
+            </p></li></ul></div><p>
+          The following sections describe these algorithms in greater
+          detail. The optimizer chooses between different possible Index
+          Merge algorithms and other access methods based on cost
+          estimates of the various available options.
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="index-merge-optimization.html#index-merge-intersection" title="Index Merge Intersection Access Algorithm">Index Merge Intersection Access Algorithm</a></p></li><li class="listitem"><p><a class="xref" href="index-merge-optimization.html#index-merge-union" title="Index Merge Union Access Algorithm">Index Merge Union Access Algorithm</a></p></li><li class="listitem"><p><a class="xref" href="index-merge-optimization.html#index-merge-sort-union" title="Index Merge Sort-Union Access Algorithm">Index Merge Sort-Union Access Algorithm</a></p></li><li class="listitem"><p><a class="xref" href="index-merge-optimization.html#index-merge-influencing" title="Influencing Index Merge Optimization">Influencing Index Merge Optimization</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="index-merge-intersection"></a>Index Merge Intersection Access Algorithm</h5></div></div></div><p>
+            This access algorithm is applicable when a
+            <code class="literal">WHERE</code> clause is converted to several
+            range conditions on different keys combined with
+            <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a>, and each condition is one
+            of the following:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                An <em class="replaceable"><code>N</code></em>-part expression of this
+                form, where the index has exactly
+                <em class="replaceable"><code>N</code></em> parts (that is, all index
+                parts are covered):
+              </p><pre class="programlisting"><em class="replaceable"><code>key_part1</code></em> = <em class="replaceable"><code>const1</code></em> AND <em class="replaceable"><code>key_part2</code></em> = <em class="replaceable"><code>const2</code></em> ... AND <em class="replaceable"><code>key_partN</code></em> = <em class="replaceable"><code>constN</code></em>
+</pre></li><li class="listitem"><p>
+                Any range condition over the primary key of an
+                <code class="literal">InnoDB</code> table.
+              </p></li></ul></div><p>
+            Examples:
+          </p><pre class="programlisting">SELECT * FROM <em class="replaceable"><code>innodb_table</code></em>
+  WHERE <em class="replaceable"><code>primary_key</code></em> &lt; 10 AND <em class="replaceable"><code>key_col1</code></em> = 20;
+
+SELECT * FROM <em class="replaceable"><code>tbl_name</code></em>
+  WHERE <em class="replaceable"><code>key1_part1</code></em> = 1 AND <em class="replaceable"><code>key1_part2</code></em> = 2 AND <em class="replaceable"><code>key2</code></em> = 2;
+</pre><p>
+            The Index Merge intersection algorithm performs simultaneous
+            scans on all used indexes and produces the intersection of
+            row sequences that it receives from the merged index scans.
+          </p><p>
+            If all columns used in the query are covered by the used
+            indexes, full table rows are not retrieved
+            (<a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output contains
+            <code class="literal">Using index</code> in <code class="literal">Extra</code>
+            field in this case). Here is an example of such a query:
+          </p><pre class="programlisting">SELECT COUNT(*) FROM t1 WHERE key1 = 1 AND key2 = 1;
+</pre><p>
+            If the used indexes do not cover all columns used in the
+            query, full rows are retrieved only when the range
+            conditions for all used keys are satisfied.
+          </p><p>
+            If one of the merged conditions is a condition over the
+            primary key of an <code class="literal">InnoDB</code> table, it is not
+            used for row retrieval, but is used to filter out rows
+            retrieved using other conditions.
+          </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="index-merge-union"></a>Index Merge Union Access Algorithm</h5></div></div></div><p>
+            The criteria for this algorithm are similar to those for the
+            Index Merge intersection algorithm. The algorithm is
+            applicable when the table's <code class="literal">WHERE</code>
+            clause is converted to several range conditions on different
+            keys combined with <a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a>, and each
+            condition is one of the following:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                An <em class="replaceable"><code>N</code></em>-part expression of this
+                form, where the index has exactly
+                <em class="replaceable"><code>N</code></em> parts (that is, all index
+                parts are covered):
+              </p><pre class="programlisting"><em class="replaceable"><code>key_part1</code></em> = <em class="replaceable"><code>const1</code></em> OR <em class="replaceable"><code>key_part2</code></em> = <em class="replaceable"><code>const2</code></em> ... OR <em class="replaceable"><code>key_partN</code></em> = <em class="replaceable"><code>constN</code></em>
+</pre></li><li class="listitem"><p>
+                Any range condition over a primary key of an
+                <code class="literal">InnoDB</code> table.
+              </p></li><li class="listitem"><p>
+                A condition for which the Index Merge intersection
+                algorithm is applicable.
+              </p></li></ul></div><p>
+            Examples:
+          </p><pre class="programlisting">SELECT * FROM t1
+  WHERE <em class="replaceable"><code>key1</code></em> = 1 OR <em class="replaceable"><code>key2</code></em> = 2 OR <em class="replaceable"><code>key3</code></em> = 3;
+
+SELECT * FROM <em class="replaceable"><code>innodb_table</code></em>
+  WHERE (<em class="replaceable"><code>key1</code></em> = 1 AND <em class="replaceable"><code>key2</code></em> = 2)
+     OR (<em class="replaceable"><code>key3</code></em> = 'foo' AND <em class="replaceable"><code>key4</code></em> = 'bar') AND <em class="replaceable"><code>key5</code></em> = 5;
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="index-merge-sort-union"></a>Index Merge Sort-Union Access Algorithm</h5></div></div></div><p>
+            This access algorithm is applicable when the
+            <code class="literal">WHERE</code> clause is converted to several
+            range conditions combined by
+            <a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a>, but the Index Merge union
+            algorithm is not applicable.
+          </p><p>
+            Examples:
+          </p><pre class="programlisting">SELECT * FROM <em class="replaceable"><code>tbl_name</code></em>
+  WHERE <em class="replaceable"><code>key_col1</code></em> &lt; 10 OR <em class="replaceable"><code>key_col2</code></em> &lt; 20;
+
+SELECT * FROM <em class="replaceable"><code>tbl_name</code></em>
+  WHERE (<em class="replaceable"><code>key_col1</code></em> &gt; 10 OR <em class="replaceable"><code>key_col2</code></em> = 20) AND <em class="replaceable"><code>nonkey_col</code></em> = 30;
+</pre><p>
+            The difference between the sort-union algorithm and the
+            union algorithm is that the sort-union algorithm must first
+            fetch row IDs for all rows and sort them before returning
+            any rows.
+          </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="index-merge-influencing"></a>Influencing Index Merge Optimization</h5></div></div></div><p>
+            Use of Index Merge is subject to the value of the
+            <a class="link" href="switchable-optimizations.html#optflag_index-merge"><code class="literal">index_merge</code></a>,
+            <a class="link" href="switchable-optimizations.html#optflag_index-merge-intersection"><code class="literal">index_merge_intersection</code></a>,
+            <a class="link" href="switchable-optimizations.html#optflag_index-merge-union"><code class="literal">index_merge_union</code></a>, and
+            <a class="link" href="switchable-optimizations.html#optflag_index-merge-sort-union"><code class="literal">index_merge_sort_union</code></a>
+            flags of the
+            <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> system
+            variable. See <a class="xref" href="switchable-optimizations.html" title="8.9.2 Switchable Optimizations">Section 8.9.2, “Switchable Optimizations”</a>. By
+            default, all those flags are <code class="literal">on</code>. To
+            enable only certain algorithms, set
+            <a class="link" href="switchable-optimizations.html#optflag_index-merge"><code class="literal">index_merge</code></a> to
+            <code class="literal">off</code>, and enable only such of the others
+            as should be permitted.
+          </p><p>
+            In addition to using the
+            <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> system
+            variable to control optimizer use of the Index Merge
+            algorithms session-wide, MySQL supports optimizer hints to
+            influence the optimizer on a per-statement basis. See
+            <a class="xref" href="optimizer-hints.html" title="8.9.3 Optimizer Hints">Section 8.9.3, “Optimizer Hints”</a>.
+          </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="range-optimization.html">Previous <span class="navHint"> Range Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="hash-joins.html">Next <span class="navHint"> Hash Join Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

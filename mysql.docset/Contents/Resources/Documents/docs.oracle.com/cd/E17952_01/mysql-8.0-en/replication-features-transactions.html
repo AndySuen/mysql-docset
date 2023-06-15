@@ -1,0 +1,130 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3591"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.5.1.35%C2%A0Replication%20and%20Transactions"></a><title>17.5.1.35&nbsp;Replication and Transactions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-features.html" title="17.5.1&nbsp;Replication Features and Issues"/><link rel="prev" href="replication-features-transaction-inconsistencies.html" title="17.5.1.34&nbsp;Replication and Transaction Inconsistencies"/><link rel="next" href="replication-features-triggers.html" title="17.5.1.36&nbsp;Replication and Triggers"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-transactions.html#replication-features-transactions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-features-transaction-inconsistencies.html">Previous <span class="navHint"> Replication and Transaction Inconsistencies </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-features-triggers.html">Next <span class="navHint"> Replication and Triggers </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3590"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.5.1.35%C2%A0Replication%20and%20Transactions"></a><h4 class="title"><a id="replication-features-transactions"></a>17.5.1.35&nbsp;Replication and Transactions</h4></div></div></div><a id="idm45828856022224" class="indexterm"></a><a id="idm45828856020736" class="indexterm"></a><p><strong>Mixing transactional and nontransactional statements within the same
+          transaction.&nbsp;</strong>
+          In general, you should avoid transactions that update both
+          transactional and nontransactional tables in a replication
+          environment. You should also avoid using any statement that
+          accesses both transactional (or temporary) and
+          nontransactional tables and writes to any of them.
+        </p><p>
+        The server uses these rules for binary logging:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If the initial statements in a transaction are
+            nontransactional, they are written to the binary log
+            immediately. The remaining statements in the transaction are
+            cached and not written to the binary log until the
+            transaction is committed. (If the transaction is rolled
+            back, the cached statements are written to the binary log
+            only if they make nontransactional changes that cannot be
+            rolled back. Otherwise, they are discarded.)
+          </p></li><li class="listitem"><p>
+            For statement-based logging, logging of nontransactional
+            statements is affected by the
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_direct_non_transactional_updates"><code class="literal">binlog_direct_non_transactional_updates</code></a>
+            system variable. When this variable is
+            <code class="literal">OFF</code> (the default), logging is as just
+            described. When this variable is <code class="literal">ON</code>,
+            logging occurs immediately for nontransactional statements
+            occurring anywhere in the transaction (not just initial
+            nontransactional statements). Other statements are kept in
+            the transaction cache and logged when the transaction
+            commits.
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_direct_non_transactional_updates"><code class="literal">binlog_direct_non_transactional_updates</code></a>
+            has no effect for row-format or mixed-format binary logging.
+          </p></li></ul></div><p><a id="replication-features-transactions-trx-nontrx-mixed"></a><strong>Transactional, nontransactional, and mixed statements.&nbsp;</strong><a id="idm45828856008832" class="indexterm"></a>
+          To apply those rules, the server considers a statement
+          nontransactional if it changes only nontransactional tables,
+          and transactional if it changes only transactional tables. A
+          statement that references both nontransactional and
+          transactional tables and updates <span class="emphasis"><em>any</em></span> of
+          the tables involved is considered a <span class="quote">&ldquo;<span class="quote">mixed</span>&rdquo;</span>
+          statement. Mixed statements, like transactional statements,
+          are cached and logged when the transaction commits.
+        </p><p>
+        A mixed statement that updates a transactional table is
+        considered unsafe if the statement also performs either of the
+        following actions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Updates or reads a temporary table
+          </p></li><li class="listitem"><p>
+            Reads a nontransactional table and the transaction isolation
+            level is less than REPEATABLE_READ
+          </p></li></ul></div><p>
+        A mixed statement following the update of a transactional table
+        within a transaction is considered unsafe if it performs either
+        of the following actions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Updates any table and reads from any temporary table
+          </p></li><li class="listitem"><p>
+            Updates a nontransactional table and
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_direct_non_transactional_updates"><code class="literal">binlog_direct_non_transactional_updates</code></a>
+            is OFF
+          </p></li></ul></div><p>
+        For more information, see
+        <a class="xref" href="replication-rbr-safe-unsafe.html" title="17.2.1.3&nbsp;Determination of Safe and Unsafe Statements in Binary Logging">Section&nbsp;17.2.1.3, &ldquo;Determination of Safe and Unsafe Statements in Binary Logging&rdquo;</a>.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          A mixed statement is unrelated to mixed binary logging format.
+        </p></div><p>
+        In situations where transactions mix updates to transactional
+        and nontransactional tables, the order of statements in the
+        binary log is correct, and all needed statements are written to
+        the binary log even in case of a
+        <a class="link" href="commit.html" title="13.3.1&nbsp;START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">ROLLBACK</code></a>.
+        However, when a second connection updates the nontransactional
+        table before the first connection transaction is complete,
+        statements can be logged out of order because the second
+        connection update is written immediately after it is performed,
+        regardless of the state of the transaction being performed by
+        the first connection.
+      </p><p><strong>Using different storage engines on source and replica.&nbsp;</strong>
+          It is possible to replicate transactional tables on the source
+          using nontransactional tables on the replica. For example, you
+          can replicate an <code class="literal">InnoDB</code> source table as a
+          <code class="literal">MyISAM</code> replica table. However, if you do
+          this, there are problems if the replica is stopped in the
+          middle of a
+          <a class="link" href="commit.html" title="13.3.1&nbsp;START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">BEGIN</code></a> ...
+          <a class="link" href="commit.html" title="13.3.1&nbsp;START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">COMMIT</code></a> block because the
+          replica restarts at the beginning of the
+          <a class="link" href="commit.html" title="13.3.1&nbsp;START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">BEGIN</code></a> block.
+        </p><p>
+        It is also safe to replicate transactions from
+        <a class="link" href="myisam-storage-engine.html" title="16.2&nbsp;The MyISAM Storage Engine"><code class="literal">MyISAM</code></a> tables on the source to
+        transactional tables, such as tables that use the
+        <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> storage engine, on the
+        replica. In such cases, an
+        <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">AUTOCOMMIT=1</code></a>
+        statement issued on the source is replicated, thus enforcing
+        <code class="literal">AUTOCOMMIT</code> mode on the replica.
+      </p><p>
+        When the storage engine type of the replica is nontransactional,
+        transactions on the source that mix updates of transactional and
+        nontransactional tables should be avoided because they can cause
+        inconsistency of the data between the source transactional table
+        and the replica nontransactional table. That is, such
+        transactions can lead to source storage engine-specific behavior
+        with the possible effect of replication going out of synchrony.
+        MySQL does not issue a warning about this, so extra care should
+        be taken when replicating transactional tables from the source
+        to nontransactional tables on the replicas.
+      </p><p><strong>Changing the binary logging format within transactions.&nbsp;</strong>
+          The <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> and
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_checksum"><code class="literal">binlog_checksum</code></a> system
+          variables are read-only as long as a transaction is in
+          progress.
+        </p><p>
+        Every transaction (including
+        <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">autocommit</code></a> transactions) is
+        recorded in the binary log as though it starts with a
+        <a class="link" href="commit.html" title="13.3.1&nbsp;START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">BEGIN</code></a>
+        statement, and ends with either a
+        <a class="link" href="commit.html" title="13.3.1&nbsp;START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">COMMIT</code></a> or a
+        <a class="link" href="commit.html" title="13.3.1&nbsp;START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">ROLLBACK</code></a>
+        statement. This is even true for statements affecting tables
+        that use a nontransactional storage engine (such as
+        <a class="link" href="myisam-storage-engine.html" title="16.2&nbsp;The MyISAM Storage Engine"><code class="literal">MyISAM</code></a>).
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          For restrictions that apply specifically to XA transactions,
+          see <a class="xref" href="xa-restrictions.html" title="13.3.8.3&nbsp;Restrictions on XA Transactions">Section&nbsp;13.3.8.3, &ldquo;Restrictions on XA Transactions&rdquo;</a>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-transaction-inconsistencies.html">Previous <span class="navHint"> Replication and Transaction Inconsistencies </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-triggers.html">Next <span class="navHint"> Replication and Triggers </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

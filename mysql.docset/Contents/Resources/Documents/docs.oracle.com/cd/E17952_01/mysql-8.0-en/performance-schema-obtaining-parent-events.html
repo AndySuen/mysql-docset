@@ -1,0 +1,132 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3219"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/27.19.2%C2%A0Obtaining%20Parent%20Event%20Information"></a><title>27.19.2&nbsp;Obtaining Parent Event Information</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="performance-schema-examples.html" title="27.19&nbsp;Using the Performance Schema to Diagnose Problems"/><link rel="prev" href="performance-schema-query-profiling.html" title="27.19.1&nbsp;Query Profiling Using Performance Schema"/><link rel="next" href="performance-schema-restrictions.html" title="27.20&nbsp;Restrictions on Performance Schema"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-obtaining-parent-events.html#performance-schema-obtaining-parent-events">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="performance-schema-query-profiling.html">Previous <span class="navHint"> Query Profiling Using Performance Schema </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="performance-schema-examples.html">Up <span class="navHint"> Using the Performance Schema to Diagnose Problems </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="performance-schema-restrictions.html">Next <span class="navHint"> Restrictions on Performance Schema </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="performance-schema-obtaining-parent-events"></a>27.19.2&nbsp;Obtaining Parent Event Information</h3></div></div></div><a id="idm45828781602000" class="indexterm"></a><a id="idm45828781600512" class="indexterm"></a><a id="idm45828781599024" class="indexterm"></a><a id="idm45828781597536" class="indexterm"></a><p>
+        The <a class="link" href="performance-schema-data-locks-table.html" title="27.12.13.1&nbsp;The data_locks Table"><code class="literal">data_locks</code></a> table shows data
+        locks held and requested. Rows of this table have a
+        <code class="literal">THREAD_ID</code> column indicating the thread ID of
+        the session that owns the lock, and an
+        <code class="literal">EVENT_ID</code> column indicating the Performance
+        Schema event that caused the lock. Tuples of
+        (<code class="literal">THREAD_ID</code>, <code class="literal">EVENT_ID</code>)
+        values implicitly identify a parent event in other Performance
+        Schema tables:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The parent wait event in the
+            <code class="literal">events_waits_<em class="replaceable"><code>xxx</code></em></code>
+            tables
+          </p></li><li class="listitem"><p>
+            The parent stage event in the
+            <code class="literal">events_stages_<em class="replaceable"><code>xxx</code></em></code>
+            tables
+          </p></li><li class="listitem"><p>
+            The parent statement event in the
+            <code class="literal">events_statements_<em class="replaceable"><code>xxx</code></em></code>
+            tables
+          </p></li><li class="listitem"><p>
+            The parent transaction event in the
+            <a class="link" href="performance-schema-events-transactions-current-table.html" title="27.12.7.1&nbsp;The events_transactions_current Table"><code class="literal">events_transactions_current</code></a>
+            table
+          </p></li></ul></div><p>
+        To obtain details about the parent event, join the
+        <code class="literal">THREAD_ID</code> and <code class="literal">EVENT_ID</code>
+        columns with the columns of like name in the appropriate parent
+        event table. The relation is based on a nested set data model,
+        so the join has several clauses. Given parent and child tables
+        represented by <code class="literal">parent</code> and
+        <code class="literal">child</code>, respectively, the join looks like
+        this:
+      </p><pre class="programlisting">WHERE
+  parent.THREAD_ID = child.THREAD_ID        /* 1 */
+  AND parent.EVENT_ID &lt; child.EVENT_ID      /* 2 */
+  AND (
+    child.EVENT_ID &lt;= parent.END_EVENT_ID   /* 3a */
+    OR parent.END_EVENT_ID IS NULL          /* 3b */
+  )
+</pre><p>
+        The conditions for the join are:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            The parent and child events are in the same thread.
+          </p></li><li class="listitem"><p>
+            The child event begins after the parent event, so its
+            <code class="literal">EVENT_ID</code> value is greater than that of
+            the parent.
+          </p></li><li class="listitem"><p>
+            The parent event has either completed or is still running.
+          </p></li></ol></div><p>
+        To find lock information,
+        <a class="link" href="performance-schema-data-locks-table.html" title="27.12.13.1&nbsp;The data_locks Table"><code class="literal">data_locks</code></a> is the table containing
+        child events.
+      </p><p>
+        The <a class="link" href="performance-schema-data-locks-table.html" title="27.12.13.1&nbsp;The data_locks Table"><code class="literal">data_locks</code></a> table shows only
+        existing locks, so these considerations apply regarding which
+        table contains the parent event:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For transactions, the only choice is
+            <a class="link" href="performance-schema-events-transactions-current-table.html" title="27.12.7.1&nbsp;The events_transactions_current Table"><code class="literal">events_transactions_current</code></a>. If
+            a transaction is completed, it may be in the transaction
+            history tables, but the locks are gone already.
+          </p></li><li class="listitem"><p>
+            For statements, it all depends on whether the statement that
+            took a lock is a statement in a transaction that has already
+            completed (use
+            <a class="link" href="performance-schema-events-statements-history-table.html" title="27.12.6.2&nbsp;The events_statements_history Table"><code class="literal">events_statements_history</code></a>) or
+            the statement is still running (use
+            <a class="link" href="performance-schema-events-statements-current-table.html" title="27.12.6.1&nbsp;The events_statements_current Table"><code class="literal">events_statements_current</code></a>).
+          </p></li><li class="listitem"><p>
+            For stages, the logic is similar to that for statements; use
+            <a class="link" href="performance-schema-events-stages-history-table.html" title="27.12.5.2&nbsp;The events_stages_history Table"><code class="literal">events_stages_history</code></a> or
+            <a class="link" href="performance-schema-events-stages-current-table.html" title="27.12.5.1&nbsp;The events_stages_current Table"><code class="literal">events_stages_current</code></a>.
+          </p></li><li class="listitem"><p>
+            For waits, the logic is similar to that for statements; use
+            <a class="link" href="performance-schema-events-waits-history-table.html" title="27.12.4.2&nbsp;The events_waits_history Table"><code class="literal">events_waits_history</code></a> or
+            <a class="link" href="performance-schema-events-waits-current-table.html" title="27.12.4.1&nbsp;The events_waits_current Table"><code class="literal">events_waits_current</code></a>. However,
+            so many waits are recorded that the wait that caused a lock
+            is most likely gone from the history tables already.
+          </p></li></ul></div><p>
+        Wait, stage, and statement events disappear quickly from the
+        history. If a statement that executed a long time ago took a
+        lock but is in a still-open transaction, it might not be
+        possible to find the statement, but it is possible to find the
+        transaction.
+      </p><p>
+        This is why the nested set data model works better for locating
+        parent events. Following links in a parent/child relationship
+        (data lock -&gt; parent wait -&gt; parent stage -&gt; parent
+        transaction) does not work well when intermediate nodes are
+        already gone from the history tables.
+      </p><p>
+        The following scenario illustrates how to find the parent
+        transaction of a statement in which a lock was taken:
+      </p><p>
+        Session A:
+      </p><pre class="programlisting">[1] START TRANSACTION;
+[2] SELECT * FROM t1 WHERE pk = 1;
+[3] SELECT &#39;Hello, world&#39;;
+</pre><p>
+        Session B:
+      </p><pre class="programlisting">SELECT ...
+FROM performance_schema.events_transactions_current AS parent
+  INNER JOIN performance_schema.data_locks AS child
+WHERE
+  parent.THREAD_ID = child.THREAD_ID
+  AND parent.EVENT_ID &lt; child.EVENT_ID
+  AND (
+    child.EVENT_ID &lt;= parent.END_EVENT_ID
+    OR parent.END_EVENT_ID IS NULL
+  );
+</pre><p>
+        The query for session B should show statement [2] as owning a
+        data lock on the record with <code class="literal">pk=1</code>.
+      </p><p>
+        If session A executes more statements, [2] fades out of the
+        history table.
+      </p><p>
+        The query should show the transaction that started in [1],
+        regardless of how many statements, stages, or waits were
+        executed.
+      </p><p>
+        To see more data, you can also use the
+        <code class="literal">events_<em class="replaceable"><code>xxx</code></em>_history_long</code>
+        tables, except for transactions, assuming no other query runs in
+        the server (so that history is preserved).
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="performance-schema-query-profiling.html">Previous <span class="navHint"> Query Profiling Using Performance Schema </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="performance-schema-examples.html">Up <span class="navHint"> Using the Performance Schema to Diagnose Problems </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-restrictions.html">Next <span class="navHint"> Restrictions on Performance Schema </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

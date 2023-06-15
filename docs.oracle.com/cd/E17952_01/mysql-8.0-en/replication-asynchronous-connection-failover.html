@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.4.9 Switching Sources and Replicas with Asynchronous Connection Failover</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-solutions.html" title="17.4 Replication Solutions" /><link rel="prev" href="replication-solutions-switch.html" title="17.4.8 Switching Sources During Failover" /><link rel="next" href="replication-asynchronous-connection-failover-source.html" title="17.4.9.1 Asynchronous Connection Failover for Sources" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-asynchronous-connection-failover.html#replication-asynchronous-connection-failover">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-solutions-switch.html">Previous <span class="navHint"> Switching Sources During Failover </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-solutions.html">Up <span class="navHint"> Replication Solutions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-asynchronous-connection-failover-source.html">Next <span class="navHint"> Asynchronous Connection Failover for Sources </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="replication-asynchronous-connection-failover"></a>17.4.9 Switching Sources and Replicas with Asynchronous Connection Failover</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="replication-asynchronous-connection-failover-source.html">17.4.9.1 Asynchronous Connection Failover for Sources</a></span></li><li><span class="section"><a href="replication-asynchronous-connection-failover-replica.html">17.4.9.2 Asynchronous Connection Failover for Replicas</a></span></li></ul></div><p>
+      Beginning with MySQL 8.0.22, you can use the asynchronous
+      connection failover mechanism to automatically establish an
+      asynchronous (source to replica) replication connection to a new
+      source after the existing connection from a replica to its source
+      fails. The asynchronous connection failover mechanism can be used
+      to keep a replica synchronized with multiple MySQL servers or
+      groups of servers that share data. The list of potential source
+      servers is stored on the replica, and in the event of a connection
+      failure, a new source is selected from the list based on a
+      weighted priority that you set.
+    </p><p>
+      From MySQL 8.0.23, the asynchronous connection failover mechanism
+      also supports Group Replication topologies, by automatically
+      monitoring changes to group membership and distinguishing between
+      primary and secondary servers. When you add a group member to the
+      source list and define it as part of a managed group, the
+      asynchronous connection failover mechanism updates the source list
+      to keep it in line with membership changes, adding and removing
+      group members automatically as they join or leave. Only online
+      group members that are in the majority are used for connections
+      and obtaining status. The last remaining member of a managed group
+      is not removed automatically even if it leaves the group, so that
+      the configuration of the managed group is kept. However, you can
+      delete a managed group manually if it is no longer needed.
+    </p><p>
+      From MySQL 8.0.27, the asynchronous connection failover mechanism
+      also enables a replica that is part of a managed replication group
+      to automatically reconnect to the sender if the current receiver
+      (the primary of the group) fails. This feature works with Group
+      Replication, on a group configured in single-primary mode, where
+      the group’s primary is a replica that has a replication channel
+      using the mechanism. The feature is designed for a group of
+      senders and a group of receivers to keep synchronized with each
+      other even when some members are temporarily unavailable. It also
+      synchronizes a group of receivers with one or more senders that
+      are not part of a managed group. A replica that is not part of a
+      replication group cannot use this feature.
+    </p><p>
+      The requirements for using the asynchronous connection failover
+      mechanism are as follows:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          GTIDs must be in use on the source and the replica
+          (<a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">gtid_mode=ON</code></a>), and the
+          <code class="literal">SOURCE_AUTO_POSITION</code> |
+          <code class="literal">MASTER_AUTO_POSITION</code> option of the
+          <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a> |
+          <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement must
+          be enabled on the replica, so that GTID auto-positioning is
+          used for the connection to the source.
+        </p></li><li class="listitem"><p>
+          The same replication user account and password must exist on
+          all the source servers in the source list for the channel.
+          This account is used for the connection to each of the
+          sources. You can set up different accounts for different
+          channels.
+        </p></li><li class="listitem"><p>
+          The replication user account must be given
+          <code class="literal">SELECT</code> permissions on the Performance
+          Schema tables, for example, by issuing <code class="literal">GRANT SELECT
+          ON performance_schema.* TO
+          '<em class="replaceable"><code>repl_user</code></em>';</code>
+        </p></li><li class="listitem"><p>
+          The replication user account and password cannot be specified
+          on the statement used to start replication, because they need
+          to be available on the automatic restart for the connection to
+          the alternative source. They must be set for the channel using
+          the <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+          TO</code></a> | <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a>
+          statement on the replica, and recorded in the replication
+          metadata repositories.
+        </p></li><li class="listitem"><p>
+          If the channel where the asynchronous connection failover
+          mechanism is in use is on the primary of a Group Replication
+          single-primary mode group, from MySQL 8.0.27, asynchronous
+          connection failover between replicas is also active by
+          default. In this situation, the replication channel and the
+          replication user account and password for the channel must be
+          set up on all the secondary servers in the replication group,
+          and on any new joining members. If the new servers are
+          provisioned using MySQL’s clone functionality, this all
+          happens automatically.
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            If you do not want asynchronous connection failover to take
+            place between replicas in this situation, disable it by
+            disabling the member action
+            <code class="literal">mysql_start_failover_channels_if_primary</code>
+            for the group, using the
+            <a class="link" href="group-replication-functions-for-member-actions.html#function_group-replication-disable-member-action"><code class="literal">group_replication_disable_member_action</code></a>
+            function. When the feature is disabled, you do not need to
+            configure the replication channel on the secondary group
+            members, but if the primary goes offline or into an error
+            state, replication stops for the channel.
+          </p></div></li></ul></div><p>
+      From MySQL Shell 8.0.27 and MySQL 8.0.27, MySQL
+      InnoDB ClusterSet is available to provide disaster tolerance for
+      InnoDB Cluster deployments by linking a primary InnoDB Cluster
+      with one or more replicas of itself in alternate locations, such
+      as different datacenters. Consider using this solution instead to
+      simplify the setup of a new multi-group deployment for
+      replication, failover, and disaster recovery. You can adopt an
+      existing Group Replication deployment as an InnoDB Cluster.
+    </p><p>
+      InnoDB ClusterSet and InnoDB Cluster are designed to abstract
+      and simplify the procedures for setting up, managing, monitoring,
+      recovering, and repairing replication groups. InnoDB ClusterSet
+      automatically manages replication from a primary cluster to
+      replica clusters using a dedicated ClusterSet replication channel.
+      You can use administrator commands to trigger a controlled
+      switchover or emergency failover between groups if the primary
+      cluster is not functioning normally. Servers and groups can easily
+      be added to or removed from the InnoDB ClusterSet deployment
+      after the initial setup when demand changes. For more information,
+      see <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/innodb-clusterset.html" target="_top">MySQL InnoDB ClusterSet</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-solutions-switch.html">Previous <span class="navHint"> Switching Sources During Failover </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-solutions.html">Up <span class="navHint"> Replication Solutions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-asynchronous-connection-failover-source.html">Next <span class="navHint"> Asynchronous Connection Failover for Sources </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

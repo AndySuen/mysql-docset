@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.6.9.2 The Keyring Service</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="plugin-services.html" title="5.6.9 MySQL Plugin Services" /><link rel="prev" href="locking-service.html" title="5.6.9.1 The Locking Service" /><link rel="next" href="server-loadable-functions.html" title="5.7 MySQL Server Loadable Functions" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="keyring-service.html#keyring-service">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="locking-service.html">Previous <span class="navHint"> The Locking Service </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="plugin-services.html">Up <span class="navHint"> MySQL Plugin Services </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="server-loadable-functions.html">Next <span class="navHint"> MySQL Server Loadable Functions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="keyring-service"></a>5.6.9.2 The Keyring Service</h4></div></div></div><a id="idm45828981968160" class="indexterm"></a><a id="idm45828981966672" class="indexterm"></a><p>
+        MySQL Server supports a keyring service that enables internal
+        components and plugins to securely store sensitive information
+        for later retrieval. MySQL distributions provide a keyring
+        interface that is accessible at two levels:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            At the SQL level, as a set of loadable functions that each
+            map onto calls to the service routines.
+          </p></li><li class="listitem"><p>
+            As a C language interface, callable as a plugin service from
+            server plugins or loadable functions.
+          </p></li></ul></div><p>
+        This section describes how to use the keyring service functions
+        to store, retrieve, and remove keys in the MySQL keyring
+        keystore. For information about the SQL interface that uses
+        functions, <a class="xref" href="keyring-functions-general-purpose.html" title="6.4.4.15 General-Purpose Keyring Key-Management Functions">Section 6.4.4.15, “General-Purpose Keyring Key-Management Functions”</a>.
+        For general keyring information, see <a class="xref" href="keyring.html" title="6.4.4 The MySQL Keyring">Section 6.4.4, “The MySQL Keyring”</a>.
+      </p><p>
+        The keyring service uses whatever underlying keyring plugin is
+        enabled, if any. If no keyring plugin is enabled, keyring
+        service calls fail.
+      </p><p>
+        A <span class="quote">“<span class="quote">record</span>”</span> in the keystore consists of data (the
+        key itself) and a unique identifier through which the key is
+        accessed. The identifier has two parts:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">key_id</code>: The key ID or name.
+            <code class="literal">key_id</code> values that begin with
+            <code class="literal">mysql_</code> are reserved by MySQL Server.
+          </p></li><li class="listitem"><p>
+            <code class="literal">user_id</code>: The session effective user ID.
+            If there is no user context, this value can be
+            <code class="literal">NULL</code>. The value need not actually be a
+            <span class="quote">“<span class="quote">user</span>”</span>; the meaning depends on the application.
+          </p><p>
+            Functions that implement the keyring function interface pass
+            the value of <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a>
+            as the <code class="literal">user_id</code> value to keyring service
+            functions.
+          </p></li></ul></div><p>
+        The keyring service functions have these characteristics in
+        common:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Each function returns 0 for success, 1 for failure.
+          </p></li><li class="listitem"><p>
+            The <code class="literal">key_id</code> and <code class="literal">user_id</code>
+            arguments form a unique combination indicating which key in
+            the keyring to use.
+          </p></li><li class="listitem"><p>
+            The <code class="literal">key_type</code> argument provides additional
+            information about the key, such as its encryption method or
+            intended use.
+          </p></li><li class="listitem"><p>
+            Keyring service functions treat key IDs, user names, types,
+            and values as binary strings, so comparisons are
+            case-sensitive. For example, IDs of <code class="literal">MyKey</code>
+            and <code class="literal">mykey</code> refer to different keys.
+          </p></li></ul></div><p>
+        These keyring service functions are available:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">my_key_fetch()</code>
+          </p><a id="idm45828981940400" class="indexterm"></a><a id="idm45828981939312" class="indexterm"></a><p>
+            Deobfuscates and retrieves a key from the keyring, along
+            with its type. The function allocates the memory for the
+            buffers used to store the returned key and key type. The
+            caller should zero or obfuscate the memory when it is no
+            longer needed, then free it.
+          </p><p>
+            Syntax:
+          </p><pre class="programlisting">bool my_key_fetch(const char *key_id, const char **key_type,
+                  const char* user_id, void **key, size_t *key_len)
+</pre><p>
+            Arguments:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <code class="literal">key_id</code>, <code class="literal">user_id</code>:
+                Null-terminated strings that as a pair form a unique
+                identifier indicating which key to fetch.
+              </p></li><li class="listitem"><p>
+                <code class="literal">key_type</code>: The address of a buffer
+                pointer. The function stores into it a pointer to a
+                null-terminated string that provides additional
+                information about the key (stored when the key was
+                added).
+              </p></li><li class="listitem"><p>
+                <code class="literal">key</code>: The address of a buffer pointer.
+                The function stores into it a pointer to the buffer
+                containing the fetched key data.
+              </p></li><li class="listitem"><p>
+                <code class="literal">key_len</code>: The address of a variable
+                into which the function stores the size in bytes of the
+                <code class="literal">*key</code> buffer.
+              </p></li></ul></div><p>
+            Return value:
+          </p><p>
+            Returns 0 for success, 1 for failure.
+          </p></li><li class="listitem"><p>
+            <code class="literal">my_key_generate()</code>
+          </p><a id="idm45828981924496" class="indexterm"></a><a id="idm45828981923392" class="indexterm"></a><p>
+            Generates a new random key of a given type and length and
+            stores it in the keyring. The key has a length of
+            <code class="literal">key_len</code> and is associated with the
+            identifier formed from <code class="literal">key_id</code> and
+            <code class="literal">user_id</code>. The type and length values must
+            be consistent with the values supported by the underlying
+            keyring plugin. See <a class="xref" href="keyring-key-types.html" title="6.4.4.13 Supported Keyring Key Types and Lengths">Section 6.4.4.13, “Supported Keyring Key Types and Lengths”</a>.
+          </p><p>
+            Syntax:
+          </p><pre class="programlisting">bool my_key_generate(const char *key_id, const char *key_type,
+                     const char *user_id, size_t key_len)
+</pre><p>
+            Arguments:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <code class="literal">key_id</code>, <code class="literal">user_id</code>:
+                Null-terminated strings that as a pair form a unique
+                identifier for the key to be generated.
+              </p></li><li class="listitem"><p>
+                <code class="literal">key_type</code>: A null-terminated string
+                that provides additional information about the key.
+              </p></li><li class="listitem"><p>
+                <code class="literal">key_len</code>: The size in bytes of the key
+                to be generated.
+              </p></li></ul></div><p>
+            Return value:
+          </p><p>
+            Returns 0 for success, 1 for failure.
+          </p></li><li class="listitem"><p>
+            <code class="literal">my_key_remove()</code>
+          </p><a id="idm45828981908144" class="indexterm"></a><a id="idm45828981907040" class="indexterm"></a><p>
+            Removes a key from the keyring.
+          </p><p>
+            Syntax:
+          </p><pre class="programlisting">bool my_key_remove(const char *key_id, const char* user_id)
+</pre><p>
+            Arguments:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <code class="literal">key_id</code>, <code class="literal">user_id</code>:
+                Null-terminated strings that as a pair form a unique
+                identifier for the key to be removed.
+              </p></li></ul></div><p>
+            Return value:
+          </p><p>
+            Returns 0 for success, 1 for failure.
+          </p></li><li class="listitem"><p>
+            <code class="literal">my_key_store()</code>
+          </p><a id="idm45828981898208" class="indexterm"></a><a id="idm45828981897120" class="indexterm"></a><p>
+            Obfuscates and stores a key in the keyring.
+          </p><p>
+            Syntax:
+          </p><pre class="programlisting">bool my_key_store(const char *key_id, const char *key_type,
+                  const char* user_id, void *key, size_t key_len)
+</pre><p>
+            Arguments:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <code class="literal">key_id</code>, <code class="literal">user_id</code>:
+                Null-terminated strings that as a pair form a unique
+                identifier for the key to be stored.
+              </p></li><li class="listitem"><p>
+                <code class="literal">key_type</code>: A null-terminated string
+                that provides additional information about the key.
+              </p></li><li class="listitem"><p>
+                <code class="literal">key</code>: The buffer containing the key
+                data to be stored.
+              </p></li><li class="listitem"><p>
+                <code class="literal">key_len</code>: The size in bytes of the
+                <code class="literal">key</code> buffer.
+              </p></li></ul></div><p>
+            Return value:
+          </p><p>
+            Returns 0 for success, 1 for failure.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="locking-service.html">Previous <span class="navHint"> The Locking Service </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="plugin-services.html">Up <span class="navHint"> MySQL Plugin Services </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="server-loadable-functions.html">Next <span class="navHint"> MySQL Server Loadable Functions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

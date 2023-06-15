@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.1.3.8 Stored Function Examples to Manipulate GTIDs</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-gtids.html" title="17.1.3 Replication with Global Transaction Identifiers" /><link rel="prev" href="replication-gtids-restrictions.html" title="17.1.3.7 Restrictions on Replication with GTIDs" /><link rel="next" href="replication-mode-change-online.html" title="17.1.4 Changing GTID Mode on Online Servers" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-gtids-functions.html#replication-gtids-functions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-gtids-restrictions.html">Previous <span class="navHint"> Restrictions on Replication with GTIDs </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-mode-change-online.html">Next <span class="navHint"> Changing GTID Mode on Online Servers </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-gtids-functions"></a>17.1.3.8 Stored Function Examples to Manipulate GTIDs</h4></div></div></div><p>
+      MySQL includes some built-in (native) functions for use with
+      GTID-based replication. These functions are as follows:
+    </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">
+          <code class="function">GTID_SUBSET(<em class="replaceable"><code>set1</code></em>,<em class="replaceable"><code>set2</code></em>)</code>
+        </span></dt><dd><p>
+            Given two sets of global transaction identifiers
+            <em class="replaceable"><code>set1</code></em> and
+            <em class="replaceable"><code>set2</code></em>, returns true if all GTIDs
+            in <em class="replaceable"><code>set1</code></em> are also in
+            <em class="replaceable"><code>set2</code></em>. Returns false otherwise.
+          </p></dd><dt><span class="term">
+          <code class="function">GTID_SUBTRACT(<em class="replaceable"><code>set1</code></em>,<em class="replaceable"><code>set2</code></em>)</code>
+        </span></dt><dd><p>
+            Given two sets of global transaction identifiers
+            <em class="replaceable"><code>set1</code></em> and
+            <em class="replaceable"><code>set2</code></em>, returns only those GTIDs
+            from <em class="replaceable"><code>set1</code></em> that are not in
+            <em class="replaceable"><code>set2</code></em>.
+          </p></dd><dt><span class="term">
+          <code class="function">WAIT_FOR_EXECUTED_GTID_SET(<em class="replaceable"><code>gtid_set</code></em>[,
+          <em class="replaceable"><code>timeout</code></em>])</code>
+        </span></dt><dd><p>
+            Wait until the server has applied all of the transactions
+            whose global transaction identifiers are contained in
+            <em class="replaceable"><code>gtid_set</code></em>. The optional timeout
+            stops the function from waiting after the specified number
+            of seconds have elapsed.
+          </p></dd></dl></div><p>
+      For details of these functions, see
+      <a class="xref" href="gtid-functions.html" title="12.18 Functions Used with Global Transaction Identifiers (GTIDs)">Section 12.18, “Functions Used with Global Transaction Identifiers (GTIDs)”</a>.
+    </p><p>
+      You can define your own stored functions to work with GTIDs. For
+      information on defining stored functions, see
+      <a class="xref" href="stored-objects.html" title="Chapter 25 Stored Objects">Chapter 25, <em>Stored Objects</em></a>. The following examples show some
+      useful stored functions that can be created based on the built-in
+      <code class="function">GTID_SUBSET()</code> and
+      <code class="function">GTID_SUBTRACT()</code> functions.
+    </p><p>
+      Note that in these stored functions, the delimiter command has
+      been used to change the MySQL statement delimiter to a vertical
+      bar, as follows:
+
+</p><pre class="programlisting">mysql&gt; delimiter |</pre><p>
+    </p><p>
+      All of these functions take string representations of GTID sets as
+      arguments, so GTID sets must always be quoted when used with them.
+    </p><p>
+      This function returns nonzero (true) if two GTID sets are the same
+      set, even if they are not formatted in the same way.
+
+</p><pre class="programlisting">CREATE FUNCTION GTID_IS_EQUAL(gtid_set_1 LONGTEXT, gtid_set_2 LONGTEXT)
+RETURNS INT
+  RETURN GTID_SUBSET(gtid_set_1, gtid_set_2) AND GTID_SUBSET(gtid_set_2, gtid_set_1)|</pre><p>
+    </p><p>
+      This function returns nonzero (true) if two GTID sets are
+      disjoint.
+
+</p><pre class="programlisting">CREATE FUNCTION GTID_IS_DISJOINT(gtid_set_1 LONGTEXT, gtid_set_2 LONGTEXT)
+RETURNS INT
+  RETURN GTID_SUBSET(gtid_set_1, GTID_SUBTRACT(gtid_set_1, gtid_set_2))|</pre><p>
+    </p><p>
+      This function returns nonzero (true) if two GTID sets are
+      disjoint, and <code class="literal">sum</code> is the union of the two sets.
+
+</p><pre class="programlisting">CREATE FUNCTION GTID_IS_DISJOINT_UNION(gtid_set_1 LONGTEXT, gtid_set_2 LONGTEXT, sum LONGTEXT)
+RETURNS INT
+  RETURN GTID_IS_EQUAL(GTID_SUBTRACT(sum, gtid_set_1), gtid_set_2) AND
+         GTID_IS_EQUAL(GTID_SUBTRACT(sum, gtid_set_2), gtid_set_1)|</pre><p>
+    </p><p>
+      This function returns a normalized form of the GTID set, in all
+      uppercase, with no whitespace and no duplicates. The UUIDs are
+      arranged in alphabetic order and intervals are arranged in numeric
+      order.
+
+</p><pre class="programlisting">CREATE FUNCTION GTID_NORMALIZE(g LONGTEXT)
+RETURNS LONGTEXT
+RETURN GTID_SUBTRACT(g, '')|</pre><p>
+    </p><p>
+      This function returns the union of two GTID sets.
+
+</p><pre class="programlisting">CREATE FUNCTION GTID_UNION(gtid_set_1 LONGTEXT, gtid_set_2 LONGTEXT)
+RETURNS LONGTEXT
+  RETURN GTID_NORMALIZE(CONCAT(gtid_set_1, ',', gtid_set_2))|</pre><p>
+    </p><p>
+      This function returns the intersection of two GTID sets.
+
+</p><pre class="programlisting">CREATE FUNCTION GTID_INTERSECTION(gtid_set_1 LONGTEXT, gtid_set_2 LONGTEXT)
+RETURNS LONGTEXT
+  RETURN GTID_SUBTRACT(gtid_set_1, GTID_SUBTRACT(gtid_set_1, gtid_set_2))|</pre><p>
+    </p><p>
+      This function returns the symmetric difference between two GTID
+      sets, that is, the GTIDs that exist in
+      <code class="literal">gtid_set_1</code> but not in
+      <code class="literal">gtid_set_2</code>, and also the GTIDs that exist in
+      <code class="literal">gtid_set_2</code> but not in
+      <code class="literal">gtid_set_1</code>.
+
+</p><pre class="programlisting">CREATE FUNCTION GTID_SYMMETRIC_DIFFERENCE(gtid_set_1 LONGTEXT, gtid_set_2 LONGTEXT)
+RETURNS LONGTEXT
+  RETURN GTID_SUBTRACT(CONCAT(gtid_set_1, ',', gtid_set_2), GTID_INTERSECTION(gtid_set_1, gtid_set_2))|</pre><p>
+    </p><p>
+      This function removes from a GTID set all the GTIDs from a
+      specified origin, and returns the remaining GTIDs, if any. The
+      UUID is the identifier used by the server where the transaction
+      originated, which is normally the
+      <a class="link" href="replication-options.html#sysvar_server_uuid"><code class="literal">server_uuid</code></a> value.
+
+</p><pre class="programlisting">CREATE FUNCTION GTID_SUBTRACT_UUID(gtid_set LONGTEXT, uuid TEXT)
+RETURNS LONGTEXT
+  RETURN GTID_SUBTRACT(gtid_set, CONCAT(UUID, ':1-', (1 &lt;&lt; 63) - 2))|</pre><p>
+    </p><p>
+      This function reverses the previously listed function to return
+      only those GTIDs from the GTID set that originate from the server
+      with the specified identifier (UUID).
+
+</p><pre class="programlisting">CREATE FUNCTION GTID_INTERSECTION_WITH_UUID(gtid_set LONGTEXT, uuid TEXT)
+RETURNS LONGTEXT
+  RETURN GTID_SUBTRACT(gtid_set, GTID_SUBTRACT_UUID(gtid_set, uuid))|</pre><p>
+    </p><div class="example"><a id="idm45828868302016"></a><p class="title"><strong>Example 17.1 Verifying that a replica is up to date</strong></p><div class="example-contents"><p>
+        The built-in functions <code class="function">GTID_SUBSET</code> and
+        <code class="function">GTID_SUBTRACT</code> can be used to check that a
+        replica has applied at least every transaction that a source has
+        applied.
+      </p><p>
+        To perform this check with <code class="function">GTID_SUBSET</code>,
+        execute the following statement on the replica:
+
+</p><pre class="programlisting">SELECT GTID_SUBSET(<em class="replaceable"><code>source_gtid_executed</code></em>, <em class="replaceable"><code>replica_gtid_executed</code></em>)</pre><p>
+
+        If this returns 0 (false), some GTIDs in
+        <em class="replaceable"><code>source_gtid_executed</code></em> are not present
+        in <em class="replaceable"><code>replica_gtid_executed</code></em>, so the
+        source has applied some transactions that the replica has not
+        applied, and the replica is therefore not up to date.
+      </p><p>
+        To perform the check with <code class="function">GTID_SUBTRACT</code>,
+        execute the following statement on the replica:
+
+</p><pre class="programlisting">SELECT GTID_SUBTRACT(<em class="replaceable"><code>source_gtid_executed</code></em>, <em class="replaceable"><code>replica_gtid_executed</code></em>)</pre><p>
+
+        This statement returns any GTIDs that are in
+        <em class="replaceable"><code>source_gtid_executed</code></em> but not in
+        <em class="replaceable"><code>replica_gtid_executed</code></em>. If any GTIDs
+        are returned, the source has applied some transactions that the
+        replica has not applied, and the replica is therefore not up to
+        date.
+      </p></div></div><br class="example-break" /><div class="example"><a id="idm45828868291040"></a><p class="title"><strong>Example 17.2 Backup and restore scenario</strong></p><div class="example-contents"><p>
+        
+
+        The stored functions <code class="function">GTID_IS_EQUAL</code>,
+        <code class="function">GTID_IS_DISJOINT</code>, and
+        <code class="function">GTID_IS_DISJOINT_UNION</code> could be used to
+        verify backup and restore operations involving multiple
+        databases and servers. In this example scenario,
+        <code class="literal">server1</code> contains database
+        <code class="literal">db1</code>, and <code class="literal">server2</code> contains
+        database <code class="literal">db2</code>. The goal is to copy database
+        <code class="literal">db2</code> to <code class="literal">server1</code>, and the
+        result on <code class="literal">server1</code> should be the union of the
+        two databases. The procedure used is to back up
+        <code class="literal">server2</code> using <a class="link" href="mysqlpump.html" title="4.5.6 mysqlpump — A Database Backup Program"><span class="command"><strong>mysqlpump</strong></span></a> or
+        <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>, then restore this backup on
+        <code class="literal">server1</code>.
+      </p><p>
+        Provided the backup program's option
+        <code class="option">--set-gtid-purged</code> was set to
+        <code class="literal">ON</code> or the default of <code class="literal">AUTO</code>,
+        the program's output contains a <code class="literal">SET
+        @@GLOBAL.gtid_purged</code> statement which adds the
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> set from
+        <code class="literal">server2</code> to the
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> set on
+        <code class="literal">server1</code>. The
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> set contains the
+        GTIDs of all the transactions that have been committed on a
+        server but do not exist in any binary log file on the server.
+        When database <code class="literal">db2</code> is copied to
+        <code class="literal">server1</code>, the GTIDs of the transactions
+        committed on <code class="literal">server2</code>, which are not in the
+        binary log files on <code class="literal">server1</code>, must be added to
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> for
+        <code class="literal">server1</code> to make the set complete.
+      </p><p>
+        The stored functions can be used to assist with the following
+        steps in this scenario:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Use <code class="function">GTID_IS_EQUAL</code> to verify that the
+            backup operation computed the correct GTID set for the
+            <code class="literal">SET @@GLOBAL.gtid_purged</code> statement. On
+            <code class="literal">server2</code>, extract that statement from the
+            <a class="link" href="mysqlpump.html" title="4.5.6 mysqlpump — A Database Backup Program"><span class="command"><strong>mysqlpump</strong></span></a> or <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>
+            output, and store the GTID set into a local variable, such
+            as <code class="varname">$gtid_purged_set</code>. Then execute the
+            following statement:
+          </p><pre class="programlisting">server2&gt; SELECT GTID_IS_EQUAL($gtid_purged_set, @@GLOBAL.gtid_executed); </pre><p>
+            If the result is 1, the two GTID sets are equal, and the set
+            has been computed correctly.
+          </p></li><li class="listitem"><p>
+            Use <code class="function">GTID_IS_DISJOINT</code> to verify that the
+            GTID set in the <a class="link" href="mysqlpump.html" title="4.5.6 mysqlpump — A Database Backup Program"><span class="command"><strong>mysqlpump</strong></span></a> or
+            <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> output does not overlap with
+            the <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> set on
+            <code class="literal">server1</code>. Having identical GTIDs present
+            on both servers causes errors when copying database
+            <code class="literal">db2</code> to <code class="literal">server1</code>. To
+            check, on <code class="literal">server1</code>, extract and store
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> from the output
+            into a local variable as above, then execute the following
+            statement:
+          </p><pre class="programlisting">server1&gt; SELECT GTID_IS_DISJOINT($gtid_purged_set, @@GLOBAL.gtid_executed); </pre><p>
+            If the result is 1, there is no overlap between the two GTID
+            sets, so no duplicate GTIDs are present.
+          </p></li><li class="listitem"><p>
+            Use <code class="function">GTID_IS_DISJOINT_UNION</code> to verify
+            that the restore operation resulted in the correct GTID
+            state on <code class="literal">server1</code>. Before restoring the
+            backup, on <code class="literal">server1</code>, obtain the existing
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> set by
+            executing the following statement:
+          </p><pre class="programlisting">server1&gt; SELECT @@GLOBAL.gtid_executed;</pre><p>
+            Store the result in a local variable
+            <code class="varname">$original_gtid_executed</code>. Also store the
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> set in a local
+            variable as described above. When the backup from
+            <code class="literal">server2</code> has been restored onto
+            <code class="literal">server1</code>, execute the following statement
+            to verify the GTID state:
+          </p><pre class="programlisting">server1&gt; SELECT GTID_IS_DISJOINT_UNION($original_gtid_executed,
+                                       $gtid_purged_set,
+                                       @@GLOBAL.gtid_executed); </pre><p>
+            If the result is 1, the stored function has verified that
+            the original <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a>
+            set from <code class="literal">server1</code>
+            (<code class="varname">$original_gtid_executed</code>) and the
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> set that was
+            added from <code class="literal">server2</code>
+            (<code class="varname">$gtid_purged_set</code>) have no overlap, and
+            also that the updated
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> set on
+            <code class="literal">server1</code> now consists of the previous
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> set from
+            <code class="literal">server1</code> plus the
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> set from
+            <code class="literal">server2</code>, which is the desired result.
+            Ensure that this check is carried out before any further
+            transactions take place on <code class="literal">server1</code>,
+            otherwise the new transactions in
+            <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> cause it to
+            fail.
+          </p></li></ul></div></div></div><br class="example-break" /><div class="example"><a id="idm45828868220448"></a><p class="title"><strong>Example 17.3 Selecting the most up-to-date replica for manual failover</strong></p><div class="example-contents"><p>
+        The stored function <code class="function">GTID_UNION</code> could be
+        used to identify the most up-to-date replica from a set of
+        replicas, in order to perform a manual failover operation after
+        a source server has stopped unexpectedly. If some of the
+        replicas are experiencing replication lag, this stored function
+        can be used to compute the most up-to-date replica without
+        waiting for all the replicas to apply their existing relay logs,
+        and therefore to minimize the failover time. The function can
+        return the union of
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> on each replica
+        with the set of transactions received by the replica, which is
+        recorded in the Performance Schema table
+        <a class="link" href="performance-schema-replication-connection-status-table.html" title="27.12.11.2 The replication_connection_status Table"><code class="literal">replication_connection_status</code></a>. You
+        can compare these results to find which replica's record of
+        transactions is the most up to date, even if not all of the
+        transactions have been committed yet.
+      </p><p>
+        On each replica, compute the complete record of transactions by
+        issuing the following statement:
+      </p><pre class="programlisting">SELECT GTID_UNION(RECEIVED_TRANSACTION_SET, @@GLOBAL.gtid_executed)
+    FROM performance_schema.replication_connection_status
+    WHERE channel_name = 'name';
+</pre><p>
+        You can then compare the results from each replica to see which
+        one has the most up-to-date record of transactions, and use this
+        replica as the new source.
+      </p></div></div><br class="example-break" /><div class="example"><a id="idm45828868212672"></a><p class="title"><strong>Example 17.4 Checking for extraneous transactions on a replica</strong></p><div class="example-contents"><p>
+        The stored function <code class="function">GTID_SUBTRACT_UUID</code>
+        could be used to check whether a replica has received
+        transactions that did not originate from its designated source
+        or sources. If it has, there might be an issue with your
+        replication setup, or with a proxy, router, or load balancer.
+        This function works by removing from a GTID set all the GTIDs
+        from a specified originating server, and returning the remaining
+        GTIDs, if any.
+      </p><p>
+        For a replica with a single source, issue the following
+        statement, giving the identifier of the originating source,
+        which is normally the same as
+        <a class="link" href="replication-options.html#sysvar_server_uuid"><code class="literal">server_uuid</code></a>:
+      </p><pre class="programlisting">SELECT GTID_SUBTRACT_UUID(@@GLOBAL.gtid_executed, server_uuid_of_source);
+</pre><p>
+          If the result is not empty, the transactions returned are
+        extra transactions that did not originate from the designated
+        source.
+      </p><p>
+        For a replica in a multisource topology, include the server UUID
+        of each source in the function call, like this:
+      </p><pre class="programlisting">SELECT GTID_SUBTRACT_UUID(GTID_SUBTRACT_UUID(@@GLOBAL.gtid_executed,
+                                             server_uuid_of_source_1),
+                                             server_uuid_of_source_2);</pre><p>
+        If the result is not empty, the transactions returned are extra
+        transactions that did not originate from any of the designated
+        sources.
+      </p></div></div><br class="example-break" /><div class="example"><a id="idm45828868204288"></a><p class="title"><strong>Example 17.5 Verifying that a server in a replication topology is read-only</strong></p><div class="example-contents"><p>
+        The stored function
+        <code class="literal">GTID_INTERSECTION_WITH_UUID()</code> could be used
+        to verify that a server has not originated any GTIDs and is in a
+        read-only state. The function returns only those GTIDs from the
+        GTID set that originate from the server with the specified
+        identifier. If any of the transactions listed in
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> from this server
+        use the server's own identifier, the server itself
+        originated those transactions. You can issue the following
+        statement on the server to check:
+      </p><pre class="programlisting">SELECT GTID_INTERSECTION_WITH_UUID(@@GLOBAL.gtid_executed, my_server_uuid);
+</pre></div></div><br class="example-break" /><div class="example"><a id="idm45828868199600"></a><p class="title"><strong>Example 17.6 Validating an additional replica in multisource replication</strong></p><div class="example-contents"><p>
+        The stored function
+        <code class="literal">GTID_INTERSECTION_WITH_UUID()</code> could be used
+        to find out if a replica attached to a multisource replication
+        setup has applied all the transactions originating from one
+        particular source. In this scenario, <code class="literal">source1</code>
+        and <code class="literal">source2</code> are both sources and replicas and
+        replicate to each other. <code class="literal">source2</code> also has its
+        own replica. The replica also receives and applies transactions
+        from <code class="literal">source1</code> if <code class="literal">source2</code> is
+        configured with
+        <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="literal">log_replica_updates=ON</code></a> or
+        <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="literal">log_slave_updates=ON</code></a>, but it
+        does not do so if <code class="literal">source2</code> uses
+        <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="literal">log_replica_updates=OFF</code></a> or
+        <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="literal">log_slave_updates=OFF</code></a>. Whatever
+        the case, we currently only want to find out if the replica is
+        up to date with <code class="literal">source2</code>. In this situation,
+        the stored function
+        <code class="function">GTID_INTERSECTION_WITH_UUID</code> can be used to
+        identify the transactions that <code class="literal">source2</code>
+        originated, discarding the transactions that
+        <code class="literal">source2</code> has replicated from
+        <code class="literal">source1</code>. The built-in function
+        <code class="function">GTID_SUBSET</code> can then be used to compare the
+        result to the <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> set
+        on the replica. If the replica is up to date with
+        <code class="literal">source2</code>, the
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> set on the
+        replica contains all the transactions in the intersection set
+        (the transactions that originated from
+        <code class="literal">source2</code>).
+      </p><p>
+        To carry out this check, store the values of
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> and the server
+        UUID from <code class="literal">source2</code> and the value of
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> from the replica
+        into user variables as follows:
+      </p><pre class="programlisting">    
+source2&gt; SELECT @@GLOBAL.gtid_executed INTO @source2_gtid_executed;
+
+source2&gt; SELECT @@GLOBAL.server_uuid INTO @source2_server_uuid;
+
+replica&gt; SELECT @@GLOBAL.gtid_executed INTO @replica_gtid_executed;
+</pre><p>
+        Then use <code class="function">GTID_INTERSECTION_WITH_UUID</code> and
+        <code class="function">GTID_SUBSET</code> with these variables as input,
+        as follows:
+      </p><pre class="programlisting">SELECT GTID_SUBSET(
+          GTID_INTERSECTION_WITH_UUID(@source2_gtid_executed,
+                                      @source2_server_uuid),
+                                      @replica_gtid_executed);
+</pre><p>
+        The server identifier from <code class="literal">source2</code>
+        (<code class="literal">@source2_server_uuid</code>) is used with
+        <code class="literal">GTID_INTERSECTION_WITH_UUID</code> to identify and
+        return only those GTIDs from the set of GTIDs that originated on
+        <code class="literal">source2</code>, omitting those that originated on
+        <code class="literal">source1</code>. The resulting GTID set is then
+        compared with the set of all executed GTIDs on the replica,
+        using <code class="literal">GTID_SUBSET()</code>. If this statement
+        returns nonzero (true), all the identified GTIDs from
+        <code class="literal">source2</code> (the first set input) are also found
+        in <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> from the
+        replica, meaning that the replica has received and executed all
+        the transactions that originated from
+        <code class="literal">source2</code>.
+      </p></div></div><br class="example-break" /></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-gtids-restrictions.html">Previous <span class="navHint"> Restrictions on Replication with GTIDs </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-mode-change-online.html">Next <span class="navHint"> Changing GTID Mode on Online Servers </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.1.36 RENAME TABLE Statement</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="sql-data-definition-statements.html" title="13.1 Data Definition Statements" /><link rel="prev" href="drop-view.html" title="13.1.35 DROP VIEW Statement" /><link rel="next" href="truncate-table.html" title="13.1.37 TRUNCATE TABLE Statement" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="rename-table.html#rename-table">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="drop-view.html">Previous <span class="navHint"> DROP VIEW Statement </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="sql-data-definition-statements.html">Up <span class="navHint"> Data Definition Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="truncate-table.html">Next <span class="navHint"> TRUNCATE TABLE Statement </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="rename-table"></a>13.1.36 RENAME TABLE Statement</h3></div></div></div><a id="idm45828909655168" class="indexterm"></a><pre class="programlisting">RENAME TABLE
+    <em class="replaceable"><code>tbl_name</code></em> TO <em class="replaceable"><code>new_tbl_name</code></em>
+    [, <em class="replaceable"><code>tbl_name2</code></em> TO <em class="replaceable"><code>new_tbl_name2</code></em>] ...
+</pre><p>
+      <a class="link" href="rename-table.html" title="13.1.36 RENAME TABLE Statement"><code class="literal">RENAME TABLE</code></a> renames one or more
+      tables. You must have <a class="link" href="privileges-provided.html#priv_alter"><code class="literal">ALTER</code></a> and
+      <a class="link" href="privileges-provided.html#priv_drop"><code class="literal">DROP</code></a> privileges for the original
+      table, and <a class="link" href="privileges-provided.html#priv_create"><code class="literal">CREATE</code></a> and
+      <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a> privileges for the new
+      table.
+    </p><p>
+      For example, to rename a table named <code class="literal">old_table</code>
+      to <code class="literal">new_table</code>, use this statement:
+    </p><pre class="programlisting">RENAME TABLE old_table TO new_table;
+</pre><p>
+      That statement is equivalent to the following
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement:
+    </p><pre class="programlisting">ALTER TABLE old_table RENAME new_table;
+</pre><p>
+      <code class="literal">RENAME TABLE</code>, unlike <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+      TABLE</code></a>, can rename multiple tables within a single
+      statement:
+    </p><pre class="programlisting">RENAME TABLE old_table1 TO new_table1,
+             old_table2 TO new_table2,
+             old_table3 TO new_table3;
+</pre><p>
+      Renaming operations are performed left to right. Thus, to swap two
+      table names, do this (assuming that a table with the intermediary
+      name <code class="literal">tmp_table</code> does not already exist):
+    </p><pre class="programlisting">RENAME TABLE old_table TO tmp_table,
+             new_table TO old_table,
+             tmp_table TO new_table;
+</pre><p>
+      Metadata locks on tables are acquired in name order, which in some
+      cases can make a difference in operation outcome when multiple
+      transactions execute concurrently. See
+      <a class="xref" href="metadata-locking.html" title="8.11.4 Metadata Locking">Section 8.11.4, “Metadata Locking”</a>.
+    </p><p>
+      As of MySQL 8.0.13, you can rename tables locked with a
+      <a class="link" href="lock-tables.html" title="13.3.6 LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">LOCK TABLES</code></a> statement, provided
+      that they are locked with a <code class="literal">WRITE</code> lock or are
+      the product of renaming <code class="literal">WRITE</code>-locked tables
+      from earlier steps in a multiple-table rename operation. For
+      example, this is permitted:
+    </p><pre class="programlisting">LOCK TABLE old_table1 WRITE;
+RENAME TABLE old_table1 TO new_table1,
+             new_table1 TO new_table2;
+</pre><p>
+      This is not permitted:
+    </p><pre class="programlisting">LOCK TABLE old_table1 READ;
+RENAME TABLE old_table1 TO new_table1,
+             new_table1 TO new_table2;
+</pre><p>
+      Prior to MySQL 8.0.13, to execute <code class="literal">RENAME TABLE</code>,
+      there must be no tables locked with <code class="literal">LOCK
+      TABLES</code>.
+    </p><p>
+      With the transaction table locking conditions satisfied, the
+      rename operation is done atomically; no other session can access
+      any of the tables while the rename is in progress.
+    </p><p>
+      If any errors occur during a <code class="literal">RENAME TABLE</code>, the
+      statement fails and no changes are made.
+    </p><p>
+      You can use <code class="literal">RENAME TABLE</code> to move a table from
+      one database to another:
+    </p><pre class="programlisting">RENAME TABLE <em class="replaceable"><code>current_db.tbl_name</code></em> TO <em class="replaceable"><code>other_db.tbl_name;</code></em>
+</pre><a id="idm45828909617184" class="indexterm"></a><a id="idm45828909615696" class="indexterm"></a><p>
+      Using this method to move all tables from one database to a
+      different one in effect renames the database (an operation for
+      which MySQL has no single statement), except that the original
+      database continues to exist, albeit with no tables.
+    </p><p>
+      Like <code class="literal">RENAME TABLE</code>, <code class="literal">ALTER TABLE ...
+      RENAME</code> can also be used to move a table to a different
+      database. Regardless of the statement used, if the rename
+      operation would move the table to a database located on a
+      different file system, the success of the outcome is platform
+      specific and depends on the underlying operating system calls used
+      to move table files.
+    </p><p>
+      If a table has triggers, attempts to rename the table into a
+      different database fail with a <span class="errortext">Trigger in wrong
+      schema</span>
+      (<a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_trg_in_wrong_schema" target="_top"><code class="literal">ER_TRG_IN_WRONG_SCHEMA</code></a>) error.
+    </p><p>
+      An unencrypted table can be moved to an encryption-enabled
+      database and vice versa. However, if the
+      <a class="link" href="server-system-variables.html#sysvar_table_encryption_privilege_check"><code class="literal">table_encryption_privilege_check</code></a>
+      variable is enabled, the
+      <a class="link" href="privileges-provided.html#priv_table-encryption-admin"><code class="literal">TABLE_ENCRYPTION_ADMIN</code></a> privilege is
+      required if the table encryption setting differs from the default
+      database encryption.
+    </p><a id="idm45828909606368" class="indexterm"></a><p>
+      To rename <code class="literal">TEMPORARY</code> tables, <code class="literal">RENAME
+      TABLE</code> does not work. Use <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+      TABLE</code></a> instead.
+    </p><p>
+      <code class="literal">RENAME TABLE</code> works for views, except that views
+      cannot be renamed into a different database.
+    </p><p>
+      Any privileges granted specifically for a renamed table or view
+      are not migrated to the new name. They must be changed manually.
+    </p><p>
+      <code class="literal">RENAME TABLE <em class="replaceable"><code>tbl_name</code></em> TO
+      <em class="replaceable"><code>new_tbl_name</code></em></code> changes
+      internally generated foreign key constraint names and user-defined
+      foreign key constraint names that begin with the string
+      <span class="quote">“<span class="quote"><em class="replaceable"><code>tbl_name</code></em>_ibfk_</span>”</span> to
+      reflect the new table name. <code class="literal">InnoDB</code> interprets
+      foreign key constraint names that begin with the string
+      <span class="quote">“<span class="quote"><em class="replaceable"><code>tbl_name</code></em>_ibfk_</span>”</span> as
+      internally generated names.
+    </p><p>
+      Foreign key constraint names that point to the renamed table are
+      automatically updated unless there is a conflict, in which case
+      the statement fails with an error. A conflict occurs if the
+      renamed constraint name already exists. In such cases, you must
+      drop and re-create the foreign keys for them to function properly.
+    </p><a id="idm45828909595088" class="indexterm"></a><p>
+      <code class="literal">RENAME TABLE <em class="replaceable"><code>tbl_name</code></em> TO
+      <em class="replaceable"><code>new_tbl_name</code></em></code> changes
+      internally generated and user-defined <code class="literal">CHECK</code>
+      constraint names that begin with the string
+      <span class="quote">“<span class="quote"><em class="replaceable"><code>tbl_name</code></em>_chk_</span>”</span> to reflect
+      the new table name. MySQL interprets <code class="literal">CHECK</code>
+      constraint names that begin with the string
+      <span class="quote">“<span class="quote"><em class="replaceable"><code>tbl_name</code></em>_chk_</span>”</span> as
+      internally generated names. Example:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW CREATE TABLE t1\G</code></strong>
+*************************** 1. row ***************************
+       Table: t1
+Create Table: CREATE TABLE `t1` (
+  `i1` int(11) DEFAULT NULL,
+  `i2` int(11) DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`i1` &gt; 0)),
+  CONSTRAINT `t1_chk_2` CHECK ((`i2` &lt; 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+1 row in set (0.02 sec)
+
+mysql&gt; <strong class="userinput"><code>RENAME TABLE t1 TO t3;</code></strong>
+Query OK, 0 rows affected (0.03 sec)
+
+mysql&gt; <strong class="userinput"><code>SHOW CREATE TABLE t3\G</code></strong>
+*************************** 1. row ***************************
+       Table: t3
+Create Table: CREATE TABLE `t3` (
+  `i1` int(11) DEFAULT NULL,
+  `i2` int(11) DEFAULT NULL,
+  CONSTRAINT `t3_chk_1` CHECK ((`i1` &gt; 0)),
+  CONSTRAINT `t3_chk_2` CHECK ((`i2` &lt; 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+1 row in set (0.01 sec)
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="drop-view.html">Previous <span class="navHint"> DROP VIEW Statement </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sql-data-definition-statements.html">Up <span class="navHint"> Data Definition Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="truncate-table.html">Next <span class="navHint"> TRUNCATE TABLE Statement </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

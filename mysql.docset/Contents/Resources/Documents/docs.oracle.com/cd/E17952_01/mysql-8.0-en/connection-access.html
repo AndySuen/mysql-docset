@@ -1,0 +1,295 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-366"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/6.2.6%C2%A0Access%20Control%2C%20Stage%201%3A%20Connection%20Verification"></a><title>6.2.6&nbsp;Access Control, Stage 1: Connection Verification</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="access-control.html" title="6.2&nbsp;Access Control and Account Management"/><link rel="prev" href="role-names.html" title="6.2.5&nbsp;Specifying Role Names"/><link rel="next" href="request-access.html" title="6.2.7&nbsp;Access Control, Stage 2: Request Verification"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="connection-access.html#connection-access">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="role-names.html">Previous <span class="navHint"> Specifying Role Names </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="request-access.html">Next <span class="navHint"> Access Control, Stage 2: Request Verification </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="connection-access"></a>6.2.6&nbsp;Access Control, Stage 1: Connection Verification</h3></div></div></div><a id="idm45828977558352" class="indexterm"></a><a id="idm45828977557312" class="indexterm"></a><a id="idm45828977555824" class="indexterm"></a><p>
+      When you attempt to connect to a MySQL server, the server accepts
+      or rejects the connection based on these conditions:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Your identity and whether you can verify it by supplying the
+          proper credentials.
+        </p></li><li class="listitem"><p>
+          Whether your account is locked or unlocked.
+        </p></li></ul></div><p>
+      The server checks credentials first, then account locking state. A
+      failure at either step causes the server to deny access to you
+      completely. Otherwise, the server accepts the connection, and then
+      enters Stage 2 and waits for requests.
+    </p><p>
+      The server performs identity and credentials checking using
+      columns in the <code class="literal">user</code> table, accepting the
+      connection only if these conditions are satisfied:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The client host name and user name match the
+          <code class="literal">Host</code> and <code class="literal">User</code> columns in
+          some <code class="literal">user</code> table row. For the rules
+          governing permissible <code class="literal">Host</code> and
+          <code class="literal">User</code> values, see
+          <a class="xref" href="account-names.html" title="6.2.4&nbsp;Specifying Account Names">Section&nbsp;6.2.4, &ldquo;Specifying Account Names&rdquo;</a>.
+        </p></li><li class="listitem"><p>
+          The client supplies the credentials specified in the row (for
+          example, a password), as indicated by the
+          <code class="literal">authentication_string</code> column. Credentials
+          are interpreted using the authentication plugin named in the
+          <code class="literal">plugin</code> column.
+        </p></li><li class="listitem"><p>
+          The row indicates that the account is unlocked. Locking state
+          is recorded in the <code class="literal">account_locked</code> column,
+          which must have a value of <code class="literal">&#39;N&#39;</code>. Account
+          locking can be set or changed with the
+          <a class="link" href="create-user.html" title="13.7.1.3&nbsp;CREATE USER Statement"><code class="literal">CREATE USER</code></a> or
+          <a class="link" href="alter-user.html" title="13.7.1.1&nbsp;ALTER USER Statement"><code class="literal">ALTER USER</code></a> statement.
+        </p></li></ul></div><p>
+      Your identity is based on two pieces of information:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Your MySQL user name.
+        </p></li><li class="listitem"><p>
+          The client host from which you connect.
+        </p></li></ul></div><a id="idm45828977534336" class="indexterm"></a><p>
+      If the <code class="literal">User</code> column value is nonblank, the user
+      name in an incoming connection must match exactly. If the
+      <code class="literal">User</code> value is blank, it matches any user name.
+      If the <code class="literal">user</code> table row that matches an incoming
+      connection has a blank user name, the user is considered to be an
+      anonymous user with no name, not a user with the name that the
+      client actually specified. This means that a blank user name is
+      used for all further access checking for the duration of the
+      connection (that is, during Stage 2).
+    </p><p>
+      The <code class="literal">authentication_string</code> column can be blank.
+      This is not a wildcard and does not mean that any password
+      matches. It means that the user must connect without specifying a
+      password. The authentication method implemented by the plugin that
+      authenticates the client may or may not use the password in the
+      <code class="literal">authentication_string</code> column. In this case, it
+      is possible that an external password is also used to authenticate
+      to the MySQL server.
+    </p><p>
+      Nonblank password values stored in the
+      <code class="literal">authentication_string</code> column of the
+      <code class="literal">user</code> table are encrypted. MySQL does not store
+      passwords as cleartext for anyone to see. Rather, the password
+      supplied by a user who is attempting to connect is encrypted
+      (using the password hashing method implemented by the account
+      authentication plugin). The encrypted password then is used during
+      the connection process when checking whether the password is
+      correct. This is done without the encrypted password ever
+      traveling over the connection. See <a class="xref" href="user-names.html" title="6.2.1&nbsp;Account User Names and Passwords">Section&nbsp;6.2.1, &ldquo;Account User Names and Passwords&rdquo;</a>.
+    </p><p>
+      From MySQL&#39;s point of view, the encrypted password is the
+      <span class="emphasis"><em>real</em></span> password, so you should never give
+      anyone access to it. In particular, <span class="emphasis"><em>do not give
+      nonadministrative users read access to tables in the
+      <code class="literal">mysql</code> system database</em></span>.
+    </p><p>
+      The following table shows how various combinations of
+      <code class="literal">User</code> and <code class="literal">Host</code> values in the
+      <code class="literal">user</code> table apply to incoming connections.
+    </p><div class="informaltable"><table summary="How various combinations of User and Host values in the user table apply to incoming connections to a MySQL server."><colgroup><col style="width: 15%"/><col style="width: 35%"/><col style="width: 50%"/></colgroup><thead><tr>
+          <th scope="col"><code class="literal">User</code> Value</th>
+          <th scope="col"><code class="literal">Host</code> Value</th>
+          <th scope="col">Permissible Connections</th>
+        </tr></thead><tbody><tr>
+          <th scope="row"><code class="literal">&#39;fred&#39;</code></th>
+          <td><code class="literal">&#39;h1.example.net&#39;</code></td>
+          <td><code class="literal">fred</code>, connecting from
+            <code class="literal">h1.example.net</code></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">&#39;&#39;</code></th>
+          <td><code class="literal">&#39;h1.example.net&#39;</code></td>
+          <td>Any user, connecting from <code class="literal">h1.example.net</code></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">&#39;fred&#39;</code></th>
+          <td><code class="literal">&#39;%&#39;</code></td>
+          <td><code class="literal">fred</code>, connecting from any host</td>
+        </tr><tr>
+          <th scope="row"><code class="literal">&#39;&#39;</code></th>
+          <td><code class="literal">&#39;%&#39;</code></td>
+          <td>Any user, connecting from any host</td>
+        </tr><tr>
+          <th scope="row"><code class="literal">&#39;fred&#39;</code></th>
+          <td><code class="literal">&#39;%.example.net&#39;</code></td>
+          <td><code class="literal">fred</code>, connecting from any host in the
+            <code class="literal">example.net</code> domain</td>
+        </tr><tr>
+          <th scope="row"><code class="literal">&#39;fred&#39;</code></th>
+          <td><code class="literal">&#39;x.example.%&#39;</code></td>
+          <td><code class="literal">fred</code>, connecting from
+            <code class="literal">x.example.net</code>,
+            <code class="literal">x.example.com</code>,
+            <code class="literal">x.example.edu</code>, and so on; this is
+            probably not useful</td>
+        </tr><tr>
+          <th scope="row"><code class="literal">&#39;fred&#39;</code></th>
+          <td><code class="literal">&#39;198.51.100.177&#39;</code></td>
+          <td><code class="literal">fred</code>, connecting from the host with IP address
+            <code class="literal">198.51.100.177</code></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">&#39;fred&#39;</code></th>
+          <td><code class="literal">&#39;198.51.100.%&#39;</code></td>
+          <td><code class="literal">fred</code>, connecting from any host in the
+            <code class="literal">198.51.100</code> class C subnet</td>
+        </tr><tr>
+          <th scope="row"><code class="literal">&#39;fred&#39;</code></th>
+          <td><code class="literal">&#39;198.51.100.0/255.255.255.0&#39;</code></td>
+          <td>Same as previous example</td>
+        </tr></tbody></table></div><p>
+      It is possible for the client host name and user name of an
+      incoming connection to match more than one row in the
+      <code class="literal">user</code> table. The preceding set of examples
+      demonstrates this: Several of the entries shown match a connection
+      from <code class="literal">h1.example.net</code> by <code class="literal">fred</code>.
+    </p><p>
+      When multiple matches are possible, the server must determine
+      which of them to use. It resolves this issue as follows:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Whenever the server reads the <code class="literal">user</code> table
+          into memory, it sorts the rows.
+        </p></li><li class="listitem"><p>
+          When a client attempts to connect, the server looks through
+          the rows in sorted order.
+        </p></li><li class="listitem"><p>
+          The server uses the first row that matches the client host
+          name and user name.
+        </p></li></ul></div><p>
+      The server uses sorting rules that order rows with the
+      most-specific <code class="literal">Host</code> values first:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Literal IP addresses and host names are the most specific.
+        </p></li><li class="listitem"><p>
+          Prior to MySQL 8.0.23, the specificity of a literal IP address
+          is not affected by whether it has a netmask, so
+          <code class="literal">198.51.100.13</code> and
+          <code class="literal">198.51.100.0/255.255.255.0</code> are considered
+          equally specific. As of MySQL 8.0.23, accounts with an IP
+          address in the host part have this order of specificity:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              Accounts that have the host part given as an IP address:
+            </p><pre class="programlisting">CREATE USER &#39;<em class="replaceable"><code>user_name</code></em>&#39;@&#39;127.0.0.1&#39;;
+CREATE USER &#39;<em class="replaceable"><code>user_name</code></em>&#39;@&#39;198.51.100.44&#39;;
+</pre></li><li class="listitem"><p>
+              Accounts that have the host part given as an IP address
+              using CIDR notation:
+            </p><pre class="programlisting">CREATE USER &#39;<em class="replaceable"><code>user_name</code></em>&#39;@&#39;192.0.2.21/8&#39;;
+CREATE USER &#39;<em class="replaceable"><code>user_name</code></em>&#39;@&#39;198.51.100.44/16&#39;;
+</pre></li><li class="listitem"><p>
+              Accounts that have the host part given as an IP address
+              with a subnet mask:
+            </p><pre class="programlisting">CREATE USER &#39;<em class="replaceable"><code>user_name</code></em>&#39;@&#39;192.0.2.0/255.255.255.0&#39;;
+CREATE USER &#39;<em class="replaceable"><code>user_name</code></em>&#39;@&#39;198.51.0.0/255.255.0.0&#39;;
+</pre></li></ul></div></li><li class="listitem"><p>
+          The pattern <code class="literal">&#39;%&#39;</code> means <span class="quote">&ldquo;<span class="quote">any
+          host</span>&rdquo;</span> and is least specific.
+        </p></li><li class="listitem"><p>
+          The empty string <code class="literal">&#39;&#39;</code> also means <span class="quote">&ldquo;<span class="quote">any
+          host</span>&rdquo;</span> but sorts after <code class="literal">&#39;%&#39;</code>.
+        </p></li></ul></div><p>
+      Non-TCP (socket file, named pipe, and shared memory) connections
+      are treated as local connections and match a host part of
+      <code class="literal">localhost</code> if there are any such accounts, or
+      host parts with wildcards that match <code class="literal">localhost</code>
+      otherwise (for example, <code class="literal">local%</code>,
+      <code class="literal">l%</code>, <code class="literal">%</code>).
+    </p><p>
+      Rows with the same <code class="literal">Host</code> value are ordered with
+      the most-specific <code class="literal">User</code> values first. A blank
+      <code class="literal">User</code> value means <span class="quote">&ldquo;<span class="quote">any user</span>&rdquo;</span> and is
+      least specific, so for rows with the same <code class="literal">Host</code>
+      value, nonanonymous users sort before anonymous users.
+    </p><p>
+      For rows with equally-specific <code class="literal">Host</code> and
+      <code class="literal">User</code> values, the order is nondeterministic.
+    </p><p>
+      To see how this works, suppose that the <code class="literal">user</code>
+      table looks like this:
+    </p><pre class="programlisting">+-----------+----------+-
+| Host      | User     | ...
++-----------+----------+-
+| %         | root     | ...
+| %         | jeffrey  | ...
+| localhost | root     | ...
+| localhost |          | ...
++-----------+----------+-
+</pre><p>
+      When the server reads the table into memory, it sorts the rows
+      using the rules just described. The result after sorting looks
+      like this:
+    </p><pre class="programlisting">+-----------+----------+-
+| Host      | User     | ...
++-----------+----------+-
+| localhost | root     | ...
+| localhost |          | ...
+| %         | jeffrey  | ...
+| %         | root     | ...
++-----------+----------+-
+</pre><a id="idm45828977426176" class="indexterm"></a><a id="idm45828977424688" class="indexterm"></a><a id="idm45828977423200" class="indexterm"></a><p>
+      When a client attempts to connect, the server looks through the
+      sorted rows and uses the first match found. For a connection from
+      <code class="literal">localhost</code> by <code class="literal">jeffrey</code>, two of
+      the rows from the table match: the one with
+      <code class="literal">Host</code> and <code class="literal">User</code> values of
+      <code class="literal">&#39;localhost&#39;</code> and <code class="literal">&#39;&#39;</code>, and the
+      one with values of <code class="literal">&#39;%&#39;</code> and
+      <code class="literal">&#39;jeffrey&#39;</code>. The <code class="literal">&#39;localhost&#39;</code>
+      row appears first in sorted order, so that is the one the server
+      uses.
+    </p><p>
+      Here is another example. Suppose that the <code class="literal">user</code>
+      table looks like this:
+    </p><pre class="programlisting">+----------------+----------+-
+| Host           | User     | ...
++----------------+----------+-
+| %              | jeffrey  | ...
+| h1.example.net |          | ...
++----------------+----------+-
+</pre><p>
+      The sorted table looks like this:
+    </p><pre class="programlisting">+----------------+----------+-
+| Host           | User     | ...
++----------------+----------+-
+| h1.example.net |          | ...
+| %              | jeffrey  | ...
++----------------+----------+-
+</pre><p>
+      The first row matches a connection by any user from
+      <code class="literal">h1.example.net</code>, whereas the second row matches
+      a connection by <code class="literal">jeffrey</code> from any host.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        It is a common misconception to think that, for a given user
+        name, all rows that explicitly name that user are used first
+        when the server attempts to find a match for the connection.
+        This is not true. The preceding example illustrates this, where
+        a connection from <code class="literal">h1.example.net</code> by
+        <code class="literal">jeffrey</code> is first matched not by the row
+        containing <code class="literal">&#39;jeffrey&#39;</code> as the
+        <code class="literal">User</code> column value, but by the row with no
+        user name. As a result, <code class="literal">jeffrey</code> is
+        authenticated as an anonymous user, even though he specified a
+        user name when connecting.
+      </p></div><p>
+      If you are able to connect to the server, but your privileges are
+      not what you expect, you probably are being authenticated as some
+      other account. To find out what account the server used to
+      authenticate you, use the
+      <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> function. (See
+      <a class="xref" href="information-functions.html" title="12.15&nbsp;Information Functions">Section&nbsp;12.15, &ldquo;Information Functions&rdquo;</a>.) It returns a value in
+      <code class="literal"><em class="replaceable"><code>user_name</code></em>@<em class="replaceable"><code>host_name</code></em></code>
+      format that indicates the <code class="literal">User</code> and
+      <code class="literal">Host</code> values from the matching
+      <code class="literal">user</code> table row. Suppose that
+      <code class="literal">jeffrey</code> connects and issues the following
+      query:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT CURRENT_USER();</code></strong>
++----------------+
+| CURRENT_USER() |
++----------------+
+| @localhost     |
++----------------+
+</pre><p>
+      The result shown here indicates that the matching
+      <code class="literal">user</code> table row had a blank
+      <code class="literal">User</code> column value. In other words, the server
+      is treating <code class="literal">jeffrey</code> as an anonymous user.
+    </p><p>
+      Another way to diagnose authentication problems is to print out
+      the <code class="literal">user</code> table and sort it by hand to see where
+      the first match is being made.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="role-names.html">Previous <span class="navHint"> Specifying Role Names </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="request-access.html">Next <span class="navHint"> Access Control, Stage 2: Request Verification </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

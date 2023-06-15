@@ -1,0 +1,63 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4413"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/B.3.6.2%C2%A0TEMPORARY%20Table%20Problems"></a><title>B.3.6.2&nbsp;TEMPORARY Table Problems</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="table-definition-issues.html" title="B.3.6&nbsp;Table Definition-Related Issues"/><link rel="prev" href="alter-table-problems.html" title="B.3.6.1&nbsp;Problems with ALTER TABLE"/><link rel="next" href="known-issues.html" title="B.3.7&nbsp;Known Issues in MySQL"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="temporary-table-problems.html#temporary-table-problems">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="alter-table-problems.html">Previous <span class="navHint"> Problems with ALTER TABLE </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="table-definition-issues.html">Up <span class="navHint"> Table Definition-Related Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="known-issues.html">Next <span class="navHint"> Known Issues in MySQL </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-4412"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/B.3.6.2%C2%A0TEMPORARY%20Table%20Problems"></a><h4 class="title"><a id="temporary-table-problems"></a>B.3.6.2&nbsp;TEMPORARY Table Problems</h4></div></div></div><a id="idm45828774276192" class="indexterm"></a><p>
+          Temporary tables created with
+          <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TEMPORARY
+          TABLE</code></a> have the following limitations:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">TEMPORARY</code> tables are supported only by
+              the <code class="literal">InnoDB</code>, <code class="literal">MEMORY</code>,
+              <code class="literal">MyISAM</code>, and <code class="literal">MERGE</code>
+              storage engines.
+            </p></li><li class="listitem"><p>
+              Temporary tables are not supported for NDB Cluster.
+            </p></li><li class="listitem"><p>
+              The <a class="link" href="show-tables.html" title="13.7.7.39&nbsp;SHOW TABLES Statement"><code class="literal">SHOW TABLES</code></a> statement
+              does not list <code class="literal">TEMPORARY</code> tables.
+            </p></li><li class="listitem"><p>
+              To rename <code class="literal">TEMPORARY</code> tables,
+              <code class="literal">RENAME TABLE</code> does not work. Use
+              <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> instead:
+            </p><pre class="programlisting">ALTER TABLE old_name RENAME new_name;
+</pre></li><li class="listitem"><p>
+              You cannot refer to a <code class="literal">TEMPORARY</code> table
+              more than once in the same query. For example, the
+              following does not work:
+            </p><pre class="programlisting">SELECT * FROM temp_table JOIN temp_table AS t2;
+</pre><a id="idm45828774257760" class="indexterm"></a><a id="idm45828774256272" class="indexterm"></a><p>
+              The statement produces this error:
+            </p><pre class="programlisting">ERROR 1137: Can&#39;t reopen table: &#39;temp_table&#39;
+</pre><p>
+              You can work around this issue if your query permits use
+              of a common table expression (CTE) rather than a
+              <code class="literal">TEMPORARY</code> table. For example, this
+              fails with the <span class="errortext">Can&#39;t reopen table</span>
+              error:
+            </p><pre class="programlisting">CREATE TEMPORARY TABLE t SELECT 1 AS col_a, 2 AS col_b;
+SELECT * FROM t AS t1 JOIN t AS t2;
+</pre><p>
+              To avoid the error, use a
+              <a class="link" href="with.html" title="13.2.20&nbsp;WITH (Common Table Expressions)"><code class="literal">WITH</code></a> clause that defines a
+              CTE, rather than the <code class="literal">TEMPORARY</code> table:
+            </p><pre class="programlisting">WITH cte AS (SELECT 1 AS col_a, 2 AS col_b)
+SELECT * FROM cte AS t1 JOIN cte AS t2;
+</pre></li><li class="listitem"><p>
+              The <span class="errortext">Can&#39;t reopen table</span> error also
+              occurs if you refer to a temporary table multiple times in
+              a stored function under different aliases, even if the
+              references occur in different statements within the
+              function. It may occur for temporary tables created
+              outside stored functions and referred to across multiple
+              calling and callee functions.
+            </p></li><li class="listitem"><p>
+              If a <code class="literal">TEMPORARY</code> is created with the same
+              name as an existing non-<code class="literal">TEMPORARY</code>
+              table, the non-<code class="literal">TEMPORARY</code> table is
+              hidden until the <code class="literal">TEMPORARY</code> table is
+              dropped, even if the tables use different storage engines.
+            </p></li><li class="listitem"><p>
+              There are known issues in using temporary tables with
+              replication. See
+              <a class="xref" href="replication-features-temptables.html" title="17.5.1.31&nbsp;Replication and Temporary Tables">Section&nbsp;17.5.1.31, &ldquo;Replication and Temporary Tables&rdquo;</a>, for
+              more information.
+            </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="alter-table-problems.html">Previous <span class="navHint"> Problems with ALTER TABLE </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="table-definition-issues.html">Up <span class="navHint"> Table Definition-Related Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="known-issues.html">Next <span class="navHint"> Known Issues in MySQL </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

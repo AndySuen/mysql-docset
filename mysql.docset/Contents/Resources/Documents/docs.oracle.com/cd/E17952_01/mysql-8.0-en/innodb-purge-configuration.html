@@ -1,0 +1,160 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1637"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.8.9%C2%A0Purge%20Configuration"></a><title>15.8.9&nbsp;Purge Configuration</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-configuration.html" title="15.8&nbsp;InnoDB Configuration"/><link rel="prev" href="innodb-performance-spin_lock_polling.html" title="15.8.8&nbsp;Configuring Spin Lock Polling"/><link rel="next" href="innodb-performance-optimizer-statistics.html" title="15.8.10&nbsp;Configuring Optimizer Statistics for InnoDB"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-purge-configuration.html#innodb-purge-configuration">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-performance-spin_lock_polling.html">Previous <span class="navHint"> Configuring Spin Lock Polling </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-configuration.html">Up <span class="navHint"> InnoDB Configuration </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-performance-optimizer-statistics.html">Next <span class="navHint"> Configuring Optimizer Statistics for InnoDB </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-purge-configuration"></a>15.8.9&nbsp;Purge Configuration</h3></div></div></div><a id="idm45828887615440" class="indexterm"></a><a id="idm45828887614368" class="indexterm"></a><a id="idm45828887613296" class="indexterm"></a><p>
+      <code class="literal">InnoDB</code> does not physically remove a row from
+      the database immediately when you delete it with an SQL statement.
+      A row and its index records are only physically removed when
+      <code class="literal">InnoDB</code> discards the undo log record written for
+      the deletion. This removal operation, which only occurs after the
+      row is no longer required for multi-version concurrency control
+      (MVCC) or rollback, is called a purge.
+    </p><p>
+      Purge runs on a periodic schedule. It parses and processes undo
+      log pages from the history list, which is a list of undo log pages
+      for committed transactions that is maintained by the
+      <code class="literal">InnoDB</code> transaction system. Purge frees the undo
+      log pages from the history list after processing them.
+    </p><a class="dashingAutolink" name="autolink-1633"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Configuring%20Purge%20Threads"></a><h4><a id="idm45828887608576"></a>Configuring Purge Threads</h4><p>
+      Purge operations are performed in the background by one or more
+      purge threads. The number of purge threads is controlled by the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_threads"><code class="literal">innodb_purge_threads</code></a> variable.
+      The default value is 4.
+    </p><p>
+      If DML action is concentrated on a single table, purge operations
+      for the table are performed by a single purge thread, which can
+      result in slowed purge operations, increased purge lag, and
+      increased tablespace file size if the DML operations involve large
+      object values. From MySQL 8.0.26, if the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_max_purge_lag"><code class="literal">innodb_max_purge_lag</code></a> setting is
+      exceeded, purge work is automatically redistributed among
+      available purge threads. Too many active purge threads in this
+      scenario can cause contention with user threads, so manage the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_threads"><code class="literal">innodb_purge_threads</code></a> setting
+      accordingly. The
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_max_purge_lag"><code class="literal">innodb_max_purge_lag</code></a> variable is
+      set to 0 by default, which means that there is no maximum purge
+      lag by default.
+    </p><p>
+      If DML action is concentrated on few tables, keep the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_threads"><code class="literal">innodb_purge_threads</code></a> setting low
+      so that the threads do not contend with each other for access to
+      the busy tables. If DML operations are spread across many tables,
+      consider a higher
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_threads"><code class="literal">innodb_purge_threads</code></a> setting. The
+      maximum number of purge threads is 32.
+    </p><p>
+      The <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_threads"><code class="literal">innodb_purge_threads</code></a> setting
+      is the maximum number of purge threads permitted. The purge system
+      automatically adjusts the number of purge threads that are used.
+    </p><a class="dashingAutolink" name="autolink-1634"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Configuring%20Purge%20Batch%20Size"></a><h4><a id="idm45828887596128"></a>Configuring Purge Batch Size</h4><p>
+      The <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_batch_size"><code class="literal">innodb_purge_batch_size</code></a>
+      variable defines the number of undo log pages that purge parses
+      and processes in one batch from the history list. The default
+      value is 300. In a multithreaded purge configuration, the
+      coordinator purge thread divides
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_batch_size"><code class="literal">innodb_purge_batch_size</code></a> by
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_threads"><code class="literal">innodb_purge_threads</code></a> and assigns
+      that number of pages to each purge thread.
+    </p><p>
+      The purge system also frees the undo log pages that are no longer
+      required. It does so every 128 iterations through the undo logs.
+      In addition to defining the number of undo log pages parsed and
+      processed in a batch, the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_batch_size"><code class="literal">innodb_purge_batch_size</code></a> variable
+      defines the number of undo log pages that purge frees every 128
+      iterations through the undo logs.
+    </p><p>
+      The <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_batch_size"><code class="literal">innodb_purge_batch_size</code></a>
+      variable is intended for advanced performance tuning and
+      experimentation. Most users need not change
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_batch_size"><code class="literal">innodb_purge_batch_size</code></a> from its
+      default value.
+    </p><a class="dashingAutolink" name="autolink-1635"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Configuring%20the%20Maximum%20Purge%20Lag"></a><h4><a id="idm45828887585856"></a>Configuring the Maximum Purge Lag</h4><p>
+      The <a class="link" href="innodb-parameters.html#sysvar_innodb_max_purge_lag"><code class="literal">innodb_max_purge_lag</code></a> variable
+      defines the desired maximum purge lag. When the purge lag exceeds
+      the <a class="link" href="innodb-parameters.html#sysvar_innodb_max_purge_lag"><code class="literal">innodb_max_purge_lag</code></a>
+      threshold, a delay is imposed on
+      <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a>,
+      <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a>, and
+      <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> operations to allow time for
+      purge operations to catch up. The default value is 0, which means
+      there is no maximum purge lag and no delay.
+    </p><p>
+      The <code class="literal">InnoDB</code> transaction system maintains a list
+      of transactions that have index records delete-marked by
+      <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> or
+      <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> operations. The length of
+      the list is the purge lag. Prior to MySQL 8.0.14, the purge lag
+      delay is calculated by the following formula, which results in a
+      minimum delay of 5000 microseconds:
+    </p><pre class="programlisting">(purge lag/innodb_max_purge_lag - 0.5) * 10000</pre><p>
+      As of MySQL 8.0.14, the purge lag delay is calculated by the
+      following revised formula, which reduces the minimum delay to 5
+      microseconds. A delay of 5 microseconds is more appropriate for
+      modern systems.
+    </p><pre class="programlisting">(purge_lag/innodb_max_purge_lag - 0.9995) * 10000</pre><p>
+      The delay is calculated at the beginning of a purge batch.
+    </p><p>
+      A typical <a class="link" href="innodb-parameters.html#sysvar_innodb_max_purge_lag"><code class="literal">innodb_max_purge_lag</code></a>
+      setting for a problematic workload might be 1000000 (1 million),
+      assuming that transactions are small, only 100 bytes in size, and
+      it is permissible to have 100MB of unpurged table rows.
+    </p><p>
+      The purge lag is presented as the <code class="literal">History list
+      length</code> value in the <code class="literal">TRANSACTIONS</code>
+      section of <a class="link" href="show-engine.html" title="13.7.7.15&nbsp;SHOW ENGINE Statement"><code class="literal">SHOW
+      ENGINE INNODB STATUS</code></a> output.
+    </p><pre class="programlisting">mysql&gt; SHOW ENGINE INNODB STATUS;
+...
+------------
+TRANSACTIONS
+------------
+Trx id counter 0 290328385
+Purge done for trx&#39;s n:o &lt; 0 290315608 undo n:o &lt; 0 17
+History list length 20
+</pre><p>
+      The <code class="literal">History list length</code> is typically a low
+      value, usually less than a few thousand, but a write-heavy
+      workload or long running transactions can cause it to increase,
+      even for transactions that are read only. The reason that a long
+      running transaction can cause the <code class="literal">History list
+      length</code> to increase is that under a consistent read
+      transaction isolation level such as
+      <code class="literal">REPEATABLE READ</code>, a transaction
+      must return the same result as when the read view for that
+      transaction was created. Consequently, the
+      <code class="literal">InnoDB</code> multi-version concurrency control (MVCC)
+      system must keep a copy of the data in the undo log until all
+      transactions that depend on that data have completed. The
+      following are examples of long running transactions that could
+      cause the <code class="literal">History list length</code> to increase:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          A <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> operation that uses the
+          <a class="link" href="mysqldump.html#option_mysqldump_single-transaction"><code class="option">--single-transaction</code></a> option
+          while there is a significant amount of concurrent DML.
+        </p></li><li class="listitem"><p>
+          Running a <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> query after
+          disabling <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">autocommit</code></a>, and
+          forgetting to issue an explicit <code class="literal">COMMIT</code> or
+          <code class="literal">ROLLBACK</code>.
+        </p></li></ul></div><p>
+      To prevent excessive delays in extreme situations where the purge
+      lag becomes huge, you can limit the delay by setting the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_max_purge_lag_delay"><code class="literal">innodb_max_purge_lag_delay</code></a>
+      variable. The
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_max_purge_lag_delay"><code class="literal">innodb_max_purge_lag_delay</code></a>
+      variable specifies the maximum delay in microseconds for the delay
+      imposed when the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_max_purge_lag"><code class="literal">innodb_max_purge_lag</code></a> threshold is
+      exceeded. The specified
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_max_purge_lag_delay"><code class="literal">innodb_max_purge_lag_delay</code></a> value
+      is an upper limit on the delay period calculated by the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_max_purge_lag"><code class="literal">innodb_max_purge_lag</code></a> formula.
+    </p><a class="dashingAutolink" name="autolink-1636"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Purge%20and%20Undo%20Tablespace%20Truncation"></a><h4><a id="idm45828887544624"></a>Purge and Undo Tablespace Truncation</h4><p>
+      The purge system is also responsible for truncating undo
+      tablespaces. You can configure the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_purge_rseg_truncate_frequency"><code class="literal">innodb_purge_rseg_truncate_frequency</code></a>
+      variable to control the frequency with which the purge system
+      looks for undo tablespaces to truncate. For more information, see
+      <a class="xref" href="innodb-undo-tablespaces.html#truncate-undo-tablespace" title="Truncating Undo Tablespaces">Truncating Undo Tablespaces</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-performance-spin_lock_polling.html">Previous <span class="navHint"> Configuring Spin Lock Polling </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-configuration.html">Up <span class="navHint"> InnoDB Configuration </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-performance-optimizer-statistics.html">Next <span class="navHint"> Configuring Optimizer Statistics for InnoDB </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

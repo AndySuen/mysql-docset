@@ -1,0 +1,58 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3630"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.1.2.3%C2%A0Creating%20a%20User%20for%20Replication"></a><title>17.1.2.3&nbsp;Creating a User for Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-howto.html" title="17.1.2&nbsp;Setting Up Binary Log File Position Based Replication"/><link rel="prev" href="replication-howto-slavebaseconfig.html" title="17.1.2.2&nbsp;Setting the Replica Configuration"/><link rel="next" href="replication-howto-masterstatus.html" title="17.1.2.4&nbsp;Obtaining the Replication Source Binary Log Coordinates"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-howto-repuser.html#replication-howto-repuser">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-howto-slavebaseconfig.html">Previous <span class="navHint"> Setting the Replica Configuration </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-howto.html">Up <span class="navHint"> Setting Up Binary Log File Position Based Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-howto-masterstatus.html">Next <span class="navHint"> Obtaining the Replication Source Binary Log Coordinates </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3629"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.1.2.3%C2%A0Creating%20a%20User%20for%20Replication"></a><h4 class="title"><a id="replication-howto-repuser"></a>17.1.2.3&nbsp;Creating a User for Replication</h4></div></div></div><p>
+        Each replica connects to the source using a MySQL user name and
+        password, so there must be a user account on the source that the
+        replica can use to connect. The user name is specified by the
+        <code class="literal">SOURCE_USER</code> | <code class="literal">MASTER_USER</code>
+        option of the <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+        TO</code></a> statement (from MySQL 8.0.23) or
+        <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement
+        (before MySQL 8.0.23) when you set up a replica. Any account can
+        be used for this operation, providing it has been granted the
+        <a class="link" href="privileges-provided.html#priv_replication-slave"><code class="literal">REPLICATION SLAVE</code></a> privilege. You
+        can choose to create a different account for each replica, or
+        connect to the source using the same account for each replica.
+      </p><p>
+        Although you do not have to create an account specifically for
+        replication, you should be aware that the replication user name
+        and password are stored in plain text in the replica&#39;s
+        connection metadata repository
+        <code class="literal">mysql.slave_master_info</code> (see
+        <a class="xref" href="replica-logs-status.html" title="17.2.4.2&nbsp;Replication Metadata Repositories">Section&nbsp;17.2.4.2, &ldquo;Replication Metadata Repositories&rdquo;</a>). Therefore, you may want
+        to create a separate account that has privileges only for the
+        replication process, to minimize the possibility of compromise
+        to other accounts.
+      </p><p>
+        To create a new account, use <a class="link" href="create-user.html" title="13.7.1.3&nbsp;CREATE USER Statement"><code class="literal">CREATE
+        USER</code></a>. To grant this account the privileges required
+        for replication, use the <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a>
+        statement. If you create an account solely for the purposes of
+        replication, that account needs only the
+        <a class="link" href="privileges-provided.html#priv_replication-slave"><code class="literal">REPLICATION SLAVE</code></a> privilege. For
+        example, to set up a new user, <code class="literal">repl</code>, that can
+        connect for replication from any host within the
+        <code class="literal">example.com</code> domain, issue these statements on
+        the source:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER &#39;repl&#39;@&#39;%.example.com&#39; IDENTIFIED BY &#39;<em class="replaceable"><code>password</code></em>&#39;;</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT REPLICATION SLAVE ON *.* TO &#39;repl&#39;@&#39;%.example.com&#39;;</code></strong>
+</pre><p>
+        See <a class="xref" href="account-management-statements.html" title="13.7.1&nbsp;Account Management Statements">Section&nbsp;13.7.1, &ldquo;Account Management Statements&rdquo;</a>, for more
+        information on statements for manipulation of user accounts.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          To connect to the source using a user account that
+          authenticates with the
+          <code class="literal">caching_sha2_password</code> plugin, you must
+          either set up a secure connection as described in
+          <a class="xref" href="replication-encrypted-connections.html" title="17.3.1&nbsp;Setting Up Replication to Use Encrypted Connections">Section&nbsp;17.3.1, &ldquo;Setting Up Replication to Use Encrypted Connections&rdquo;</a>, or enable
+          the unencrypted connection to support password exchange using
+          an RSA key pair. The <code class="literal">caching_sha2_password</code>
+          authentication plugin is the default for new users created
+          from MySQL 8.0 (for details, see
+          <a class="xref" href="caching-sha2-pluggable-authentication.html" title="6.4.1.2&nbsp;Caching SHA-2 Pluggable Authentication">Section&nbsp;6.4.1.2, &ldquo;Caching SHA-2 Pluggable Authentication&rdquo;</a>). If
+          the user account that you create or use for replication (as
+          specified by the <code class="literal">MASTER_USER</code> option) uses
+          this authentication plugin, and you are not using a secure
+          connection, you must enable RSA key pair-based password
+          exchange for a successful connection.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-howto-slavebaseconfig.html">Previous <span class="navHint"> Setting the Replica Configuration </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-howto.html">Up <span class="navHint"> Setting Up Binary Log File Position Based Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-howto-masterstatus.html">Next <span class="navHint"> Obtaining the Replication Source Binary Log Coordinates </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

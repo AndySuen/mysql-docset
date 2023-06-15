@@ -1,0 +1,116 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3479"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.6.3%C2%A0Optimizing%20REPAIR%20TABLE%20Statements"></a><title>8.6.3&nbsp;Optimizing REPAIR TABLE Statements</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimizing-myisam.html" title="8.6&nbsp;Optimizing for MyISAM Tables"/><link rel="prev" href="optimizing-myisam-bulk-data-loading.html" title="8.6.2&nbsp;Bulk Data Loading for MyISAM Tables"/><link rel="next" href="optimizing-memory-tables.html" title="8.7&nbsp;Optimizing for MEMORY Tables"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="repair-table-optimization.html#repair-table-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="optimizing-myisam-bulk-data-loading.html">Previous <span class="navHint"> Bulk Data Loading for MyISAM Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimizing-myisam.html">Up <span class="navHint"> Optimizing for MyISAM Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="optimizing-memory-tables.html">Next <span class="navHint"> Optimizing for MEMORY Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="repair-table-optimization"></a>8.6.3&nbsp;Optimizing REPAIR TABLE Statements</h3></div></div></div><a id="idm45828952491456" class="indexterm"></a><p>
+        <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a> for
+        <code class="literal">MyISAM</code> tables is similar to using
+        <a class="link" href="myisamchk.html" title="4.6.4&nbsp;myisamchk &mdash; MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> for repair operations, and some of
+        the same performance optimizations apply:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="myisamchk.html" title="4.6.4&nbsp;myisamchk &mdash; MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> has variables that control
+            memory allocation. You may be able to its improve
+            performance by setting these variables, as described in
+            <a class="xref" href="myisamchk-memory.html" title="4.6.4.6&nbsp;myisamchk Memory Usage">Section&nbsp;4.6.4.6, &ldquo;myisamchk Memory Usage&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            For <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a>, the same
+            principle applies, but because the repair is done by the
+            server, you set server system variables instead of
+            <a class="link" href="myisamchk.html" title="4.6.4&nbsp;myisamchk &mdash; MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> variables. Also, in addition to
+            setting memory-allocation variables, increasing the
+            <a class="link" href="server-system-variables.html#sysvar_myisam_max_sort_file_size"><code class="literal">myisam_max_sort_file_size</code></a>
+            system variable increases the likelihood that the repair
+            uses the faster filesort method and avoids the slower repair
+            by key cache method. Set the variable to the maximum file
+            size for your system, after checking to be sure that there
+            is enough free space to hold a copy of the table files. The
+            free space must be available in the file system containing
+            the original table files.
+          </p></li></ul></div><p>
+        Suppose that a <a class="link" href="myisamchk.html" title="4.6.4&nbsp;myisamchk &mdash; MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> table-repair
+        operation is done using the following options to set its
+        memory-allocation variables:
+      </p><pre class="programlisting">--key_buffer_size=128M --myisam_sort_buffer_size=256M
+--read_buffer_size=64M --write_buffer_size=64M
+</pre><p>
+        Some of those <a class="link" href="myisamchk.html" title="4.6.4&nbsp;myisamchk &mdash; MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> variables correspond
+        to server system variables:
+      </p><div class="informaltable"><table summary="myisamchk variables and corresponding server system variables."><colgroup><col style="width: 50%"/><col style="width: 50%"/></colgroup><thead><tr>
+            <th><a class="link" href="myisamchk.html" title="4.6.4&nbsp;myisamchk &mdash; MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> Variable</th>
+            <th>System Variable</th>
+          </tr></thead><tbody><tr>
+            <td><code class="literal">key_buffer_size</code></td>
+            <td><a class="link" href="server-system-variables.html#sysvar_key_buffer_size"><code class="literal">key_buffer_size</code></a></td>
+          </tr><tr>
+            <td><code class="literal">myisam_sort_buffer_size</code></td>
+            <td><a class="link" href="server-system-variables.html#sysvar_myisam_sort_buffer_size"><code class="literal">myisam_sort_buffer_size</code></a></td>
+          </tr><tr>
+            <td><code class="literal">read_buffer_size</code></td>
+            <td><a class="link" href="server-system-variables.html#sysvar_read_buffer_size"><code class="literal">read_buffer_size</code></a></td>
+          </tr><tr>
+            <td><code class="literal">write_buffer_size</code></td>
+            <td>none</td>
+          </tr></tbody></table></div><p>
+        Each of the server system variables can be set at runtime, and
+        some of them
+        (<a class="link" href="server-system-variables.html#sysvar_myisam_sort_buffer_size"><code class="literal">myisam_sort_buffer_size</code></a>,
+        <a class="link" href="server-system-variables.html#sysvar_read_buffer_size"><code class="literal">read_buffer_size</code></a>) have a
+        session value in addition to a global value. Setting a session
+        value limits the effect of the change to your current session
+        and does not affect other users. Changing a global-only variable
+        (<a class="link" href="server-system-variables.html#sysvar_key_buffer_size"><code class="literal">key_buffer_size</code></a>,
+        <a class="link" href="server-system-variables.html#sysvar_myisam_max_sort_file_size"><code class="literal">myisam_max_sort_file_size</code></a>)
+        affects other users as well. For
+        <a class="link" href="server-system-variables.html#sysvar_key_buffer_size"><code class="literal">key_buffer_size</code></a>, you must take
+        into account that the buffer is shared with those users. For
+        example, if you set the <a class="link" href="myisamchk.html" title="4.6.4&nbsp;myisamchk &mdash; MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a>
+        <code class="literal">key_buffer_size</code> variable to 128MB, you could
+        set the corresponding
+        <a class="link" href="server-system-variables.html#sysvar_key_buffer_size"><code class="literal">key_buffer_size</code></a> system variable
+        larger than that (if it is not already set larger), to permit
+        key buffer use by activity in other sessions. However, changing
+        the global key buffer size invalidates the buffer, causing
+        increased disk I/O and slowdown for other sessions. An
+        alternative that avoids this problem is to use a separate key
+        cache, assign to it the indexes from the table to be repaired,
+        and deallocate it when the repair is complete. See
+        <a class="xref" href="multiple-key-caches.html" title="8.10.2.2&nbsp;Multiple Key Caches">Section&nbsp;8.10.2.2, &ldquo;Multiple Key Caches&rdquo;</a>.
+      </p><p>
+        Based on the preceding remarks, a <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR
+        TABLE</code></a> operation can be done as follows to use settings
+        similar to the <a class="link" href="myisamchk.html" title="4.6.4&nbsp;myisamchk &mdash; MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> command. Here a
+        separate 128MB key buffer is allocated and the file system is
+        assumed to permit a file size of at least 100GB.
+      </p><pre class="programlisting">SET SESSION myisam_sort_buffer_size = 256*1024*1024;
+SET SESSION read_buffer_size = 64*1024*1024;
+SET GLOBAL myisam_max_sort_file_size = 100*1024*1024*1024;
+SET GLOBAL repair_cache.key_buffer_size = 128*1024*1024;
+CACHE INDEX <em class="replaceable"><code>tbl_name</code></em> IN repair_cache;
+LOAD INDEX INTO CACHE <em class="replaceable"><code>tbl_name</code></em>;
+REPAIR TABLE <em class="replaceable"><code>tbl_name</code></em> ;
+SET GLOBAL repair_cache.key_buffer_size = 0;
+</pre><p>
+        If you intend to change a global variable but want to do so only
+        for the duration of a <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR
+        TABLE</code></a> operation to minimally affect other users, save
+        its value in a user variable and restore it afterward. For
+        example:
+      </p><pre class="programlisting">SET @old_myisam_sort_buffer_size = @@GLOBAL.myisam_max_sort_file_size;
+SET GLOBAL myisam_max_sort_file_size = 100*1024*1024*1024;
+REPAIR TABLE tbl_name ;
+SET GLOBAL myisam_max_sort_file_size = @old_myisam_max_sort_file_size;
+</pre><p>
+        The system variables that affect <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR
+        TABLE</code></a> can be set globally at server startup if you
+        want the values to be in effect by default. For example, add
+        these lines to the server <code class="filename">my.cnf</code> file:
+      </p><pre class="programlisting">[mysqld]
+myisam_sort_buffer_size=256M
+key_buffer_size=1G
+myisam_max_sort_file_size=100G
+</pre><p>
+        These settings do not include
+        <a class="link" href="server-system-variables.html#sysvar_read_buffer_size"><code class="literal">read_buffer_size</code></a>. Setting
+        <a class="link" href="server-system-variables.html#sysvar_read_buffer_size"><code class="literal">read_buffer_size</code></a> globally to a
+        large value does so for all sessions and can cause performance
+        to suffer due to excessive memory allocation for a server with
+        many simultaneous sessions.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimizing-myisam-bulk-data-loading.html">Previous <span class="navHint"> Bulk Data Loading for MyISAM Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimizing-myisam.html">Up <span class="navHint"> Optimizing for MyISAM Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="optimizing-memory-tables.html">Next <span class="navHint"> Optimizing for MEMORY Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

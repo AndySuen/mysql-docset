@@ -1,0 +1,129 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/6.2.23%C2%A0SQL-Based%20Account%20Activity%20Auditing"></a><title>6.2.23&nbsp;SQL-Based Account Activity Auditing</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="access-control.html" title="6.2&nbsp;Access Control and Account Management"/><link rel="prev" href="problems-connecting.html" title="6.2.22&nbsp;Troubleshooting Problems Connecting to MySQL"/><link rel="next" href="encrypted-connections.html" title="6.3&nbsp;Using Encrypted Connections"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="account-activity-auditing.html#account-activity-auditing">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="problems-connecting.html">Previous <span class="navHint"> Troubleshooting Problems Connecting to MySQL </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="encrypted-connections.html">Next <span class="navHint"> Using Encrypted Connections </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="account-activity-auditing"></a>6.2.23&nbsp;SQL-Based Account Activity Auditing</h3></div></div></div><p>
+      Applications can use the following guidelines to perform SQL-based
+      auditing that ties database activity to MySQL accounts.
+    </p><p>
+      MySQL accounts correspond to rows in the
+      <code class="literal">mysql.user</code> system table. When a client connects
+      successfully, the server authenticates the client to a particular
+      row in this table. The <code class="literal">User</code> and
+      <code class="literal">Host</code> column values in this row uniquely
+      identify the account and correspond to the
+      <code class="literal">&#39;<em class="replaceable"><code>user_name</code></em>&#39;@&#39;<em class="replaceable"><code>host_name</code></em>&#39;</code>
+      format in which account names are written in SQL statements.
+    </p><p>
+      The account used to authenticate a client determines which
+      privileges the client has. Normally, the
+      <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> function can be
+      invoked to determine which account this is for the client user.
+      Its value is constructed from the <code class="literal">User</code> and
+      <code class="literal">Host</code> columns of the <code class="literal">user</code>
+      table row for the account.
+    </p><p>
+      However, there are circumstances under which the
+      <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> value corresponds
+      not to the client user but to a different account. This occurs in
+      contexts when privilege checking is not based the client&#39;s
+      account:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Stored routines (procedures and functions) defined with the
+          <code class="literal">SQL SECURITY DEFINER</code> characteristic
+        </p></li><li class="listitem"><p>
+          Views defined with the <code class="literal">SQL SECURITY DEFINER</code>
+          characteristic
+        </p></li><li class="listitem"><p>
+          Triggers and events
+        </p></li></ul></div><p>
+      In those contexts, privilege checking is done against the
+      <code class="literal">DEFINER</code> account and
+      <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> refers to that
+      account, not to the account for the client who invoked the stored
+      routine or view or who caused the trigger to activate. To
+      determine the invoking user, you can call the
+      <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> function, which returns a
+      value indicating the actual user name provided by the client and
+      the host from which the client connected. However, this value does
+      not necessarily correspond directly to an account in the
+      <code class="literal">user</code> table, because the
+      <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> value never contains
+      wildcards, whereas account values (as returned by
+      <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a>) may contain user
+      name and host name wildcards.
+    </p><p>
+      For example, a blank user name matches any user, so an account of
+      <code class="literal">&#39;&#39;@&#39;localhost&#39;</code> enables clients to connect as an
+      anonymous user from the local host with any user name. In this
+      case, if a client connects as <code class="literal">user1</code> from the
+      local host, <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> and
+      <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> return different
+      values:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT USER(), CURRENT_USER();</code></strong>
++-----------------+----------------+
+| USER()          | CURRENT_USER() |
++-----------------+----------------+
+| user1@localhost | @localhost     |
++-----------------+----------------+
+</pre><p>
+      The host name part of an account can also contain wildcards. If
+      the host name contains a <code class="literal">&#39;%&#39;</code> or
+      <code class="literal">&#39;_&#39;</code> pattern character or uses netmask notation,
+      the account can be used for clients connecting from multiple hosts
+      and the <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> value does
+      not indicate which one. For example, the account
+      <code class="literal">&#39;user2&#39;@&#39;%.example.com&#39;</code> can be used by
+      <code class="literal">user2</code> to connect from any host in the
+      <code class="literal">example.com</code> domain. If <code class="literal">user2</code>
+      connects from <code class="literal">remote.example.com</code>,
+      <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> and
+      <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> return different
+      values:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT USER(), CURRENT_USER();</code></strong>
++--------------------------+---------------------+
+| USER()                   | CURRENT_USER()      |
++--------------------------+---------------------+
+| user2@remote.example.com | user2@%.example.com |
++--------------------------+---------------------+
+</pre><p>
+      If an application must invoke
+      <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> for user auditing (for
+      example, if it does auditing from within triggers) but must also
+      be able to associate the <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a>
+      value with an account in the <code class="literal">user</code> table, it is
+      necessary to avoid accounts that contain wildcards in the
+      <code class="literal">User</code> or <code class="literal">Host</code> column.
+      Specifically, do not permit <code class="literal">User</code> to be empty
+      (which creates an anonymous-user account), and do not permit
+      pattern characters or netmask notation in <code class="literal">Host</code>
+      values. All accounts must have a nonempty <code class="literal">User</code>
+      value and literal <code class="literal">Host</code> value.
+    </p><p>
+      With respect to the previous examples, the
+      <code class="literal">&#39;&#39;@&#39;localhost&#39;</code> and
+      <code class="literal">&#39;user2&#39;@&#39;%.example.com&#39;</code> accounts should be
+      changed not to use wildcards:
+    </p><pre class="programlisting">RENAME USER &#39;&#39;@&#39;localhost&#39; TO &#39;user1&#39;@&#39;localhost&#39;;
+RENAME USER &#39;user2&#39;@&#39;%.example.com&#39; TO &#39;user2&#39;@&#39;remote.example.com&#39;;
+</pre><p>
+      If <code class="literal">user2</code> must be able to connect from several
+      hosts in the <code class="literal">example.com</code> domain, there should
+      be a separate account for each host.
+    </p><p>
+      To extract the user name or host name part from a
+      <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> or
+      <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> value, use the
+      <a class="link" href="string-functions.html#function_substring-index"><code class="literal">SUBSTRING_INDEX()</code></a> function:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT SUBSTRING_INDEX(CURRENT_USER(),&#39;@&#39;,1);</code></strong>
++---------------------------------------+
+| SUBSTRING_INDEX(CURRENT_USER(),&#39;@&#39;,1) |
++---------------------------------------+
+| user1                                 |
++---------------------------------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT SUBSTRING_INDEX(CURRENT_USER(),&#39;@&#39;,-1);</code></strong>
++----------------------------------------+
+| SUBSTRING_INDEX(CURRENT_USER(),&#39;@&#39;,-1) |
++----------------------------------------+
+| localhost                              |
++----------------------------------------+
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="problems-connecting.html">Previous <span class="navHint"> Troubleshooting Problems Connecting to MySQL </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="encrypted-connections.html">Next <span class="navHint"> Using Encrypted Connections </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

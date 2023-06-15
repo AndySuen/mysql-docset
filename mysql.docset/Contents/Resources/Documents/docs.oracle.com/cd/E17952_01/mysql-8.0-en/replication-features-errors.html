@@ -1,0 +1,77 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3545"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.5.1.29%C2%A0Replica%20Errors%20During%20Replication"></a><title>17.5.1.29&nbsp;Replica Errors During Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-features.html" title="17.5.1&nbsp;Replication Features and Issues"/><link rel="prev" href="replication-features-shutdowns.html" title="17.5.1.28&nbsp;Replication and Source or Replica Shutdowns"/><link rel="next" href="replication-features-sql-mode.html" title="17.5.1.30&nbsp;Replication and Server SQL Mode"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-errors.html#replication-features-errors">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-features-shutdowns.html">Previous <span class="navHint"> Replication and Source or Replica Shutdowns </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-features-sql-mode.html">Next <span class="navHint"> Replication and Server SQL Mode </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3544"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.5.1.29%C2%A0Replica%20Errors%20During%20Replication"></a><h4 class="title"><a id="replication-features-errors"></a>17.5.1.29&nbsp;Replica Errors During Replication</h4></div></div></div><a id="idm45828856263968" class="indexterm"></a><a id="idm45828856262480" class="indexterm"></a><a id="idm45828856260992" class="indexterm"></a><a id="idm45828856259504" class="indexterm"></a><p>
+        If a statement produces the same error (identical error code) on
+        both the source and the replica, the error is logged, but
+        replication continues.
+      </p><p>
+        If a statement produces different errors on the source and the
+        replica, the replication SQL thread terminates, and the replica
+        writes a message to its error log and waits for the database
+        administrator to decide what to do about the error. This
+        includes the case that a statement produces an error on the
+        source or the replica, but not both. To address the issue,
+        connect to the replica manually and determine the cause of the
+        problem.
+        <a class="link" href="show-replica-status.html" title="13.7.7.35&nbsp;SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+        REPLICA STATUS</code></a> (or before MySQL 8.0.22,
+        <a class="link" href="show-slave-status.html" title="13.7.7.36&nbsp;SHOW SLAVE | REPLICA STATUS Statement"><code class="literal">SHOW SLAVE
+        STATUS</code></a>) is useful for this. Then fix the problem and
+        run <a class="link" href="start-replica.html" title="13.4.2.8&nbsp;START REPLICA Statement"><code class="literal">START
+        REPLICA</code></a> (or before MySQL 8.0.22,
+        <a class="link" href="start-slave.html" title="13.4.2.9&nbsp;START SLAVE Statement"><code class="literal">START
+        SLAVE</code></a>). For example, you might need to create a
+        nonexistent table before you can start the replica again.
+
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            If a temporary error is recorded in the replica&#39;s error log,
+            you do not necessarily have to take any action suggested in
+            the quoted error message. Temporary errors should be handled
+            by the client retrying the transaction. For example, if the
+            replication SQL thread records a temporary error relating to
+            a deadlock, you do not need to restart the transaction
+            manually on the replica, unless the replication SQL thread
+            subsequently terminates with a nontemporary error message.
+          </p></div><p>
+      </p><p>
+        If this error code validation behavior is not desirable, some or
+        all errors can be masked out (ignored) with the
+        <a class="link" href="replication-options-replica.html#option_mysqld_slave-skip-errors"><code class="option">--slave-skip-errors</code></a> option.
+      </p><p>
+        For nontransactional storage engines such as
+        <a class="link" href="myisam-storage-engine.html" title="16.2&nbsp;The MyISAM Storage Engine"><code class="literal">MyISAM</code></a>, it is possible to have a
+        statement that only partially updates a table and returns an
+        error code. This can happen, for example, on a multiple-row
+        insert that has one row violating a key constraint, or if a long
+        update statement is killed after updating some of the rows. If
+        that happens on the source, the replica expects execution of the
+        statement to result in the same error code. If it does not, the
+        replication SQL thread stops as described previously.
+      </p><p>
+        If you are replicating between tables that use different storage
+        engines on the source and replica, keep in mind that the same
+        statement might produce a different error when run against one
+        version of the table, but not the other, or might cause an error
+        for one version of the table, but not the other. For example,
+        since <code class="literal">MyISAM</code> ignores foreign key constraints,
+        an <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> or
+        <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> statement accessing an
+        <code class="literal">InnoDB</code> table on the source might cause a
+        foreign key violation but the same statement performed on a
+        <code class="literal">MyISAM</code> version of the same table on the
+        replica would produce no such error, causing replication to
+        stop.
+      </p><p>
+        Beginning with MySQL 8.0.31, replication filter rules are
+        applied first, prior to making any privilege or row format
+        checks, making it possible to filter out any transactions that
+        fail validation; no checks are performed and thus no errors are
+        raised for transactions which have been filtered out. This means
+        that the replica can accept only that part of the database to
+        which a given user has been granted access (as long as any
+        updates to this part of the database use the row-based
+        replication format). This may be helpful when performing an
+        upgrade or when migrating to a system or application that uses
+        administration tables to which the inbound replication user does
+        not have access. See also <a class="xref" href="replication-rules.html" title="17.2.5&nbsp;How Servers Evaluate Replication Filtering Rules">Section&nbsp;17.2.5, &ldquo;How Servers Evaluate Replication Filtering Rules&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-shutdowns.html">Previous <span class="navHint"> Replication and Source or Replica Shutdowns </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-sql-mode.html">Next <span class="navHint"> Replication and Server SQL Mode </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

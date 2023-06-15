@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.9.1.3 Tuning Compression for InnoDB Tables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-table-compression.html" title="15.9.1 InnoDB Table Compression" /><link rel="prev" href="innodb-compression-usage.html" title="15.9.1.2 Creating Compressed Tables" /><link rel="next" href="innodb-compression-tuning-monitoring.html" title="15.9.1.4 Monitoring InnoDB Table Compression at Runtime" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-compression-tuning.html#innodb-compression-tuning">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-compression-usage.html">Previous <span class="navHint"> Creating Compressed Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-table-compression.html">Up <span class="navHint"> InnoDB Table Compression </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-compression-tuning-monitoring.html">Next <span class="navHint"> Monitoring InnoDB Table Compression at Runtime </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-compression-tuning"></a>15.9.1.3 Tuning Compression for InnoDB Tables</h4></div></div></div><a id="idm45828886609904" class="indexterm"></a><a id="idm45828886608416" class="indexterm"></a><p>
+        Most often, the internal optimizations described in
+        <a class="xref" href="innodb-compression-internals.html#innodb-compression-internals-storage" title="InnoDB Data Storage and Compression">InnoDB Data Storage and Compression</a> ensure
+        that the system runs well with compressed data. However, because
+        the efficiency of compression depends on the nature of your
+        data, you can make decisions that affect the performance of
+        compressed tables:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Which tables to compress.
+          </p></li><li class="listitem"><p>
+            What compressed page size to use.
+          </p></li><li class="listitem"><p>
+            Whether to adjust the size of the buffer pool based on
+            run-time performance characteristics, such as the amount of
+            time the system spends compressing and uncompressing data.
+            Whether the workload is more like a
+            <a class="link" href="glossary.html#glos_data_warehouse" title="data warehouse">data warehouse</a>
+            (primarily queries) or an
+            <a class="link" href="glossary.html#glos_oltp" title="OLTP">OLTP</a> system (mix of queries
+            and <a class="link" href="glossary.html#glos_dml" title="DML">DML</a>).
+          </p></li><li class="listitem"><p>
+            If the system performs DML operations on compressed tables,
+            and the way the data is distributed leads to expensive
+            <a class="link" href="glossary.html#glos_compression_failure" title="compression failure">compression
+            failures</a> at runtime, you might adjust additional
+            advanced configuration options.
+          </p></li></ul></div><p>
+        Use the guidelines in this section to help make those
+        architectural and configuration choices. When you are ready to
+        conduct long-term testing and put compressed tables into
+        production, see
+        <a class="xref" href="innodb-compression-tuning-monitoring.html" title="15.9.1.4 Monitoring InnoDB Table Compression at Runtime">Section 15.9.1.4, “Monitoring InnoDB Table Compression at Runtime”</a> for ways
+        to verify the effectiveness of those choices under real-world
+        conditions.
+      </p><h5><a id="innodb-compression-tuning-when"></a>When to Use Compression</h5><p>
+        In general, compression works best on tables that include a
+        reasonable number of character string columns and where the data
+        is read far more often than it is written. Because there are no
+        guaranteed ways to predict whether or not compression benefits a
+        particular situation, always test with a specific
+        <a class="link" href="glossary.html#glos_workload" title="workload">workload</a> and data set
+        running on a representative configuration. Consider the
+        following factors when deciding which tables to compress.
+      </p><h5><a id="innodb-compression-tuning-when-data"></a>Data Characteristics and Compression</h5><a id="idm45828886591632" class="indexterm"></a><p>
+        A key determinant of the efficiency of compression in reducing
+        the size of data files is the nature of the data itself. Recall
+        that compression works by identifying repeated strings of bytes
+        in a block of data. Completely randomized data is the worst
+        case. Typical data often has repeated values, and so compresses
+        effectively. Character strings often compress well, whether
+        defined in <code class="literal">CHAR</code>, <code class="literal">VARCHAR</code>,
+        <code class="literal">TEXT</code> or <code class="literal">BLOB</code> columns. On
+        the other hand, tables containing mostly binary data (integers
+        or floating point numbers) or data that is previously compressed
+        (for example <acronym class="acronym">JPEG</acronym> or <acronym class="acronym">PNG</acronym>
+        images) may not generally compress well, significantly or at
+        all.
+      </p><p>
+        You choose whether to turn on compression for each InnoDB table.
+        A table and all of its indexes use the same (compressed)
+        <a class="link" href="glossary.html#glos_page_size" title="page size">page size</a>. It might be
+        that the <a class="link" href="glossary.html#glos_primary_key" title="primary key">primary key</a>
+        (clustered) index, which contains the data for all columns of a
+        table, compresses more effectively than the secondary indexes.
+        For those cases where there are long rows, the use of
+        compression might result in long column values being stored
+        <span class="quote">“<span class="quote">off-page</span>”</span>, as discussed in
+        <a class="xref" href="innodb-row-format.html#innodb-row-format-dynamic" title="DYNAMIC Row Format">DYNAMIC Row Format</a>. Those overflow
+        pages may compress well. Given these considerations, for many
+        applications, some tables compress more effectively than others,
+        and you might find that your workload performs best only with a
+        subset of tables compressed.
+      </p><p>
+        To determine whether or not to compress a particular table,
+        conduct experiments. You can get a rough estimate of how
+        efficiently your data can be compressed by using a utility that
+        implements LZ77 compression (such as <code class="literal">gzip</code> or
+        WinZip) on a copy of the <a class="link" href="glossary.html#glos_ibd_file" title=".ibd file">.ibd
+        file</a> for an uncompressed table. You can expect less
+        compression from a MySQL compressed table than from file-based
+        compression tools, because MySQL compresses data in chunks based
+        on the <a class="link" href="glossary.html#glos_page_size" title="page size">page size</a>, 16KB by
+        default. In addition to user data, the page format includes some
+        internal system data that is not compressed. File-based
+        compression utilities can examine much larger chunks of data,
+        and so might find more repeated strings in a huge file than
+        MySQL can find in an individual page.
+      </p><p>
+        Another way to test compression on a specific table is to copy
+        some data from your uncompressed table to a similar, compressed
+        table (having all the same indexes) in a
+        <a class="link" href="glossary.html#glos_file_per_table" title="file-per-table">file-per-table</a>
+        tablespace and look at the size of the resulting
+        <code class="literal">.ibd</code> file. For example:
+      </p><pre class="programlisting">USE test;
+SET GLOBAL innodb_file_per_table=1;
+SET GLOBAL autocommit=0;
+
+-- Create an uncompressed table with a million or two rows.
+CREATE TABLE big_table AS SELECT * FROM information_schema.columns;
+INSERT INTO big_table SELECT * FROM big_table;
+INSERT INTO big_table SELECT * FROM big_table;
+INSERT INTO big_table SELECT * FROM big_table;
+INSERT INTO big_table SELECT * FROM big_table;
+INSERT INTO big_table SELECT * FROM big_table;
+INSERT INTO big_table SELECT * FROM big_table;
+INSERT INTO big_table SELECT * FROM big_table;
+INSERT INTO big_table SELECT * FROM big_table;
+INSERT INTO big_table SELECT * FROM big_table;
+INSERT INTO big_table SELECT * FROM big_table;
+COMMIT;
+ALTER TABLE big_table ADD id int unsigned NOT NULL PRIMARY KEY auto_increment;
+
+SHOW CREATE TABLE big_table\G
+
+select count(id) from big_table;
+
+-- Check how much space is needed for the uncompressed table.
+\! ls -l data/test/big_table.ibd
+
+CREATE TABLE key_block_size_4 LIKE big_table;
+ALTER TABLE key_block_size_4 key_block_size=4 row_format=compressed;
+
+INSERT INTO key_block_size_4 SELECT * FROM big_table;
+commit;
+
+-- Check how much space is needed for a compressed table
+-- with particular compression settings.
+\! ls -l data/test/key_block_size_4.ibd
+</pre><p>
+        This experiment produced the following numbers, which of course
+        could vary considerably depending on your table structure and
+        data:
+      </p><pre class="programlisting">-rw-rw----  1 cirrus  staff  310378496 Jan  9 13:44 data/test/big_table.ibd
+-rw-rw----  1 cirrus  staff  83886080 Jan  9 15:10 data/test/key_block_size_4.ibd
+</pre><p>
+        To see whether compression is efficient for your particular
+        <a class="link" href="glossary.html#glos_workload" title="workload">workload</a>:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For simple tests, use a MySQL instance with no other
+            compressed tables and run queries against the Information
+            Schema <a class="link" href="information-schema-innodb-cmp-table.html" title="26.4.6 The INFORMATION_SCHEMA INNODB_CMP and INNODB_CMP_RESET Tables"><code class="literal">INNODB_CMP</code></a> table.
+          </p></li><li class="listitem"><p>
+            For more elaborate tests involving workloads with multiple
+            compressed tables, run queries against the Information
+            Schema <a class="link" href="information-schema-innodb-cmp-per-index-table.html" title="26.4.8 The INFORMATION_SCHEMA INNODB_CMP_PER_INDEX and INNODB_CMP_PER_INDEX_RESET Tables"><code class="literal">INNODB_CMP_PER_INDEX</code></a>
+            table. Because the statistics in the
+            <code class="literal">INNODB_CMP_PER_INDEX</code> table are expensive
+            to collect, you must enable the configuration option
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_cmp_per_index_enabled"><code class="literal">innodb_cmp_per_index_enabled</code></a>
+            before querying that table, and you might restrict such
+            testing to a development server or a non-critical replica
+            server.
+          </p></li><li class="listitem"><p>
+            Run some typical SQL statements against the compressed table
+            you are testing.
+          </p></li><li class="listitem"><p>
+            Examine the ratio of successful compression operations to
+            overall compression operations by querying
+            <a class="link" href="information-schema-innodb-cmp-table.html" title="26.4.6 The INFORMATION_SCHEMA INNODB_CMP and INNODB_CMP_RESET Tables"><code class="literal">INFORMATION_SCHEMA.INNODB_CMP</code></a>
+            or
+            <a class="link" href="information-schema-innodb-cmp-per-index-table.html" title="26.4.8 The INFORMATION_SCHEMA INNODB_CMP_PER_INDEX and INNODB_CMP_PER_INDEX_RESET Tables"><code class="literal">INFORMATION_SCHEMA.INNODB_CMP_PER_INDEX</code></a>,
+            and comparing <code class="literal">COMPRESS_OPS</code> to
+            <code class="literal">COMPRESS_OPS_OK</code>.
+          </p></li><li class="listitem"><p>
+            If a high percentage of compression operations complete
+            successfully, the table might be a good candidate for
+            compression.
+          </p></li><li class="listitem"><p>
+            If you get a high proportion of
+            <a class="link" href="glossary.html#glos_compression_failure" title="compression failure">compression
+            failures</a>, you can adjust
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_compression_level"><code class="literal">innodb_compression_level</code></a>,
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_compression_failure_threshold_pct"><code class="literal">innodb_compression_failure_threshold_pct</code></a>,
+            and
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_compression_pad_pct_max"><code class="literal">innodb_compression_pad_pct_max</code></a>
+            options as described in
+            <a class="xref" href="innodb-performance-compression-oltp.html" title="15.9.1.6 Compression for OLTP Workloads">Section 15.9.1.6, “Compression for OLTP Workloads”</a>, and
+            try further tests.
+          </p></li></ul></div><h5><a id="innodb-compression-application"></a>Database Compression versus Application Compression</h5><a id="idm45828886548464" class="indexterm"></a><p>
+        Decide whether to compress data in your application or in the
+        table; do not use both types of compression for the same data.
+        When you compress the data in the application and store the
+        results in a compressed table, extra space savings are extremely
+        unlikely, and the double compression just wastes CPU cycles.
+      </p><h5><a id="innodb-compression-in-database"></a>Compressing in the Database</h5><p>
+        When enabled, MySQL table compression is automatic and applies
+        to all columns and index values. The columns can still be tested
+        with operators such as <code class="literal">LIKE</code>, and sort
+        operations can still use indexes even when the index values are
+        compressed. Because indexes are often a significant fraction of
+        the total size of a database, compression could result in
+        significant savings in storage, I/O or processor time. The
+        compression and decompression operations happen on the database
+        server, which likely is a powerful system that is sized to
+        handle the expected load.
+      </p><h5><a id="innodb-compression-in-application"></a>Compressing in the Application</h5><p>
+        If you compress data such as text in your application, before it
+        is inserted into the database, You might save overhead for data
+        that does not compress well by compressing some columns and not
+        others. This approach uses CPU cycles for compression and
+        uncompression on the client machine rather than the database
+        server, which might be appropriate for a distributed application
+        with many clients, or where the client machine has spare CPU
+        cycles.
+      </p><h5><a id="innodb-compression-hybrid"></a>Hybrid Approach</h5><p>
+        Of course, it is possible to combine these approaches. For some
+        applications, it may be appropriate to use some compressed
+        tables and some uncompressed tables. It may be best to
+        externally compress some data (and store it in uncompressed
+        tables) and allow MySQL to compress (some of) the other tables
+        in the application. As always, up-front design and real-life
+        testing are valuable in reaching the right decision.
+      </p><h5><a id="innodb-compression-tuning-when-workload"></a>Workload Characteristics and Compression</h5><a id="idm45828886537328" class="indexterm"></a><p>
+        In addition to choosing which tables to compress (and the page
+        size), the workload is another key determinant of performance.
+        If the application is dominated by reads, rather than updates,
+        fewer pages need to be reorganized and recompressed after the
+        index page runs out of room for the per-page <span class="quote">“<span class="quote">modification
+        log</span>”</span> that MySQL maintains for compressed data. If the
+        updates predominantly change non-indexed columns or those
+        containing <code class="literal">BLOB</code>s or large strings that happen
+        to be stored <span class="quote">“<span class="quote">off-page</span>”</span>, the overhead of
+        compression may be acceptable. If the only changes to a table
+        are <code class="literal">INSERT</code>s that use a monotonically
+        increasing primary key, and there are few secondary indexes,
+        there is little need to reorganize and recompress index pages.
+        Since MySQL can <span class="quote">“<span class="quote">delete-mark</span>”</span> and delete rows on
+        compressed pages <span class="quote">“<span class="quote">in place</span>”</span> by modifying
+        uncompressed data, <code class="literal">DELETE</code> operations on a
+        table are relatively efficient.
+      </p><p>
+        For some environments, the time it takes to load data can be as
+        important as run-time retrieval. Especially in data warehouse
+        environments, many tables may be read-only or read-mostly. In
+        those cases, it might or might not be acceptable to pay the
+        price of compression in terms of increased load time, unless the
+        resulting savings in fewer disk reads or in storage cost is
+        significant.
+      </p><p>
+        Fundamentally, compression works best when the CPU time is
+        available for compressing and uncompressing data. Thus, if your
+        workload is I/O bound, rather than CPU-bound, you might find
+        that compression can improve overall performance. When you test
+        your application performance with different compression
+        configurations, test on a platform similar to the planned
+        configuration of the production system.
+      </p><h5><a id="innodb-compression-tuning-when-config"></a>Configuration Characteristics and Compression</h5><a id="idm45828886527632" class="indexterm"></a><p>
+        Reading and writing database
+        <a class="link" href="glossary.html#glos_page" title="page">pages</a> from and to disk is the
+        slowest aspect of system performance. Compression attempts to
+        reduce I/O by using CPU time to compress and uncompress data,
+        and is most effective when I/O is a relatively scarce resource
+        compared to processor cycles.
+      </p><p>
+        This is often especially the case when running in a multi-user
+        environment with fast, multi-core CPUs. When a page of a
+        compressed table is in memory, MySQL often uses additional
+        memory, typically 16KB, in the
+        <a class="link" href="glossary.html#glos_buffer_pool" title="buffer pool">buffer pool</a> for an
+        uncompressed copy of the page. The adaptive LRU algorithm
+        attempts to balance the use of memory between compressed and
+        uncompressed pages to take into account whether the workload is
+        running in an I/O-bound or CPU-bound manner. Still, a
+        configuration with more memory dedicated to the buffer pool
+        tends to run better when using compressed tables than a
+        configuration where memory is highly constrained.
+      </p><h5><a id="innodb-compression-tuning-when-size"></a>Choosing the Compressed Page Size</h5><a id="idm45828886521488" class="indexterm"></a><a id="idm45828886520000" class="indexterm"></a><a id="idm45828886518512" class="indexterm"></a><a id="idm45828886517024" class="indexterm"></a><p>
+        The optimal setting of the compressed page size depends on the
+        type and distribution of data that the table and its indexes
+        contain. The compressed page size should always be bigger than
+        the maximum record size, or operations may fail as noted in
+        <a class="xref" href="innodb-compression-internals.html#innodb-compression-internals-storage-btree" title="Compression of B-Tree Pages">Compression of B-Tree Pages</a>.
+      </p><p>
+        Setting the compressed page size too large wastes some space,
+        but the pages do not have to be compressed as often. If the
+        compressed page size is set too small, inserts or updates may
+        require time-consuming recompression, and the
+        <a class="link" href="glossary.html#glos_b_tree" title="B-tree">B-tree</a> nodes may have to be
+        split more frequently, leading to bigger data files and less
+        efficient indexing.
+      </p><p>
+        Typically, you set the compressed page size to 8K or 4K bytes.
+        Given that the maximum row size for an InnoDB table is around
+        8K, <code class="literal">KEY_BLOCK_SIZE=8</code> is usually a safe
+        choice.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-compression-usage.html">Previous <span class="navHint"> Creating Compressed Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-table-compression.html">Up <span class="navHint"> InnoDB Table Compression </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-compression-tuning-monitoring.html">Next <span class="navHint"> Monitoring InnoDB Table Compression at Runtime </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

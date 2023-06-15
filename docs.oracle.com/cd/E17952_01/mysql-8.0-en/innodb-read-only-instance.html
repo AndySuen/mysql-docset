@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.8.2 Configuring InnoDB for Read-Only Operation</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-configuration.html" title="15.8 InnoDB Configuration" /><link rel="prev" href="innodb-init-startup-configuration.html" title="15.8.1 InnoDB Startup Configuration" /><link rel="next" href="innodb-performance-buffer-pool.html" title="15.8.3 InnoDB Buffer Pool Configuration" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-read-only-instance.html#innodb-read-only-instance">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-init-startup-configuration.html">Previous <span class="navHint"> InnoDB Startup Configuration </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-configuration.html">Up <span class="navHint"> InnoDB Configuration </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-performance-buffer-pool.html">Next <span class="navHint"> InnoDB Buffer Pool Configuration </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-read-only-instance"></a>15.8.2 Configuring InnoDB for Read-Only Operation</h3></div></div></div><p>
+      You can query <code class="literal">InnoDB</code> tables where the MySQL
+      data directory is on read-only media by enabling the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_read_only"><code class="literal">--innodb-read-only</code></a> configuration
+      option at server startup.
+    </p><h4><a id="idm45828888461664"></a>How to Enable</h4><p>
+      To prepare an instance for read-only operation, make sure all the
+      necessary information is <a class="link" href="glossary.html#glos_flush" title="flush">flushed</a>
+      to the data files before storing it on the read-only medium. Run
+      the server with change buffering disabled
+      (<a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffering"><code class="literal">innodb_change_buffering=0</code></a>) and
+      do a <a class="link" href="glossary.html#glos_slow_shutdown" title="slow shutdown">slow shutdown</a>.
+    </p><p>
+      To enable read-only mode for an entire MySQL instance, specify the
+      following configuration options at server startup:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_read_only"><code class="literal">--innodb-read-only=1</code></a>
+        </p></li><li class="listitem"><p>
+          If the instance is on read-only media such as a DVD or CD, or
+          the <code class="filename">/var</code> directory is not writeable by
+          all:
+          <a class="link" href="server-system-variables.html#sysvar_pid_file"><code class="literal">--pid-file=<em class="replaceable"><code>path_on_writeable_media</code></em></code></a>
+          and
+          <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">--event-scheduler=disabled</code></a>
+        </p></li><li class="listitem"><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_temp_data_file_path"><code class="literal">--innodb-temp-data-file-path</code></a>.
+          This option specifies the path, file name, and file size for
+          <code class="literal">InnoDB</code> temporary tablespace data files. The
+          default setting is <code class="literal">ibtmp1:12M:autoextend</code>,
+          which creates the <code class="filename">ibtmp1</code> temporary
+          tablespace data file in the data directory. To prepare an
+          instance for read-only operation, set
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_temp_data_file_path"><code class="literal">innodb_temp_data_file_path</code></a> to
+          a location outside of the data directory. The path must be
+          relative to the data directory. For example:
+        </p><pre class="programlisting">--innodb-temp-data-file-path=../../../tmp/ibtmp1:12M:autoextend
+</pre></li></ul></div><p>
+      As of MySQL 8.0, enabling
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_read_only"><code class="literal">innodb_read_only</code></a> prevents table
+      creation and drop operations for all storage engines. These
+      operations modify data dictionary tables in the
+      <code class="literal">mysql</code> system database, but those tables use the
+      <code class="literal">InnoDB</code> storage engine and cannot be modified
+      when <a class="link" href="innodb-parameters.html#sysvar_innodb_read_only"><code class="literal">innodb_read_only</code></a> is enabled.
+      The same restriction applies to any operation that modifies data
+      dictionary tables, such as <a class="link" href="analyze-table.html" title="13.7.3.1 ANALYZE TABLE Statement"><code class="literal">ANALYZE
+      TABLE</code></a> and
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE
+      <em class="replaceable"><code>tbl_name</code></em>
+      ENGINE=<em class="replaceable"><code>engine_name</code></em></code></a>.
+    </p><p>
+      In addition, other tables in the <code class="literal">mysql</code> system
+      database use the <code class="literal">InnoDB</code> storage engine in MySQL
+      8.0. Making those tables read only results in
+      restrictions on operations that modify them. For example,
+      <a class="link" href="create-user.html" title="13.7.1.3 CREATE USER Statement"><code class="literal">CREATE USER</code></a>,
+      <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a>,
+      <a class="link" href="revoke.html" title="13.7.1.8 REVOKE Statement"><code class="literal">REVOKE</code></a>, and
+      <a class="link" href="install-plugin.html" title="13.7.4.4 INSTALL PLUGIN Statement"><code class="literal">INSTALL PLUGIN</code></a> operations are not
+      permitted in read-only mode.
+    </p><h4><a id="idm45828888428432"></a>Usage Scenarios</h4><p>
+      This mode of operation is appropriate in situations such as:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Distributing a MySQL application, or a set of MySQL data, on a
+          read-only storage medium such as a DVD or CD.
+        </p></li><li class="listitem"><p>
+          Multiple MySQL instances querying the same data directory
+          simultaneously, typically in a data warehousing configuration.
+          You might use this technique to avoid
+          <a class="link" href="glossary.html#glos_bottleneck" title="bottleneck">bottlenecks</a> that can
+          occur with a heavily loaded MySQL instance, or you might use
+          different configuration options for the various instances to
+          tune each one for particular kinds of queries.
+        </p></li><li class="listitem"><p>
+          Querying data that has been put into a read-only state for
+          security or data integrity reasons, such as archived backup
+          data.
+        </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        This feature is mainly intended for flexibility in distribution
+        and deployment, rather than raw performance based on the
+        read-only aspect. See
+        <a class="xref" href="innodb-performance-ro-txn.html" title="8.5.3 Optimizing InnoDB Read-Only Transactions">Section 8.5.3, “Optimizing InnoDB Read-Only Transactions”</a> for ways to tune the
+        performance of read-only queries, which do not require making
+        the entire server read-only.
+      </p></div><h4><a id="idm45828888421152"></a>How It Works</h4><p>
+      When the server is run in read-only mode through the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_read_only"><code class="literal">--innodb-read-only</code></a> option,
+      certain <code class="literal">InnoDB</code> features and components are
+      reduced or turned off entirely:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          No <a class="link" href="glossary.html#glos_change_buffering" title="change buffering">change
+          buffering</a> is done, in particular no merges from the
+          change buffer. To make sure the change buffer is empty when
+          you prepare the instance for read-only operation, disable
+          change buffering
+          (<a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffering"><code class="literal">innodb_change_buffering=0</code></a>)
+          and do a <a class="link" href="glossary.html#glos_slow_shutdown" title="slow shutdown">slow
+          shutdown</a> first.
+        </p></li><li class="listitem"><p>
+          There is no <a class="link" href="glossary.html#glos_crash_recovery" title="crash recovery">crash
+          recovery</a> phase at startup. The instance must have
+          performed a <a class="link" href="glossary.html#glos_slow_shutdown" title="slow shutdown">slow
+          shutdown</a> before being put into the read-only state.
+        </p></li><li class="listitem"><p>
+          Because the <a class="link" href="glossary.html#glos_redo_log" title="redo log">redo log</a> is
+          not used in read-only operation, you can set
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_log_file_size"><code class="literal">innodb_log_file_size</code></a> to the
+          smallest size possible (1 MB) before making the instance
+          read-only.
+        </p></li><li class="listitem"><p>
+          Most background threads are turned off. I/O read threads
+          remain, as well as I/O write threads and a page flush
+          coordinator thread for writes to temporary files, which are
+          permitted in read-only mode. A buffer pool resize thread also
+          remains active to enable online resizing of the buffer pool.
+        </p></li><li class="listitem"><p>
+          Information about deadlocks, monitor output, and so on is not
+          written to temporary files. As a consequence,
+          <a class="link" href="show-engine.html" title="13.7.7.15 SHOW ENGINE Statement"><code class="literal">SHOW ENGINE
+          INNODB STATUS</code></a> does not produce any output.
+        </p></li><li class="listitem"><p>
+          Changes to configuration option settings that would normally
+          change the behavior of write operations, have no effect when
+          the server is in read-only mode.
+        </p></li><li class="listitem"><p>
+          The <a class="link" href="glossary.html#glos_mvcc" title="MVCC">MVCC</a> processing to
+          enforce <a class="link" href="glossary.html#glos_isolation_level" title="isolation level">isolation
+          levels</a> is turned off. All queries read the latest
+          version of a record, because update and deletes are not
+          possible.
+        </p></li><li class="listitem"><p>
+          The <a class="link" href="glossary.html#glos_undo_log" title="undo log">undo log</a> is not used.
+          Disable any settings for the
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_undo_tablespaces"><code class="literal">innodb_undo_tablespaces</code></a> and
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_undo_directory"><code class="literal">innodb_undo_directory</code></a>
+          configuration options.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-init-startup-configuration.html">Previous <span class="navHint"> InnoDB Startup Configuration </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-configuration.html">Up <span class="navHint"> InnoDB Configuration </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-performance-buffer-pool.html">Next <span class="navHint"> InnoDB Buffer Pool Configuration </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

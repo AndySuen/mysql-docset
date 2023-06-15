@@ -1,0 +1,294 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1121"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.3.1%C2%A0Group%20Replication%20Requirements"></a><title>18.3.1&nbsp;Group Replication Requirements</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-requirements-and-limitations.html" title="18.3&nbsp;Requirements and Limitations"/><link rel="prev" href="group-replication-requirements-and-limitations.html" title="18.3&nbsp;Requirements and Limitations"/><link rel="next" href="group-replication-limitations.html" title="18.3.2&nbsp;Group Replication Limitations"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-requirements.html#group-replication-requirements">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-requirements-and-limitations.html">Previous <span class="navHint"> Requirements and Limitations </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-requirements-and-limitations.html">Up <span class="navHint"> Requirements and Limitations </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-limitations.html">Next <span class="navHint"> Group Replication Limitations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-replication-requirements"></a>18.3.1&nbsp;Group Replication Requirements</h3></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="group-replication-requirements.html#group-replication-infrastructure" title="Infrastructure">Infrastructure</a></p></li><li class="listitem"><p><a class="xref" href="group-replication-requirements.html#group-replication-configuration" title="Server Instance Configuration">Server Instance Configuration</a></p></li></ul></div><a id="idm45828854917040" class="indexterm"></a><p>
+      Server instances that you want to use for Group Replication must
+      satisfy the following requirements.
+    </p><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1122"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Infrastructure"></a><h4 class="title"><a id="group-replication-infrastructure"></a>Infrastructure</h4></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-1105"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/InnoDB%20Storage%20Engine."></a><strong>InnoDB Storage Engine.&nbsp;</strong>
+              Data must be stored in the
+              <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> transactional storage
+              engine. Transactions are executed optimistically and then,
+              at commit time, are checked for conflicts. If there are
+              conflicts, in order to maintain consistency across the
+              group, some transactions are rolled back. This means that
+              a transactional storage engine is required. Moreover,
+              <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a>
+              provides some additional functionality that enables better
+              management and handling of conflicts when operating
+              together with Group Replication. The use of other storage
+              engines, including the temporary
+              <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> storage engine, might
+              cause errors in Group Replication. Convert any tables in
+              other storage engines to use
+              <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a>
+              before using the instance with Group Replication. You can
+              prevent the use of other storage engines by setting the
+              <a class="link" href="server-system-variables.html#sysvar_disabled_storage_engines"><code class="literal">disabled_storage_engines</code></a>
+              system variable on group members, for example:
+            </p><pre class="programlisting">disabled_storage_engines=&#34;MyISAM,BLACKHOLE,FEDERATED,ARCHIVE,MEMORY&#34;
+</pre></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1106"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Primary%20Keys."></a><strong>Primary Keys.&nbsp;</strong>
+              Every table that is to be replicated by the group must
+              have a defined primary key, or primary key equivalent
+              where the equivalent is a non-null unique key. Such keys
+              are required as a unique identifier for every row within a
+              table, enabling the system to determine which transactions
+              conflict by identifying exactly which rows each
+              transaction has modified. Group Replication has its own
+              built-in set of checks for primary keys or primary key
+              equivalents, and does not use the checks carried out by
+              the
+              <a class="link" href="server-system-variables.html#sysvar_sql_require_primary_key"><code class="literal">sql_require_primary_key</code></a>
+              system variable. You may set
+              <code class="literal">sql_require_primary_key=ON</code> for a server
+              instance where Group Replication is running, and you may
+              set the <code class="literal">REQUIRE_TABLE_PRIMARY_KEY_CHECK</code>
+              option of the <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION
+              SOURCE TO</code></a> | <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER
+              TO</code></a> statement to <code class="literal">ON</code>&nbsp;for a
+              Group Replication channel. However, be aware that you
+              might find some transactions that are permitted under
+              Group Replication&#39;s built-in checks are not permitted
+              under the checks carried out when you set
+              <code class="literal">sql_require_primary_key=ON</code> or
+              <code class="literal">REQUIRE_TABLE_PRIMARY_KEY_CHECK=ON</code>.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1107"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Network%20Performance."></a><strong>Network Performance.&nbsp;</strong>
+              MySQL Group Replication is designed to be deployed in a
+              cluster environment where server instances are very close
+              to each other. The performance and stability of a group
+              can be impacted by both network latency and network
+              bandwidth. Bi-directional communication must be maintained
+              at all times between all group members. If either inbound
+              or outbound communication is blocked for a server instance
+              (for example, by a firewall, or by connectivity issues),
+              the member cannot function in the group, and the group
+              members (including the member with issues) might not be
+              able to report the correct member status for the affected
+              server instance.
+            </p><p>
+            From MySQL 8.0.14, you can use an IPv4 or IPv6 network
+            infrastructure, or a mix of the two, for TCP communication
+            between remote Group Replication servers. There is also
+            nothing preventing Group Replication from operating over a
+            virtual private network (VPN).
+          </p><p>
+            Also from MySQL 8.0.14, where Group Replication server
+            instances are co-located and share a local group
+            communication engine (XCom) instance, a dedicated input
+            channel with lower overhead is used for communication where
+            possible instead of the TCP socket. For certain Group
+            Replication tasks that require communication between remote
+            XCom instances, such as joining a group, the TCP network is
+            still used, so network performance influences the group&#39;s
+            performance.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1123"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Server%20Instance%20Configuration"></a><h4 class="title"><a id="group-replication-configuration"></a>Server Instance Configuration</h4></div></div></div><p>
+        The following options must be configured as shown on server
+        instances that are members of a group.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-1108"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Unique%20Server%20Identifier."></a><strong>Unique Server Identifier.&nbsp;</strong>
+              Use the <a class="link" href="replication-options.html#sysvar_server_id"><code class="literal">server_id</code></a> system
+              variable to configure the server with a unique server ID,
+              as required for all servers in replication topologies. The
+              server ID must be a positive integer between 1 and
+              (2<sup>32</sup>)&minus;1, and it must be
+              different from every other server ID in use by any other
+              server in the replication topology.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1109"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Binary%20Log%20Active."></a><strong>Binary Log Active.&nbsp;</strong>
+              Set
+              <a class="link" href="replication-options-binary-log.html#sysvar_log_bin"><code class="literal">--log-bin[=log_file_name]</code></a>.
+              From MySQL 8.0, binary logging is enabled by default, and
+              you do not need to specify this option unless you want to
+              change the name of the binary log files. Group Replication
+              replicates the binary log&#39;s contents, therefore the binary
+              log needs to be on for it to operate. See
+              <a class="xref" href="binary-log.html" title="5.4.4&nbsp;The Binary Log">Section&nbsp;5.4.4, &ldquo;The Binary Log&rdquo;</a>.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1110"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Replica%20Updates%20Logged."></a><strong>Replica Updates Logged.&nbsp;</strong>
+              Set
+              <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="literal">log_replica_updates=ON</code></a>
+              (from MySQL 8.0.26) or
+              <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="literal">log_slave_updates=ON</code></a>
+              (before MySQL 8.0.26). From MySQL 8.0, this setting is the
+              default, so you do not need to specify it. Group members
+              need to log transactions that are received from their
+              donors at joining time and applied through the replication
+              applier, and to log all transactions that they receive and
+              apply from the group. This enables Group Replication to
+              carry out distributed recovery by state transfer from an
+              existing group member&#39;s binary log.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1111"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Binary%20Log%20Row%20Format."></a><strong>Binary Log Row Format.&nbsp;</strong>
+              Set <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=row</code></a>.
+              This setting is the default, so you do not need to specify
+              it. Group Replication relies on the row-based replication
+              format to propagate changes consistently among the servers
+              in the group, and extract the necessary information to
+              detect conflicts among transactions that execute
+              concurrently in different servers in the group. From MySQL
+              8.0.19, the <code class="literal">REQUIRE_ROW_FORMAT</code> setting
+              is automatically added to Group Replication&#39;s channels to
+              enforce the use of row-based replication when the
+              transactions are applied. See
+              <a class="xref" href="replication-formats.html" title="17.2.1&nbsp;Replication Formats">Section&nbsp;17.2.1, &ldquo;Replication Formats&rdquo;</a> and
+              <a class="xref" href="replication-privilege-checks.html" title="17.3.3&nbsp;Replication Privilege Checks">Section&nbsp;17.3.3, &ldquo;Replication Privilege Checks&rdquo;</a>.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1112"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Binary%20Log%20Checksums%20Off%20%28to%20MySQL%208.0.20%29."></a><strong>Binary Log Checksums Off (to MySQL 8.0.20).&nbsp;</strong>
+              Up to and including MySQL 8.0.20, set
+              <a class="link" href="replication-options-binary-log.html#sysvar_binlog_checksum"><code class="literal">binlog_checksum=NONE</code></a>. In
+              these releases, Group Replication cannot make use of
+              checksums and does not support their presence in the
+              binary log. From MySQL 8.0.21, Group Replication supports
+              checksums, so group members may use the default setting
+              <a class="link" href="replication-options-binary-log.html#sysvar_binlog_checksum"><code class="literal">binlog_checksum=CRC32</code></a>,
+              and you do not need to specify it.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1113"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Global%20Transaction%20Identifiers%20On."></a><strong>Global Transaction Identifiers On.&nbsp;</strong>
+              Set <a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">gtid_mode=ON</code></a> and
+              <a class="link" href="replication-options-gtids.html#sysvar_enforce_gtid_consistency"><code class="literal">enforce_gtid_consistency=ON</code></a>.
+              These settings are not the defaults. GTID-based
+              replication is required for Group Replication, which uses
+              global transaction identifiers to track the transactions
+              that have been committed on every server instance in the
+              group. See <a class="xref" href="replication-gtids.html" title="17.1.3&nbsp;Replication with Global Transaction Identifiers">Section&nbsp;17.1.3, &ldquo;Replication with Global Transaction Identifiers&rdquo;</a>.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1114"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Replication%20Information%20Repositories."></a><strong>Replication Information Repositories.&nbsp;</strong>
+              Set
+              <a class="link" href="replication-options-replica.html#sysvar_master_info_repository"><code class="literal">master_info_repository=TABLE</code></a>
+              and
+              <a class="link" href="replication-options-replica.html#sysvar_relay_log_info_repository"><code class="literal">relay_log_info_repository=TABLE</code></a>.
+              In MySQL 8.0, these settings are the default, and the
+              <code class="literal">FILE</code> setting is deprecated. From MySQL
+              8.0.23, the use of these system variables is deprecated,
+              so omit the system variables and just allow the default.
+              The replication applier needs to have the replication
+              metadata written to the
+              <code class="literal">mysql.slave_master_info</code> and
+              <code class="literal">mysql.slave_relay_log_info</code> system
+              tables to ensure the Group Replication plugin has
+              consistent recoverability and transactional management of
+              the replication metadata. See
+              <a class="xref" href="replica-logs-status.html" title="17.2.4.2&nbsp;Replication Metadata Repositories">Section&nbsp;17.2.4.2, &ldquo;Replication Metadata Repositories&rdquo;</a>.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1115"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Transaction%20Write%20Set%20Extraction."></a><strong>Transaction Write Set Extraction.&nbsp;</strong>
+              Set
+              <a class="link" href="replication-options-binary-log.html#sysvar_transaction_write_set_extraction"><code class="literal">transaction_write_set_extraction=XXHASH64</code></a>
+              so that while collecting rows to log them to the binary
+              log, the server collects the write set as well. In MySQL
+              8.0, this setting is the default, and from MySQL 8.0.26,
+              the use of the system variable is deprecated. The write
+              set is based on the primary keys of each row and is a
+              simplified and compact view of a tag that uniquely
+              identifies the row that was changed. Group Replication
+              uses this information for conflict detection and
+              certification on all group members.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1116"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Default%20Table%20Encryption."></a><strong>Default Table Encryption.&nbsp;</strong>
+              Set
+              <a class="link" href="server-system-variables.html#sysvar_default_table_encryption"><code class="literal">default_table_encryption</code></a>
+              to the same value on all group members. Default schema and
+              tablespace encryption can be either enabled
+              (<code class="literal">ON</code>) or disabled
+              (<code class="literal">OFF</code>, the default) as long as the
+              setting is the same on all members.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1117"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Lower%20Case%20Table%20Names."></a><strong>Lower Case Table Names.&nbsp;</strong>
+              Set
+              <a class="link" href="server-system-variables.html#sysvar_lower_case_table_names"><code class="literal">lower_case_table_names</code></a> to
+              the same value on all group members. A setting of 1 is
+              correct for the use of the
+              <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> storage engine, which
+              is required for Group Replication. Note that this setting
+              is not the default on all platforms.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1118"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Binary%20Log%20Dependency%20Tracking."></a><strong>Binary Log Dependency Tracking.&nbsp;</strong>
+              Setting
+              <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_dependency_tracking"><code class="literal">binlog_transaction_dependency_tracking=WRITESET_SESSION</code></a>
+              can improve performance for a group member, depending on
+              the group&#39;s workload. Group Replication carries out its
+              own parallelization after certification when applying
+              transactions from the relay log, independently of the
+              value set for
+              <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_dependency_tracking"><code class="literal">binlog_transaction_dependency_tracking</code></a>.
+              However, the value of
+              <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_dependency_tracking"><code class="literal">binlog_transaction_dependency_tracking</code></a>
+              does affect how transactions are written to the binary
+              logs on Group Replication members. The dependency
+              information in those logs is used to assist the process of
+              state transfer from a donor&#39;s binary log for distributed
+              recovery, which takes place whenever a member joins or
+              rejoins the group.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1119"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Multithreaded%20Appliers."></a><strong>Multithreaded Appliers.&nbsp;</strong>
+              Group Replication members can be configured as
+              multithreaded replicas, enabling transactions to be
+              applied in parallel. From MySQL 8.0.27, all replicas are
+              configured as multithreaded by default. A nonzero value
+              for the system variable
+              <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_workers"><code class="literal">replica_parallel_workers</code></a>
+              (from MySQL 8.0.26) or
+              <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_workers"><code class="literal">slave_parallel_workers</code></a>
+              (before MySQL 8.0.26) enables the multithreaded applier on
+              the member. The default from MySQL 8.0.27 is 4 parallel
+              applier threads, and up to 1024 parallel applier threads
+              can be specified. For a multithreaded replica, the
+              following settings are also required, which are the
+              defaults from MySQL 8.0.27:
+            </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">
+                <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order=ON</code></a>
+                (from MySQL 8.0.26) or
+                <a class="link" href="replication-options-replica.html#sysvar_slave_preserve_commit_order"><code class="literal">slave_preserve_commit_order=ON</code></a>
+                (before MySQL 8.0.26)
+              </span></dt><dd><p>
+                  This setting is required to ensure that the final
+                  commit of parallel transactions is in the same order
+                  as the original transactions. Group Replication relies
+                  on consistency mechanisms built around the guarantee
+                  that all participating members receive and apply
+                  committed transactions in the same order.
+                </p></dd><dt><span class="term">
+                <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_type"><code class="literal">replica_parallel_type=LOGICAL_CLOCK</code></a>
+                (from MySQL 8.0.26) or
+                <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_type"><code class="literal">slave_parallel_type=LOGICAL_CLOCK</code></a>
+                (before MySQL 8.0.26)
+              </span></dt><dd><p>
+                  This setting is required with
+                  <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order=ON</code></a>
+                  or
+                  <a class="link" href="replication-options-replica.html#sysvar_slave_preserve_commit_order"><code class="literal">slave_preserve_commit_order=ON</code></a>.
+                  It specifies the policy used to decide which
+                  transactions are allowed to execute in parallel on the
+                  replica.
+                </p></dd></dl></div><p>
+            Setting
+            <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_workers"><code class="literal">replica_parallel_workers=0</code></a>
+            or <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_workers"><code class="literal">slave_parallel_workers=0</code></a>
+            disables parallel execution and gives the replica a single
+            applier thread and no coordinator thread. With that setting,
+            the <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_type"><code class="literal">replica_parallel_type</code></a>
+            or <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_type"><code class="literal">slave_parallel_type</code></a> and
+            <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order</code></a>
+            or
+            <a class="link" href="replication-options-replica.html#sysvar_slave_preserve_commit_order"><code class="literal">slave_preserve_commit_order</code></a>
+            options have no effect and are ignored. From MySQL 8.0.27,
+            if parallel execution is disabled when GTIDs are in use on a
+            replica, the replica actually uses one parallel worker, to
+            take advantage of the method for retrying transactions
+            without accessing the file positions. However, this behavior
+            does not change anything for the user.
+          </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-1120"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Detached%20XA%20transactions."></a><strong>Detached XA transactions.&nbsp;</strong>
+              MySQL 8.0.29 and later supports detached XA transactions.
+              A detached transaction is one which, once prepared, is no
+              longer connected to the current session. This happens
+              automatically as part of executing
+              <a class="link" href="xa-statements.html" title="13.3.8.1&nbsp;XA Transaction SQL Statements"><code class="literal">XA
+              PREPARE</code></a>. The prepared XA transaction can be
+              committed or rolled back by another connection, and the
+              current session can then initiate another XA transaction
+              or local transaction without waiting for the transaction
+              that was just prepared to complete.
+            </p><p>
+            When detached XA transaction support is enabled
+            (<a class="link" href="server-system-variables.html#sysvar_xa_detach_on_prepare"><code class="literal">xa_detach_on_prepare = ON</code></a>)
+            it is possible for any connection to this server to list
+            (using <a class="link" href="xa-statements.html" title="13.3.8.1&nbsp;XA Transaction SQL Statements"><code class="literal">XA
+            RECOVER</code></a>), roll back, or commit any prepared XA
+            transaction. In addition, you cannot use temporary tables
+            within detached XA transactions.
+          </p><p>
+            You can disable support for detached XA transactions by
+            setting
+            <a class="link" href="server-system-variables.html#sysvar_xa_detach_on_prepare"><code class="literal">xa_detach_on_prepare</code></a> to
+            <code class="literal">OFF</code>, but this is not recommended. In
+            particular, if this server is being set up as an instance in
+            MySQL group replication, you should leave this variable set
+            to its default value (<code class="literal">ON</code>).
+          </p><p>
+            See <a class="xref" href="xa-states.html" title="13.3.8.2&nbsp;XA Transaction States">Section&nbsp;13.3.8.2, &ldquo;XA Transaction States&rdquo;</a>, for more information.
+          </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-requirements-and-limitations.html">Previous <span class="navHint"> Requirements and Limitations </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-requirements-and-limitations.html">Up <span class="navHint"> Requirements and Limitations </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-limitations.html">Next <span class="navHint"> Group Replication Limitations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

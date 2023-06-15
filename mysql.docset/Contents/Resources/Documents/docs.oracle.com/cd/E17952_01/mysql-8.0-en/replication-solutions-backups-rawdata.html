@@ -1,0 +1,73 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3778"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.4.1.2%C2%A0Backing%20Up%20Raw%20Data%20from%20a%20Replica"></a><title>17.4.1.2&nbsp;Backing Up Raw Data from a Replica</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-solutions-backups.html" title="17.4.1&nbsp;Using Replication for Backups"/><link rel="prev" href="replication-solutions-backups-mysqldump.html" title="17.4.1.1&nbsp;Backing Up a Replica Using mysqldump"/><link rel="next" href="replication-solutions-backups-read-only.html" title="17.4.1.3&nbsp;Backing Up a Source or Replica by Making It Read Only"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-solutions-backups-rawdata.html#replication-solutions-backups-rawdata">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-solutions-backups-mysqldump.html">Previous <span class="navHint"> Backing Up a Replica Using mysqldump </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-solutions-backups.html">Up <span class="navHint"> Using Replication for Backups </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-solutions-backups-read-only.html">Next <span class="navHint"> Backing Up a Source or Replica by Making It Read Only </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3777"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.4.1.2%C2%A0Backing%20Up%20Raw%20Data%20from%20a%20Replica"></a><h4 class="title"><a id="replication-solutions-backups-rawdata"></a>17.4.1.2&nbsp;Backing Up Raw Data from a Replica</h4></div></div></div><p>
+        To guarantee the integrity of the files that are copied, backing
+        up the raw data files on your MySQL replica should take place
+        while your replica server is shut down. If the MySQL server is
+        still running, background tasks may still be updating the
+        database files, particularly those involving storage engines
+        with background processes such as <code class="literal">InnoDB</code>.
+        With <code class="literal">InnoDB</code>, these problems should be
+        resolved during crash recovery, but since the replica server can
+        be shut down during the backup process without affecting the
+        execution of the source it makes sense to take advantage of this
+        capability.
+      </p><p>
+        To shut down the server and back up the files:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Shut down the replica MySQL server:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqladmin shutdown</code></strong></pre></li><li class="listitem"><p>
+            Copy the data files. You can use any suitable copying or
+            archive utility, including <span class="command"><strong>cp</strong></span>,
+            <span class="command"><strong>tar</strong></span> or <span class="command"><strong>WinZip</strong></span>. For
+            example, assuming that the data directory is located under
+            the current directory, you can archive the entire directory
+            as follows:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>tar cf /tmp/dbbackup.tar ./data</code></strong></pre></li><li class="listitem"><p>
+            Start the MySQL server again. Under Unix:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqld_safe &amp;</code></strong></pre><p>
+            Under Windows:
+          </p><pre class="programlisting">C:\&gt; <strong class="userinput"><code>&#34;C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld&#34;</code></strong></pre></li></ol></div><p>
+        Normally you should back up the entire data directory for the
+        replica MySQL server. If you want to be able to restore the data
+        and operate as a replica (for example, in the event of failure
+        of the replica), in addition to the data, you need to have the
+        replica&#39;s connection metadata repository and applier metadata
+        repository, and the relay log files. These items are needed to
+        resume replication after you restore the replica&#39;s data.
+        Assuming tables have been used for the replica&#39;s connection
+        metadata repository and applier metadata repository (see
+        <a class="xref" href="replica-logs.html" title="17.2.4&nbsp;Relay Log and Replication Metadata Repositories">Section&nbsp;17.2.4, &ldquo;Relay Log and Replication Metadata Repositories&rdquo;</a>), which is the default in MySQL
+        8.0, these tables are backed up along with the data
+        directory. If files have been used for the repositories, which
+        is deprecated, you must back these up separately. The relay log
+        files must be backed up separately if they have been placed in a
+        different location to the data directory.
+      </p><p>
+        If you lose the relay logs but still have the
+        <code class="filename">relay-log.info</code> file, you can check it to
+        determine how far the replication SQL thread has executed in the
+        source&#39;s binary logs. Then you can use
+        <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>
+        statement (from MySQL 8.0.23) or <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE
+        MASTER TO</code></a> statement (before MySQL 8.0.23) with the
+        <code class="literal">SOURCE_LOG_FILE</code> |
+        <code class="literal">MASTER_LOG_FILE</code> and
+        <code class="literal">SOURCE_LOG_POS</code> |
+        <code class="literal">MASTER_LOG_POS</code> options to tell the replica to
+        re-read the binary logs from that point. This requires that the
+        binary logs still exist on the source server.
+      </p><p>
+        If your replica is replicating <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD
+        DATA</code></a> statements, you should also back up any
+        <code class="filename">SQL_LOAD-*</code> files that exist in the
+        directory that the replica uses for this purpose. The replica
+        needs these files to resume replication of any interrupted
+        <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> operations. The
+        location of this directory is the value of the system variable
+        <a class="link" href="replication-options-replica.html#sysvar_replica_load_tmpdir"><code class="literal">replica_load_tmpdir</code></a> (from MySQL
+        8.0.26) or <a class="link" href="replication-options-replica.html#sysvar_slave_load_tmpdir"><code class="literal">slave_load_tmpdir</code></a>
+        (before MySQL 8.0.26). If the server was not started with that
+        variable set, the directory location is the value of the
+        <a class="link" href="server-system-variables.html#sysvar_tmpdir"><code class="literal">tmpdir</code></a> system variable.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-solutions-backups-mysqldump.html">Previous <span class="navHint"> Backing Up a Replica Using mysqldump </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-solutions-backups.html">Up <span class="navHint"> Using Replication for Backups </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-solutions-backups-read-only.html">Next <span class="navHint"> Backing Up a Source or Replica by Making It Read Only </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

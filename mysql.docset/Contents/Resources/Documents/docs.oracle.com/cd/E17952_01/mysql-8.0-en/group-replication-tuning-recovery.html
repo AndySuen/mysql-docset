@@ -1,0 +1,76 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1146"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.5.4.3%C2%A0Configuring%20Distributed%20Recovery"></a><title>18.5.4.3&nbsp;Configuring Distributed Recovery</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-distributed-recovery.html" title="18.5.4&nbsp;Distributed Recovery"/><link rel="prev" href="group-replication-cloning.html" title="18.5.4.2&nbsp;Cloning for Distributed Recovery"/><link rel="next" href="group-replication-distributed-recovery-fault.html" title="18.5.4.4&nbsp;Fault Tolerance for Distributed Recovery"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-tuning-recovery.html#group-replication-tuning-recovery">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-cloning.html">Previous <span class="navHint"> Cloning for Distributed Recovery </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-distributed-recovery.html">Up <span class="navHint"> Distributed Recovery </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-distributed-recovery-fault.html">Next <span class="navHint"> Fault Tolerance for Distributed Recovery </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1147"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/18.5.4.3%C2%A0Configuring%20Distributed%20Recovery"></a><h4 class="title"><a id="group-replication-tuning-recovery"></a>18.5.4.3&nbsp;Configuring Distributed Recovery</h4></div></div></div><a id="idm45828853930224" class="indexterm"></a><p>
+        Several aspects of Group Replication&#39;s distributed recovery
+        process can be configured to suit your system.
+      </p><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="idm45828853928192"></a>Number of Connection Attempts</h5></div></div></div><p>
+          For state transfer from the binary log, Group Replication
+          limits the number of attempts a joining member makes when
+          trying to connect to a donor from the pool of donors. If the
+          connection retry limit is reached without a successful
+          connection, the distributed recovery procedure terminates with
+          an error. Note that this limit specifies the total number of
+          attempts that the joining member makes to connect to a donor.
+          For example, if 2 group members are suitable donors, and the
+          connection retry limit is set to 4, the joining member makes 2
+          attempts to connect to each of the donors before reaching the
+          limit.
+        </p><p>
+          The default connection retry limit is 10. You can configure
+          this setting using the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_retry_count"><code class="literal">group_replication_recovery_retry_count</code></a>
+          system variable. The following command sets the maximum number
+          of attempts to connect to a donor to 5:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET GLOBAL group_replication_recovery_retry_count= 5;</code></strong>
+</pre><p>
+          For remote cloning operations, this limit does not apply.
+          Group Replication makes only one connection attempt to each
+          suitable donor for cloning, before starting to attempt state
+          transfer from the binary log.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="idm45828853922000"></a>Sleep Interval for Connection Attempts</h5></div></div></div><p>
+          For state transfer from the binary log, the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_reconnect_interval"><code class="literal">group_replication_recovery_reconnect_interval</code></a>
+          system variable defines how much time the distributed recovery
+          process should sleep between donor connection attempts. Note
+          that distributed recovery does not sleep after every donor
+          connection attempt. As the joining member is connecting to
+          different servers and not to the same one repeatedly, it can
+          assume that the problem that affects server A does not affect
+          server B. Distributed recovery therefore suspends only when it
+          has gone through all the possible donors. Once the server
+          joining the group has made one attempt to connect to each of
+          the suitable donors in the group, the distributed recovery
+          process sleeps for the number of seconds configured by the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_reconnect_interval"><code class="literal">group_replication_recovery_reconnect_interval</code></a>
+          system variable. For example, if 2 group members are suitable
+          donors, and the connection retry limit is set to 4, the
+          joining member makes one attempt to connect to each of the
+          donors, then sleeps for the connection retry interval, then
+          makes one further attempt to connect to each of the donors
+          before reaching the limit.
+        </p><p>
+          The default connection retry interval is 60 seconds, and you
+          can change this value dynamically. The following command sets
+          the distributed recovery donor connection retry interval to
+          120 seconds:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET GLOBAL group_replication_recovery_reconnect_interval= 120;</code></strong>
+</pre><p>
+          For remote cloning operations, this interval does not apply.
+          Group Replication makes only one connection attempt to each
+          suitable donor for cloning, before starting to attempt state
+          transfer from the binary log.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="idm45828853913952"></a>Marking the Joining Member Online</h5></div></div></div><p>
+          When distributed recovery has successfully completed state
+          transfer from the donor to the joining member, the joining
+          member can be marked as online in the group and ready to
+          participate. By default, this is done after the joining member
+          has received and applied all the transactions that it was
+          missing. Optionally, you can allow a joining member to be
+          marked as online when it has received and certified (that is,
+          completed conflict detection for) all the transactions that it
+          was missing, but before it has applied them. If you want to do
+          this, use the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_complete_at"><code class="literal">group_replication_recovery_complete_at</code></a>
+          system variable to specify the alternative setting
+          <code class="literal">TRANSACTIONS_CERTIFIED</code>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-cloning.html">Previous <span class="navHint"> Cloning for Distributed Recovery </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-distributed-recovery.html">Up <span class="navHint"> Distributed Recovery </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-distributed-recovery-fault.html">Next <span class="navHint"> Fault Tolerance for Distributed Recovery </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

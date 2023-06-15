@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>10.8.4 Collation Coercibility in Expressions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="charset-collations.html" title="10.8 Collation Issues" /><link rel="prev" href="charset-collation-compatibility.html" title="10.8.3 Character Set and Collation Compatibility" /><link rel="next" href="charset-binary-collations.html" title="10.8.5 The binary Collation Compared to _bin Collations" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="charset-collation-coercibility.html#charset-collation-coercibility">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="charset-collation-compatibility.html">Previous <span class="navHint"> Character Set and Collation Compatibility </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="charset-collations.html">Up <span class="navHint"> Collation Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="charset-binary-collations.html">Next <span class="navHint"> The binary Collation Compared to _bin Collations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="charset-collation-coercibility"></a>10.8.4 Collation Coercibility in Expressions</h3></div></div></div><a id="idm45828943925856" class="indexterm"></a><a id="idm45828943924368" class="indexterm"></a><p>
+        In the great majority of statements, it is obvious what
+        collation MySQL uses to resolve a comparison operation. For
+        example, in the following cases, it should be clear that the
+        collation is the collation of column <code class="literal">x</code>:
+      </p><pre class="programlisting">SELECT x FROM T ORDER BY x;
+SELECT x FROM T WHERE x = x;
+SELECT DISTINCT x FROM T;
+</pre><p>
+        However, with multiple operands, there can be ambiguity. For
+        example, this statement performs a comparison between the column
+        <code class="literal">x</code> and the string literal
+        <code class="literal">'Y'</code>:
+      </p><pre class="programlisting">SELECT x FROM T WHERE x = 'Y';
+</pre><p>
+        If <code class="literal">x</code> and <code class="literal">'Y'</code> have the same
+        collation, there is no ambiguity about the collation to use for
+        the comparison. But if they have different collations, should
+        the comparison use the collation of <code class="literal">x</code>, or of
+        <code class="literal">'Y'</code>? Both <code class="literal">x</code> and
+        <code class="literal">'Y'</code> have collations, so which collation takes
+        precedence?
+      </p><p>
+        A mix of collations may also occur in contexts other than
+        comparison. For example, a multiple-argument concatenation
+        operation such as <a class="link" href="string-functions.html#function_concat"><code class="literal">CONCAT(x,'Y')</code></a>
+        combines its arguments to produce a single string. What
+        collation should the result have?
+      </p><p>
+        To resolve questions like these, MySQL checks whether the
+        collation of one item can be coerced to the collation of the
+        other. MySQL assigns coercibility values as follows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            An explicit <code class="literal">COLLATE</code> clause has a
+            coercibility of 0 (not coercible at all).
+          </p></li><li class="listitem"><p>
+            The concatenation of two strings with different collations
+            has a coercibility of 1.
+          </p></li><li class="listitem"><p>
+            The collation of a column or a stored routine parameter or
+            local variable has a coercibility of 2.
+          </p></li><li class="listitem"><p>
+            A <span class="quote">“<span class="quote">system constant</span>”</span> (the string returned by
+            functions such as <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> or
+            <a class="link" href="information-functions.html#function_version"><code class="literal">VERSION()</code></a>) has a coercibility
+            of 3.
+          </p></li><li class="listitem"><p>
+            The collation of a literal has a coercibility of 4.
+          </p></li><li class="listitem"><p>
+            The collation of a numeric or temporal value has a
+            coercibility of 5.
+          </p></li><li class="listitem"><p>
+            <code class="literal">NULL</code> or an expression that is derived
+            from <code class="literal">NULL</code> has a coercibility of 6.
+          </p></li></ul></div><p>
+        MySQL uses coercibility values with the following rules to
+        resolve ambiguities:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Use the collation with the lowest coercibility value.
+          </p></li><li class="listitem"><p>
+            If both sides have the same coercibility, then:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                If both sides are Unicode, or both sides are not
+                Unicode, it is an error.
+              </p></li><li class="listitem"><p>
+                If one of the sides has a Unicode character set, and
+                another side has a non-Unicode character set, the side
+                with Unicode character set wins, and automatic character
+                set conversion is applied to the non-Unicode side. For
+                example, the following statement does not return an
+                error:
+              </p><pre class="programlisting">SELECT CONCAT(utf8mb4_column, latin1_column) FROM t1;
+</pre><p>
+                It returns a result that has a character set of
+                <code class="literal">utf8mb4</code> and the same collation as
+                <code class="literal">utf8mb4_column</code>. Values of
+                <code class="literal">latin1_column</code> are automatically
+                converted to <code class="literal">utf8mb4</code> before
+                concatenating.
+              </p></li><li class="listitem"><p>
+                For an operation with operands from the same character
+                set but that mix a <code class="literal">_bin</code> collation and
+                a <code class="literal">_ci</code> or <code class="literal">_cs</code>
+                collation, the <code class="literal">_bin</code> collation is
+                used. This is similar to how operations that mix
+                nonbinary and binary strings evaluate the operands as
+                binary strings, applied to collations rather than data
+                types.
+              </p></li></ul></div></li></ul></div><p>
+        Although automatic conversion is not in the SQL standard, the
+        standard does say that every character set is (in terms of
+        supported characters) a <span class="quote">“<span class="quote">subset</span>”</span> of Unicode.
+        Because it is a well-known principle that <span class="quote">“<span class="quote">what applies to
+        a superset can apply to a subset,</span>”</span> we believe that a
+        collation for Unicode can apply for comparisons with non-Unicode
+        strings. More generally, MySQL uses the concept of character set
+        repertoire, which can sometimes be used to determine subset
+        relationships among character sets and enable conversion of
+        operands in operations that would otherwise produce an error.
+        See <a class="xref" href="charset-repertoire.html" title="10.2.1 Character Set Repertoire">Section 10.2.1, “Character Set Repertoire”</a>.
+      </p><p>
+        The following table illustrates some applications of the
+        preceding rules.
+      </p><div class="informaltable"><table summary="Comparisons and the collation used for each comparison."><col style="width: 50%" /><col style="width: 50%" /><thead><tr>
+            <th>Comparison</th>
+            <th>Collation Used</th>
+          </tr></thead><tbody><tr>
+            <td><code class="literal">column1 = 'A'</code></td>
+            <td>Use collation of <code class="literal">column1</code></td>
+          </tr><tr>
+            <td><code class="literal">column1 = 'A' COLLATE x</code></td>
+            <td>Use collation of <code class="literal">'A' COLLATE x</code></td>
+          </tr><tr>
+            <td><code class="literal">column1 COLLATE x = 'A' COLLATE y</code></td>
+            <td>Error</td>
+          </tr></tbody></table></div><p>
+        To determine the coercibility of a string expression, use the
+        <a class="link" href="information-functions.html#function_coercibility"><code class="literal">COERCIBILITY()</code></a> function (see
+        <a class="xref" href="information-functions.html" title="12.15 Information Functions">Section 12.15, “Information Functions”</a>):
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT COERCIBILITY(_utf8mb4'A' COLLATE utf8mb4_bin);</code></strong>
+        -&gt; 0
+mysql&gt; <strong class="userinput"><code>SELECT COERCIBILITY(VERSION());</code></strong>
+        -&gt; 3
+mysql&gt; <strong class="userinput"><code>SELECT COERCIBILITY('A');</code></strong>
+        -&gt; 4
+mysql&gt; <strong class="userinput"><code>SELECT COERCIBILITY(1000);</code></strong>
+        -&gt; 5
+mysql&gt; <strong class="userinput"><code>SELECT COERCIBILITY(NULL);</code></strong>
+        -&gt; 6
+</pre><p>
+        For implicit conversion of a numeric or temporal value to a
+        string, such as occurs for the argument <code class="literal">1</code> in
+        the expression <a class="link" href="string-functions.html#function_concat"><code class="literal">CONCAT(1, 'abc')</code></a>,
+        the result is a character (nonbinary) string that has a
+        character set and collation determined by the
+        <a class="link" href="server-system-variables.html#sysvar_character_set_connection"><code class="literal">character_set_connection</code></a> and
+        <a class="link" href="server-system-variables.html#sysvar_collation_connection"><code class="literal">collation_connection</code></a> system
+        variables. See <a class="xref" href="type-conversion.html" title="12.3 Type Conversion in Expression Evaluation">Section 12.3, “Type Conversion in Expression Evaluation”</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="charset-collation-compatibility.html">Previous <span class="navHint"> Character Set and Collation Compatibility </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="charset-collations.html">Up <span class="navHint"> Collation Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="charset-binary-collations.html">Next <span class="navHint"> The binary Collation Compared to _bin Collations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

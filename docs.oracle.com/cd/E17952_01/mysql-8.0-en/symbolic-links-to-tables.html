@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.12.2.2 Using Symbolic Links for MyISAM Tables on Unix</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="symbolic-links.html" title="8.12.2 Using Symbolic Links" /><link rel="prev" href="symbolic-links-to-databases.html" title="8.12.2.1 Using Symbolic Links for Databases on Unix" /><link rel="next" href="windows-symbolic-links.html" title="8.12.2.3 Using Symbolic Links for Databases on Windows" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="symbolic-links-to-tables.html#symbolic-links-to-tables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="symbolic-links-to-databases.html">Previous <span class="navHint"> Using Symbolic Links for Databases on Unix </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="symbolic-links.html">Up <span class="navHint"> Using Symbolic Links </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="windows-symbolic-links.html">Next <span class="navHint"> Using Symbolic Links for Databases on Windows </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="symbolic-links-to-tables"></a>8.12.2.2 Using Symbolic Links for MyISAM Tables on Unix</h4></div></div></div><a id="idm45828949250032" class="indexterm"></a><a id="idm45828949248544" class="indexterm"></a><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            Symbolic link support as described here, along with the
+            <a class="link" href="server-options.html#option_mysqld_symbolic-links"><code class="option">--symbolic-links</code></a> option that
+            controls it, and is deprecated; expect these to be removed
+            in a future version of MySQL. In addition, the option is
+            disabled by default.
+          </p></div><p>
+          Symlinks are fully supported only for
+          <code class="literal">MyISAM</code> tables. For files used by tables for
+          other storage engines, you may get strange problems if you try
+          to use symbolic links. For <code class="literal">InnoDB</code> tables,
+          use the alternative technique explained in
+          <a class="xref" href="innodb-create-table-external.html" title="15.6.1.2 Creating Tables Externally">Section 15.6.1.2, “Creating Tables Externally”</a> instead.
+        </p><p>
+          Do not symlink tables on systems that do not have a fully
+          operational <code class="literal">realpath()</code> call. (Linux and
+          Solaris support <code class="literal">realpath()</code>). To determine
+          whether your system supports symbolic links, check the value
+          of the <a class="link" href="server-system-variables.html#sysvar_have_symlink"><code class="literal">have_symlink</code></a> system
+          variable using this statement:
+        </p><pre class="programlisting">SHOW VARIABLES LIKE 'have_symlink';
+</pre><p>
+          The handling of symbolic links for <code class="literal">MyISAM</code>
+          tables works as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              In the data directory, you always have the data
+              (<code class="filename">.MYD</code>) file and the index
+              (<code class="filename">.MYI</code>) file. The data file and index
+              file can be moved elsewhere and replaced in the data
+              directory by symlinks.
+            </p></li><li class="listitem"><p>
+              You can symlink the data file and the index file
+              independently to different directories.
+            </p></li><li class="listitem"><p>
+              To instruct a running MySQL server to perform the
+              symlinking, use the <code class="literal">DATA DIRECTORY</code> and
+              <code class="literal">INDEX DIRECTORY</code> options to
+              <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>. See
+              <a class="xref" href="create-table.html" title="13.1.20 CREATE TABLE Statement">Section 13.1.20, “CREATE TABLE Statement”</a>. Alternatively, if
+              <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> is not running, symlinking can
+              be accomplished manually using <span class="command"><strong>ln -s</strong></span>
+              from the command line.
+            </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+                The path used with either or both of the <code class="literal">DATA
+                DIRECTORY</code> and <code class="literal">INDEX
+                DIRECTORY</code> options may not include the MySQL
+                <code class="literal">data</code> directory. (Bug #32167)
+              </p></div></li><li class="listitem"><p>
+              <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> does not replace a symlink
+              with the data file or index file. It works directly on the
+              file to which the symlink points. Any temporary files are
+              created in the directory where the data file or index file
+              is located. The same is true for the
+              <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>,
+              <a class="link" href="optimize-table.html" title="13.7.3.4 OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a>, and
+              <a class="link" href="repair-table.html" title="13.7.3.5 REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a> statements.
+            </p></li><li class="listitem"><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+                When you drop a table that is using symlinks,
+                <span class="emphasis"><em>both the symlink and the file to which the
+                symlink points are dropped</em></span>. This is an
+                extremely good reason <span class="emphasis"><em>not</em></span> to run
+                <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> as the <code class="literal">root</code>
+                operating system user or permit operating system users
+                to have write access to MySQL database directories.
+              </p></div></li><li class="listitem"><p>
+              If you rename a table with
+              <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE
+              ... RENAME</code></a> or <a class="link" href="rename-table.html" title="13.1.36 RENAME TABLE Statement"><code class="literal">RENAME
+              TABLE</code></a> and you do not move the table to another
+              database, the symlinks in the database directory are
+              renamed to the new names and the data file and index file
+              are renamed accordingly.
+            </p></li><li class="listitem"><p>
+              If you use
+              <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE
+              ... RENAME</code></a> or <a class="link" href="rename-table.html" title="13.1.36 RENAME TABLE Statement"><code class="literal">RENAME
+              TABLE</code></a> to move a table to another database, the
+              table is moved to the other database directory. If the
+              table name changed, the symlinks in the new database
+              directory are renamed to the new names and the data file
+              and index file are renamed accordingly.
+            </p></li><li class="listitem"><p>
+              If you are not using symlinks, start
+              <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> with the
+              <a class="link" href="server-options.html#option_mysqld_symbolic-links"><code class="option">--skip-symbolic-links</code></a>
+              option to ensure that no one can use
+              <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> to drop or rename a file outside
+              of the data directory.
+            </p></li></ul></div><p>
+          These table symlink operations are not supported:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> ignores the
+              <code class="literal">DATA DIRECTORY</code> and <code class="literal">INDEX
+              DIRECTORY</code> table options.
+            </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="symbolic-links-to-databases.html">Previous <span class="navHint"> Using Symbolic Links for Databases on Unix </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="symbolic-links.html">Up <span class="navHint"> Using Symbolic Links </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="windows-symbolic-links.html">Next <span class="navHint"> Using Symbolic Links for Databases on Windows </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

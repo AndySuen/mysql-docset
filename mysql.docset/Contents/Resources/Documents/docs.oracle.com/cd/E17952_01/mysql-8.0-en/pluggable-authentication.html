@@ -1,0 +1,489 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3383"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/6.2.17%C2%A0Pluggable%20Authentication"></a><title>6.2.17&nbsp;Pluggable Authentication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="access-control.html" title="6.2&nbsp;Access Control and Account Management"/><link rel="prev" href="expired-password-handling.html" title="6.2.16&nbsp;Server Handling of Expired Passwords"/><link rel="next" href="multifactor-authentication.html" title="6.2.18&nbsp;Multifactor Authentication"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="pluggable-authentication.html#pluggable-authentication">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="expired-password-handling.html">Previous <span class="navHint"> Server Handling of Expired Passwords </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="multifactor-authentication.html">Next <span class="navHint"> Multifactor Authentication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="pluggable-authentication"></a>6.2.17&nbsp;Pluggable Authentication</h3></div></div></div><p>
+      When a client connects to the MySQL server, the server uses the
+      user name provided by the client and the client host to select the
+      appropriate account row from the <code class="literal">mysql.user</code>
+      system table. The server then authenticates the client,
+      determining from the account row which authentication plugin
+      applies to the client:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          If the server cannot find the plugin, an error occurs and the
+          connection attempt is rejected.
+        </p></li><li class="listitem"><p>
+          Otherwise, the server invokes that plugin to authenticate the
+          user, and the plugin returns a status to the server indicating
+          whether the user provided the correct password and is
+          permitted to connect.
+        </p></li></ul></div><p>
+      Pluggable authentication enables these important capabilities:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3380"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Choice%20of%20authentication%20methods."></a><strong>Choice of authentication methods.&nbsp;</strong>
+            Pluggable authentication makes it easy for DBAs to choose
+            and change the authentication method used for individual
+            MySQL accounts.
+          </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3381"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/External%20authentication."></a><strong>External authentication.&nbsp;</strong>
+            Pluggable authentication makes it possible for clients to
+            connect to the MySQL server with credentials appropriate for
+            authentication methods that store credentials elsewhere than
+            in the <code class="literal">mysql.user</code> system table. For
+            example, plugins can be created to use external
+            authentication methods such as PAM, Windows login IDs, LDAP,
+            or Kerberos.
+          </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3382"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Proxy%20users%3A"></a><strong>Proxy users:&nbsp;</strong>
+            If a user is permitted to connect, an authentication plugin
+            can return to the server a user name different from the name
+            of the connecting user, to indicate that the connecting user
+            is a proxy for another user (the proxied user). While the
+            connection lasts, the proxy user is treated, for purposes of
+            access control, as having the privileges of the proxied
+            user. In effect, one user impersonates another. For more
+            information, see <a class="xref" href="proxy-users.html" title="6.2.19&nbsp;Proxy Users">Section&nbsp;6.2.19, &ldquo;Proxy Users&rdquo;</a>.
+          </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        If you start the server with the
+        <a class="link" href="server-options.html#option_mysqld_skip-grant-tables"><code class="option">--skip-grant-tables</code></a> option,
+        authentication plugins are not used even if loaded because the
+        server performs no client authentication and permits any client
+        to connect. Because this is insecure, if the server is started
+        with the <a class="link" href="server-options.html#option_mysqld_skip-grant-tables"><code class="option">--skip-grant-tables</code></a>
+        option, it also disables remote connections by enabling
+        <a class="link" href="server-system-variables.html#sysvar_skip_networking"><code class="literal">skip_networking</code></a>.
+      </p></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="pluggable-authentication.html#pluggable-authentication-available-plugins" title="Available Authentication Plugins">Available Authentication Plugins</a></p></li><li class="listitem"><p><a class="xref" href="pluggable-authentication.html#pluggable-authentication-default-plugin" title="The Default Authentication Plugin">The Default Authentication Plugin</a></p></li><li class="listitem"><p><a class="xref" href="pluggable-authentication.html#pluggable-authentication-usage" title="Authentication Plugin Usage">Authentication Plugin Usage</a></p></li><li class="listitem"><p><a class="xref" href="pluggable-authentication.html#pluggable-authentication-compatibility" title="Authentication Plugin Client/Server Compatibility">Authentication Plugin Client/Server Compatibility</a></p></li><li class="listitem"><p><a class="xref" href="pluggable-authentication.html#pluggable-authentication-connector-writing" title="Authentication Plugin Connector-Writing Considerations">Authentication Plugin Connector-Writing Considerations</a></p></li><li class="listitem"><p><a class="xref" href="pluggable-authentication.html#pluggable-authentication-restrictions" title="Restrictions on Pluggable Authentication">Restrictions on Pluggable Authentication</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3384"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Available%20Authentication%20Plugins"></a><h4 class="title"><a id="pluggable-authentication-available-plugins"></a>Available Authentication Plugins</h4></div></div></div><p>
+        MySQL 8.0 provides these authentication plugins:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A plugin that performs native authentication; that is,
+            authentication based on the password hashing method in use
+            from before the introduction of pluggable authentication in
+            MySQL. The <code class="literal">mysql_native_password</code> plugin
+            implements authentication based on this native password
+            hashing method. See
+            <a class="xref" href="native-pluggable-authentication.html" title="6.4.1.1&nbsp;Native Pluggable Authentication">Section&nbsp;6.4.1.1, &ldquo;Native Pluggable Authentication&rdquo;</a>.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              As of MySQL 8.0.34, the
+              <code class="literal">mysql_native_password</code> authentication
+              plugin is deprecated and subject to removal in a future
+              version of MySQL.
+            </p></div></li><li class="listitem"><p>
+            Plugins that perform authentication using SHA-256 password
+            hashing. This is stronger encryption than that available
+            with native authentication. See
+            <a class="xref" href="caching-sha2-pluggable-authentication.html" title="6.4.1.2&nbsp;Caching SHA-2 Pluggable Authentication">Section&nbsp;6.4.1.2, &ldquo;Caching SHA-2 Pluggable Authentication&rdquo;</a>, and
+            <a class="xref" href="sha256-pluggable-authentication.html" title="6.4.1.3&nbsp;SHA-256 Pluggable Authentication">Section&nbsp;6.4.1.3, &ldquo;SHA-256 Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            A client-side plugin that sends the password to the server
+            without hashing or encryption. This plugin is used in
+            conjunction with server-side plugins that require access to
+            the password exactly as provided by the client user. See
+            <a class="xref" href="cleartext-pluggable-authentication.html" title="6.4.1.4&nbsp;Client-Side Cleartext Pluggable Authentication">Section&nbsp;6.4.1.4, &ldquo;Client-Side Cleartext Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            A plugin that performs external authentication using PAM
+            (Pluggable Authentication Modules), enabling MySQL Server to
+            use PAM to authenticate MySQL users. This plugin supports
+            proxy users as well. See
+            <a class="xref" href="pam-pluggable-authentication.html" title="6.4.1.5&nbsp;PAM Pluggable Authentication">Section&nbsp;6.4.1.5, &ldquo;PAM Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            A plugin that performs external authentication on Windows,
+            enabling MySQL Server to use native Windows services to
+            authenticate client connections. Users who have logged in to
+            Windows can connect from MySQL client programs to the server
+            based on the information in their environment without
+            specifying an additional password. This plugin supports
+            proxy users as well. See
+            <a class="xref" href="windows-pluggable-authentication.html" title="6.4.1.6&nbsp;Windows Pluggable Authentication">Section&nbsp;6.4.1.6, &ldquo;Windows Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            Plugins that perform authentication using LDAP (Lightweight
+            Directory Access Protocol) to authenticate MySQL users by
+            accessing directory services such as X.500. These plugins
+            support proxy users as well. See
+            <a class="xref" href="ldap-pluggable-authentication.html" title="6.4.1.7&nbsp;LDAP Pluggable Authentication">Section&nbsp;6.4.1.7, &ldquo;LDAP Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            A plugin that performs authentication using Kerberos to
+            authenticate MySQL users that correspond to Kerberos
+            principals. See
+            <a class="xref" href="kerberos-pluggable-authentication.html" title="6.4.1.8&nbsp;Kerberos Pluggable Authentication">Section&nbsp;6.4.1.8, &ldquo;Kerberos Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            A plugin that prevents all client connections to any account
+            that uses it. Use cases for this plugin include proxied
+            accounts that should never permit direct login but are
+            accessed only through proxy accounts and accounts that must
+            be able to execute stored programs and views with elevated
+            privileges without exposing those privileges to ordinary
+            users. See
+            <a class="xref" href="no-login-pluggable-authentication.html" title="6.4.1.9&nbsp;No-Login Pluggable Authentication">Section&nbsp;6.4.1.9, &ldquo;No-Login Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            A plugin that authenticates clients that connect from the
+            local host through the Unix socket file. See
+            <a class="xref" href="socket-pluggable-authentication.html" title="6.4.1.10&nbsp;Socket Peer-Credential Pluggable Authentication">Section&nbsp;6.4.1.10, &ldquo;Socket Peer-Credential Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            A plugin that authenticates users to MySQL Server using FIDO
+            authentication. See
+            <a class="xref" href="fido-pluggable-authentication.html" title="6.4.1.11&nbsp;FIDO Pluggable Authentication">Section&nbsp;6.4.1.11, &ldquo;FIDO Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            A test plugin that checks account credentials and logs
+            success or failure to the server error log. This plugin is
+            intended for testing and development purposes, and as an
+            example of how to write an authentication plugin. See
+            <a class="xref" href="test-pluggable-authentication.html" title="6.4.1.12&nbsp;Test Pluggable Authentication">Section&nbsp;6.4.1.12, &ldquo;Test Pluggable Authentication&rdquo;</a>.
+          </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          For information about current restrictions on the use of
+          pluggable authentication, including which connectors support
+          which plugins, see
+          <a class="xref" href="pluggable-authentication.html#pluggable-authentication-restrictions" title="Restrictions on Pluggable Authentication">Restrictions on Pluggable Authentication</a>.
+        </p><p>
+          Third-party connector developers should read that section to
+          determine the extent to which a connector can take advantage
+          of pluggable authentication capabilities and what steps to
+          take to become more compliant.
+        </p></div><p>
+        If you are interested in writing your own authentication
+        plugins, see <a class="ulink" href="https://dev.mysql.com/doc/extending-mysql/8.0/en/writing-authentication-plugins.html" target="_top">Writing Authentication Plugins</a>.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3385"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/The%20Default%20Authentication%20Plugin"></a><h4 class="title"><a id="pluggable-authentication-default-plugin"></a>The Default Authentication Plugin</h4></div></div></div><a id="idm45828975851344" class="indexterm"></a><a id="idm45828975849856" class="indexterm"></a><a id="idm45828975848768" class="indexterm"></a><a id="idm45828975847680" class="indexterm"></a><a id="idm45828975846192" class="indexterm"></a><a id="idm45828975845088" class="indexterm"></a><p>
+        The <a class="link" href="create-user.html" title="13.7.1.3&nbsp;CREATE USER Statement"><code class="literal">CREATE USER</code></a> and
+        <a class="link" href="alter-user.html" title="13.7.1.1&nbsp;ALTER USER Statement"><code class="literal">ALTER USER</code></a> statements have syntax
+        for specifying how an account authenticates. Some forms of this
+        syntax do not explicitly name an authentication plugin (there is
+        no <code class="literal">IDENTIFIED WITH</code> clause). For example:
+      </p><pre class="programlisting">CREATE USER &#39;jeffrey&#39;@&#39;localhost&#39; IDENTIFIED BY &#39;<em class="replaceable"><code>password</code></em>&#39;;
+</pre><p>
+        In such cases, the server assigns the default authentication
+        plugin to the account. Prior to MySQL 8.0.27, this default is
+        the value of the
+        <a class="link" href="server-system-variables.html#sysvar_default_authentication_plugin"><code class="literal">default_authentication_plugin</code></a>
+        system variable.
+      </p><p>
+        As of MySQL 8.0.27, which introduces multifactor authentication,
+        there can be up to three clauses that specify how an account
+        authenticates. The rules that determine the default
+        authentication plugin for authentication methods that name no
+        plugin are factor-specific:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Factor 1: If
+            <a class="link" href="server-system-variables.html#sysvar_authentication_policy"><code class="literal">authentication_policy</code></a>
+            element 1 names an authentication plugin, that plugin is the
+            default. If
+            <a class="link" href="server-system-variables.html#sysvar_authentication_policy"><code class="literal">authentication_policy</code></a>
+            element 1 is <code class="literal">*</code>, the value of
+            <a class="link" href="server-system-variables.html#sysvar_default_authentication_plugin"><code class="literal">default_authentication_plugin</code></a>
+            is the default.
+          </p><p>
+            Given the rules above, the following statement creates a
+            two-factor authentication account, with the first factor
+            authentication method determined by the
+            <a class="link" href="server-system-variables.html#sysvar_authentication_policy"><code class="literal">authentication_policy</code></a> or
+            <a class="link" href="server-system-variables.html#sysvar_default_authentication_plugin"><code class="literal">default_authentication_plugin</code></a>
+            setting:
+          </p><pre class="programlisting">CREATE USER &#39;wei&#39;@&#39;localhost&#39; IDENTIFIED BY &#39;<em class="replaceable"><code>password</code></em>&#39;
+  AND IDENTIFIED WITH authentication_ldap_simple;
+</pre><p>
+            In the same way, this example creates a three-factor
+            authentication account:
+          </p><pre class="programlisting">CREATE USER &#39;mateo&#39;@&#39;localhost&#39; IDENTIFIED BY &#39;<em class="replaceable"><code>password</code></em>&#39;
+  AND IDENTIFIED WITH authentication_ldap_simple
+  AND IDENTIFIED WITH authentication_fido;
+</pre><p>
+            You can use <a class="link" href="show-create-user.html" title="13.7.7.12&nbsp;SHOW CREATE USER Statement"><code class="literal">SHOW CREATE USER</code></a>
+            to view the applied authentication methods.
+          </p></li><li class="listitem"><p>
+            Factor 2 or 3: If the corresponding
+            <a class="link" href="server-system-variables.html#sysvar_authentication_policy"><code class="literal">authentication_policy</code></a>
+            element names an authentication plugin, that plugin is the
+            default. If the
+            <a class="link" href="server-system-variables.html#sysvar_authentication_policy"><code class="literal">authentication_policy</code></a>
+            element is <code class="literal">*</code> or empty, there is no
+            default; attempting to define an account authentication
+            method for the factor without naming a plugin is an error,
+            as in the following examples:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER &#39;sofia&#39;@&#39;localhost&#39; IDENTIFIED WITH authentication_ldap_simple</code></strong> 
+       <strong class="userinput"><code>AND IDENTIFIED BY &#39;abc&#39;;</code></strong>
+ERROR 1524 (HY000): Plugin &#39;&#39; is not loaded
+
+mysql&gt; <strong class="userinput"><code>CREATE USER &#39;sofia&#39;@&#39;localhost&#39; IDENTIFIED WITH authentication_ldap_simple</code></strong> 
+       <strong class="userinput"><code>AND IDENTIFIED BY &#39;abc&#39;;</code></strong>
+ERROR 1524 (HY000): Plugin &#39;*&#39; is not loaded
+</pre></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3386"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Authentication%20Plugin%20Usage"></a><h4 class="title"><a id="pluggable-authentication-usage"></a>Authentication Plugin Usage</h4></div></div></div><p>
+        This section provides general instructions for installing and
+        using authentication plugins. For instructions specific to a
+        given plugin, see the section that describes that plugin under
+        <a class="xref" href="authentication-plugins.html" title="6.4.1&nbsp;Authentication Plugins">Section&nbsp;6.4.1, &ldquo;Authentication Plugins&rdquo;</a>.
+      </p><p>
+        In general, pluggable authentication uses a pair of
+        corresponding plugins on the server and client sides, so you use
+        a given authentication method like this:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If necessary, install the plugin library or libraries
+            containing the appropriate plugins. On the server host,
+            install the library containing the server-side plugin, so
+            that the server can use it to authenticate client
+            connections. Similarly, on each client host, install the
+            library containing the client-side plugin for use by client
+            programs. Authentication plugins that are built in need not
+            be installed.
+          </p></li><li class="listitem"><p>
+            For each MySQL account that you create, specify the
+            appropriate server-side plugin to use for authentication. If
+            the account is to use the default authentication plugin, the
+            account-creation statement need not specify the plugin
+            explicitly. The server assigns the default authentication
+            plugin, determined as described in
+            <a class="xref" href="pluggable-authentication.html#pluggable-authentication-default-plugin" title="The Default Authentication Plugin">The Default Authentication Plugin</a>.
+          </p></li><li class="listitem"><p>
+            When a client connects, the server-side plugin tells the
+            client program which client-side plugin to use for
+            authentication.
+          </p></li></ul></div><p>
+        In the case that an account uses an authentication method that
+        is the default for both the server and the client program, the
+        server need not communicate to the client which client-side
+        plugin to use, and a round trip in client/server negotiation can
+        be avoided.
+      </p><p>
+        For standard MySQL clients such as <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> and
+        <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin</strong></span></a>, the
+        <a class="link" href="mysql-command-options.html#option_mysql_default-auth"><code class="option">--default-auth=<em class="replaceable"><code>plugin_name</code></em></code></a>
+        option can be specified on the command line as a hint about
+        which client-side plugin the program can expect to use, although
+        the server overrides this if the server-side plugin associated
+        with the user account requires a different client-side plugin.
+      </p><p>
+        If the client program does not find the client-side plugin
+        library file, specify a
+        <a class="link" href="mysql-command-options.html#option_mysql_plugin-dir"><code class="option">--plugin-dir=<em class="replaceable"><code>dir_name</code></em></code></a>
+        option to indicate the plugin library directory location.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3387"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Authentication%20Plugin%20Client%2FServer%20Compatibility"></a><h4 class="title"><a id="pluggable-authentication-compatibility"></a>Authentication Plugin Client/Server Compatibility</h4></div></div></div><a id="idm45828975797200" class="indexterm"></a><p>
+        Pluggable authentication enables flexibility in the choice of
+        authentication methods for MySQL accounts, but in some cases
+        client connections cannot be established due to authentication
+        plugin incompatibility between the client and server.
+      </p><p>
+        The general compatibility principle for a successful client
+        connection to a given account on a given server is that the
+        client and server both must support the authentication
+        <span class="emphasis"><em>method</em></span> required by the account. Because
+        authentication methods are implemented by authentication
+        plugins, the client and server both must support the
+        authentication <span class="emphasis"><em>plugin</em></span> required by the
+        account.
+      </p><p>
+        Authentication plugin incompatibilities can arise in various
+        ways. Examples:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Connect using a MySQL 5.7 client from 5.7.22 or lower to a
+            MySQL 8.0 server account that authenticates with
+            <code class="literal">caching_sha2_password</code>. This fails because
+            the 5.7 client does not recognize the plugin, which was
+            introduced in MySQL 8.0. (This issue is addressed in MySQL
+            5.7 as of 5.7.23, when
+            <code class="literal">caching_sha2_password</code> client-side support
+            was added to the MySQL client library and client programs.)
+          </p></li><li class="listitem"><p>
+            Connect using a MySQL 5.7 client to a pre-5.7 server account
+            that authenticates with
+            <code class="literal">mysql_old_password</code>. This fails for
+            multiple reasons. First, such a connection requires
+            <code class="option">--secure-auth=0</code>, which is no longer a
+            supported option. Even were it supported, the 5.7 client
+            does not recognize the plugin because it was removed in
+            MySQL 5.7.
+          </p></li><li class="listitem"><p>
+            Connect using a MySQL 5.7 client from a Community
+            distribution to a MySQL 5.7 Enterprise server account that
+            authenticates using one of the Enterprise-only LDAP
+            authentication plugins. This fails because the Community
+            client does not have access to the Enterprise plugin.
+          </p></li></ul></div><p>
+        In general, these compatibility issues do not arise when
+        connections are made between a client and server from the same
+        MySQL distribution. When connections are made between a client
+        and server from different MySQL series, issues can arise. These
+        issues are inherent in the development process when MySQL
+        introduces new authentication plugins or removes old ones. To
+        minimize the potential for incompatibilities, regularly upgrade
+        the server, clients, and connectors on a timely basis.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3388"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Authentication%20Plugin%20Connector-Writing%20Considerations"></a><h4 class="title"><a id="pluggable-authentication-connector-writing"></a>Authentication Plugin Connector-Writing Considerations</h4></div></div></div><a id="idm45828975784176" class="indexterm"></a><p>
+        Various implementations of the MySQL client/server protocol
+        exist. The <code class="literal">libmysqlclient</code> C API client
+        library is one implementation. Some MySQL connectors (typically
+        those not written in C) provide their own implementation.
+        However, not all protocol implementations handle plugin
+        authentication the same way. This section describes an
+        authentication issue that protocol implementors should take into
+        account.
+      </p><p>
+        In the client/server protocol, the server tells connecting
+        clients which authentication plugin it considers the default. If
+        the protocol implementation used by the client tries to load the
+        default plugin and that plugin does not exist on the client
+        side, the load operation fails. This is an unnecessary failure
+        if the default plugin is not the plugin actually required by the
+        account to which the client is trying to connect.
+      </p><p>
+        If a client/server protocol implementation does not have its own
+        notion of default authentication plugin and always tries to load
+        the default plugin specified by the server, it fails with an
+        error if that plugin is not available.
+      </p><p>
+        To avoid this problem, the protocol implementation used by the
+        client should have its own default plugin and should use it as
+        its first choice (or, alternatively, fall back to this default
+        in case of failure to load the default plugin specified by the
+        server). Example:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            In MySQL 5.7, <code class="literal">libmysqlclient</code> uses as its
+            default choice either
+            <code class="literal">mysql_native_password</code> or the plugin
+            specified through the <code class="literal">MYSQL_DEFAULT_AUTH</code>
+            option for <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-options.html" target="_top"><code class="literal">mysql_options()</code></a>.
+          </p></li><li class="listitem"><p>
+            When a 5.7 client tries to connect to an 8.0 server, the
+            server specifies <code class="literal">caching_sha2_password</code> as
+            its default authentication plugin, but the client still
+            sends credential details per either
+            <code class="literal">mysql_native_password</code> or whatever is
+            specified through <code class="literal">MYSQL_DEFAULT_AUTH</code>.
+          </p></li><li class="listitem"><p>
+            The only time the client loads the plugin specified by the
+            server is for a change-plugin request, but in that case it
+            can be any plugin depending on the user account. In this
+            case, the client must try to load the plugin, and if that
+            plugin is not available, an error is not optional.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3389"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Restrictions%20on%20Pluggable%20Authentication"></a><h4 class="title"><a id="pluggable-authentication-restrictions"></a>Restrictions on Pluggable Authentication</h4></div></div></div><a id="idm45828975767552" class="indexterm"></a><a id="idm45828975766096" class="indexterm"></a><p>
+        The first part of this section describes general restrictions on
+        the applicability of the pluggable authentication framework
+        described at <a class="xref" href="pluggable-authentication.html" title="6.2.17&nbsp;Pluggable Authentication">Section&nbsp;6.2.17, &ldquo;Pluggable Authentication&rdquo;</a>. The
+        second part describes how third-party connector developers can
+        determine the extent to which a connector can take advantage of
+        pluggable authentication capabilities and what steps to take to
+        become more compliant.
+      </p><p>
+        The term <span class="quote">&ldquo;<span class="quote">native authentication</span>&rdquo;</span> used here refers
+        to authentication against passwords stored in the
+        <code class="literal">mysql.user</code> system table. This is the same
+        authentication method provided by older MySQL servers, before
+        pluggable authentication was implemented. <span class="quote">&ldquo;<span class="quote">Windows native
+        authentication</span>&rdquo;</span> refers to authentication using the
+        credentials of a user who has already logged in to Windows, as
+        implemented by the Windows Native Authentication plugin
+        (<span class="quote">&ldquo;<span class="quote">Windows plugin</span>&rdquo;</span> for short).
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="pluggable-authentication.html#pluggable-authentication-restrictions-general" title="General Pluggable Authentication Restrictions">General Pluggable Authentication Restrictions</a></p></li><li class="listitem"><p><a class="xref" href="pluggable-authentication.html#pluggable-authentication-restrictions-third-party-connectors" title="Pluggable Authentication and Third-Party Connectors">Pluggable Authentication and Third-Party Connectors</a></p></li></ul></div><h5><a id="pluggable-authentication-restrictions-general"></a>General Pluggable Authentication Restrictions</h5><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <span class="bold"><strong>Connector/C++:</strong></span> Clients that
+            use this connector can connect to the server only through
+            accounts that use native authentication.
+          </p><p>
+            Exception: A connector supports pluggable authentication if
+            it was built to link to <code class="literal">libmysqlclient</code>
+            dynamically (rather than statically) and it loads the
+            current version of <code class="literal">libmysqlclient</code> if that
+            version is installed, or if the connector is recompiled from
+            source to link against the current
+            <code class="literal">libmysqlclient</code>.
+          </p><p>
+            For information about writing connectors to handle
+            information from the server about the default server-side
+            authentication plugin, see
+            <a class="xref" href="pluggable-authentication.html#pluggable-authentication-connector-writing" title="Authentication Plugin Connector-Writing Considerations">Authentication Plugin Connector-Writing Considerations</a>.
+          </p></li><li class="listitem"><p>
+            <span class="bold"><strong>Connector/NET:</strong></span> Clients that use
+            Connector/NET can connect to the server through accounts that use
+            native authentication or Windows native authentication.
+          </p></li><li class="listitem"><p>
+            <span class="bold"><strong>Connector/PHP:</strong></span> Clients that
+            use this connector can connect to the server only through
+            accounts that use native authentication, when compiled using
+            the MySQL native driver for PHP
+            (<code class="literal">mysqlnd</code>).
+          </p></li><li class="listitem"><p>
+            <span class="bold"><strong>Windows native
+            authentication:</strong></span> Connecting through an account
+            that uses the Windows plugin requires Windows Domain setup.
+            Without it, NTLM authentication is used and then only local
+            connections are possible; that is, the client and server
+            must run on the same computer.
+          </p></li><li class="listitem"><p>
+            <span class="bold"><strong>Proxy users:</strong></span> Proxy user
+            support is available to the extent that clients can connect
+            through accounts authenticated with plugins that implement
+            proxy user capability (that is, plugins that can return a
+            user name different from that of the connecting user). For
+            example, the PAM and Windows plugins support proxy users.
+            The <code class="literal">mysql_native_password</code> and
+            <code class="literal">sha256_password</code> authentication plugins do
+            not support proxy users by default, but can be configured to
+            do so; see
+            <a class="xref" href="proxy-users.html#proxy-users-server-user-mapping" title="Server Support for Proxy User Mapping">Server Support for Proxy User Mapping</a>.
+          </p></li><li class="listitem"><p>
+            <span class="bold"><strong>Replication</strong></span>: Replicas can
+            not only employ replication user accounts using native
+            authentication, but can also connect through replication
+            user accounts that use nonnative authentication if the
+            required client-side plugin is available. If the plugin is
+            built into <code class="literal">libmysqlclient</code>, it is
+            available by default. Otherwise, the plugin must be
+            installed on the replica side in the directory named by the
+            replica&#39;s <a class="link" href="server-system-variables.html#sysvar_plugin_dir"><code class="literal">plugin_dir</code></a> system
+            variable.
+          </p></li><li class="listitem"><p>
+            <span class="bold"><strong><a class="link" href="federated-storage-engine.html" title="16.8&nbsp;The FEDERATED Storage Engine"><code class="literal">FEDERATED</code></a>
+            tables:</strong></span> A <a class="link" href="federated-storage-engine.html" title="16.8&nbsp;The FEDERATED Storage Engine"><code class="literal">FEDERATED</code></a>
+            table can access the remote table only through accounts on
+            the remote server that use native authentication.
+          </p></li></ul></div><h5><a id="pluggable-authentication-restrictions-third-party-connectors"></a>Pluggable Authentication and Third-Party Connectors</h5><p>
+        Third-party connector developers can use the following
+        guidelines to determine readiness of a connector to take
+        advantage of pluggable authentication capabilities and what
+        steps to take to become more compliant:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            An existing connector to which no changes have been made
+            uses native authentication and clients that use the
+            connector can connect to the server only through accounts
+            that use native authentication. <span class="emphasis"><em>However, you
+            should test the connector against a recent version of the
+            server to verify that such connections still work without
+            problem.</em></span>
+          </p><p>
+            Exception: A connector might work with pluggable
+            authentication without any changes if it links to
+            <code class="literal">libmysqlclient</code> dynamically (rather than
+            statically) and it loads the current version of
+            <code class="literal">libmysqlclient</code> if that version is
+            installed.
+          </p></li><li class="listitem"><p>
+            To take advantage of pluggable authentication capabilities,
+            a connector that is <code class="literal">libmysqlclient</code>-based
+            should be relinked against the current version of
+            <code class="literal">libmysqlclient</code>. This enables the
+            connector to support connections though accounts that
+            require client-side plugins now built into
+            <code class="literal">libmysqlclient</code> (such as the cleartext
+            plugin needed for PAM authentication and the Windows plugin
+            needed for Windows native authentication). Linking with a
+            current <code class="literal">libmysqlclient</code> also enables the
+            connector to access client-side plugins installed in the
+            default MySQL plugin directory (typically the directory
+            named by the default value of the local server&#39;s
+            <a class="link" href="server-system-variables.html#sysvar_plugin_dir"><code class="literal">plugin_dir</code></a> system
+            variable).
+          </p><p>
+            If a connector links to <code class="literal">libmysqlclient</code>
+            dynamically, it must be ensured that the newer version of
+            <code class="literal">libmysqlclient</code> is installed on the client
+            host and that the connector loads it at runtime.
+          </p></li><li class="listitem"><p>
+            Another way for a connector to support a given
+            authentication method is to implement it directly in the
+            client/server protocol. Connector/NET uses this approach to provide
+            support for Windows native authentication.
+          </p></li><li class="listitem"><p>
+            If a connector should be able to load client-side plugins
+            from a directory different from the default plugin
+            directory, it must implement some means for client users to
+            specify the directory. Possibilities for this include a
+            command-line option or environment variable from which the
+            connector can obtain the directory name. Standard MySQL
+            client programs such as <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> and
+            <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin</strong></span></a> implement a
+            <code class="option">--plugin-dir</code> option. See also
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/c-api-plugin-interface.html" target="_top">C API Client Plugin Interface</a>.
+          </p></li><li class="listitem"><p>
+            Proxy user support by a connector depends, as described
+            earlier in this section, on whether the authentication
+            methods that it supports permit proxy users.
+          </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="expired-password-handling.html">Previous <span class="navHint"> Server Handling of Expired Passwords </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="multifactor-authentication.html">Next <span class="navHint"> Multifactor Authentication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

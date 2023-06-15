@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.2.2 NDB Cluster Nodes, Node Groups, Fragment Replicas, and Partitions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-overview.html" title="23.2 NDB Cluster Overview" /><link rel="prev" href="mysql-cluster-basics.html" title="23.2.1 NDB Cluster Core Concepts" /><link rel="next" href="mysql-cluster-overview-requirements.html" title="23.2.3 NDB Cluster Hardware, Software, and Networking Requirements" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-nodes-groups.html#mysql-cluster-nodes-groups">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-basics.html">Previous <span class="navHint"> NDB Cluster Core Concepts </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-overview.html">Up <span class="navHint"> NDB Cluster Overview </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-overview-requirements.html">Next <span class="navHint"> NDB Cluster Hardware, Software, and Networking Requirements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-nodes-groups"></a>23.2.2 NDB Cluster Nodes, Node Groups, Fragment Replicas, and Partitions</h3></div></div></div><a id="idm45828845699760" class="indexterm"></a><a id="idm45828845698272" class="indexterm"></a><a id="idm45828845696784" class="indexterm"></a><a id="idm45828845695296" class="indexterm"></a><a id="idm45828845694256" class="indexterm"></a><a id="idm45828845693168" class="indexterm"></a><p>
+      This section discusses the manner in which NDB Cluster divides and
+      duplicates data for storage.
+    </p><p>
+      A number of concepts central to an understanding of this topic are
+      discussed in the next few paragraphs.
+    </p><p><strong>Data node. </strong>
+        An <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> or <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a> process,
+        which stores one or more <span class="firstterm">fragment
+        replicas</span>—that is, copies of the
+        <span class="firstterm">partitions</span> (discussed
+        later in this section) assigned to the node group of which the
+        node is a member.
+      </p><p>
+      Each data node should be located on a separate computer. While it
+      is also possible to host multiple data node processes on a single
+      computer, such a configuration is not usually recommended.
+    </p><p>
+      It is common for the terms <span class="quote">“<span class="quote">node</span>”</span> and <span class="quote">“<span class="quote">data
+      node</span>”</span> to be used interchangeably when referring to an
+      <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> or <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a> process;
+      where mentioned, management nodes (<a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a>
+      processes) and SQL nodes (<a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> processes) are
+      specified as such in this discussion.
+    </p><p><a id="mysql-cluster-nodes-groups-nodegroup"></a><strong>Node group. </strong>
+        A node group consists of one or more nodes, and stores
+        partitions, or sets of <span class="firstterm">fragment
+        replicas</span> (see next item).
+      </p><p>
+      The number of node groups in an NDB Cluster is not directly
+      configurable; it is a function of the number of data nodes and of
+      the number of fragment replicas
+      (<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-noofreplicas"><code class="literal">NoOfReplicas</code></a>
+      configuration parameter), as shown here:
+    </p><pre class="programlisting">[# of node groups] = [# of data nodes] / <code class="literal">NoOfReplicas</code>
+</pre><p>
+      Thus, an NDB Cluster with 4 data nodes has 4 node groups if
+      <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-noofreplicas"><code class="literal">NoOfReplicas</code></a> is set to 1
+      in the <code class="filename">config.ini</code> file, 2 node groups if
+      <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-noofreplicas"><code class="literal">NoOfReplicas</code></a> is set to 2,
+      and 1 node group if
+      <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-noofreplicas"><code class="literal">NoOfReplicas</code></a> is set to 4.
+      Fragment replicas are discussed later in this section; for more
+      information about
+      <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-noofreplicas"><code class="literal">NoOfReplicas</code></a>, see
+      <a class="xref" href="mysql-cluster-ndbd-definition.html" title="23.4.3.6 Defining NDB Cluster Data Nodes">Section 23.4.3.6, “Defining NDB Cluster Data Nodes”</a>.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        All node groups in an NDB Cluster must have the same number of
+        data nodes.
+      </p></div><p>
+      You can add new node groups (and thus new data nodes) online, to a
+      running NDB Cluster; see
+      <a class="xref" href="mysql-cluster-online-add-node.html" title="23.6.7 Adding NDB Cluster Data Nodes Online">Section 23.6.7, “Adding NDB Cluster Data Nodes Online”</a>, for more
+      information.
+    </p><p><a id="mysql-cluster-nodes-groups-partition"></a><strong>Partition. </strong>
+        This is a portion of the data stored by the cluster. Each node
+        is responsible for keeping at least one copy of any partitions
+        assigned to it (that is, at least one fragment replica)
+        available to the cluster.
+      </p><p>
+      The number of partitions used by default by NDB Cluster depends on
+      the number of data nodes and the number of LDM threads in use by
+      the data nodes, as shown here:
+    </p><pre class="programlisting">[# of partitions] = [# of data nodes] * [# of LDM threads]
+</pre><p>
+      When using data nodes running <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a>, the
+      number of LDM threads is controlled by the setting for
+      <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbmtd-maxnoofexecutionthreads"><code class="literal">MaxNoOfExecutionThreads</code></a>.
+      When using <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> there is a single LDM thread,
+      which means that there are as many cluster partitions as nodes
+      participating in the cluster. This is also the case when using
+      <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a> with
+      <code class="literal">MaxNoOfExecutionThreads</code> set to 3 or less. (You
+      should be aware that the number of LDM threads increases with the
+      value of this parameter, but not in a strictly linear fashion, and
+      that there are additional constraints on setting it; see the
+      description of
+      <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbmtd-maxnoofexecutionthreads"><code class="literal">MaxNoOfExecutionThreads</code></a>
+      for more information.)
+    </p><p><a id="mysql-cluster-nodes-groups-user-partitioning"></a><strong>NDB and user-defined partitioning. </strong>
+        NDB Cluster normally partitions
+        <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> tables automatically.
+        However, it is also possible to employ user-defined partitioning
+        with <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> tables. This is
+        subject to the following limitations:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Only the <code class="literal">KEY</code> and <code class="literal">LINEAR
+          KEY</code> partitioning schemes are supported in production
+          with <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> tables.
+        </p></li><li class="listitem"><p>
+          The maximum number of partitions that may be defined
+          explicitly for any <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> table is
+          <code class="literal">8 * [<em class="replaceable"><code>number of LDM
+          threads</code></em>] * [<em class="replaceable"><code>number of node
+          groups</code></em>]</code>, the number of node groups in
+          an NDB Cluster being determined as discussed previously in
+          this section. When running <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> for data
+          node processes, setting the number of LDM threads has no
+          effect (since
+          <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbmtd-threadconfig"><code class="literal">ThreadConfig</code></a> applies
+          only to <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a>); in such cases, this value
+          can be treated as though it were equal to 1 for purposes of
+          performing this calculation.
+        </p><p>
+          See <a class="xref" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)">Section 23.5.3, “ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)”</a>, for more
+          information.
+        </p></li></ol></div><p>
+      For more information relating to NDB Cluster and user-defined
+      partitioning, see <a class="xref" href="mysql-cluster-limitations.html" title="23.2.7 Known Limitations of NDB Cluster">Section 23.2.7, “Known Limitations of NDB Cluster”</a>, and
+      <a class="xref" href="partitioning-limitations-storage-engines.html" title="24.6.2 Partitioning Limitations Relating to Storage Engines">Section 24.6.2, “Partitioning Limitations Relating to Storage Engines”</a>.
+    </p><p><a id="mysql-cluster-nodes-groups-replica"></a><strong>Fragment replica. </strong>
+        This is a copy of a cluster partition. Each node in a node group
+        stores a fragment replica. Also sometimes known as a
+        <span class="firstterm">partition replica</span>. The
+        number of fragment replicas is equal to the number of nodes per
+        node group.
+      </p><p>
+      A fragment replica belongs entirely to a single node; a node can
+      (and usually does) store several fragment replicas.
+    </p><p>
+      The following diagram illustrates an NDB Cluster with four data
+      nodes running <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a>, arranged in two node groups
+      of two nodes each; nodes 1 and 2 belong to node group 0, and nodes
+      3 and 4 belong to node group 1.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        Only data nodes are shown here; although a working NDB Cluster
+        requires an <a class="link" href="mysql-cluster-programs-ndb-mgmd.html" title="23.5.4 ndb_mgmd — The NDB Cluster Management Server Daemon"><span class="command"><strong>ndb_mgmd</strong></span></a> process for cluster
+        management and at least one SQL node to access the data stored
+        by the cluster, these have been omitted from the figure for
+        clarity.
+      </p></div><div class="figure"><a id="fig-mysql-cluster-2-node-groups"></a><p class="title"><strong>Figure 23.2 NDB Cluster with Two Node Groups</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/fragment-replicas-groups-1-1.png" width="504" height="554" alt="Content is described in the surrounding text." /></div></div></div><br class="figure-break" /><p>
+      The data stored by the cluster is divided into four partitions,
+      numbered 0, 1, 2, and 3. Each partition is stored—in
+      multiple copies—on the same node group. Partitions are
+      stored on alternate node groups as follows:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Partition 0 is stored on node group 0; a
+          <span class="firstterm">primary fragment replica</span>
+          (primary copy) is stored on node 1, and a
+          <span class="firstterm">backup fragment replica</span>
+          (backup copy of the partition) is stored on node 2.
+        </p></li><li class="listitem"><p>
+          Partition 1 is stored on the other node group (node group 1);
+          this partition's primary fragment replica is on node 3,
+          and its backup fragment replica is on node 4.
+        </p></li><li class="listitem"><p>
+          Partition 2 is stored on node group 0. However, the placing of
+          its two fragment replicas is reversed from that of Partition
+          0; for Partition 2, the primary fragment replica is stored on
+          node 2, and the backup on node 1.
+        </p></li><li class="listitem"><p>
+          Partition 3 is stored on node group 1, and the placement of
+          its two fragment replicas are reversed from those of partition
+          1. That is, its primary fragment replica is located on node 4,
+          with the backup on node 3.
+        </p></li></ul></div><p>
+      What this means regarding the continued operation of an NDB
+      Cluster is this: so long as each node group participating in the
+      cluster has at least one node operating, the cluster has a
+      complete copy of all data and remains viable. This is illustrated
+      in the next diagram.
+    </p><div class="figure"><a id="fig-mysql-cluster-nodes-required-2x2"></a><p class="title"><strong>Figure 23.3 Nodes Required for a 2x2 NDB Cluster</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/replicas-groups-1-2.png" width="344" height="339" alt="Content is described in the surrounding text." /></div></div></div><br class="figure-break" /><p>
+      In this example, the cluster consists of two node groups each
+      consisting of two data nodes. Each data node is running an
+      instance of <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a>. Any combination of at least
+      one node from node group 0 and at least one node from node group 1
+      is sufficient to keep the cluster <span class="quote">“<span class="quote">alive</span>”</span>. However,
+      if both nodes from a single node group fail, the combination
+      consisting of the remaining two nodes in the other node group is
+      not sufficient. In this situation, the cluster has lost an entire
+      partition and so can no longer provide access to a complete set of
+      all NDB Cluster data.
+    </p><p>
+      The maximum number of node groups supported for a single NDB
+      Cluster instance is 48.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-basics.html">Previous <span class="navHint"> NDB Cluster Core Concepts </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-overview.html">Up <span class="navHint"> NDB Cluster Overview </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-overview-requirements.html">Next <span class="navHint"> NDB Cluster Hardware, Software, and Networking Requirements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

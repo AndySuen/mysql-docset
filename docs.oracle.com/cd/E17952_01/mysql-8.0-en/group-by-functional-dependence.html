@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>12.19.4 Detection of Functional Dependence</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="aggregate-functions-and-modifiers.html" title="12.19 Aggregate Functions" /><link rel="prev" href="group-by-handling.html" title="12.19.3 MySQL Handling of GROUP BY" /><link rel="next" href="window-functions.html" title="12.20 Window Functions" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-by-functional-dependence.html#group-by-functional-dependence">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-by-handling.html">Previous <span class="navHint"> MySQL Handling of GROUP BY </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="aggregate-functions-and-modifiers.html">Up <span class="navHint"> Aggregate Functions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="window-functions.html">Next <span class="navHint"> Window Functions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-by-functional-dependence"></a>12.19.4 Detection of Functional Dependence</h3></div></div></div><a id="idm45828919173456" class="indexterm"></a><p>
+        The following discussion provides several examples of the ways
+        in which MySQL detects functional dependencies. The examples use
+        this notation:
+      </p><pre class="programlisting">{<em class="replaceable"><code>X</code></em>} -&gt; {<em class="replaceable"><code>Y</code></em>}
+</pre><p>
+        Understand this as <span class="quote">“<span class="quote"><em class="replaceable"><code>X</code></em> uniquely
+        determines <em class="replaceable"><code>Y</code></em>,</span>”</span> which also
+        means that <em class="replaceable"><code>Y</code></em> is functionally
+        dependent on <em class="replaceable"><code>X</code></em>.
+      </p><p>
+        The examples use the <code class="literal">world</code> database, which
+        can be downloaded from
+        <a class="ulink" href="https://dev.mysql.com/doc/index-other.html" target="_top">https://dev.mysql.com/doc/index-other.html</a>. You can find details
+        on how to install the database on the same page.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="group-by-functional-dependence.html#functional-dependence-keys" title="Functional Dependencies Derived from Keys">Functional Dependencies Derived from Keys</a></p></li><li class="listitem"><p><a class="xref" href="group-by-functional-dependence.html#functional-dependence-multiple-column-keys" title="Functional Dependencies Derived from Multiple-Column Keys and from Equalities">Functional Dependencies Derived from Multiple-Column Keys and from
+          Equalities</a></p></li><li class="listitem"><p><a class="xref" href="group-by-functional-dependence.html#functional-dependence-special-cases" title="Functional Dependency Special Cases">Functional Dependency Special Cases</a></p></li><li class="listitem"><p><a class="xref" href="group-by-functional-dependence.html#functional-dependence-views" title="Functional Dependencies and Views">Functional Dependencies and Views</a></p></li><li class="listitem"><p><a class="xref" href="group-by-functional-dependence.html#functional-dependence-combinations" title="Combinations of Functional Dependencies">Combinations of Functional Dependencies</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="functional-dependence-keys"></a>Functional Dependencies Derived from Keys</h4></div></div></div><p>
+          The following query selects, for each country, a count of
+          spoken languages:
+        </p><pre class="programlisting">SELECT co.Name, COUNT(*)
+FROM countrylanguage cl, country co
+WHERE cl.CountryCode = co.Code
+GROUP BY co.Code;
+</pre><p>
+          <code class="literal">co.Code</code> is a primary key of
+          <code class="literal">co</code>, so all columns of <code class="literal">co</code>
+          are functionally dependent on it, as expressed using this
+          notation:
+        </p><pre class="programlisting">{co.Code} -&gt; {co.*}
+</pre><p>
+          Thus, <code class="literal">co.name</code> is functionally dependent on
+          <code class="literal">GROUP BY</code> columns and the query is valid.
+        </p><p>
+          A <code class="literal">UNIQUE</code> index over a <code class="literal">NOT
+          NULL</code> column could be used instead of a primary key
+          and the same functional dependence would apply. (This is not
+          true for a <code class="literal">UNIQUE</code> index that permits
+          <code class="literal">NULL</code> values because it permits multiple
+          <code class="literal">NULL</code> values and in that case uniqueness is
+          lost.)
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="functional-dependence-multiple-column-keys"></a>Functional Dependencies Derived from Multiple-Column Keys and from
+          Equalities</h4></div></div></div><p>
+          This query selects, for each country, a list of all spoken
+          languages and how many people speak them:
+        </p><pre class="programlisting">SELECT co.Name, cl.Language,
+cl.Percentage * co.Population / 100.0 AS SpokenBy
+FROM countrylanguage cl, country co
+WHERE cl.CountryCode = co.Code
+GROUP BY cl.CountryCode, cl.Language;
+</pre><p>
+          The pair (<code class="literal">cl.CountryCode</code>,
+          <code class="literal">cl.Language</code>) is a two-column composite
+          primary key of <code class="literal">cl</code>, so that column pair
+          uniquely determines all columns of <code class="literal">cl</code>:
+        </p><pre class="programlisting">{cl.CountryCode, cl.Language} -&gt; {cl.*}
+</pre><p>
+          Moreover, because of the equality in the
+          <code class="literal">WHERE</code> clause:
+        </p><pre class="programlisting">{cl.CountryCode} -&gt; {co.Code}
+</pre><p>
+          And, because <code class="literal">co.Code</code> is primary key of
+          <code class="literal">co</code>:
+        </p><pre class="programlisting">{co.Code} -&gt; {co.*}
+</pre><p>
+          <span class="quote">“<span class="quote">Uniquely determines</span>”</span> relationships are
+          transitive, therefore:
+        </p><pre class="programlisting">{cl.CountryCode, cl.Language} -&gt; {cl.*,co.*}
+</pre><p>
+          As a result, the query is valid.
+        </p><p>
+          As with the previous example, a <code class="literal">UNIQUE</code> key
+          over <code class="literal">NOT NULL</code> columns could be used instead
+          of a primary key.
+        </p><p>
+          An <code class="literal">INNER JOIN</code> condition can be used instead
+          of <code class="literal">WHERE</code>. The same functional dependencies
+          apply:
+        </p><pre class="programlisting">SELECT co.Name, cl.Language,
+cl.Percentage * co.Population/100.0 AS SpokenBy
+FROM countrylanguage cl INNER JOIN country co
+ON cl.CountryCode = co.Code
+GROUP BY cl.CountryCode, cl.Language;
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="functional-dependence-special-cases"></a>Functional Dependency Special Cases</h4></div></div></div><p>
+          Whereas an equality test in a <code class="literal">WHERE</code>
+          condition or <code class="literal">INNER JOIN</code> condition is
+          symmetric, an equality test in an outer join condition is not,
+          because tables play different roles.
+        </p><p>
+          Assume that referential integrity has been accidentally broken
+          and there exists a row of <code class="literal">countrylanguage</code>
+          without a corresponding row in <code class="literal">country</code>.
+          Consider the same query as in the previous example, but with a
+          <code class="literal">LEFT JOIN</code>:
+        </p><pre class="programlisting">SELECT co.Name, cl.Language,
+cl.Percentage * co.Population/100.0 AS SpokenBy
+FROM countrylanguage cl LEFT JOIN country co
+ON cl.CountryCode = co.Code
+GROUP BY cl.CountryCode, cl.Language;
+</pre><p>
+          For a given value of <code class="literal">cl.CountryCode</code>, the
+          value of <code class="literal">co.Code</code> in the join result is
+          either found in a matching row (determined by
+          <code class="literal">cl.CountryCode</code>) or is
+          <code class="literal">NULL</code>-complemented if there is no match
+          (also determined by <code class="literal">cl.CountryCode</code>). In
+          each case, this relationship applies:
+        </p><pre class="programlisting">{cl.CountryCode} -&gt; {co.Code}
+</pre><p>
+          <code class="literal">cl.CountryCode</code> is itself functionally
+          dependent on {<code class="literal">cl.CountryCode</code>,
+          <code class="literal">cl.Language</code>} which is a primary key.
+        </p><p>
+          If in the join result <code class="literal">co.Code</code> is
+          <code class="literal">NULL</code>-complemented,
+          <code class="literal">co.Name</code> is as well. If
+          <code class="literal">co.Code</code> is not
+          <code class="literal">NULL</code>-complemented, then because
+          <code class="literal">co.Code</code> is a primary key, it determines
+          <code class="literal">co.Name</code>. Therefore, in all cases:
+        </p><pre class="programlisting">{co.Code} -&gt; {co.Name}
+</pre><p>
+          Which yields:
+        </p><pre class="programlisting">{cl.CountryCode, cl.Language} -&gt; {cl.*,co.*}
+</pre><p>
+          As a result, the query is valid.
+        </p><p>
+          However, suppose that the tables are swapped, as in this
+          query:
+        </p><pre class="programlisting">SELECT co.Name, cl.Language,
+cl.Percentage * co.Population/100.0 AS SpokenBy
+FROM country co LEFT JOIN countrylanguage cl
+ON cl.CountryCode = co.Code
+GROUP BY cl.CountryCode, cl.Language;
+</pre><p>
+          Now this relationship does <span class="emphasis"><em>not</em></span> apply:
+        </p><pre class="programlisting">{cl.CountryCode, cl.Language} -&gt; {cl.*,co.*}
+</pre><p>
+          Indeed, all <code class="literal">NULL</code>-complemented rows made for
+          <code class="literal">cl</code> is put into a single group (they have
+          both <code class="literal">GROUP BY</code> columns equal to
+          <code class="literal">NULL</code>), and inside this group the value of
+          <code class="literal">co.Name</code> can vary. The query is invalid and
+          MySQL rejects it.
+        </p><p>
+          Functional dependence in outer joins is thus linked to whether
+          determinant columns belong to the left or right side of the
+          <code class="literal">LEFT JOIN</code>. Determination of functional
+          dependence becomes more complex if there are nested outer
+          joins or the join condition does not consist entirely of
+          equality comparisons.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="functional-dependence-views"></a>Functional Dependencies and Views</h4></div></div></div><p>
+          Suppose that a view on countries produces their code, their
+          name in uppercase, and how many different official languages
+          they have:
+        </p><pre class="programlisting">CREATE VIEW country2 AS
+SELECT co.Code, UPPER(co.Name) AS UpperName,
+COUNT(cl.Language) AS OfficialLanguages
+FROM country AS co JOIN countrylanguage AS cl
+ON cl.CountryCode = co.Code
+WHERE cl.isOfficial = 'T'
+GROUP BY co.Code;
+</pre><p>
+          This definition is valid because:
+        </p><pre class="programlisting">{co.Code} -&gt; {co.*}
+</pre><p>
+          In the view result, the first selected column is
+          <code class="literal">co.Code</code>, which is also the group column and
+          thus determines all other selected expressions:
+        </p><pre class="programlisting">{country2.Code} -&gt; {country2.*}
+</pre><p>
+          MySQL understands this and uses this information, as described
+          following.
+        </p><p>
+          This query displays countries, how many different official
+          languages they have, and how many cities they have, by joining
+          the view with the <code class="literal">city</code> table:
+        </p><pre class="programlisting">SELECT co2.Code, co2.UpperName, co2.OfficialLanguages,
+COUNT(*) AS Cities
+FROM country2 AS co2 JOIN city ci
+ON ci.CountryCode = co2.Code
+GROUP BY co2.Code;
+</pre><p>
+          This query is valid because, as seen previously:
+        </p><pre class="programlisting">{co2.Code} -&gt; {co2.*}
+</pre><p>
+          MySQL is able to discover a functional dependency in the
+          result of a view and use that to validate a query which uses
+          the view. The same would be true if
+          <code class="literal">country2</code> were a derived table (or common
+          table expression), as in:
+        </p><pre class="programlisting">SELECT co2.Code, co2.UpperName, co2.OfficialLanguages,
+COUNT(*) AS Cities
+FROM
+(
+ SELECT co.Code, UPPER(co.Name) AS UpperName,
+ COUNT(cl.Language) AS OfficialLanguages
+ FROM country AS co JOIN countrylanguage AS cl
+ ON cl.CountryCode=co.Code
+ WHERE cl.isOfficial='T'
+ GROUP BY co.Code
+) AS co2
+JOIN city ci ON ci.CountryCode = co2.Code
+GROUP BY co2.Code;
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="functional-dependence-combinations"></a>Combinations of Functional Dependencies</h4></div></div></div><p>
+          MySQL is able to combine all of the preceding types of
+          functional dependencies (key based, equality based, view
+          based) to validate more complex queries.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-by-handling.html">Previous <span class="navHint"> MySQL Handling of GROUP BY </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="aggregate-functions-and-modifiers.html">Up <span class="navHint"> Aggregate Functions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="window-functions.html">Next <span class="navHint"> Window Functions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

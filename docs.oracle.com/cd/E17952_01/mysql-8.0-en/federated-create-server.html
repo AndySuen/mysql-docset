@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>16.8.2.2 Creating a FEDERATED Table Using CREATE SERVER</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="federated-create.html" title="16.8.2 How to Create FEDERATED Tables" /><link rel="prev" href="federated-create-connection.html" title="16.8.2.1 Creating a FEDERATED Table Using CONNECTION" /><link rel="next" href="federated-usagenotes.html" title="16.8.3 FEDERATED Storage Engine Notes and Tips" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="federated-create-server.html#federated-create-server">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="federated-create-connection.html">Previous <span class="navHint"> Creating a FEDERATED Table Using CONNECTION </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="federated-create.html">Up <span class="navHint"> How to Create FEDERATED Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="federated-usagenotes.html">Next <span class="navHint"> FEDERATED Storage Engine Notes and Tips </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="federated-create-server"></a>16.8.2.2 Creating a FEDERATED Table Using CREATE SERVER</h4></div></div></div><p>
+        If you are creating a number of <code class="literal">FEDERATED</code>
+        tables on the same server, or if you want to simplify the
+        process of creating <code class="literal">FEDERATED</code> tables, you can
+        use the <a class="link" href="create-server.html" title="13.1.18 CREATE SERVER Statement"><code class="literal">CREATE SERVER</code></a> statement
+        to define the server connection parameters, just as you would
+        with the <code class="literal">CONNECTION</code> string.
+      </p><p>
+        The format of the <a class="link" href="create-server.html" title="13.1.18 CREATE SERVER Statement"><code class="literal">CREATE SERVER</code></a>
+        statement is:
+      </p><pre class="programlisting">CREATE SERVER
+<em class="replaceable"><code>server_name</code></em>
+FOREIGN DATA WRAPPER <em class="replaceable"><code>wrapper_name</code></em>
+OPTIONS (<em class="replaceable"><code>option</code></em> [, <em class="replaceable"><code>option</code></em>] ...)</pre><p>
+        The <em class="replaceable"><code>server_name</code></em> is used in the
+        connection string when creating a new
+        <code class="literal">FEDERATED</code> table.
+      </p><p>
+        For example, to create a server connection identical to the
+        <code class="literal">CONNECTION</code> string:
+      </p><pre class="programlisting">CONNECTION='mysql://fed_user@remote_host:9306/federated/test_table';</pre><p>
+        You would use the following statement:
+      </p><pre class="programlisting">CREATE SERVER fedlink
+FOREIGN DATA WRAPPER mysql
+OPTIONS (USER 'fed_user', HOST 'remote_host', PORT 9306, DATABASE 'federated');</pre><p>
+        To create a <code class="literal">FEDERATED</code> table that uses this
+        connection, you still use the <code class="literal">CONNECTION</code>
+        keyword, but specify the name you used in the
+        <a class="link" href="create-server.html" title="13.1.18 CREATE SERVER Statement"><code class="literal">CREATE SERVER</code></a> statement.
+      </p><pre class="programlisting">CREATE TABLE test_table (
+    id     INT(20) NOT NULL AUTO_INCREMENT,
+    name   VARCHAR(32) NOT NULL DEFAULT '',
+    other  INT(20) NOT NULL DEFAULT '0',
+    PRIMARY KEY  (id),
+    INDEX name (name),
+    INDEX other_key (other)
+)
+ENGINE=FEDERATED
+DEFAULT CHARSET=utf8mb4
+CONNECTION='fedlink/test_table';</pre><p>
+        The connection name in this example contains the name of the
+        connection (<code class="literal">fedlink</code>) and the name of the
+        table (<code class="literal">test_table</code>) to link to, separated by a
+        slash. If you specify only the connection name without a table
+        name, the table name of the local table is used instead.
+      </p><p>
+        For more information on <a class="link" href="create-server.html" title="13.1.18 CREATE SERVER Statement"><code class="literal">CREATE
+        SERVER</code></a>, see <a class="xref" href="create-server.html" title="13.1.18 CREATE SERVER Statement">Section 13.1.18, “CREATE SERVER Statement”</a>.
+      </p><p>
+        The <a class="link" href="create-server.html" title="13.1.18 CREATE SERVER Statement"><code class="literal">CREATE SERVER</code></a> statement
+        accepts the same arguments as the <code class="literal">CONNECTION</code>
+        string. The <a class="link" href="create-server.html" title="13.1.18 CREATE SERVER Statement"><code class="literal">CREATE SERVER</code></a>
+        statement updates the rows in the
+        <code class="literal">mysql.servers</code> table. See the following table
+        for information on the correspondence between parameters in a
+        connection string, options in the <a class="link" href="create-server.html" title="13.1.18 CREATE SERVER Statement"><code class="literal">CREATE
+        SERVER</code></a> statement, and the columns in the
+        <code class="literal">mysql.servers</code> table. For reference, the
+        format of the <code class="literal">CONNECTION</code> string is as
+        follows:
+      </p><pre class="programlisting"><em class="replaceable"><code>scheme</code></em>://<em class="replaceable"><code>user_name</code></em>[:<em class="replaceable"><code>password</code></em>]@<em class="replaceable"><code>host_name</code></em>[:<em class="replaceable"><code>port_num</code></em>]/<em class="replaceable"><code>db_name</code></em>/<em class="replaceable"><code>tbl_name</code></em>
+</pre><div class="informaltable"><table summary="The correspondence between parameters in a connection string, options in the CREATE SERVER statement, and the columns in the mysql.servers table."><col style="width: 25%" /><col style="width: 25%" /><col style="width: 25%" /><col style="width: 25%" /><thead><tr>
+            <th scope="col">Description</th>
+            <th scope="col"><code class="literal">CONNECTION</code> string</th>
+            <th scope="col"><a class="link" href="create-server.html" title="13.1.18 CREATE SERVER Statement"><code class="literal">CREATE SERVER</code></a> option</th>
+            <th scope="col"><code class="literal">mysql.servers</code> column</th>
+          </tr></thead><tbody><tr>
+            <th scope="row">Connection scheme</th>
+            <td><em class="replaceable"><code>scheme</code></em></td>
+            <td><code class="literal">wrapper_name</code></td>
+            <td><code class="literal">Wrapper</code></td>
+          </tr><tr>
+            <th scope="row">Remote user</th>
+            <td><em class="replaceable"><code>user_name</code></em></td>
+            <td><code class="literal">USER</code></td>
+            <td><code class="literal">Username</code></td>
+          </tr><tr>
+            <th scope="row">Remote password</th>
+            <td><em class="replaceable"><code>password</code></em></td>
+            <td><code class="literal">PASSWORD</code></td>
+            <td><code class="literal">Password</code></td>
+          </tr><tr>
+            <th scope="row">Remote host</th>
+            <td><em class="replaceable"><code>host_name</code></em></td>
+            <td><code class="literal">HOST</code></td>
+            <td><code class="literal">Host</code></td>
+          </tr><tr>
+            <th scope="row">Remote port</th>
+            <td><em class="replaceable"><code>port_num</code></em></td>
+            <td><code class="literal">PORT</code></td>
+            <td><code class="literal">Port</code></td>
+          </tr><tr>
+            <th scope="row">Remote database</th>
+            <td><em class="replaceable"><code>db_name</code></em></td>
+            <td><code class="literal">DATABASE</code></td>
+            <td><code class="literal">Db</code></td>
+          </tr></tbody></table></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="federated-create-connection.html">Previous <span class="navHint"> Creating a FEDERATED Table Using CONNECTION </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="federated-create.html">Up <span class="navHint"> How to Create FEDERATED Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="federated-usagenotes.html">Next <span class="navHint"> FEDERATED Storage Engine Notes and Tips </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

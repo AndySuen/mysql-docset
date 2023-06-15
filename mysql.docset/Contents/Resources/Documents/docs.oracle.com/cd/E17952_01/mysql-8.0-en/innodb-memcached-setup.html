@@ -1,0 +1,445 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1560"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.20.3%C2%A0Setting%20Up%20the%20InnoDB%20memcached%20Plugin"></a><title>15.20.3&nbsp;Setting Up the InnoDB memcached Plugin</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-memcached.html" title="15.20&nbsp;InnoDB memcached Plugin"/><link rel="prev" href="innodb-memcached-intro.html" title="15.20.2&nbsp;InnoDB memcached Architecture"/><link rel="next" href="innodb-memcached-multiple-get-range-query.html" title="15.20.4&nbsp;InnoDB memcached Multiple get and Range Query Support"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-memcached-setup.html#innodb-memcached-setup">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-memcached-intro.html">Previous <span class="navHint"> InnoDB memcached Architecture </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-memcached.html">Up <span class="navHint"> InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-memcached-multiple-get-range-query.html">Next <span class="navHint"> InnoDB memcached Multiple get and Range Query Support </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-memcached-setup"></a>15.20.3&nbsp;Setting Up the InnoDB memcached Plugin</h3></div></div></div><p>
+      This section describes how to set up the
+      <code class="literal">daemon_memcached</code> plugin on a MySQL server.
+      Because the <span class="command"><strong>memcached</strong></span> daemon is tightly
+      integrated with the MySQL server to avoid network traffic and
+      minimize latency, you perform this process on each MySQL instance
+      that uses this feature.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        Before setting up the <code class="literal">daemon_memcached</code>
+        plugin, consult <a class="xref" href="innodb-memcached-security.html" title="15.20.5&nbsp;Security Considerations for the InnoDB memcached Plugin">Section&nbsp;15.20.5, &ldquo;Security Considerations for the InnoDB memcached Plugin&rdquo;</a> to
+        understand the security procedures required to prevent
+        unauthorized access.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1561"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Prerequisites"></a><h4 class="title"><a id="innodb-memcached-prereqs"></a>Prerequisites</h4></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The <code class="literal">daemon_memcached</code> plugin is only
+            supported on Linux, Solaris, and macOS platforms. Other
+            operating systems are not supported.
+          </p></li><li class="listitem"><p>
+            When building MySQL from source, you must build with
+            <a class="link" href="source-configuration-options.html#option_cmake_with_innodb_memcached"><code class="option">-DWITH_INNODB_MEMCACHED=ON</code></a>.
+            This build option generates two shared libraries in the
+            MySQL plugin directory
+            (<a class="link" href="server-system-variables.html#sysvar_plugin_dir"><code class="literal">plugin_dir</code></a>) that are
+            required to run the <code class="literal">daemon_memcached</code>
+            plugin:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <code class="filename">libmemcached.so</code>: the
+                <span class="command"><strong>memcached</strong></span> daemon plugin to MySQL.
+              </p></li><li class="listitem"><p>
+                <code class="filename">innodb_engine.so</code>: an
+                <code class="literal">InnoDB</code> API plugin to
+                <span class="command"><strong>memcached</strong></span>.
+              </p></li></ul></div></li><li class="listitem"><p>
+            <code class="literal">libevent</code> must be installed.
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                If you did not build MySQL from source, the
+                <code class="literal">libevent</code> library is not included in
+                your installation. Use the installation method for your
+                operating system to install <code class="literal">libevent</code>
+                1.4.12 or later. For example, depending on the operating
+                system, you might use <code class="literal">apt-get</code>,
+                <code class="literal">yum</code>, or <code class="literal">port
+                install</code>. For example, on Ubuntu Linux, use:
+              </p><pre class="programlisting">sudo apt-get install libevent-dev
+</pre></li><li class="listitem"><p>
+                If you installed MySQL from a source code release,
+                <code class="literal">libevent</code> 1.4.12 is bundled with the
+                package and is located at the top level of the MySQL
+                source code directory. If you use the bundled version of
+                <code class="literal">libevent</code>, no action is required. If
+                you want to use a local system version of
+                <code class="literal">libevent</code>, you must build MySQL with
+                the <a class="link" href="source-configuration-options.html#option_cmake_with_libevent"><code class="option">-DWITH_LIBEVENT</code></a> build
+                option set to <code class="literal">system</code> or
+                <code class="literal">yes</code>.
+              </p></li></ul></div></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1562"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Installing%20and%20Configuring%20the%20InnoDB%20memcached%20Plugin"></a><h4 class="title"><a id="innodb-memcached-installing"></a>Installing and Configuring the InnoDB memcached Plugin</h4></div></div></div><a id="idm45828873024240" class="indexterm"></a><a id="idm45828873023200" class="indexterm"></a><a id="idm45828873022128" class="indexterm"></a><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Configure the <code class="literal">daemon_memcached</code> plugin so
+            it can interact with <code class="literal">InnoDB</code> tables by
+            running the <code class="filename">innodb_memcached_config.sql</code>
+            configuration script, which is located in
+            <code class="filename"><em class="replaceable"><code>MYSQL_HOME</code></em>/share</code>.
+            This script installs the <code class="literal">innodb_memcache</code>
+            database with three required tables
+            (<code class="literal">cache_policies</code>,
+            <code class="literal">config_options</code>, and
+            <code class="literal">containers</code>). It also installs the
+            <code class="literal">demo_test</code> sample table in the
+            <code class="literal">test</code> database.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>source <em class="replaceable"><code>MYSQL_HOME</code></em>/share/innodb_memcached_config.sql</code></strong>
+</pre><p>
+            Running the <code class="filename">innodb_memcached_config.sql</code>
+            script is a one-time operation. The tables remain in place
+            if you later uninstall and re-install the
+            <code class="literal">daemon_memcached</code> plugin.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>USE innodb_memcache;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW TABLES;</code></strong>
++---------------------------+
+| Tables_in_innodb_memcache |
++---------------------------+
+| cache_policies            |
+| config_options            |
+| containers                |
++---------------------------+
+
+mysql&gt; <strong class="userinput"><code>USE test;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW TABLES;</code></strong>
++----------------+
+| Tables_in_test |
++----------------+
+| demo_test      |
++----------------+
+</pre><p>
+            Of these tables, the
+            <code class="literal">innodb_memcache.containers</code> table is the
+            most important. Entries in the <code class="literal">containers</code>
+            table provide a mapping to <code class="literal">InnoDB</code> table
+            columns. Each <code class="literal">InnoDB</code> table used with the
+            <code class="literal">daemon_memcached</code> plugin requires an entry
+            in the <code class="literal">containers</code> table.
+          </p><p>
+            The <code class="filename">innodb_memcached_config.sql</code> script
+            inserts a single entry in the <code class="literal">containers</code>
+            table that provides a mapping for the
+            <code class="literal">demo_test</code> table. It also inserts a single
+            row of data into the <code class="literal">demo_test</code> table.
+            This data allows you to immediately verify the installation
+            after the setup is completed.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM innodb_memcache.containers\G</code></strong>
+*************************** 1. row ***************************
+                  name: aaa
+             db_schema: test
+              db_table: demo_test
+           key_columns: c1
+         value_columns: c2
+                 flags: c3
+            cas_column: c4
+    expire_time_column: c5
+unique_idx_name_on_key: PRIMARY
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM test.demo_test;</code></strong>
++----+------------------+------+------+------+
+| c1 | c2               | c3   | c4   | c5   |
++----+------------------+------+------+------+
+| AA | HELLO, HELLO     |    8 |    0 |    0 |
++----+------------------+------+------+------+
+</pre><p>
+            For more information about
+            <code class="literal">innodb_memcache</code> tables and the
+            <code class="literal">demo_test</code> sample table, see
+            <a class="xref" href="innodb-memcached-internals.html" title="15.20.8&nbsp;InnoDB memcached Plugin Internals">Section&nbsp;15.20.8, &ldquo;InnoDB memcached Plugin Internals&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            Activate the <code class="literal">daemon_memcached</code> plugin by
+            running the <a class="link" href="install-plugin.html" title="13.7.4.4&nbsp;INSTALL PLUGIN Statement"><code class="literal">INSTALL PLUGIN</code></a>
+            statement:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSTALL PLUGIN daemon_memcached soname &#34;libmemcached.so&#34;;</code></strong>
+</pre><p>
+            Once the plugin is installed, it is automatically activated
+            each time the MySQL server is restarted.
+          </p></li></ol></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1563"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Verifying%20the%20InnoDB%20and%20memcached%20Setup"></a><h4 class="title"><a id="innodb-memcached-snifftest"></a>Verifying the InnoDB and memcached Setup</h4></div></div></div><p>
+        To verify the <code class="literal">daemon_memcached</code> plugin setup,
+        use a <span class="command"><strong>telnet</strong></span> session to issue
+        <span class="command"><strong>memcached</strong></span> commands. By default, the
+        <span class="command"><strong>memcached</strong></span> daemon listens on port 11211.
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Retrieve data from the <code class="literal">test.demo_test</code>
+            table. The single row of data in the
+            <code class="literal">demo_test</code> table has a key value of
+            <code class="literal">AA</code>.
+          </p><pre class="programlisting"><strong class="userinput"><code>telnet localhost 11211</code></strong>
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is &#39;^]&#39;.
+<strong class="userinput"><code>get AA</code></strong>
+VALUE AA 8 12
+HELLO, HELLO
+END
+</pre></li><li class="listitem"><p>
+            Insert data using a <code class="literal">set</code> command.
+          </p><pre class="programlisting"><strong class="userinput"><code>set BB 10 0 16</code></strong>
+<strong class="userinput"><code>GOODBYE, GOODBYE</code></strong>
+STORED
+</pre><p>
+            where:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                <code class="literal">set</code> is the command to store a value
+              </p></li><li class="listitem"><p>
+                <code class="literal">BB</code> is the key
+              </p></li><li class="listitem"><p>
+                <code class="literal">10</code> is a flag for the operation;
+                ignored by <span class="command"><strong>memcached</strong></span> but may be used
+                by the client to indicate any type of information;
+                specify <code class="literal">0</code> if unused
+              </p></li><li class="listitem"><p>
+                <code class="literal">0</code> is the expiration time (TTL);
+                specify <code class="literal">0</code> if unused
+              </p></li><li class="listitem"><p>
+                <code class="literal">16</code> is the length of the supplied
+                value block in bytes
+              </p></li><li class="listitem"><p>
+                <code class="literal">GOODBYE, GOODBYE</code> is the value that is
+                stored
+              </p></li></ul></div></li><li class="listitem"><p>
+            Verify that the data inserted is stored in MySQL by
+            connecting to the MySQL server and querying the
+            <code class="literal">test.demo_test</code> table.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test.demo_test;</code></strong>
++----+------------------+------+------+------+
+| c1 | c2               | c3   | c4   | c5   |
++----+------------------+------+------+------+
+| AA | HELLO, HELLO     |    8 |    0 |    0 |
+| BB | GOODBYE, GOODBYE |   10 |    1 |    0 |
++----+------------------+------+------+------+
+</pre></li><li class="listitem"><p>
+            Return to the telnet session and retrieve the data that you
+            inserted earlier using key <code class="literal">BB</code>.
+          </p><pre class="programlisting"><strong class="userinput"><code>get BB</code></strong>
+VALUE BB 10 16
+GOODBYE, GOODBYE
+END
+<strong class="userinput"><code>quit</code></strong>
+</pre></li></ol></div><p>
+        If you shut down the MySQL server, which also shuts off the
+        integrated <span class="command"><strong>memcached</strong></span> server, further attempts
+        to access the <span class="command"><strong>memcached</strong></span> data fail with a
+        connection error. Normally, the <span class="command"><strong>memcached</strong></span>
+        data also disappears at this point, and you would require
+        application logic to load the data back into memory when
+        <span class="command"><strong>memcached</strong></span> is restarted. However, the
+        <code class="literal">InnoDB</code> <span class="command"><strong>memcached</strong></span> plugin
+        automates this process for you.
+      </p><p>
+        When you restart MySQL, <code class="literal">get</code> operations once
+        again return the key-value pairs you stored in the earlier
+        <span class="command"><strong>memcached</strong></span> session. When a key is requested
+        and the associated value is not already in the memory cache, the
+        value is automatically queried from the MySQL
+        <code class="literal">test.demo_test</code> table.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1564"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Creating%20a%20New%20Table%20and%20Column%20Mapping"></a><h4 class="title"><a id="innodb-memcached-new-table-setup"></a>Creating a New Table and Column Mapping</h4></div></div></div><p>
+        This example shows how to setup your own
+        <code class="literal">InnoDB</code> table with the
+        <code class="literal">daemon_memcached</code> plugin.
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Create an <code class="literal">InnoDB</code> table. The table must
+            have a key column with a unique index. The key column of the
+            city table is <code class="literal">city_id</code>, which is defined
+            as the primary key. The table must also include columns for
+            <code class="literal">flags</code>, <code class="literal">cas</code>, and
+            <code class="literal">expiry</code> values. There may be one or more
+            value columns. The <code class="literal">city</code> table has three
+            value columns (<code class="literal">name</code>,
+            <code class="literal">state</code>, <code class="literal">country</code>).
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              There is no special requirement with respect to column
+              names as along as a valid mapping is added to the
+              <code class="literal">innodb_memcache.containers</code> table.
+            </p></div><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE city (</code></strong>
+       <strong class="userinput"><code>city_id VARCHAR(32),</code></strong>
+       <strong class="userinput"><code>name VARCHAR(1024),</code></strong>
+       <strong class="userinput"><code>state VARCHAR(1024),</code></strong>
+       <strong class="userinput"><code>country VARCHAR(1024),</code></strong>
+       <strong class="userinput"><code>flags INT,</code></strong>
+       <strong class="userinput"><code>cas BIGINT UNSIGNED, </code></strong>
+       <strong class="userinput"><code>expiry INT,</code></strong>
+       <strong class="userinput"><code>primary key(city_id)</code></strong>
+       ) <strong class="userinput"><code>ENGINE=InnoDB;</code></strong>
+</pre></li><li class="listitem"><p>
+            Add an entry to the
+            <code class="literal">innodb_memcache.containers</code> table so that
+            the <code class="literal">daemon_memcached</code> plugin knows how to
+            access the <code class="literal">InnoDB</code> table. The entry must
+            satisfy the <code class="literal">innodb_memcache.containers</code>
+            table definition. For a description of each field, see
+            <a class="xref" href="innodb-memcached-internals.html" title="15.20.8&nbsp;InnoDB memcached Plugin Internals">Section&nbsp;15.20.8, &ldquo;InnoDB memcached Plugin Internals&rdquo;</a>.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>DESCRIBE innodb_memcache.containers;</code></strong>
++------------------------+--------------+------+-----+---------+-------+
+| Field                  | Type         | Null | Key | Default | Extra |
++------------------------+--------------+------+-----+---------+-------+
+| name                   | varchar(50)  | NO   | PRI | NULL    |       |
+| db_schema              | varchar(250) | NO   |     | NULL    |       |
+| db_table               | varchar(250) | NO   |     | NULL    |       |
+| key_columns            | varchar(250) | NO   |     | NULL    |       |
+| value_columns          | varchar(250) | YES  |     | NULL    |       |
+| flags                  | varchar(250) | NO   |     | 0       |       |
+| cas_column             | varchar(250) | YES  |     | NULL    |       |
+| expire_time_column     | varchar(250) | YES  |     | NULL    |       |
+| unique_idx_name_on_key | varchar(250) | NO   |     | NULL    |       |
++------------------------+--------------+------+-----+---------+-------+
+</pre><p>
+            The <code class="literal">innodb_memcache.containers</code> table
+            entry for the city table is defined as:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO `innodb_memcache`.`containers` (</code></strong>
+       <strong class="userinput"><code>`name`, `db_schema`, `db_table`, `key_columns`, `value_columns`,</code></strong>
+       <strong class="userinput"><code>`flags`, `cas_column`, `expire_time_column`, `unique_idx_name_on_key`)</code></strong>
+       <strong class="userinput"><code>VALUES (&#39;default&#39;, &#39;test&#39;, &#39;city&#39;, &#39;city_id&#39;, &#39;name|state|country&#39;, </code></strong>
+       <strong class="userinput"><code>&#39;flags&#39;,&#39;cas&#39;,&#39;expiry&#39;,&#39;PRIMARY&#39;);</code></strong>
+</pre><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                <code class="literal">default</code> is specified for the
+                <code class="literal">containers.name</code> column to configure
+                the <code class="literal">city</code> table as the default
+                <code class="literal">InnoDB</code> table to be used with the
+                <code class="literal">daemon_memcached</code> plugin.
+              </p></li><li class="listitem"><p>
+                Multiple <code class="literal">InnoDB</code> table columns
+                (<code class="literal">name</code>, <code class="literal">state</code>,
+                <code class="literal">country</code>) are mapped to
+                <code class="literal">containers.value_columns</code> using a
+                <span class="quote">&ldquo;<span class="quote">|</span>&rdquo;</span> delimiter.
+              </p></li><li class="listitem"><p>
+                The <code class="literal">flags</code>,
+                <code class="literal">cas_column</code>, and
+                <code class="literal">expire_time_column</code> fields of the
+                <code class="literal">innodb_memcache.containers</code> table are
+                typically not significant in applications using the
+                <code class="literal">daemon_memcached</code> plugin. However, a
+                designated <code class="literal">InnoDB</code> table column is
+                required for each. When inserting data, specify
+                <code class="literal">0</code> for these columns if they are
+                unused.
+              </p></li></ul></div></li><li class="listitem"><p>
+            After updating the
+            <code class="literal">innodb_memcache.containers</code> table, restart
+            the <code class="literal">daemon_memcache</code> plugin to apply the
+            changes.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UNINSTALL PLUGIN daemon_memcached;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>INSTALL PLUGIN daemon_memcached soname &#34;libmemcached.so&#34;;</code></strong>
+</pre></li><li class="listitem"><p>
+            Using telnet, insert data into the <code class="literal">city</code>
+            table using a <span class="command"><strong>memcached</strong></span>
+            <code class="literal">set</code> command.
+          </p><pre class="programlisting"><strong class="userinput"><code>telnet localhost 11211</code></strong>
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is &#39;^]&#39;.
+<strong class="userinput"><code>set B 0 0 22</code></strong>
+<strong class="userinput"><code>BANGALORE|BANGALORE|IN</code></strong>
+STORED
+</pre></li><li class="listitem"><p>
+            Using MySQL, query the <code class="literal">test.city</code> table to
+            verify that the data you inserted was stored.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test.city;</code></strong>
++---------+-----------+-----------+---------+-------+------+--------+
+| city_id | name      | state     | country | flags | cas  | expiry |
++---------+-----------+-----------+---------+-------+------+--------+
+| B       | BANGALORE | BANGALORE | IN      |     0 |    3 |      0 |
++---------+-----------+-----------+---------+-------+------+--------+
+</pre></li><li class="listitem"><p>
+            Using MySQL, insert additional data into the
+            <code class="literal">test.city</code> table.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO city VALUES (&#39;C&#39;,&#39;CHENNAI&#39;,&#39;TAMIL NADU&#39;,&#39;IN&#39;, 0, 0 ,0);</code></strong>
+mysql&gt; <strong class="userinput"><code>INSERT INTO city VALUES (&#39;D&#39;,&#39;DELHI&#39;,&#39;DELHI&#39;,&#39;IN&#39;, 0, 0, 0);</code></strong>
+mysql&gt; <strong class="userinput"><code>INSERT INTO city VALUES (&#39;H&#39;,&#39;HYDERABAD&#39;,&#39;TELANGANA&#39;,&#39;IN&#39;, 0, 0, 0);</code></strong>
+mysql&gt; <strong class="userinput"><code>INSERT INTO city VALUES (&#39;M&#39;,&#39;MUMBAI&#39;,&#39;MAHARASHTRA&#39;,&#39;IN&#39;, 0, 0, 0);</code></strong>
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              It is recommended that you specify a value of
+              <code class="literal">0</code> for the <code class="literal">flags</code>,
+              <code class="literal">cas_column</code>, and
+              <code class="literal">expire_time_column</code> fields if they are
+              unused.
+            </p></div></li><li class="listitem"><p>
+            Using telnet, issue a <span class="command"><strong>memcached</strong></span>
+            <code class="literal">get</code> command to retrieve data you inserted
+            using MySQL.
+          </p><pre class="programlisting"><strong class="userinput"><code>get H</code></strong>
+VALUE H 0 22
+HYDERABAD|TELANGANA|IN
+END
+</pre></li></ol></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1565"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Configuring%20the%20InnoDB%20memcached%20Plugin"></a><h4 class="title"><a id="innodb-memcached-configuration"></a>Configuring the InnoDB memcached Plugin</h4></div></div></div><p>
+        Traditional <code class="literal">memcached</code> configuration options
+        may be specified in a MySQL configuration file or a
+        <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> startup string, encoded in the
+        argument of the
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_option"><code class="literal">daemon_memcached_option</code></a>
+        configuration parameter. <code class="literal">memcached</code>
+        configuration options take effect when the plugin is loaded,
+        which occurs each time the MySQL server is started.
+      </p><p>
+        For example, to make <span class="command"><strong>memcached</strong></span> listen on port
+        11222 instead of the default port 11211, specify
+        <code class="literal">-p11222</code> as an argument of the
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_option"><code class="literal">daemon_memcached_option</code></a>
+        configuration option:
+      </p><pre class="programlisting">mysqld .... --daemon_memcached_option=&#34;-p11222&#34;
+</pre><p>
+        Other <span class="command"><strong>memcached</strong></span> options can be encoded in the
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_option"><code class="literal">daemon_memcached_option</code></a> string.
+        For example, you can specify options to reduce the maximum
+        number of simultaneous connections, change the maximum memory
+        size for a key-value pair, or enable debugging messages for the
+        error log, and so on.
+      </p><p>
+        There are also configuration options specific to the
+        <code class="literal">daemon_memcached</code> plugin. These include:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_engine_lib_name"><code class="literal">daemon_memcached_engine_lib_name</code></a>:
+            Specifies the shared library that implements the
+            <code class="literal">InnoDB</code> <span class="command"><strong>memcached</strong></span>
+            plugin. The default setting is
+            <code class="filename">innodb_engine.so</code>.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_engine_lib_path"><code class="literal">daemon_memcached_engine_lib_path</code></a>:
+            The path of the directory containing the shared library that
+            implements the <code class="literal">InnoDB</code>
+            <span class="command"><strong>memcached</strong></span> plugin. The default is NULL,
+            representing the plugin directory.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_r_batch_size"><code class="literal">daemon_memcached_r_batch_size</code></a>:
+            Defines the batch commit size for read operations
+            (<code class="literal">get</code>). It specifies the number of
+            <span class="command"><strong>memcached</strong></span> read operations after which a
+            <a class="link" href="glossary.html#glos_commit" title="commit">commit</a> occurs.
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_r_batch_size"><code class="literal">daemon_memcached_r_batch_size</code></a>
+            is set to 1 by default so that every <code class="literal">get</code>
+            request accesses the most recently committed data in the
+            <code class="literal">InnoDB</code> table, whether the data was
+            updated through <span class="command"><strong>memcached</strong></span> or by SQL. When
+            the value is greater than 1, the counter for read operations
+            is incremented with each <code class="literal">get</code> call. A
+            <code class="literal">flush_all</code> call resets both read and write
+            counters.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>:
+            Defines the batch commit size for write operations
+            (<code class="literal">set</code>, <code class="literal">replace</code>,
+            <code class="literal">append</code>, <code class="literal">prepend</code>,
+            <code class="literal">incr</code>, <code class="literal">decr</code>, and so
+            on).
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+            is set to 1 by default so that no uncommitted data is lost
+            in case of an outage, and so that SQL queries on the
+            underlying table access the most recent data. When the value
+            is greater than 1, the counter for write operations is
+            incremented for each <code class="literal">add</code>,
+            <code class="literal">set</code>, <code class="literal">incr</code>,
+            <code class="literal">decr</code>, and <code class="literal">delete</code> call.
+            A <code class="literal">flush_all</code> call resets both read and
+            write counters.
+          </p></li></ul></div><p>
+        By default, you do not need to modify
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_engine_lib_name"><code class="literal">daemon_memcached_engine_lib_name</code></a>
+        or
+        <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_engine_lib_path"><code class="literal">daemon_memcached_engine_lib_path</code></a>.
+        You might configure these options if, for example, you want to
+        use a different storage engine for <span class="command"><strong>memcached</strong></span>
+        (such as the NDB <span class="command"><strong>memcached</strong></span> engine).
+      </p><p>
+        <code class="literal">daemon_memcached</code> plugin configuration
+        parameters may be specified in the MySQL configuration file or
+        in a <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> startup string. They take effect
+        when you load the <code class="literal">daemon_memcached</code> plugin.
+      </p><p>
+        When making changes to <code class="literal">daemon_memcached</code>
+        plugin configuration, reload the plugin to apply the changes. To
+        do so, issue the following statements:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UNINSTALL PLUGIN daemon_memcached;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>INSTALL PLUGIN daemon_memcached soname &#34;libmemcached.so&#34;;</code></strong>
+</pre><p>
+        Configuration settings, required tables, and data are preserved
+        when the plugin is restarted.
+      </p><p>
+        For additional information about enabling and disabling plugins,
+        see <a class="xref" href="plugin-loading.html" title="5.6.1&nbsp;Installing and Uninstalling Plugins">Section&nbsp;5.6.1, &ldquo;Installing and Uninstalling Plugins&rdquo;</a>.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-memcached-intro.html">Previous <span class="navHint"> InnoDB memcached Architecture </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-memcached.html">Up <span class="navHint"> InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-memcached-multiple-get-range-query.html">Next <span class="navHint"> InnoDB memcached Multiple get and Range Query Support </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

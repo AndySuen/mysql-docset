@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.1.10 Outer Join Simplification</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="select-optimization.html" title="8.2.1 Optimizing SELECT Statements" /><link rel="prev" href="outer-join-optimization.html" title="8.2.1.9 Outer Join Optimization" /><link rel="next" href="mrr-optimization.html" title="8.2.1.11 Multi-Range Read Optimization" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="outer-join-simplification.html#outer-join-simplification">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="outer-join-optimization.html">Previous <span class="navHint"> Outer Join Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mrr-optimization.html">Next <span class="navHint"> Multi-Range Read Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="outer-join-simplification"></a>8.2.1.10 Outer Join Simplification</h4></div></div></div><p>
+          Table expressions in the <code class="literal">FROM</code> clause of a
+          query are simplified in many cases.
+        </p><p>
+          At the parser stage, queries with right outer join operations
+          are converted to equivalent queries containing only left join
+          operations. In the general case, the conversion is performed
+          such that this right join:
+        </p><pre class="programlisting">(T1, ...) RIGHT JOIN (T2, ...) ON P(T1, ..., T2, ...)
+</pre><p>
+          Becomes this equivalent left join:
+        </p><pre class="programlisting">(T2, ...) LEFT JOIN (T1, ...) ON P(T1, ..., T2, ...)
+</pre><p>
+          All inner join expressions of the form <code class="literal">T1 INNER JOIN
+          T2 ON P(T1,T2)</code> are replaced by the list
+          <code class="literal">T1,T2</code>, <code class="literal">P(T1,T2)</code> being
+          joined as a conjunct to the <code class="literal">WHERE</code> condition
+          (or to the join condition of the embedding join, if there is
+          any).
+        </p><p>
+          When the optimizer evaluates plans for outer join operations,
+          it takes into consideration only plans where, for each such
+          operation, the outer tables are accessed before the inner
+          tables. The optimizer choices are limited because only such
+          plans enable outer joins to be executed using the nested-loop
+          algorithm.
+        </p><p>
+          Consider a query of this form, where <code class="literal">R(T2)</code>
+          greatly narrows the number of matching rows from table
+          <code class="literal">T2</code>:
+        </p><pre class="programlisting">SELECT * T1 FROM T1
+  LEFT JOIN T2 ON P1(T1,T2)
+  WHERE P(T1,T2) AND R(T2)
+</pre><p>
+          If the query is executed as written, the optimizer has no
+          choice but to access the less-restricted table
+          <code class="literal">T1</code> before the more-restricted table
+          <code class="literal">T2</code>, which may produce a very inefficient
+          execution plan.
+        </p><p>
+          Instead, MySQL converts the query to a query with no outer
+          join operation if the <code class="literal">WHERE</code> condition is
+          null-rejected. (That is, it converts the outer join to an
+          inner join.) A condition is said to be null-rejected for an
+          outer join operation if it evaluates to
+          <code class="literal">FALSE</code> or <code class="literal">UNKNOWN</code> for any
+          <code class="literal">NULL</code>-complemented row generated for the
+          operation.
+        </p><a id="idm45828956206432" class="indexterm"></a><a id="idm45828956205360" class="indexterm"></a><p>
+          Thus, for this outer join:
+        </p><pre class="programlisting">T1 LEFT JOIN T2 ON T1.A=T2.A
+</pre><p>
+          Conditions such as these are null-rejected because they cannot
+          be true for any <code class="literal">NULL</code>-complemented row (with
+          <code class="literal">T2</code> columns set to <code class="literal">NULL</code>):
+        </p><pre class="programlisting">T2.B IS NOT NULL
+T2.B &gt; 3
+T2.C &lt;= T1.C
+T2.B &lt; 2 OR T2.C &gt; 1
+</pre><p>
+          Conditions such as these are not null-rejected because they
+          might be true for a <code class="literal">NULL</code>-complemented row:
+        </p><pre class="programlisting">T2.B IS NULL
+T1.B &lt; 3 OR T2.B IS NOT NULL
+T1.B &lt; 3 OR T2.B &gt; 3
+</pre><p>
+          The general rules for checking whether a condition is
+          null-rejected for an outer join operation are simple:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              It is of the form <code class="literal">A IS NOT NULL</code>, where
+              <code class="literal">A</code> is an attribute of any of the inner
+              tables
+            </p></li><li class="listitem"><p>
+              It is a predicate containing a reference to an inner table
+              that evaluates to <code class="literal">UNKNOWN</code> when one of
+              its arguments is <code class="literal">NULL</code>
+            </p></li><li class="listitem"><p>
+              It is a conjunction containing a null-rejected condition
+              as a conjunct
+            </p></li><li class="listitem"><p>
+              It is a disjunction of null-rejected conditions
+            </p></li></ul></div><p>
+          A condition can be null-rejected for one outer join operation
+          in a query and not null-rejected for another. In this query,
+          the <code class="literal">WHERE</code> condition is null-rejected for
+          the second outer join operation but is not null-rejected for
+          the first one:
+        </p><pre class="programlisting">SELECT * FROM T1 LEFT JOIN T2 ON T2.A=T1.A
+                 LEFT JOIN T3 ON T3.B=T1.B
+  WHERE T3.C &gt; 0
+</pre><p>
+          If the <code class="literal">WHERE</code> condition is null-rejected for
+          an outer join operation in a query, the outer join operation
+          is replaced by an inner join operation.
+        </p><p>
+          For example, in the preceding query, the second outer join is
+          null-rejected and can be replaced by an inner join:
+        </p><pre class="programlisting">SELECT * FROM T1 LEFT JOIN T2 ON T2.A=T1.A
+                 INNER JOIN T3 ON T3.B=T1.B
+  WHERE T3.C &gt; 0
+</pre><p>
+          For the original query, the optimizer evaluates only plans
+          compatible with the single table-access order
+          <code class="literal">T1,T2,T3</code>. For the rewritten query, it
+          additionally considers the access order
+          <code class="literal">T3,T1,T2</code>.
+        </p><p>
+          A conversion of one outer join operation may trigger a
+          conversion of another. Thus, the query:
+        </p><pre class="programlisting">SELECT * FROM T1 LEFT JOIN T2 ON T2.A=T1.A
+                 LEFT JOIN T3 ON T3.B=T2.B
+  WHERE T3.C &gt; 0
+</pre><p>
+          Is first converted to the query:
+        </p><pre class="programlisting">SELECT * FROM T1 LEFT JOIN T2 ON T2.A=T1.A
+                 INNER JOIN T3 ON T3.B=T2.B
+  WHERE T3.C &gt; 0
+</pre><p>
+          Which is equivalent to the query:
+        </p><pre class="programlisting">SELECT * FROM (T1 LEFT JOIN T2 ON T2.A=T1.A), T3
+  WHERE T3.C &gt; 0 AND T3.B=T2.B
+</pre><p>
+          The remaining outer join operation can also be replaced by an
+          inner join because the condition <code class="literal">T3.B=T2.B</code>
+          is null-rejected. This results in a query with no outer joins
+          at all:
+        </p><pre class="programlisting">SELECT * FROM (T1 INNER JOIN T2 ON T2.A=T1.A), T3
+  WHERE T3.C &gt; 0 AND T3.B=T2.B
+</pre><p>
+          Sometimes the optimizer succeeds in replacing an embedded
+          outer join operation, but cannot convert the embedding outer
+          join. The following query:
+        </p><pre class="programlisting">SELECT * FROM T1 LEFT JOIN
+              (T2 LEFT JOIN T3 ON T3.B=T2.B)
+              ON T2.A=T1.A
+  WHERE T3.C &gt; 0
+</pre><p>
+          Is converted to:
+        </p><pre class="programlisting">SELECT * FROM T1 LEFT JOIN
+              (T2 INNER JOIN T3 ON T3.B=T2.B)
+              ON T2.A=T1.A
+  WHERE T3.C &gt; 0
+</pre><p>
+          That can be rewritten only to the form still containing the
+          embedding outer join operation:
+        </p><pre class="programlisting">SELECT * FROM T1 LEFT JOIN
+              (T2,T3)
+              ON (T2.A=T1.A AND T3.B=T2.B)
+  WHERE T3.C &gt; 0
+</pre><p>
+          Any attempt to convert an embedded outer join operation in a
+          query must take into account the join condition for the
+          embedding outer join together with the
+          <code class="literal">WHERE</code> condition. In this query, the
+          <code class="literal">WHERE</code> condition is not null-rejected for
+          the embedded outer join, but the join condition of the
+          embedding outer join <code class="literal">T2.A=T1.A AND
+          T3.C=T1.C</code> is null-rejected:
+        </p><pre class="programlisting">SELECT * FROM T1 LEFT JOIN
+              (T2 LEFT JOIN T3 ON T3.B=T2.B)
+              ON T2.A=T1.A AND T3.C=T1.C
+  WHERE T3.D &gt; 0 OR T1.D &gt; 0
+</pre><p>
+          Consequently, the query can be converted to:
+        </p><pre class="programlisting">SELECT * FROM T1 LEFT JOIN
+              (T2, T3)
+              ON T2.A=T1.A AND T3.C=T1.C AND T3.B=T2.B
+  WHERE T3.D &gt; 0 OR T1.D &gt; 0
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="outer-join-optimization.html">Previous <span class="navHint"> Outer Join Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mrr-optimization.html">Next <span class="navHint"> Multi-Range Read Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.6.3.5 Temporary Tablespaces</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-tablespace.html" title="15.6.3 Tablespaces" /><link rel="prev" href="innodb-undo-tablespaces.html" title="15.6.3.4 Undo Tablespaces" /><link rel="next" href="innodb-moving-data-files-offline.html" title="15.6.3.6 Moving Tablespace Files While the Server is Offline" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-temporary-tablespace.html#innodb-temporary-tablespace">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-undo-tablespaces.html">Previous <span class="navHint"> Undo Tablespaces </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-tablespace.html">Up <span class="navHint"> Tablespaces </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-moving-data-files-offline.html">Next <span class="navHint"> Moving Tablespace Files While the Server is Offline </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-temporary-tablespace"></a>15.6.3.5 Temporary Tablespaces</h4></div></div></div><p>
+      <code class="literal">InnoDB</code> uses session temporary tablespaces and a
+      global temporary tablespace.
+    </p><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-session-temporary-tablespaces"></a>Session Temporary Tablespaces</h5></div></div></div><p>
+        Session temporary tablespaces store user-created temporary
+        tables and internal temporary tables created by the optimizer
+        when <code class="literal">InnoDB</code> is configured as the storage
+        engine for on-disk internal temporary tables. Beginning with
+        MySQL 8.0.16, the storage engine used for on-disk internal
+        temporary tables is <code class="literal">InnoDB</code>. (Previously, the
+        storage engine was determined by the value of
+        <a class="link" href="server-system-variables.html#sysvar_internal_tmp_disk_storage_engine"><code class="literal">internal_tmp_disk_storage_engine</code></a>.)
+      </p><p>
+        Session temporary tablespaces are allocated to a session from a
+        pool of temporary tablespaces on the first request to create an
+        on-disk temporary table. A maximum of two tablespaces is
+        allocated to a session, one for user-created temporary tables
+        and the other for internal temporary tables created by the
+        optimizer. The temporary tablespaces allocated to a session are
+        used for all on-disk temporary tables created by the session.
+        When a session disconnects, its temporary tablespaces are
+        truncated and released back to the pool. A pool of 10 temporary
+        tablespaces is created when the server is started. The size of
+        the pool never shrinks and tablespaces are added to the pool
+        automatically as necessary. The pool of temporary tablespaces is
+        removed on normal shutdown or on an aborted initialization.
+        Session temporary tablespace files are five pages in size when
+        created and have an <code class="filename">.ibt</code> file name
+        extension.
+      </p><p>
+        A range of 400 thousand space IDs is reserved for session
+        temporary tablespaces. Because the pool of session temporary
+        tablespaces is recreated each time the server is started, space
+        IDs for session temporary tablespaces are not persisted when the
+        server is shut down, and may be reused.
+      </p><p>
+        The <a class="link" href="innodb-parameters.html#sysvar_innodb_temp_tablespaces_dir"><code class="literal">innodb_temp_tablespaces_dir</code></a>
+        variable defines the location where session temporary
+        tablespaces are created. The default location is the
+        <code class="filename">#innodb_temp</code> directory in the data
+        directory. Startup is refused if the pool of temporary
+        tablespaces cannot be created.
+      </p><pre class="programlisting">$&gt; cd <em class="replaceable"><code>BASEDIR</code></em>/data/#innodb_temp
+$&gt; ls
+temp_10.ibt  temp_2.ibt  temp_4.ibt  temp_6.ibt  temp_8.ibt
+temp_1.ibt   temp_3.ibt  temp_5.ibt  temp_7.ibt  temp_9.ibt
+</pre><p>
+        In statement based replication (SBR) mode, temporary tables
+        created on a replica reside in a single session temporary
+        tablespace that is truncated only when the MySQL server is shut
+        down.
+      </p><p>
+        The <a class="link" href="information-schema-innodb-session-temp-tablespaces-table.html" title="26.4.22 The INFORMATION_SCHEMA INNODB_SESSION_TEMP_TABLESPACES Table"><code class="literal">INNODB_SESSION_TEMP_TABLESPACES</code></a>
+        table provides metadata about session temporary tablespaces.
+      </p><p>
+        The Information Schema
+        <a class="link" href="information-schema-innodb-temp-table-info-table.html" title="26.4.27 The INFORMATION_SCHEMA INNODB_TEMP_TABLE_INFO Table"><code class="literal">INNODB_TEMP_TABLE_INFO</code></a> table
+        provides metadata about user-created temporary tables that are
+        active in an <code class="literal">InnoDB</code> instance.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-global-temporary-tablespace"></a>Global Temporary Tablespace</h5></div></div></div><p>
+        The global temporary tablespace (<code class="filename">ibtmp1</code>)
+        stores rollback segments for changes made to user-created
+        temporary tables.
+      </p><p>
+        The <a class="link" href="innodb-parameters.html#sysvar_innodb_temp_data_file_path"><code class="literal">innodb_temp_data_file_path</code></a>
+        variable defines the relative path, name, size, and attributes
+        for global temporary tablespace data files. If no value is
+        specified for
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_temp_data_file_path"><code class="literal">innodb_temp_data_file_path</code></a>, the
+        default behavior is to create a single auto-extending data file
+        named <code class="filename">ibtmp1</code> in the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a> directory.
+        The initial file size is slightly larger than 12MB.
+      </p><p>
+        The global temporary tablespace is removed on normal shutdown or
+        on an aborted initialization, and recreated each time the server
+        is started. The global temporary tablespace receives a
+        dynamically generated space ID when it is created. Startup is
+        refused if the global temporary tablespace cannot be created.
+        The global temporary tablespace is not removed if the server
+        halts unexpectedly. In this case, a database administrator can
+        remove the global temporary tablespace manually or restart the
+        MySQL server. Restarting the MySQL server removes and recreates
+        the global temporary tablespace automatically.
+      </p><p>
+        The global temporary tablespace cannot reside on a raw device.
+      </p><p>
+        The Information Schema <a class="link" href="information-schema-files-table.html" title="26.3.15 The INFORMATION_SCHEMA FILES Table"><code class="literal">FILES</code></a> table
+        provides metadata about the global temporary tablespace. Issue a
+        query similar to this one to view global temporary tablespace
+        metadata:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME='innodb_temporary'\G</code></strong>
+</pre><p>
+        By default, the global temporary tablespace data file is
+        autoextending and increases in size as necessary.
+      </p><p>
+        To determine if a global temporary tablespace data file is
+        autoextending, check the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_temp_data_file_path"><code class="literal">innodb_temp_data_file_path</code></a>
+        setting:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT @@innodb_temp_data_file_path;</code></strong>
++------------------------------+
+| @@innodb_temp_data_file_path |
++------------------------------+
+| ibtmp1:12M:autoextend        |
++------------------------------+
+</pre><p>
+        To check the size of global temporary tablespace data files,
+        examine the Information Schema
+        <a class="link" href="information-schema-files-table.html" title="26.3.15 The INFORMATION_SCHEMA FILES Table"><code class="literal">FILES</code></a> table using a query similar
+        to this one:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT FILE_NAME, TABLESPACE_NAME, ENGINE, INITIAL_SIZE, TOTAL_EXTENTS*EXTENT_SIZE</code></strong>
+       <strong class="userinput"><code>AS TotalSizeBytes, DATA_FREE, MAXIMUM_SIZE FROM INFORMATION_SCHEMA.FILES</code></strong>
+       <strong class="userinput"><code>WHERE TABLESPACE_NAME = 'innodb_temporary'\G</code></strong>
+*************************** 1. row ***************************
+      FILE_NAME: ./ibtmp1
+TABLESPACE_NAME: innodb_temporary
+         ENGINE: InnoDB
+   INITIAL_SIZE: 12582912
+ TotalSizeBytes: 12582912
+      DATA_FREE: 6291456
+   MAXIMUM_SIZE: NULL
+</pre><p>
+        <code class="literal">TotalSizeBytes</code> shows the current size of the
+        global temporary tablespace data file. For information about
+        other field values, see
+        <a class="xref" href="information-schema-files-table.html" title="26.3.15 The INFORMATION_SCHEMA FILES Table">Section 26.3.15, “The INFORMATION_SCHEMA FILES Table”</a>.
+      </p><p>
+        Alternatively, check the global temporary tablespace data file
+        size on your operating system. The global temporary tablespace
+        data file is located in the directory defined by the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_temp_data_file_path"><code class="literal">innodb_temp_data_file_path</code></a>
+        variable.
+      </p><p>
+        To reclaim disk space occupied by a global temporary tablespace
+        data file, restart the MySQL server. Restarting the server
+        removes and recreates the global temporary tablespace data file
+        according to the attributes defined by
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_temp_data_file_path"><code class="literal">innodb_temp_data_file_path</code></a>.
+      </p><p>
+        To limit the size of the global temporary tablespace data file,
+        configure
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_temp_data_file_path"><code class="literal">innodb_temp_data_file_path</code></a> to
+        specify a maximum file size. For example:
+      </p><pre class="programlisting">[mysqld]
+innodb_temp_data_file_path=ibtmp1:12M:autoextend:max:500M
+</pre><p>
+        Configuring
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_temp_data_file_path"><code class="literal">innodb_temp_data_file_path</code></a>
+        requires restarting the server.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-undo-tablespaces.html">Previous <span class="navHint"> Undo Tablespaces </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-tablespace.html">Up <span class="navHint"> Tablespaces </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-moving-data-files-offline.html">Next <span class="navHint"> Moving Tablespace Files While the Server is Offline </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

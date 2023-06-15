@@ -1,0 +1,177 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3046"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/24.2.4%C2%A0HASH%20Partitioning"></a><title>24.2.4&nbsp;HASH Partitioning</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="partitioning-types.html" title="24.2&nbsp;Partitioning Types"/><link rel="prev" href="partitioning-columns-list.html" title="24.2.3.2&nbsp;LIST COLUMNS partitioning"/><link rel="next" href="partitioning-linear-hash.html" title="24.2.4.1&nbsp;LINEAR HASH Partitioning"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partitioning-hash.html#partitioning-hash">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="partitioning-columns-list.html">Previous <span class="navHint"> LIST COLUMNS partitioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="partitioning-types.html">Up <span class="navHint"> Partitioning Types </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="partitioning-linear-hash.html">Next <span class="navHint"> LINEAR HASH Partitioning </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="partitioning-hash"></a>24.2.4&nbsp;HASH Partitioning</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="partitioning-linear-hash.html">24.2.4.1 LINEAR HASH Partitioning</a></span></li></ul></div><a id="idm45828802042160" class="indexterm"></a><a id="idm45828802040672" class="indexterm"></a><p>
+        Partitioning by <code class="literal">HASH</code> is used primarily to
+        ensure an even distribution of data among a predetermined number
+        of partitions. With range or list partitioning, you must specify
+        explicitly which partition a given column value or set of column
+        values should be stored in; with hash partitioning, this
+        decision is taken care of for you, and you need only specify a
+        column value or expression based on a column value to be hashed
+        and the number of partitions into which the partitioned table is
+        to be divided.
+      </p><p>
+        To partition a table using <code class="literal">HASH</code> partitioning,
+        it is necessary to append to the <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE
+        TABLE</code></a> statement a <code class="literal">PARTITION BY HASH
+        (<em class="replaceable"><code>expr</code></em>)</code> clause, where
+        <em class="replaceable"><code>expr</code></em> is an expression that returns an
+        integer. This can simply be the name of a column whose type is
+        one of MySQL&#39;s integer types. In addition, you most likely
+        want to follow this with <code class="literal">PARTITIONS
+        <em class="replaceable"><code>num</code></em></code>, where
+        <em class="replaceable"><code>num</code></em> is a positive integer
+        representing the number of partitions into which the table is to
+        be divided.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          For simplicity, the tables in the examples that follow do not
+          use any keys. You should be aware that, if a table has any
+          unique keys, every column used in the partitioning expression
+          for this table must be part of every unique key, including the
+          primary key. See
+          <a class="xref" href="partitioning-limitations-partitioning-keys-unique-keys.html" title="24.6.1&nbsp;Partitioning Keys, Primary Keys, and Unique Keys">Section&nbsp;24.6.1, &ldquo;Partitioning Keys, Primary Keys, and Unique Keys&rdquo;</a>,
+          for more information.
+        </p></div><p>
+        The following statement creates a table that uses hashing on the
+        <code class="literal">store_id</code> column and is divided into 4
+        partitions:
+      </p><pre class="programlisting">CREATE TABLE employees (
+    id INT NOT NULL,
+    fname VARCHAR(30),
+    lname VARCHAR(30),
+    hired DATE NOT NULL DEFAULT &#39;1970-01-01&#39;,
+    separated DATE NOT NULL DEFAULT &#39;9999-12-31&#39;,
+    job_code INT,
+    store_id INT
+)
+PARTITION BY HASH(store_id)
+PARTITIONS 4;
+</pre><p>
+        If you do not include a <code class="literal">PARTITIONS</code> clause,
+        the number of partitions defaults to <code class="literal">1</code>; using
+        the <code class="literal">PARTITIONS</code> keyword without a number
+        following it results in a syntax error.
+      </p><a id="idm45828802025232" class="indexterm"></a><p>
+        You can also use an SQL expression that returns an integer for
+        <em class="replaceable"><code>expr</code></em>. For instance, you might want to
+        partition based on the year in which an employee was hired. This
+        can be done as shown here:
+      </p><pre class="programlisting">CREATE TABLE employees (
+    id INT NOT NULL,
+    fname VARCHAR(30),
+    lname VARCHAR(30),
+    hired DATE NOT NULL DEFAULT &#39;1970-01-01&#39;,
+    separated DATE NOT NULL DEFAULT &#39;9999-12-31&#39;,
+    job_code INT,
+    store_id INT
+)
+PARTITION BY HASH( YEAR(hired) )
+PARTITIONS 4;
+</pre><p>
+        <em class="replaceable"><code>expr</code></em> must return a nonconstant,
+        nonrandom integer value (in other words, it should be varying
+        but deterministic), and must not contain any prohibited
+        constructs as described in
+        <a class="xref" href="partitioning-limitations.html" title="24.6&nbsp;Restrictions and Limitations on Partitioning">Section&nbsp;24.6, &ldquo;Restrictions and Limitations on Partitioning&rdquo;</a>. You should also keep
+        in mind that this expression is evaluated each time a row is
+        inserted or updated (or possibly deleted); this means that very
+        complex expressions may give rise to performance issues,
+        particularly when performing operations (such as batch inserts)
+        that affect a great many rows at one time.
+      </p><p>
+        The most efficient hashing function is one which operates upon a
+        single table column and whose value increases or decreases
+        consistently with the column value, as this allows for
+        <span class="quote">&ldquo;<span class="quote">pruning</span>&rdquo;</span> on ranges of partitions. That is, the
+        more closely that the expression varies with the value of the
+        column on which it is based, the more efficiently MySQL can use
+        the expression for hash partitioning.
+      </p><p>
+        For example, where <code class="literal">date_col</code> is a column of
+        type <a class="link" href="datetime.html" title="11.2.2&nbsp;The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a>, then the expression
+        <a class="link" href="date-and-time-functions.html#function_to-days"><code class="literal">TO_DAYS(date_col)</code></a> is said to vary
+        directly with the value of <code class="literal">date_col</code>, because
+        for every change in the value of <code class="literal">date_col</code>,
+        the value of the expression changes in a consistent manner. The
+        variance of the expression
+        <a class="link" href="date-and-time-functions.html#function_year"><code class="literal">YEAR(date_col)</code></a> with respect to
+        <code class="literal">date_col</code> is not quite as direct as that of
+        <a class="link" href="date-and-time-functions.html#function_to-days"><code class="literal">TO_DAYS(date_col)</code></a>, because not
+        every possible change in <code class="literal">date_col</code> produces an
+        equivalent change in
+        <a class="link" href="date-and-time-functions.html#function_year"><code class="literal">YEAR(date_col)</code></a>. Even so,
+        <a class="link" href="date-and-time-functions.html#function_year"><code class="literal">YEAR(date_col)</code></a> is a good
+        candidate for a hashing function, because it varies directly
+        with a portion of <code class="literal">date_col</code> and there is no
+        possible change in <code class="literal">date_col</code> that produces a
+        disproportionate change in
+        <a class="link" href="date-and-time-functions.html#function_year"><code class="literal">YEAR(date_col)</code></a>.
+      </p><p>
+        By way of contrast, suppose that you have a column named
+        <code class="literal">int_col</code> whose type is
+        <a class="link" href="integer-types.html" title="11.1.2&nbsp;Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INT</code></a>. Now consider the expression
+        <a class="link" href="mathematical-functions.html#function_pow"><code class="literal">POW(5-int_col,3) + 6</code></a>. This would
+        be a poor choice for a hashing function because a change in the
+        value of <code class="literal">int_col</code> is not guaranteed to produce
+        a proportional change in the value of the expression. Changing
+        the value of <code class="literal">int_col</code> by a given amount can
+        produce widely differing changes in the value of the expression.
+        For example, changing <code class="literal">int_col</code> from
+        <code class="literal">5</code> to <code class="literal">6</code> produces a change
+        of <code class="literal">-1</code> in the value of the expression, but
+        changing the value of <code class="literal">int_col</code> from
+        <code class="literal">6</code> to <code class="literal">7</code> produces a change
+        of <code class="literal">-7</code> in the expression value.
+      </p><p>
+        In other words, the more closely the graph of the column value
+        versus the value of the expression follows a straight line as
+        traced by the equation
+        <code class="literal">y=<em class="replaceable"><code>c</code></em>x</code> where
+        <em class="replaceable"><code>c</code></em> is some nonzero constant, the
+        better the expression is suited to hashing. This has to do with
+        the fact that the more nonlinear an expression is, the more
+        uneven the distribution of data among the partitions it tends to
+        produce.
+      </p><p>
+        In theory, pruning is also possible for expressions involving
+        more than one column value, but determining which of such
+        expressions are suitable can be quite difficult and
+        time-consuming. For this reason, the use of hashing expressions
+        involving multiple columns is not particularly recommended.
+      </p><p>
+        When <code class="literal">PARTITION BY HASH</code> is used, the storage
+        engine determines which partition of
+        <em class="replaceable"><code>num</code></em> partitions to use based on the
+        modulus of the result of the expression. In other words, for a
+        given expression <em class="replaceable"><code>expr</code></em>, the partition
+        in which the record is stored is partition number
+        <em class="replaceable"><code>N</code></em>, where
+        <code class="literal"><em class="replaceable"><code>N</code></em> =
+        MOD(<em class="replaceable"><code>expr</code></em>,
+        <em class="replaceable"><code>num</code></em>)</code>. Suppose that table
+        <code class="literal">t1</code> is defined as follows, so that it has 4
+        partitions:
+      </p><pre class="programlisting">CREATE TABLE t1 (col1 INT, col2 CHAR(5), col3 DATE)
+    PARTITION BY HASH( YEAR(col3) )
+    PARTITIONS 4;
+</pre><p>
+        If you insert a record into <code class="literal">t1</code> whose
+        <code class="literal">col3</code> value is
+        <code class="literal">&#39;2005-09-15&#39;</code>, then the partition in which it
+        is stored is determined as follows:
+      </p><pre class="programlisting">MOD(YEAR(&#39;2005-09-01&#39;),4)
+=  MOD(2005,4)
+=  1
+</pre><p>
+        MySQL 8.0 also supports a variant of
+        <code class="literal">HASH</code> partitioning known as
+        <span class="firstterm">linear hashing</span> which
+        employs a more complex algorithm for determining the placement
+        of new rows inserted into the partitioned table. See
+        <a class="xref" href="partitioning-linear-hash.html" title="24.2.4.1&nbsp;LINEAR HASH Partitioning">Section&nbsp;24.2.4.1, &ldquo;LINEAR HASH Partitioning&rdquo;</a>, for a description of
+        this algorithm.
+      </p><p>
+        The user-supplied expression is evaluated each time a record is
+        inserted or updated. It may also&mdash;depending on the
+        circumstances&mdash;be evaluated when records are deleted.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partitioning-columns-list.html">Previous <span class="navHint"> LIST COLUMNS partitioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="partitioning-types.html">Up <span class="navHint"> Partitioning Types </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="partitioning-linear-hash.html">Next <span class="navHint"> LINEAR HASH Partitioning </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

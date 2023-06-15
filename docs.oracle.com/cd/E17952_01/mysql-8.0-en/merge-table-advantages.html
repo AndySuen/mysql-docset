@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>16.7.1 MERGE Table Advantages and Disadvantages</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="merge-storage-engine.html" title="16.7 The MERGE Storage Engine" /><link rel="prev" href="merge-storage-engine.html" title="16.7 The MERGE Storage Engine" /><link rel="next" href="merge-table-problems.html" title="16.7.2 MERGE Table Problems" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="merge-table-advantages.html#merge-table-advantages">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="merge-storage-engine.html">Previous <span class="navHint"> The MERGE Storage Engine </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="merge-storage-engine.html">Up <span class="navHint"> The MERGE Storage Engine </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="merge-table-problems.html">Next <span class="navHint"> MERGE Table Problems </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="merge-table-advantages"></a>16.7.1 MERGE Table Advantages and Disadvantages</h3></div></div></div><p>
+      <code class="literal">MERGE</code> tables can help you solve the following
+      problems:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Easily manage a set of log tables. For example, you can put
+          data from different months into separate tables, compress some
+          of them with <a class="link" href="myisampack.html" title="4.6.6 myisampack — Generate Compressed, Read-Only MyISAM Tables"><span class="command"><strong>myisampack</strong></span></a>, and then create a
+          <code class="literal">MERGE</code> table to use them as one.
+        </p></li><li class="listitem"><p>
+          Obtain more speed. You can split a large read-only table based
+          on some criteria, and then put individual tables on different
+          disks. A <code class="literal">MERGE</code> table structured this way
+          could be much faster than using a single large table.
+        </p></li><li class="listitem"><p>
+          Perform more efficient searches. If you know exactly what you
+          are looking for, you can search in just one of the underlying
+          tables for some queries and use a <code class="literal">MERGE</code>
+          table for others. You can even have many different
+          <code class="literal">MERGE</code> tables that use overlapping sets of
+          tables.
+        </p></li><li class="listitem"><p>
+          Perform more efficient repairs. It is easier to repair
+          individual smaller tables that are mapped to a
+          <code class="literal">MERGE</code> table than to repair a single large
+          table.
+        </p></li><li class="listitem"><p>
+          Instantly map many tables as one. A <code class="literal">MERGE</code>
+          table need not maintain an index of its own because it uses
+          the indexes of the individual tables. As a result,
+          <code class="literal">MERGE</code> table collections are
+          <span class="emphasis"><em>very</em></span> fast to create or remap. (You must
+          still specify the index definitions when you create a
+          <code class="literal">MERGE</code> table, even though no indexes are
+          created.)
+        </p></li><li class="listitem"><p>
+          If you have a set of tables from which you create a large
+          table on demand, you can instead create a
+          <code class="literal">MERGE</code> table from them on demand. This is
+          much faster and saves a lot of disk space.
+        </p></li><li class="listitem"><p>
+          Exceed the file size limit for the operating system. Each
+          <code class="literal">MyISAM</code> table is bound by this limit, but a
+          collection of <code class="literal">MyISAM</code> tables is not.
+        </p></li><li class="listitem"><p>
+          You can create an alias or synonym for a
+          <code class="literal">MyISAM</code> table by defining a
+          <code class="literal">MERGE</code> table that maps to that single table.
+          There should be no really notable performance impact from
+          doing this (only a couple of indirect calls and
+          <code class="literal">memcpy()</code> calls for each read).
+        </p></li></ul></div><p>
+      The disadvantages of <code class="literal">MERGE</code> tables are:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          You can use only identical <code class="literal">MyISAM</code> tables
+          for a <code class="literal">MERGE</code> table.
+        </p></li><li class="listitem"><p>
+          Some <code class="literal">MyISAM</code> features are unavailable in
+          <code class="literal">MERGE</code> tables. For example, you cannot
+          create <code class="literal">FULLTEXT</code> indexes on
+          <code class="literal">MERGE</code> tables. (You can create
+          <code class="literal">FULLTEXT</code> indexes on the underlying
+          <code class="literal">MyISAM</code> tables, but you cannot search the
+          <code class="literal">MERGE</code> table with a full-text search.)
+        </p></li><li class="listitem"><p>
+          If the <code class="literal">MERGE</code> table is nontemporary, all
+          underlying <code class="literal">MyISAM</code> tables must be
+          nontemporary. If the <code class="literal">MERGE</code> table is
+          temporary, the <code class="literal">MyISAM</code> tables can be any mix
+          of temporary and nontemporary.
+        </p></li><li class="listitem"><p>
+          <a id="idm45828869984016" class="indexterm"></a>
+
+          <code class="literal">MERGE</code> tables use more file descriptors than
+          <code class="literal">MyISAM</code> tables. If 10 clients are using a
+          <code class="literal">MERGE</code> table that maps to 10 tables, the
+          server uses (10 × 10) + 10 file descriptors. (10 data
+          file descriptors for each of the 10 clients, and 10 index file
+          descriptors shared among the clients.)
+        </p></li><li class="listitem"><p>
+          Index reads are slower. When you read an index, the
+          <code class="literal">MERGE</code> storage engine needs to issue a read
+          on all underlying tables to check which one most closely
+          matches a given index value. To read the next index value, the
+          <code class="literal">MERGE</code> storage engine needs to search the
+          read buffers to find the next value. Only when one index
+          buffer is used up does the storage engine need to read the
+          next index block. This makes <code class="literal">MERGE</code> indexes
+          much slower on <a class="link" href="explain-output.html#jointype_eq_ref"><code class="literal">eq_ref</code></a>
+          searches, but not much slower on
+          <a class="link" href="explain-output.html#jointype_ref"><code class="literal">ref</code></a> searches. For more
+          information about <a class="link" href="explain-output.html#jointype_eq_ref"><code class="literal">eq_ref</code></a>
+          and <a class="link" href="explain-output.html#jointype_ref"><code class="literal">ref</code></a>, see
+          <a class="xref" href="explain.html" title="13.8.2 EXPLAIN Statement">Section 13.8.2, “EXPLAIN Statement”</a>.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="merge-storage-engine.html">Previous <span class="navHint"> The MERGE Storage Engine </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="merge-storage-engine.html">Up <span class="navHint"> The MERGE Storage Engine </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="merge-table-problems.html">Next <span class="navHint"> MERGE Table Problems </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

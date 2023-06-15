@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.2.5.4 Replication Channel Based Filters</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-rules.html" title="17.2.5 How Servers Evaluate Replication Filtering Rules" /><link rel="prev" href="replication-rules-examples.html" title="17.2.5.3 Interactions Between Replication Filtering Options" /><link rel="next" href="replication-security.html" title="17.3 Replication Security" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-rules-channel-based-filters.html#replication-rules-channel-based-filters">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-rules-examples.html">Previous <span class="navHint"> Interactions Between Replication Filtering Options </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-rules.html">Up <span class="navHint"> How Servers Evaluate Replication Filtering Rules </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-security.html">Next <span class="navHint"> Replication Security </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-rules-channel-based-filters"></a>17.2.5.4 Replication Channel Based Filters</h4></div></div></div><a id="idm45828858586096" class="indexterm"></a><p>
+        This section explains how to work with replication filters when
+        multiple replication channels exist, for example in a
+        multi-source replication topology. Before MySQL 8.0, all
+        replication filters were global, so filters were applied to all
+        replication channels. From MySQL 8.0, replication filters can be
+        global or channel specific, enabling you to configure
+        multi-source replicas with replication filters on specific
+        replication channels. Channel specific replication filters are
+        particularly useful in a multi-source replication topology when
+        the same database or table is present on multiple sources, and
+        the replica is only required to replicate it from one source.
+      </p><p>
+        For instructions to set up replication channels, see
+        <a class="xref" href="replication-multi-source.html" title="17.1.5 MySQL Multi-Source Replication">Section 17.1.5, “MySQL Multi-Source Replication”</a>, and for more
+        information on how they work, see
+        <a class="xref" href="replication-channels.html" title="17.2.2 Replication Channels">Section 17.2.2, “Replication Channels”</a>.
+
+        
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          Each channel on a multi-source replica must replicate from a
+          different source. You cannot set up multiple replication
+          channels from a single replica to a single source, even if you
+          use replication filters to select different data to replicate
+          on each channel. This is because the server IDs of replicas
+          must be unique in a replication topology. The source
+          distinguishes replicas only by their server IDs, not by the
+          names of the replication channels, so it cannot recognize
+          different replication channels from the same replica.
+        </p></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          On a MySQL server instance that is configured for Group
+          Replication, channel specific replication filters can be used
+          on replication channels that are not directly involved with
+          Group Replication, such as where a group member also acts as a
+          replica to a source that is outside the group. They cannot be
+          used on the <code class="literal">group_replication_applier</code> or
+          <code class="literal">group_replication_recovery</code> channels.
+          Filtering on these channels would make the group unable to
+          reach agreement on a consistent state.
+        </p></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          For a multi-source replica in a diamond topology (where the
+          replica replicates from two or more sources, which in turn
+          replicate from a common source), when GTID-based replication
+          is in use, ensure that any replication filters or other
+          channel configuration are identical on all channels on the
+          multi-source replica. With GTID-based replication, filters are
+          applied only to the transaction data, and GTIDs are not
+          filtered out. This happens so that a replica’s GTID set
+          stays consistent with the source’s, meaning GTID
+          auto-positioning can be used without re-acquiring filtered out
+          transactions each time. In the case where the downstream
+          replica is multi-source and receives the same transaction from
+          multiple sources in a diamond topology, the downstream replica
+          now has multiple versions of the transaction, and the result
+          depends on which channel applies the transaction first. The
+          second channel to attempt it skips the transaction using GTID
+          auto-skip, because the transaction’s GTID was added to the
+          <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> set by the
+          first channel. With identical filtering on the channels, there
+          is no problem because all versions of the transaction contain
+          the same data, so the results are the same. However, with
+          different filtering on the channels, the database can become
+          inconsistent and replication can hang.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="replication-rules-channel-overview"></a>Overview of Replication Filters and Channels</h5></div></div></div><p>
+          When multiple replication channels exist, for example in a
+          multi-source replication topology, replication filters are
+          applied as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Any global replication filter specified is added to the
+              global replication filters of the filter type
+              (<code class="literal">do_db</code>,
+              <code class="literal">do_ignore_table</code>, and so on).
+            </p></li><li class="listitem"><p>
+              Any channel specific replication filter adds the filter to
+              the specified channel’s replication filters for the
+              specified filter type.
+            </p></li><li class="listitem"><p>
+              Each replication channel copies global replication filters
+              to its channel specific replication filters if no channel
+              specific replication filter of this type is configured.
+            </p></li><li class="listitem"><p>
+              Each channel uses its channel specific replication filters
+              to filter the replication stream.
+            </p></li></ul></div><p>
+          The syntax to create channel specific replication filters
+          extends the existing SQL statements and command options. When
+          a replication channel is not specified the global replication
+          filter is configured to ensure backwards compatibility. The
+          <a class="link" href="change-replication-filter.html" title="13.4.2.2 CHANGE REPLICATION FILTER Statement"><code class="literal">CHANGE REPLICATION FILTER</code></a>
+          statement supports the <code class="literal">FOR CHANNEL</code> clause
+          to configure channel specific filters online. The
+          <code class="literal">--replicate-*</code> command options to configure
+          filters can specify a replication channel using the form
+          <code class="literal">--replicate-<em class="replaceable"><code>filter_type</code></em>=<em class="replaceable"><code>channel_name</code></em>:<em class="replaceable"><code>filter_details</code></em></code>.
+          Suppose channels <code class="literal">channel_1</code> and
+          <code class="literal">channel_2</code> exist before the server starts;
+          in this case, starting the replica with the command line
+          options <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-db"><code class="option">--replicate-do-db=db1</code></a>
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-db"><code class="option">--replicate-do-db=channel_1:db2</code></a>
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-db"><code class="option">--replicate-do-db=db3</code></a>
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-db"><code class="option">--replicate-ignore-db=db4</code></a>
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-db"><code class="option">--replicate-ignore-db=channel_2:db5</code></a>
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-do-table"><code class="option">--replicate-wild-do-table=channel_1:db6.t1%</code></a>
+          would result in:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <span class="emphasis"><em>Global replication filters</em></span>:
+              <code class="literal">do_db=db1,db3</code>;
+              <code class="literal">ignore_db=db4</code>
+            </p></li><li class="listitem"><p>
+              <span class="emphasis"><em>Channel specific filters on
+              channel_1</em></span>: <code class="literal">do_db=db2</code>;
+              <code class="literal">ignore_db=db4</code>;
+              <code class="literal">wild-do-table=db6.t1%</code>
+            </p></li><li class="listitem"><p>
+              <span class="emphasis"><em>Channel specific filters on
+              channel_2</em></span>: <code class="literal">do_db=db1,db3</code>;
+              <code class="literal">ignore_db=db5</code>
+            </p></li></ul></div><p>
+          These same rules could be applied at startup when included in
+          the replica's <code class="filename">my.cnf</code> file, like
+          this:
+        </p><pre class="programlisting">replicate-do-db=db1
+replicate-do-db=channel_1:db2
+replicate-ignore-db=db4
+replicate-ignore-db=channel_2:db5
+replicate-wild-do-table=db6.channel_1.t1%
+</pre><p>
+          To monitor the replication filters in such a setup use the
+          <a class="link" href="performance-schema-replication-applier-global-filters-table.html" title="27.12.11.9 The replication_applier_global_filters Table"><code class="literal">replication_applier_global_filters</code></a>
+          and <a class="link" href="performance-schema-replication-applier-filters-table.html" title="27.12.11.10 The replication_applier_filters Table"><code class="literal">replication_applier_filters</code></a>
+          tables.
+
+          
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="replication-rules-channel-replication-filter-options"></a>Configuring Channel Specific Replication Filters at Startup</h5></div></div></div><p>
+          The replication filter related command options can take an
+          optional <em class="replaceable"><code>channel</code></em> followed by a
+          colon, followed by the filter specification. The first colon
+          is interpreted as a separator, subsequent colons are
+          interpreted as literal colons. The following command options
+          support channel specific replication filters using this
+          format:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">--replicate-do-db=<em class="replaceable"><code>channel</code></em>:<em class="replaceable"><code>database_id</code></em></code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">--replicate-ignore-db=<em class="replaceable"><code>channel</code></em>:<em class="replaceable"><code>database_id</code></em></code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">--replicate-do-table=<em class="replaceable"><code>channel</code></em>:<em class="replaceable"><code>table_id</code></em></code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">--replicate-ignore-table=<em class="replaceable"><code>channel</code></em>:<em class="replaceable"><code>table_id</code></em></code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">--replicate-rewrite-db=<em class="replaceable"><code>channel</code></em>:<em class="replaceable"><code>db1-db2</code></em></code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">--replicate-wild-do-table=<em class="replaceable"><code>channel</code></em>:<em class="replaceable"><code>table</code></em>
+              <em class="replaceable"><code>pattern</code></em></code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">--replicate-wild-ignore-table=<em class="replaceable"><code>channel</code></em>:<em class="replaceable"><code>table</code></em>
+              <em class="replaceable"><code>pattern</code></em></code>
+            </p></li></ul></div><p>
+          All of the options just listed can be used in the
+          replica's <code class="filename">my.cnf</code> file, as with most
+          other MySQL server startup options, by omitting the two
+          leading dashes. See
+          <a class="xref" href="replication-rules-channel-based-filters.html#replication-rules-channel-overview" title="Overview of Replication Filters and Channels">Overview of Replication Filters and Channels</a>, for a
+          brief example, as well as <a class="xref" href="option-files.html" title="4.2.2.2 Using Option Files">Section 4.2.2.2, “Using Option Files”</a>.
+        </p><p>
+          If you use a colon but do not specify a
+          <em class="replaceable"><code>channel</code></em> for the filter option, for
+          example
+          <code class="option">--replicate-do-db=:<em class="replaceable"><code>database_id</code></em></code>,
+          the option configures the replication filter for the default
+          replication channel. The default replication channel is the
+          replication channel which always exists once replication has
+          been started, and differs from multi-source replication
+          channels which you create manually. When neither the colon nor
+          a <em class="replaceable"><code>channel</code></em> is specified the option
+          configures the global replication filters, for example
+          <code class="option">--replicate-do-db=<em class="replaceable"><code>database_id</code></em></code>
+          configures the global
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-db"><code class="option">--replicate-do-db</code></a> filter.
+        </p><p>
+          If you configure multiple
+          <code class="literal">rewrite-db=<em class="replaceable"><code>from_name</code></em>-&gt;<em class="replaceable"><code>to_name</code></em></code>
+          options with the same <em class="replaceable"><code>from_name</code></em>
+          database, all filters are added together (put into the
+          <code class="literal">rewrite_do</code> list) and the first one takes
+          effect.
+        </p><p>
+          The <em class="replaceable"><code>pattern</code></em> used for the
+          <code class="option">--replicate-wild-*-table</code> options can include
+          any characters allowed in identifiers as well as the wildcards
+          <code class="literal">%</code> and <code class="literal">_</code>. These work the
+          same way as when used with the
+          <a class="link" href="string-comparison-functions.html#operator_like"><code class="literal">LIKE</code></a> operator; for example,
+          <code class="literal">tbl%</code> matches any table name beginning with
+          <code class="literal">tbl</code>, and <code class="literal">tbl_</code> matches
+          any table name matching <code class="literal">tbl</code> plus one
+          additional character.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="replication-rules-channel-change-replication-filter"></a>Changing Channel Specific Replication Filters Online</h5></div></div></div><p>
+          In addition to the <code class="option">--replicate-*</code> options,
+          replication filters can be configured using the
+          <a class="link" href="change-replication-filter.html" title="13.4.2.2 CHANGE REPLICATION FILTER Statement"><code class="literal">CHANGE REPLICATION FILTER</code></a>
+          statement. This removes the need to restart the server, but
+          the replication SQL thread must be stopped while making the
+          change. To make this statement apply the filter to a specific
+          channel, use the <code class="literal">FOR CHANNEL
+          <em class="replaceable"><code>channel</code></em></code> clause. For
+          example:
+        </p><pre class="programlisting">CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL channel_1;</pre><p>
+          When a <code class="literal">FOR CHANNEL</code> clause is provided, the
+          statement acts on the specified channel's replication
+          filters. If multiple types of filters
+          (<code class="literal">do_db</code>, <code class="literal">do_ignore_table</code>,
+          <code class="literal">wild_do_table</code>, and so on) are specified,
+          only the specified filter types are replaced by the statement.
+          In a replication topology with multiple channels, for example
+          on a multi-source replica, when no <code class="literal">FOR
+          CHANNEL</code> clause is provided, the statement acts on
+          the global replication filters and all channels’ replication
+          filters, using a similar logic as the <code class="literal">FOR
+          CHANNEL</code> case. For more information see
+          <a class="xref" href="change-replication-filter.html" title="13.4.2.2 CHANGE REPLICATION FILTER Statement">Section 13.4.2.2, “CHANGE REPLICATION FILTER Statement”</a>.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="replication-rules-channel-removing"></a>Removing Channel Specific Replication Filters</h5></div></div></div><p>
+          When channel specific replication filters have been
+          configured, you can remove the filter by issuing an empty
+          filter type statement. For example to remove all
+          <code class="literal">REPLICATE_REWRITE_DB</code> filters from a
+          replication channel named <code class="literal">channel_1</code> issue:
+        </p><pre class="programlisting">CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=() FOR CHANNEL channel_1;</pre><p>
+          Any <code class="literal">REPLICATE_REWRITE_DB</code> filters previously
+          configured, using either command options or
+          <a class="link" href="change-replication-filter.html" title="13.4.2.2 CHANGE REPLICATION FILTER Statement"><code class="literal">CHANGE REPLICATION FILTER</code></a>, are
+          removed.
+        </p><p>
+          The <a class="link" href="reset-replica.html" title="13.4.2.5 RESET REPLICA Statement"><code class="literal">RESET
+          REPLICA ALL</code></a> statement removes channel specific
+          replication filters that were set on channels deleted by the
+          statement. When the deleted channel or channels are recreated,
+          any global replication filters specified for the replica are
+          copied to them, and no channel specific replication filters
+          are applied.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-rules-examples.html">Previous <span class="navHint"> Interactions Between Replication Filtering Options </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-rules.html">Up <span class="navHint"> How Servers Evaluate Replication Filtering Rules </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-security.html">Next <span class="navHint"> Replication Security </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

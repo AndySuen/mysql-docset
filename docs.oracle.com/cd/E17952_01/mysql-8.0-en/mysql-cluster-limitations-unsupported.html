@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.2.7.6 Unsupported or Missing Features in NDB Cluster</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-limitations.html" title="23.2.7 Known Limitations of NDB Cluster" /><link rel="prev" href="mysql-cluster-limitations-database-objects.html" title="23.2.7.5 Limits Associated with Database Objects in NDB Cluster" /><link rel="next" href="mysql-cluster-limitations-performance.html" title="23.2.7.7 Limitations Relating to Performance in NDB Cluster" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-limitations-unsupported.html#mysql-cluster-limitations-unsupported">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-limitations-database-objects.html">Previous <span class="navHint"> Limits Associated with Database Objects in NDB Cluster </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-limitations.html">Up <span class="navHint"> Known Limitations of NDB Cluster </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-limitations-performance.html">Next <span class="navHint"> Limitations Relating to Performance in NDB Cluster </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-cluster-limitations-unsupported"></a>23.2.7.6 Unsupported or Missing Features in NDB Cluster</h4></div></div></div><a id="idm45828843279312" class="indexterm"></a><p>
+        A number of features supported by other storage engines are not
+        supported for <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> tables. Trying to
+        use any of these features in NDB Cluster does not cause errors
+        in or of itself; however, errors may occur in applications that
+        expects the features to be supported or enforced. Statements
+        referencing such features, even if effectively ignored by
+        <code class="literal">NDB</code>, must be syntactically and otherwise
+        valid.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><strong>Index prefixes. </strong>
+              Prefixes on indexes are not supported for
+              <code class="literal">NDB</code> tables. If a prefix is used as part
+              of an index specification in a statement such as
+              <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>,
+              <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>, or
+              <a class="link" href="create-index.html" title="13.1.15 CREATE INDEX Statement"><code class="literal">CREATE INDEX</code></a>, the prefix is
+              not created by <code class="literal">NDB</code>.
+            </p><p>
+            A statement containing an index prefix, and creating or
+            modifying an <code class="literal">NDB</code> table, must still be
+            syntactically valid. For example, the following statement
+            always fails with Error 1089 <span class="errortext">Incorrect prefix
+            key; the used key part isn't a string, the used length is
+            longer than the key part, or the storage engine doesn't
+            support unique prefix keys</span>, regardless of
+            storage engine:
+          </p><pre class="programlisting"><a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> t1 (
+    c1 INT NOT NULL,
+    <span class="emphasis"><em>c2 VARCHAR(100),
+    INDEX i1 (c2(500))</em></span>
+);</pre><p>
+            This happens on account of the SQL syntax rule that no index
+            may have a prefix larger than itself.
+          </p></li><li class="listitem"><p><strong>Savepoints and rollbacks. </strong>
+              Savepoints and rollbacks to savepoints are ignored as in
+              <a class="link" href="myisam-storage-engine.html" title="16.2 The MyISAM Storage Engine"><code class="literal">MyISAM</code></a>.
+            </p></li><li class="listitem"><p><strong>Durability of commits. </strong>
+              There are no durable commits on disk. Commits are
+              replicated, but there is no guarantee that logs are
+              flushed to disk on commit.
+            </p></li><li class="listitem"><p><strong>Replication. </strong>
+              Statement-based replication is not supported. Use
+              <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="option">--binlog-format=ROW</code></a> (or
+              <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="option">--binlog-format=MIXED</code></a>) when
+              setting up cluster replication. See
+              <a class="xref" href="mysql-cluster-replication.html" title="23.7 NDB Cluster Replication">Section 23.7, “NDB Cluster Replication”</a>, for more
+              information.
+            </p><p>
+            Replication using global transaction identifiers (GTIDs) is
+            not compatible with NDB Cluster, and is not supported in NDB
+            Cluster 8.0. Do not enable GTIDs when using the
+            <code class="literal">NDB</code> storage engine, as this is very
+            likely to cause problems up to and including failure of NDB
+            Cluster Replication.
+          </p><p>
+            Semisynchronous replication is not supported in NDB Cluster.
+          </p></li><li class="listitem"><p><strong>Generated columns. </strong>
+              The <code class="literal">NDB</code> storage engine does not support
+              indexes on virtual generated columns.
+            </p><p>
+            As with other storage engines, you can create an index on a
+            stored generated column, but you should bear in mind that
+            <code class="literal">NDB</code> uses
+            <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-datamemory"><code class="literal">DataMemory</code></a> for
+            storage of the generated column as well as
+            <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-indexmemory"><code class="literal">IndexMemory</code></a> for the
+            index. See
+            <a class="xref" href="create-table-secondary-indexes.html#json-column-indirect-index-mysql-cluster" title="JSON columns and indirect indexing in NDB Cluster">JSON columns and indirect indexing in NDB Cluster</a>,
+            for an example.
+          </p><p>
+            NDB Cluster writes changes in stored generated columns to
+            the binary log, but does log not those made to virtual
+            columns. This should not effect NDB Cluster Replication or
+            replication between <code class="literal">NDB</code> and other MySQL
+            storage engines.
+          </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          See <a class="xref" href="mysql-cluster-limitations-transactions.html" title="23.2.7.3 Limits Relating to Transaction Handling in NDB Cluster">Section 23.2.7.3, “Limits Relating to Transaction Handling in NDB Cluster”</a>,
+          for more information relating to limitations on transaction
+          handling in <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-limitations-database-objects.html">Previous <span class="navHint"> Limits Associated with Database Objects in NDB Cluster </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-limitations.html">Up <span class="navHint"> Known Limitations of NDB Cluster </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-limitations-performance.html">Next <span class="navHint"> Limitations Relating to Performance in NDB Cluster </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

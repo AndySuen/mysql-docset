@@ -1,0 +1,128 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-622"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.12.1%C2%A0Optimizing%20Disk%20I%2FO"></a><title>8.12.1&nbsp;Optimizing Disk I/O</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimizing-server.html" title="8.12&nbsp;Optimizing the MySQL Server"/><link rel="prev" href="optimizing-server.html" title="8.12&nbsp;Optimizing the MySQL Server"/><link rel="next" href="symbolic-links.html" title="8.12.2&nbsp;Using Symbolic Links"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="disk-issues.html#disk-issues">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="optimizing-server.html">Previous <span class="navHint"> Optimizing the MySQL Server </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimizing-server.html">Up <span class="navHint"> Optimizing the MySQL Server </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="symbolic-links.html">Next <span class="navHint"> Using Symbolic Links </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="disk-issues"></a>8.12.1&nbsp;Optimizing Disk I/O</h3></div></div></div><a id="idm45828949320240" class="indexterm"></a><a id="idm45828949319168" class="indexterm"></a><a id="idm45828949317680" class="indexterm"></a><p>
+        This section describes ways to configure storage devices when
+        you can devote more and faster storage hardware to the database
+        server. For information about optimizing an
+        <code class="literal">InnoDB</code> configuration to improve I/O
+        performance, see <a class="xref" href="optimizing-innodb-diskio.html" title="8.5.8&nbsp;Optimizing InnoDB Disk I/O">Section&nbsp;8.5.8, &ldquo;Optimizing InnoDB Disk I/O&rdquo;</a>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Disk seeks are a huge performance bottleneck. This problem
+            becomes more apparent when the amount of data starts to grow
+            so large that effective caching becomes impossible. For
+            large databases where you access data more or less randomly,
+            you can be sure that you need at least one disk seek to read
+            and a couple of disk seeks to write things. To minimize this
+            problem, use disks with low seek times.
+          </p></li><li class="listitem"><p>
+            Increase the number of available disk spindles (and thereby
+            reduce the seek overhead) by either symlinking files to
+            different disks or striping the disks:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                Using symbolic links
+              </p><p>
+                This means that, for <code class="literal">MyISAM</code> tables,
+                you symlink the index file and data files from their
+                usual location in the data directory to another disk
+                (that may also be striped). This makes both the seek and
+                read times better, assuming that the disk is not used
+                for other purposes as well. See
+                <a class="xref" href="symbolic-links.html" title="8.12.2&nbsp;Using Symbolic Links">Section&nbsp;8.12.2, &ldquo;Using Symbolic Links&rdquo;</a>.
+              </p><p>
+                Symbolic links are not supported for use with
+                <code class="literal">InnoDB</code> tables. However, it is
+                possible to place <code class="literal">InnoDB</code> data and log
+                files on different physical disks. For more information,
+                see <a class="xref" href="optimizing-innodb-diskio.html" title="8.5.8&nbsp;Optimizing InnoDB Disk I/O">Section&nbsp;8.5.8, &ldquo;Optimizing InnoDB Disk I/O&rdquo;</a>.
+              </p></li><li class="listitem"><p>
+                <a id="idm45828949304976" class="indexterm"></a>
+
+                Striping
+              </p><p>
+                Striping means that you have many disks and put the
+                first block on the first disk, the second block on the
+                second disk, and the <em class="replaceable"><code>N</code></em>-th
+                block on the (<code class="literal"><em class="replaceable"><code>N</code></em> MOD
+                <em class="replaceable"><code>number_of_disks</code></em></code>)
+                disk, and so on. This means if your normal data size is
+                less than the stripe size (or perfectly aligned), you
+                get much better performance. Striping is very dependent
+                on the operating system and the stripe size, so
+                benchmark your application with different stripe sizes.
+                See <a class="xref" href="custom-benchmarks.html" title="8.13.2&nbsp;Using Your Own Benchmarks">Section&nbsp;8.13.2, &ldquo;Using Your Own Benchmarks&rdquo;</a>.
+              </p><p>
+                The speed difference for striping is
+                <span class="emphasis"><em>very</em></span> dependent on the parameters.
+                Depending on how you set the striping parameters and
+                number of disks, you may get differences measured in
+                orders of magnitude. You have to choose to optimize for
+                random or sequential access.
+              </p></li></ul></div></li><li class="listitem"><p>
+            For reliability, you may want to use RAID 0+1 (striping plus
+            mirroring), but in this case, you need 2 &times;
+            <em class="replaceable"><code>N</code></em> drives to hold
+            <em class="replaceable"><code>N</code></em> drives of data. This is
+            probably the best option if you have the money for it.
+            However, you may also have to invest in some
+            volume-management software to handle it efficiently.
+          </p></li><li class="listitem"><p>
+            A good option is to vary the RAID level according to how
+            critical a type of data is. For example, store
+            semi-important data that can be regenerated on a RAID 0
+            disk, but store really important data such as host
+            information and logs on a RAID 0+1 or RAID
+            <em class="replaceable"><code>N</code></em> disk. RAID
+            <em class="replaceable"><code>N</code></em> can be a problem if you have
+            many writes, due to the time required to update the parity
+            bits.
+          </p></li><li class="listitem"><p>
+            You can also set the parameters for the file system that the
+            database uses:
+          </p><p>
+            If you do not need to know when files were last accessed
+            (which is not really useful on a database server), you can
+            mount your file systems with the <code class="option">-o noatime</code>
+            option. That skips updates to the last access time in inodes
+            on the file system, which avoids some disk seeks.
+          </p><p>
+            On many operating systems, you can set a file system to be
+            updated asynchronously by mounting it with the <code class="option">-o
+            async</code> option. If your computer is reasonably
+            stable, this should give you better performance without
+            sacrificing too much reliability. (This flag is on by
+            default on Linux.)
+          </p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-621"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Using%20NFS%20with%20MySQL"></a><h4 class="title"><a id="disk-issues-nfs"></a>Using NFS with MySQL</h4></div></div></div><p>
+          You should be cautious when considering whether to use NFS
+          with MySQL. Potential issues, which vary by operating system
+          and NFS version, include the following:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              MySQL data and log files placed on NFS volumes becoming
+              locked and unavailable for use. Locking issues may occur
+              in cases where multiple instances of MySQL access the same
+              data directory or where MySQL is shut down improperly, due
+              to a power outage, for example. NFS version 4 addresses
+              underlying locking issues with the introduction of
+              advisory and lease-based locking. However, sharing a data
+              directory among MySQL instances is not recommended.
+            </p></li><li class="listitem"><p>
+              Data inconsistencies introduced due to messages received
+              out of order or lost network traffic. To avoid this issue,
+              use TCP with <code class="literal">hard</code> and
+              <code class="literal">intr</code> mount options.
+            </p></li><li class="listitem"><p>
+              Maximum file size limitations. NFS Version 2 clients can
+              only access the lowest 2GB of a file (signed 32 bit
+              offset). NFS Version 3 clients support larger files (up to
+              64 bit offsets). The maximum supported file size also
+              depends on the local file system of the NFS server.
+            </p></li></ul></div><p>
+          Using NFS within a professional SAN environment or other
+          storage system tends to offer greater reliability than using
+          NFS outside of such an environment. However, NFS within a SAN
+          environment may be slower than directly attached or
+          bus-attached non-rotational storage.
+        </p><p>
+          If you choose to use NFS, NFS Version 4 or later is
+          recommended, as is testing your NFS setup thoroughly before
+          deploying into a production environment.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimizing-server.html">Previous <span class="navHint"> Optimizing the MySQL Server </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimizing-server.html">Up <span class="navHint"> Optimizing the MySQL Server </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="symbolic-links.html">Next <span class="navHint"> Using Symbolic Links </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

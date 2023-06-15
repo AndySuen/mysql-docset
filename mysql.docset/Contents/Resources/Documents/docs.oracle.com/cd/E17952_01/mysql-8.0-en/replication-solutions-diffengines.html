@@ -1,0 +1,106 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3782"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.4.4%C2%A0Using%20Replication%20with%20Different%20Source%20and%20Replica%20Storage%20Engines"></a><title>17.4.4&nbsp;Using Replication with Different Source and Replica Storage Engines</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-solutions.html" title="17.4&nbsp;Replication Solutions"/><link rel="prev" href="replication-solutions-rbr-monitoring.html" title="17.4.3&nbsp;Monitoring Row-based Replication"/><link rel="next" href="replication-solutions-scaleout.html" title="17.4.5&nbsp;Using Replication for Scale-Out"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-solutions-diffengines.html#replication-solutions-diffengines">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-solutions-rbr-monitoring.html">Previous <span class="navHint"> Monitoring Row-based Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-solutions.html">Up <span class="navHint"> Replication Solutions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-solutions-scaleout.html">Next <span class="navHint"> Using Replication for Scale-Out </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="replication-solutions-diffengines"></a>17.4.4&nbsp;Using Replication with Different Source and Replica Storage Engines</h3></div></div></div><p>
+      It does not matter for the replication process whether the
+      original table on the source and the replicated table on the
+      replica use different storage engine types. In fact, the
+      <a class="link" href="server-system-variables.html#sysvar_default_storage_engine"><code class="literal">default_storage_engine</code></a> system
+      variable is not replicated.
+    </p><p>
+      This provides a number of benefits in the replication process in
+      that you can take advantage of different engine types for
+      different replication scenarios. For example, in a typical
+      scale-out scenario (see
+      <a class="xref" href="replication-solutions-scaleout.html" title="17.4.5&nbsp;Using Replication for Scale-Out">Section&nbsp;17.4.5, &ldquo;Using Replication for Scale-Out&rdquo;</a>), you want to use
+      <code class="literal">InnoDB</code> tables on the source to take advantage
+      of the transactional functionality, but use
+      <code class="literal">MyISAM</code> on the replicas where transaction
+      support is not required because the data is only read. When using
+      replication in a data-logging environment you may want to use the
+      <code class="literal">Archive</code> storage engine on the replica.
+    </p><p>
+      Configuring different engines on the source and replica depends on
+      how you set up the initial replication process:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          If you used <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> to create the
+          database snapshot on your source, you could edit the dump file
+          text to change the engine type used on each table.
+        </p><p>
+          Another alternative for <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> is to
+          disable engine types that you do not want to use on the
+          replica before using the dump to build the data on the
+          replica. For example, you can add the
+          <a class="link" href="innodb-parameters.html#option_mysqld_innodb"><code class="option">--skip-federated</code></a>
+          option on your replica to disable the
+          <code class="literal">FEDERATED</code> engine. If a specific engine does
+          not exist for a table to be created, MySQL uses the default
+          engine type, usually <code class="literal">InnoDB</code>. (This requires
+          that the
+          <a class="link" href="sql-mode.html#sqlmode_no_engine_substitution"><code class="literal">NO_ENGINE_SUBSTITUTION</code></a> SQL
+          mode is not enabled.) If you want to disable additional
+          engines in this way, you may want to consider building a
+          special binary to be used on the replica that supports only
+          the engines you want.
+        </p></li><li class="listitem"><p>
+          If you use raw data files (a binary backup) to set up the
+          replica, it is not possible to change the initial table
+          format. Instead, use <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER
+          TABLE</code></a> to change the table types after the replica
+          has been started.
+        </p></li><li class="listitem"><p>
+          For new source/replica replication setups where there are
+          currently no tables on the source, avoid specifying the engine
+          type when creating new tables.
+        </p></li></ul></div><p>
+      If you are already running a replication solution and want to
+      convert your existing tables to another engine type, follow these
+      steps:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Stop the replica from running replication updates:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>STOP SLAVE;</code></strong>
+Or from MySQL 8.0.22:
+mysql&gt; <strong class="userinput"><code>STOP REPLICA;</code></strong>
+</pre><p>
+          This makes it possible to change engine types without
+          interruption.
+        </p></li><li class="listitem"><p>
+          Execute an <code class="literal">ALTER TABLE ...
+          ENGINE=&#39;<em class="replaceable"><code>engine_type</code></em>&#39;</code> for
+          each table to be changed.
+        </p></li><li class="listitem"><p>
+          Start the replication process again:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>START SLAVE;</code></strong>
+</pre><p>
+          Or, beginning with MySQL 8.0.22:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>START REPLICA;</code></strong>
+</pre></li></ol></div><p>
+      Although the
+      <a class="link" href="server-system-variables.html#sysvar_default_storage_engine"><code class="literal">default_storage_engine</code></a> variable
+      is not replicated, be aware that <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE
+      TABLE</code></a> and <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+      statements that include the engine specification are replicated to
+      the replica correctly. If, in the case of a
+      <a class="link" href="csv-storage-engine.html" title="16.4&nbsp;The CSV Storage Engine"><code class="literal">CSV</code></a> table, you execute this
+      statement:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER TABLE csvtable ENGINE=&#39;MyISAM&#39;;</code></strong>
+</pre><p>
+      This statement is replicated; the table&#39;s engine type on the
+      replica is converted to <code class="literal">InnoDB</code>, even if you
+      have previously changed the table type on the replica to an engine
+      other than <code class="literal">CSV</code>. If you want to retain engine
+      differences on the source and replica, you should be careful to
+      use the <a class="link" href="server-system-variables.html#sysvar_default_storage_engine"><code class="literal">default_storage_engine</code></a>
+      variable on the source when creating a new table. For example,
+      instead of:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE tablea (columna int) Engine=MyISAM;</code></strong>
+</pre><p>
+      Use this format:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET default_storage_engine=MyISAM;</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE TABLE tablea (columna int);</code></strong>
+</pre><p>
+      When replicated, the
+      <a class="link" href="server-system-variables.html#sysvar_default_storage_engine"><code class="literal">default_storage_engine</code></a> variable
+      is ignored, and the <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>
+      statement executes on the replica using the replica&#39;s default
+      engine.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-solutions-rbr-monitoring.html">Previous <span class="navHint"> Monitoring Row-based Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-solutions.html">Up <span class="navHint"> Replication Solutions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-solutions-scaleout.html">Next <span class="navHint"> Using Replication for Scale-Out </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

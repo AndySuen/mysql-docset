@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.1.9.3 Persisted System Variables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="using-system-variables.html" title="5.1.9 Using System Variables" /><link rel="prev" href="dynamic-system-variables.html" title="5.1.9.2 Dynamic System Variables" /><link rel="next" href="nonpersistible-system-variables.html" title="5.1.9.4 Nonpersistible and Persist-Restricted System Variables" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="persisted-system-variables.html#persisted-system-variables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="dynamic-system-variables.html">Previous <span class="navHint"> Dynamic System Variables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="using-system-variables.html">Up <span class="navHint"> Using System Variables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="nonpersistible-system-variables.html">Next <span class="navHint"> Nonpersistible and Persist-Restricted System Variables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="persisted-system-variables"></a>5.1.9.3 Persisted System Variables</h4></div></div></div><a id="idm45828991622880" class="indexterm"></a><a id="idm45828991621392" class="indexterm"></a><a id="idm45828991619904" class="indexterm"></a><a id="idm45828991618416" class="indexterm"></a><a id="idm45828991617344" class="indexterm"></a><a id="idm45828991616256" class="indexterm"></a><a id="idm45828991614768" class="indexterm"></a><a id="idm45828991613680" class="indexterm"></a><p>
+        The MySQL server maintains system variables that configure its
+        operation. A system variable can have a global value that
+        affects server operation as a whole, a session value that
+        affects the current session, or both. Many system variables are
+        dynamic and can be changed at runtime using the
+        <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a>
+        statement to affect operation of the current server instance.
+        <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a> can
+        also be used to persist certain global system variables to the
+        <code class="filename">mysqld-auto.cnf</code> file in the data directory,
+        to affect server operation for subsequent startups.
+        <a class="link" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement"><code class="literal">RESET PERSIST</code></a> removes persisted
+        settings from <code class="filename">mysqld-auto.cnf</code>.
+      </p><p>
+        The following discussion describes aspects of persisting system
+        variables:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="persisted-system-variables.html#persisted-system-variables-overview" title="Overview of Persisted System Variables">Overview of Persisted System Variables</a></p></li><li class="listitem"><p><a class="xref" href="persisted-system-variables.html#persisted-system-variables-syntax" title="Syntax for Persisting System Variables">Syntax for Persisting System Variables</a></p></li><li class="listitem"><p><a class="xref" href="persisted-system-variables.html#persisted-system-variables-information" title="Obtaining Information About Persisted System Variables">Obtaining Information About Persisted System Variables</a></p></li><li class="listitem"><p><a class="xref" href="persisted-system-variables.html#persisted-system-variables-file-handling" title="Format and Server Handling of the mysqld-auto.cnf File">Format and Server Handling of the mysqld-auto.cnf File</a></p></li><li class="listitem"><p><a class="xref" href="persisted-system-variables.html#persisted-system-variables-sensitive" title="Persisting Sensitive System Variables">Persisting Sensitive System Variables</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="persisted-system-variables-overview"></a>Overview of Persisted System Variables</h5></div></div></div><p>
+          The capability of persisting global system variables at
+          runtime enables server configuration that persists across
+          server startups. Although many system variables can be set at
+          startup from a <code class="filename">my.cnf</code> option file, or at
+          runtime using the
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a>
+          statement, those methods of configuring the server either
+          require login access to the server host, or do not provide the
+          capability of persistently configuring the server at runtime
+          or remotely:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Modifying an option file requires direct access to that
+              file, which requires login access to the MySQL server
+              host. This is not always convenient.
+            </p></li><li class="listitem"><p>
+              Modifying system variables with
+              <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET
+              GLOBAL</code></a> is a runtime capability that can be done
+              from clients run locally or from remote hosts, but the
+              changes affect only the currently running server instance.
+              The settings are not persistent and do not carry over to
+              subsequent server startups.
+            </p></li></ul></div><p>
+          To augment administrative capabilities for server
+          configuration beyond what is achievable by editing option
+          files or using
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET
+          GLOBAL</code></a>, MySQL provides variants of
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a>
+          syntax that persist system variable settings to a file named
+          <code class="filename">mysqld-auto.cnf</code> file in the data
+          directory. Examples:
+        </p><pre class="programlisting">SET PERSIST max_connections = 1000;
+SET @@PERSIST.max_connections = 1000;
+
+SET PERSIST_ONLY back_log = 100;
+SET @@PERSIST_ONLY.back_log = 100;
+</pre><p>
+          MySQL also provides a <a class="link" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement"><code class="literal">RESET
+          PERSIST</code></a> statement for removing persisted system
+          variables from <code class="filename">mysqld-auto.cnf</code>.
+        </p><p>
+          Server configuration performed by persisting system variables
+          has these characteristics:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Persisted settings are made at runtime.
+            </p></li><li class="listitem"><p>
+              Persisted settings are permanent. They apply across server
+              restarts.
+            </p></li><li class="listitem"><p>
+              Persisted settings can be made from local clients or
+              clients who connect from a remote host. This provides the
+              convenience of remotely configuring multiple MySQL servers
+              from a central client host.
+            </p></li><li class="listitem"><p>
+              To persist system variables, you need not have login
+              access to the MySQL server host or file system access to
+              option files. Ability to persist settings is controlled
+              using the MySQL privilege system. See
+              <a class="xref" href="system-variable-privileges.html" title="5.1.9.1 System Variable Privileges">Section 5.1.9.1, “System Variable Privileges”</a>.
+            </p></li><li class="listitem"><p>
+              An administrator with sufficient privileges can
+              reconfigure a server by persisting system variables, then
+              cause the server to use the changed settings immediately
+              by executing a <a class="link" href="restart.html" title="13.7.8.8 RESTART Statement"><code class="literal">RESTART</code></a>
+              statement.
+            </p></li><li class="listitem"><p>
+              Persisted settings provide immediate feedback about
+              errors. An error in a manually entered setting might not
+              be discovered until much later.
+              <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a>
+              statements that persist system variables avoid the
+              possibility of malformed settings because settings with
+              syntax errors do not succeed and do not change server
+              configuration.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="persisted-system-variables-syntax"></a>Syntax for Persisting System Variables</h5></div></div></div><p>
+          These
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a>
+          syntax options are available for persisting system variables:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              To persist a global system variable to the
+              <code class="filename">mysqld-auto.cnf</code> option file in the
+              data directory, precede the variable name by the
+              <code class="literal">PERSIST</code> keyword or the
+              <code class="literal">@@PERSIST.</code> qualifier:
+            </p><pre class="programlisting">SET PERSIST max_connections = 1000;
+SET @@PERSIST.max_connections = 1000;
+</pre><p>
+              Like <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET
+              GLOBAL</code></a>,
+              <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET
+              PERSIST</code></a> sets the global variable runtime value,
+              but also writes the variable setting to the
+              <code class="filename">mysqld-auto.cnf</code> file (replacing any
+              existing variable setting if there is one).
+            </p></li><li class="listitem"><p>
+              To persist a global system variable to the
+              <code class="filename">mysqld-auto.cnf</code> file without setting
+              the global variable runtime value, precede the variable
+              name by the <code class="literal">PERSIST_ONLY</code> keyword or the
+              <code class="literal">@@PERSIST_ONLY.</code> qualifier:
+            </p><pre class="programlisting">SET PERSIST_ONLY back_log = 1000;
+SET @@PERSIST_ONLY.back_log = 1000;
+</pre><p>
+              Like <code class="literal">PERSIST</code>,
+              <code class="literal">PERSIST_ONLY</code> writes the variable
+              setting to <code class="filename">mysqld-auto.cnf</code>. However,
+              unlike <code class="literal">PERSIST</code>,
+              <code class="literal">PERSIST_ONLY</code> does not modify the global
+              variable runtime value. This makes
+              <code class="literal">PERSIST_ONLY</code> suitable for configuring
+              read-only system variables that can be set only at server
+              startup.
+            </p></li></ul></div><p>
+          For more information about
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a>,
+          see <a class="xref" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment">Section 13.7.6.1, “SET Syntax for Variable Assignment”</a>.
+        </p><p>
+          These <a class="link" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement"><code class="literal">RESET PERSIST</code></a> syntax
+          options are available for removing persisted system variables:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              To remove all persisted variables from
+              <code class="filename">mysqld-auto.cnf</code>, use
+              <a class="link" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement"><code class="literal">RESET PERSIST</code></a> without
+              naming any system variable:
+            </p><pre class="programlisting">RESET PERSIST;
+</pre></li><li class="listitem"><p>
+              To remove a specific persisted variable from
+              <code class="filename">mysqld-auto.cnf</code>, name it in the
+              statement:
+            </p><pre class="programlisting">RESET PERSIST <em class="replaceable"><code>system_var_name</code></em>;
+</pre><p>
+              This includes plugin system variables, even if the plugin
+              is not currently installed. If the variable is not present
+              in the file, an error occurs.
+            </p></li><li class="listitem"><p>
+              To remove a specific persisted variable from
+              <code class="filename">mysqld-auto.cnf</code>, but produce a
+              warning rather than an error if the variable is not
+              present in the file, add an <code class="literal">IF EXISTS</code>
+              clause to the previous syntax:
+            </p><pre class="programlisting">RESET PERSIST IF EXISTS <em class="replaceable"><code>system_var_name</code></em>;
+</pre></li></ul></div><p>
+          For more information about <a class="link" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement"><code class="literal">RESET
+          PERSIST</code></a>, see <a class="xref" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement">Section 13.7.8.7, “RESET PERSIST Statement”</a>.
+        </p><p>
+          Using
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a> to
+          persist a global system variable to a value of
+          <code class="literal">DEFAULT</code> or to its literal default value
+          assigns the variable its default value and adds a setting for
+          the variable to <code class="filename">mysqld-auto.cnf</code>. To
+          remove the variable from the file, use
+          <a class="link" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement"><code class="literal">RESET PERSIST</code></a>.
+        </p><p>
+          Some system variables cannot be persisted. See
+          <a class="xref" href="nonpersistible-system-variables.html" title="5.1.9.4 Nonpersistible and Persist-Restricted System Variables">Section 5.1.9.4, “Nonpersistible and Persist-Restricted System Variables”</a>.
+        </p><p>
+          A system variable implemented by a plugin can be persisted if
+          the plugin is installed when the
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a>
+          statement is executed. Assignment of the persisted plugin
+          variable takes effect for subsequent server restarts if the
+          plugin is still installed. If the plugin is no longer
+          installed, the plugin variable does not exist when the server
+          reads the <code class="filename">mysqld-auto.cnf</code> file. In this
+          case, the server writes a warning to the error log and
+          continues:
+        </p><pre class="programlisting">currently unknown variable '<em class="replaceable"><code>var_name</code></em>'
+was read from the persisted config file
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="persisted-system-variables-information"></a>Obtaining Information About Persisted System Variables</h5></div></div></div><p>
+          The Performance Schema
+          <a class="link" href="performance-schema-persisted-variables-table.html" title="27.12.14.1 Performance Schema persisted_variables Table"><code class="literal">persisted_variables</code></a> table
+          provides an SQL interface to the
+          <code class="filename">mysqld-auto.cnf</code> file, enabling its
+          contents to be inspected at runtime using
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements. See
+          <a class="xref" href="performance-schema-persisted-variables-table.html" title="27.12.14.1 Performance Schema persisted_variables Table">Section 27.12.14.1, “Performance Schema persisted_variables Table”</a>.
+        </p><p>
+          The Performance Schema
+          <a class="link" href="performance-schema-variables-info-table.html" title="27.12.14.2 Performance Schema variables_info Table"><code class="literal">variables_info</code></a> table contains
+          information showing when and by which user each system
+          variable was most recently set. See
+          <a class="xref" href="performance-schema-variables-info-table.html" title="27.12.14.2 Performance Schema variables_info Table">Section 27.12.14.2, “Performance Schema variables_info Table”</a>.
+        </p><p>
+          <a class="link" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement"><code class="literal">RESET PERSIST</code></a> affects the
+          contents of the
+          <a class="link" href="performance-schema-persisted-variables-table.html" title="27.12.14.1 Performance Schema persisted_variables Table"><code class="literal">persisted_variables</code></a> table because
+          the table contents correspond to the contents of the
+          <code class="filename">mysqld-auto.cnf</code> file. On the other hand,
+          because <a class="link" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement"><code class="literal">RESET PERSIST</code></a> does not
+          change variable values, it has no effect on the contents of
+          the <a class="link" href="performance-schema-variables-info-table.html" title="27.12.14.2 Performance Schema variables_info Table"><code class="literal">variables_info</code></a> table until
+          the server is restarted.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="persisted-system-variables-file-handling"></a>Format and Server Handling of the mysqld-auto.cnf File</h5></div></div></div><p>
+          The <code class="filename">mysqld-auto.cnf</code> file uses a
+          <code class="literal">JSON</code> format like this (reformatted slightly
+          for readability):
+        </p><pre class="programlisting">{
+  "Version": 1,
+  "mysql_server": {
+    "max_connections": {
+      "Value": "152",
+      "Metadata": {
+        "Timestamp": 1519921341372531,
+        "User": "root",
+        "Host": "localhost"
+      }
+    },
+    "transaction_isolation": {
+      "Value": "READ-COMMITTED",
+      "Metadata": {
+        "Timestamp": 1519921553880520,
+        "User": "root",
+        "Host": "localhost"
+      }
+    },
+    "mysql_server_static_options": {
+      "innodb_api_enable_mdl": {
+        "Value": "0",
+        "Metadata": {
+          "Timestamp": 1519922873467872,
+          "User": "root",
+          "Host": "localhost"
+        }
+      },
+      "log_slave_updates": {
+        "Value": "1",
+        "Metadata": {
+          "Timestamp": 1519925628441588,
+          "User": "root",
+          "Host": "localhost"
+        }
+      }
+    }
+  }
+}
+</pre><p>
+          At startup, the server processes the
+          <code class="filename">mysqld-auto.cnf</code> file after all other
+          option files (see <a class="xref" href="option-files.html" title="4.2.2.2 Using Option Files">Section 4.2.2.2, “Using Option Files”</a>). The server
+          handles the file contents as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              If the
+              <a class="link" href="server-system-variables.html#sysvar_persisted_globals_load"><code class="literal">persisted_globals_load</code></a>
+              system variable is disabled, the server ignores the
+              <code class="filename">mysqld-auto.cnf</code> file.
+            </p></li><li class="listitem"><p>
+              The <code class="literal">"mysql_server_static_options"</code>
+              section contains read-only variables persisted using
+              <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET
+              PERSIST_ONLY</code></a>. The section may also (despite its
+              name) contain certain dynamic variables that are not read
+              only. All variables present inside this section are
+              appended to the command line and processed with other
+              command-line options.
+            </p></li><li class="listitem"><p>
+              All remaining persisted variables are set by executing the
+              equivalent of a
+              <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET
+              GLOBAL</code></a> statement later, just before the server
+              starts listening for client connections. These settings
+              therefore do not take effect until late in the startup
+              process, which might be unsuitable for certain system
+              variables. It may be preferable to set such variables in
+              <code class="filename">my.cnf</code> rather than in
+              <code class="filename">mysqld-auto.cnf</code>.
+            </p></li></ul></div><p>
+          Management of the <code class="filename">mysqld-auto.cnf</code> file
+          should be left to the server. Manipulation of the file should
+          be performed only using
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a>
+          and <a class="link" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement"><code class="literal">RESET PERSIST</code></a> statements,
+          not manually:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Removal of the file results in a loss of all persisted
+              settings at the next server startup. (This is permissible
+              if your intent is to reconfigure the server without these
+              settings.) To remove all settings in the file without
+              removing the file itself, use this statement:
+            </p><pre class="programlisting">RESET PERSIST;
+</pre></li><li class="listitem"><p>
+              Manual changes to the file may result in a parse error at
+              server startup. In this case, the server reports an error
+              and exits. If this issue occurs, start the server with the
+              <a class="link" href="server-system-variables.html#sysvar_persisted_globals_load"><code class="literal">persisted_globals_load</code></a>
+              system variable disabled or with the
+              <a class="link" href="server-options.html#option_mysqld_no-defaults"><code class="option">--no-defaults</code></a> option.
+              Alternatively, remove the
+              <code class="filename">mysqld-auto.cnf</code> file. However, as
+              noted previously, removing this file results in a loss of
+              all persisted settings.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="persisted-system-variables-sensitive"></a>Persisting Sensitive System Variables</h5></div></div></div><p>
+          From MySQL 8.0.29, MySQL Server has the capability to securely
+          store persisted system variable values containing sensitive
+          data such as private keys or passwords, and restrict viewing
+          of the values. No MySQL Server system variables are currently
+          marked as sensitive, but the new capability allows system
+          variables containing sensitive data to be persisted securely
+          in the future. After upgrading to MySQL 8.0.29, the format of
+          the <code class="filename">mysqld-auto.cnf</code> option file remains
+          the same until the first time a
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET
+          PERSIST</code></a> or
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET PERSIST
+          ONLY</code></a> statement is issued, and at that point it is
+          changed to a new format, even if the system variable involved
+          is not sensitive. In the new format, the option file cannot be
+          read by older releases of MySQL Server.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            A keyring component must be enabled on the MySQL Server
+            instance to support secure storage for persisted system
+            variable values, rather than a keyring plugin, which do not
+            support the function. See <a class="xref" href="keyring.html" title="6.4.4 The MySQL Keyring">Section 6.4.4, “The MySQL Keyring”</a>.
+          </p></div><p>
+          In the <code class="filename">mysqld-auto.cnf</code> option file, the
+          names and values of sensitive system variables are stored in
+          an encrypted format, along with a generated file key to
+          decrypt them. The generated file key is in turn encrypted
+          using a master key
+          (<code class="literal">persisted_variables_key</code>) that is stored in
+          a keyring. When the server starts up, the persisted sensitive
+          system variables are decrypted and used. By default, if
+          encrypted values are present in the option file but cannot be
+          successfully decrypted at startup, their default settings are
+          used. The optional most secure setting makes the server halt
+          startup if the encrypted values cannot be decrypted.
+        </p><p>
+          The system variable
+          <a class="link" href="server-system-variables.html#sysvar_persist_sensitive_variables_in_plaintext"><code class="literal">persist_sensitive_variables_in_plaintext</code></a>
+          controls whether the server is permitted to store the values
+          of sensitive system variables in an unencrypted format, if
+          keyring component support is not available at the time when
+          <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET
+          PERSIST</code></a> is used to set the value. It also controls
+          whether or not the server can start if the encrypted values
+          cannot be decrypted.
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The default setting, <code class="literal">ON</code>, encrypts the
+              values if keyring component support is available, and
+              persists them unencrypted (with a warning) if it is not.
+              The next time any persisted system variable is set, if
+              keyring support is available at that time, the server
+              encrypts the values of any unencrypted sensitive system
+              variables. The <code class="literal">ON</code> setting also allows
+              the server to start if encrypted system variable values
+              cannot be decrypted, in which case a warning is issued and
+              the default values for the system variables are used. In
+              that situation, their values cannot be changed until they
+              can be decrypted.
+            </p></li><li class="listitem"><p>
+              The most secure setting, <code class="literal">OFF</code>, means
+              sensitive system variable values cannot be persisted if
+              keyring component support is unavailable. The
+              <code class="literal">OFF</code> setting also means the server does
+              not start if encrypted system variable values cannot be
+              decrypted.
+            </p></li></ul></div><p>
+          The privilege
+          <a class="link" href="privileges-provided.html#priv_sensitive-variables-observer"><code class="literal">SENSITIVE_VARIABLES_OBSERVER</code></a>
+          allows a holder to view the values of sensitive system
+          variables in the Performance Schema tables
+          <a class="link" href="performance-schema-system-variable-tables.html" title="27.12.14 Performance Schema System Variable Tables"><code class="literal">global_variables</code></a>,
+          <a class="link" href="performance-schema-system-variable-tables.html" title="27.12.14 Performance Schema System Variable Tables"><code class="literal">session_variables</code></a>,
+          <a class="link" href="performance-schema-system-variable-tables.html" title="27.12.14 Performance Schema System Variable Tables"><code class="literal">variables_by_thread</code></a>, and
+          <a class="link" href="performance-schema-persisted-variables-table.html" title="27.12.14.1 Performance Schema persisted_variables Table"><code class="literal">persisted_variables</code></a>,
+          to issue <code class="literal">SELECT</code> statements to return their
+          values, and to track changes to them in session trackers for
+          connections. Users without this privilege cannot view or track
+          those system variable values.
+        </p><p>
+          If a <code class="literal">SET</code> statement is issued for a
+          sensitive system variable, the query is rewritten to replace
+          the value with <span class="quote">“<span class="quote"><code class="literal">&lt;redacted&gt;</code></span>”</span>
+          before it is logged to the general log and audit log. This
+          takes place even if secure storage through a keyring component
+          is not available on the server instance.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="dynamic-system-variables.html">Previous <span class="navHint"> Dynamic System Variables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="using-system-variables.html">Up <span class="navHint"> Using System Variables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="nonpersistible-system-variables.html">Next <span class="navHint"> Nonpersistible and Persist-Restricted System Variables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

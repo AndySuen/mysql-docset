@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>18.5.3.2 Configuring Transaction Consistency Guarantees</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="group-replication-consistency-guarantees.html" title="18.5.3 Transaction Consistency Guarantees" /><link rel="prev" href="group-replication-understanding-consistency-guarantees.html" title="18.5.3.1 Understanding Transaction Consistency Guarantees" /><link rel="next" href="group-replication-distributed-recovery.html" title="18.5.4 Distributed Recovery" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-configuring-consistency-guarantees.html#group-replication-configuring-consistency-guarantees">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-replication-understanding-consistency-guarantees.html">Previous <span class="navHint"> Understanding Transaction Consistency Guarantees </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="group-replication-consistency-guarantees.html">Up <span class="navHint"> Transaction Consistency Guarantees </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-distributed-recovery.html">Next <span class="navHint"> Distributed Recovery </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="group-replication-configuring-consistency-guarantees"></a>18.5.3.2 Configuring Transaction Consistency Guarantees</h4></div></div></div><a id="idm45828854283712" class="indexterm"></a><p>
+        Although the
+        <a class="xref" href="group-replication-understanding-consistency-guarantees.html#group-replication-synchronization-points" title="Transaction Synchronization Points">Transaction Synchronization Points</a>
+        section explains that conceptually there are two synchronization
+        points from which you can choose: on read or on write, these
+        terms were a simplification and the terms used in Group
+        Replication are: <span class="emphasis"><em>before</em></span> and
+        <span class="emphasis"><em>after</em></span> transaction execution. The
+        consistency level can have a different impact on read-only (RO)
+        and read-write (RW) transactions processed by the group as
+        demonstrated in this section.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="group-replication-configuring-consistency-guarantees.html#group-replication-choose-consistency-level" title="How to Choose a Consistency Level">How to Choose a Consistency Level</a></p></li><li class="listitem"><p><a class="xref" href="group-replication-configuring-consistency-guarantees.html#group-replication-consistency-level-impacts" title="Impacts of Consistency Levels">Impacts of Consistency Levels</a></p></li><li class="listitem"><p><a class="xref" href="group-replication-configuring-consistency-guarantees.html#group-replication-consistency-level-impact-election" title="Impact of Consistency on Primary Election">Impact of Consistency on Primary Election</a></p></li><li class="listitem"><p><a class="xref" href="group-replication-configuring-consistency-guarantees.html#group-replication-nonblocking" title="Permitted Queries Under Consistency Rules">Permitted Queries Under Consistency Rules</a></p></li></ul></div><p>
+        The following list shows the possible consistency levels that
+        you can configure in Group Replication using the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_consistency"><code class="literal">group_replication_consistency</code></a>
+        variable, in order of increasing transaction consistency
+        guarantee:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">EVENTUAL</code>
+          </p><p>
+            Both RO and RW transactions do not wait for preceding
+            transactions to be applied before executing. This was the
+            behavior of Group Replication before the
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_consistency"><code class="literal">group_replication_consistency</code></a>
+            variable was added. A RW transaction does not wait for other
+            members to apply a transaction. This means that a
+            transaction could be externalized on one member before the
+            others. This also means that in the event of a primary
+            failover, the new primary can accept new RO and RW
+            transactions before the previous primary transactions are
+            all applied. RO transactions could result in outdated
+            values, RW transactions could result in a rollback due to
+            conflicts.
+          </p></li><li class="listitem"><p>
+            <code class="literal">BEFORE_ON_PRIMARY_FAILOVER</code>
+          </p><p>
+            New RO or RW transactions with a newly elected primary that
+            is applying backlog from the old primary are held (not
+            applied) until any backlog has been applied. This ensures
+            that when a primary failover happens, intentionally or not,
+            clients always see the latest value on the primary. This
+            guarantees consistency, but means that clients must be able
+            to handle the delay in the event that a backlog is being
+            applied. Usually this delay should be minimal, but it does
+            depend on the size of the backlog.
+          </p></li><li class="listitem"><p>
+            <code class="literal">BEFORE</code>
+          </p><p>
+            A RW transaction waits for all preceding transactions to
+            complete before being applied. A RO transaction waits for
+            all preceding transactions to complete before being
+            executed. This ensures that this transaction reads the
+            latest value by only affecting the latency of the
+            transaction. This reduces the overhead of synchronization on
+            every RW transaction, by ensuring synchronization is used
+            only on RO transactions. This consistency level also
+            includes the consistency guarantees provided by
+            <code class="literal">BEFORE_ON_PRIMARY_FAILOVER</code>.
+          </p></li><li class="listitem"><p>
+            <code class="literal">AFTER</code>
+          </p><p>
+            A RW transaction waits until its changes have been applied
+            to all of the other members. This value has no effect on RO
+            transactions. This mode ensures that when a transaction is
+            committed on the local member, any subsequent transaction
+            reads the written value or a more recent value on any group
+            member. Use this mode with a group that is used for
+            predominantly RO operations to ensure that applied RW
+            transactions are applied everywhere once they commit. This
+            could be used by your application to ensure that subsequent
+            reads fetch the latest data which includes the latest
+            writes. This reduces the overhead of synchronization on
+            every RO transaction, by ensuring synchronization is used
+            only on RW transactions. This consistency level also
+            includes the consistency guarantees provided by
+            <code class="literal">BEFORE_ON_PRIMARY_FAILOVER</code>.
+          </p></li><li class="listitem"><p>
+            <code class="literal">BEFORE_AND_AFTER</code>
+          </p><p>
+            A RW transaction waits for 1) all preceding transactions to
+            complete before being applied and 2) until its changes have
+            been applied on other members. A RO transaction waits for
+            all preceding transactions to complete before execution
+            takes place. This consistency level also includes the
+            consistency guarantees provided by
+            <code class="literal">BEFORE_ON_PRIMARY_FAILOVER</code>.
+          </p></li></ul></div><p>
+        The <code class="literal">BEFORE</code> and
+        <code class="literal">BEFORE_AND_AFTER</code> consistency levels can be
+        both used on RO and RW transactions. The
+        <code class="literal">AFTER</code> consistency level has no impact on RO
+        transactions, because they do not generate changes.
+      </p><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-choose-consistency-level"></a>How to Choose a Consistency Level</h5></div></div></div><a id="idm45828854251840" class="indexterm"></a><p>
+          The different consistency levels provide flexibility to both
+          DBAs, who can use them to set up their infrastructure; and to
+          developers who can use the consistency level that best suits
+          their application's requirements. The following scenarios show
+          how to choose a consistency guarantee level based on how you
+          use your group:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <span class="emphasis"><em>Scenario 1</em></span> you want to load balance
+              your reads without worrying about stale reads, your group
+              write operations are considerably fewer than your group
+              read operations. In this case, you should choose
+              <code class="literal">AFTER</code>.
+            </p></li><li class="listitem"><p>
+              <span class="emphasis"><em>Scenario 2</em></span> you have a data set that
+              applies a lot of writes and you want to do occasional
+              reads without having to worry about reading stale data. In
+              this case, you should choose <code class="literal">BEFORE</code>.
+            </p></li><li class="listitem"><p>
+              <span class="emphasis"><em>Scenario 3</em></span> you want specific
+              transactions in your workload to always read up-to-date
+              data from the group, so that whenever that sensitive data
+              is updated (such as credentials for a file or similar
+              data) you want to enforce that reads always read the most
+              up to date value. In this case, you should choose
+              <code class="literal">BEFORE</code>.
+            </p></li><li class="listitem"><p>
+              <span class="emphasis"><em>Scenario 4</em></span> you have a group that has
+              predominantly read-only (RO) data, you want your
+              read-write (RW) transactions to be applied everywhere once
+              they commit, so that subsequent reads are done on
+              up-to-date data that includes your latest writes and you
+              do not pay the synchronization on every RO transaction,
+              but only on RW ones. In this case, you should choose
+              <code class="literal">AFTER</code>.
+            </p></li><li class="listitem"><p>
+              <span class="emphasis"><em>Scenario 5</em></span> you have a group that has
+              predominantly read-only data, you want your read-write
+              (RW) transactions to always read up-to-date data from the
+              group and to be applied everywhere once they commit, so
+              that subsequent reads are done on up-to-date data that
+              includes your latest write and you do not pay the
+              synchronization on every read-only (RO) transaction, but
+              only on RW ones. In this case, you should choose
+              <code class="literal">BEFORE_AND_AFTER</code>.
+            </p></li></ul></div><p>
+          You have the freedom to choose the scope at which the
+          consistency level is enforced. This is important because
+          consistency levels could have a negative impact on group
+          performance if you set them at a global scope. Therefore you
+          can configure the consistency level of a group by using the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_consistency"><code class="literal">group_replication_consistency</code></a>
+          system variable at different scopes.
+        </p><p>
+          To enforce the consistency level on the current session, use
+          the session scope:
+        </p><pre class="programlisting">&gt; SET @@SESSION.group_replication_consistency= 'BEFORE';
+</pre><p>
+          To enforce the consistency level on all sessions, use the
+          global scope:
+        </p><pre class="programlisting">&gt; SET @@GLOBAL.group_replication_consistency= 'BEFORE';
+</pre><p>
+          The possibility of setting the consistency level on specific
+          sessions enables you to take advantage of scenarios such as:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <span class="emphasis"><em>Scenario 6</em></span> A given system handles
+              several instructions that do not require a strong
+              consistency level, but one kind of instruction does
+              require strong consistency: managing access permissions to
+              documents;. In this scenario, the system changes access
+              permissions and it wants to be sure that all clients see
+              the correct permission. You only need to <code class="literal">SET
+              @@SESSION.group_replication_consistency=
+              ‘AFTER’</code>, on those instructions and leave the
+              other instructions to run with <code class="literal">EVENTUAL</code>
+              set at the global scope.
+            </p></li><li class="listitem"><p>
+              <span class="emphasis"><em>Scenario 7</em></span> On the same system as
+              described in Scenario 6, every day an instruction needs to
+              do some analytical processing, and as such it requires to
+              always read the most up-to-date data. To achieve this, you
+              only need to <code class="literal">SET
+              @@SESSION.group_replication_consistency=
+              ‘BEFORE’</code> on that specific instruction.
+            </p></li></ul></div><p>
+          To summarize, you do not need to run all transactions with a
+          specific consistency level, especially if only some
+          transactions actually require it.
+        </p><p>
+          Note that all read-write transactions are totally ordered in
+          Group Replication, so even when you set the consistency level
+          to <code class="literal">AFTER</code> for the current session this
+          transaction waits until its changes are applied on all
+          members, which means waiting for this and all preceding
+          transactions that could be in the secondaries' queues. In
+          practice, the consistency level <code class="literal">AFTER</code> waits
+          for everything until and including this transaction.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-consistency-level-impacts"></a>Impacts of Consistency Levels</h5></div></div></div><a id="idm45828854221328" class="indexterm"></a><p>
+          Another way to classify the consistency levels is in terms of
+          impact on the group, that is, the repercussions that the
+          consistency levels have on the other members.
+        </p><p>
+          The <code class="literal">BEFORE</code> consistency level, apart from
+          being ordered on the transaction stream, only impacts on the
+          local member. That is, it does not require coordination with
+          the other members and does not have repercussions on their
+          transactions. In other words, <code class="literal">BEFORE</code> only
+          impacts the transactions on which it is used.
+        </p><p>
+          The <code class="literal">AFTER</code> and
+          <code class="literal">BEFORE_AND_AFTER</code> consistency levels do have
+          side-effects on concurrent transactions executed on other
+          members. These consistency levels make the other members
+          transactions wait if transactions with the
+          <code class="literal">EVENTUAL</code> consistency level start while a
+          transaction with <code class="literal">AFTER</code> or
+          <code class="literal">BEFORE_AND_AFTER</code> is executing. The other
+          members wait until the <code class="literal">AFTER</code> transaction is
+          committed on that member, even if the other member's
+          transactions have the <code class="literal">EVENTUAL</code> consistency
+          level. In other words, <code class="literal">AFTER</code> and
+          <code class="literal">BEFORE_AND_AFTER</code> impact
+          <span class="emphasis"><em>all</em></span> <code class="literal">ONLINE</code> group
+          members.
+        </p><p>
+          To illustrate this further, imagine a group with 3 members,
+          M1, M2 and M3. On member M1 a client issues:
+        </p><pre class="programlisting">&gt; SET @@SESSION.group_replication_consistency= AFTER;
+&gt; BEGIN;
+&gt; INSERT INTO t1 VALUES (1);
+&gt; COMMIT;
+</pre><p>
+          Then, while the above transaction is being applied, on member
+          M2 a client issues:
+        </p><pre class="programlisting">&gt; SET SESSION group_replication_consistency= EVENTUAL;
+</pre><p>
+          In this situation, even though the second transaction's
+          consistency level is <code class="literal">EVENTUAL</code>, because it
+          starts executing while the first transaction is already in the
+          commit phase on M2, the second transaction has to wait for the
+          first transaction to finish the commit and only then can it
+          execute.
+        </p><p>
+          You can only use the consistency levels
+          <code class="literal">BEFORE</code>, <code class="literal">AFTER</code> and
+          <code class="literal">BEFORE_AND_AFTER</code> on
+          <code class="literal">ONLINE</code> members, attempting to use them on
+          members in other states causes a session error.
+        </p><p>
+          Transactions whose consistency level is not
+          <code class="literal">EVENTUAL</code> hold execution until a timeout,
+          configured by <a class="link" href="server-system-variables.html#sysvar_wait_timeout"><code class="literal">wait_timeout</code></a>
+          value is reached, which defaults to 8 hours. If the timeout is
+          reached an <code class="literal">ER_GR_HOLD_WAIT_TIMEOUT</code> error is
+          thrown.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-consistency-level-impact-election"></a>Impact of Consistency on Primary Election</h5></div></div></div><a id="idm45828854196112" class="indexterm"></a><p>
+          This section describes how a group's consistency level impacts
+          on a single-primary group that has elected a new primary. Such
+          a group automatically detects failures and adjusts the view of
+          the members that are active, in other words the membership
+          configuration. Furthermore, if a group is deployed in
+          single-primary mode, whenever the group's membership changes
+          there is a check performed to detect if there is still a
+          primary member in the group. If there is none, a new one is
+          selected from the list of secondary members. Typically, this
+          is known as the secondary promotion.
+        </p><p>
+          
+
+          Given the fact that the system detects failures and
+          reconfigures itself automatically, the user may also expect
+          that once the promotion takes place, the new primary is in the
+          exact state, data-wise, as that of the old one. In other
+          words, the user may expect that there is no backlog of
+          replicated transactions to be applied on the new primary once
+          he is able to read from and write to it. In practical terms,
+          the user may expect that once his application fails-over to
+          the new primary, there would be no chance, even if
+          temporarily, to read old data or write into old data records.
+        </p><p>
+          When flow control is activated and properly tuned on a group,
+          there is only a small chance of transiently reading stale data
+          from a newly elected primary immediately after the promotion,
+          as there should not be a backlog, or if there is one it should
+          be small. Moreover, you might have a proxy or middleware
+          layers that govern application accesses to the primary after a
+          promotion and enforce the consistency criteria at that level.
+          If your group members are using MySQL 8.0.14 or higher, you
+          can specify the behavior of the new primary once it is
+          promoted using the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_consistency"><code class="literal">group_replication_consistency</code></a>
+          variable, which controls whether a newly elected primary
+          blocks both reads and writes until after the backlog is fully
+          applied or if it behaves in the manner of members running
+          MySQL 8.0.13 or earlier. If the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_consistency"><code class="literal">group_replication_consistency</code></a>
+          option was set to
+          <code class="literal">BEFORE_ON_PRIMARY_FAILOVER</code> on a newly
+          elected primary which has backlog to apply, and transactions
+          are issued against the new primary while it is still applying
+          the backlog, incoming transactions are blocked until the
+          backlog is fully applied. Thus, the following anomalies are
+          prevented:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              No stale reads for read-only and read-write transactions.
+              This prevents stale reads from being externalized to the
+              application by the new primary.
+            </p></li><li class="listitem"><p>
+              No spurious roll backs for read-write transactions, due to
+              write-write conflicts with replicated read-write
+              transactions still in the backlog waiting to be applied.
+            </p></li><li class="listitem"><p>
+              No read skew on read-write transactions, such as:
+            </p><pre class="programlisting">&gt; BEGIN;
+&gt; SELECT x FROM t1; -- x=1 because x=2 is in the backlog;
+&gt; INSERT x INTO t2;
+&gt; COMMIT;
+</pre><p>
+              This query should not cause a conflict but writes outdated
+              values.
+            </p></li></ul></div><p>
+          To summarize, when
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_consistency"><code class="literal">group_replication_consistency</code></a>
+          is set to <code class="literal">BEFORE_ON_PRIMARY_FAILOVER</code> you
+          are choosing to prioritize consistency over availability,
+          because reads and writes are held whenever a new primary is
+          elected. This is the trade-off you have to consider when
+          configuring your group. It should also be remembered that if
+          flow control is working correctly, backlog should be minimal.
+          Note that the higher consistency levels
+          <code class="literal">BEFORE</code>, <code class="literal">AFTER</code>, and
+          <code class="literal">BEFORE_AND_AFTER</code> also include the
+          consistency guarantees provided by
+          <code class="literal">BEFORE_ON_PRIMARY_FAILOVER</code>.
+        </p><p>
+          To guarantee that the group provides the same consistency
+          level regardless of which member is promoted to primary, all
+          members of the group should have
+          <code class="literal">BEFORE_ON_PRIMARY_FAILOVER</code> (or a higher
+          consistency level) persisted to their configuration. For
+          example, on each member issue:
+        </p><pre class="programlisting">&gt; SET PERSIST group_replication_consistency='BEFORE_ON_PRIMARY_FAILOVER';
+</pre><p>
+          This ensures that the members all behave in the same way, and
+          that the configuration is persisted after a restart of the
+          member.
+        </p><p>
+          A transaction cannot be on-hold forever, and if the time held
+          exceeds <a class="link" href="server-system-variables.html#sysvar_wait_timeout"><code class="literal">wait_timeout</code></a> it
+          returns an <span class="errortext">ER_GR_HOLD_WAIT_TIMEOUT</span>
+          error.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-nonblocking"></a>Permitted Queries Under Consistency Rules</h5></div></div></div><p>
+          Although all writes are held when using
+          <code class="literal">BEFORE_ON_PRIMARY_FAILOVER</code> consistency
+          level, not all reads are blocked to ensure that you can still
+          inspect the server while it is applying backlog after a
+          promotion took place. This is useful for debugging,
+          monitoring, observability and troubleshooting. Some queries
+          that do not modify data are allowed, such as the following:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <a class="link" href="show.html" title="13.7.7 SHOW Statements"><code class="literal">SHOW</code></a> statements - from
+              MySQL 8.0.27 this is restricted to those that do not
+              depend on data, only on status and configuration, as
+              listed below
+            </p></li><li class="listitem"><p>
+              <a class="link" href="set.html" title="11.3.6 The SET Type"><code class="literal">SET</code></a> statements
+            </p></li><li class="listitem"><p>
+              <a class="link" href="do.html" title="13.2.3 DO Statement"><code class="literal">DO</code></a> statements that do not
+              use tables or loadable functions
+            </p></li><li class="listitem"><p>
+              <code class="literal">EMPTY</code> statements
+            </p></li><li class="listitem"><p>
+              <a class="link" href="use.html" title="13.8.4 USE Statement"><code class="literal">USE</code></a> statements
+            </p></li><li class="listitem"><p>
+              Using <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements
+              against the <code class="literal">performance_schema</code> and
+              <code class="literal">sys</code> databases
+            </p></li><li class="listitem"><p>
+              Using <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements
+              against the <code class="literal">PROCESSLIST</code> table from the
+              <code class="literal">infoschema</code> database
+            </p></li><li class="listitem"><p>
+              <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements that do
+              not use tables or loadable functions
+            </p></li><li class="listitem"><p>
+              <a class="link" href="stop-group-replication.html" title="13.4.3.2 STOP GROUP_REPLICATION Statement"><code class="literal">STOP GROUP_REPLICATION</code></a>
+              statements
+            </p></li><li class="listitem"><p>
+              <a class="link" href="shutdown.html" title="13.7.8.9 SHUTDOWN Statement"><code class="literal">SHUTDOWN</code></a> statements
+            </p></li><li class="listitem"><p>
+              <a class="link" href="reset-persist.html" title="13.7.8.7 RESET PERSIST Statement"><code class="literal">RESET PERSIST</code></a> statements
+            </p></li></ul></div><p>
+          The <a class="link" href="show.html" title="13.7.7 SHOW Statements"><code class="literal">SHOW</code></a>
+          statements that are allowed from MySQL 8.0.27 are
+          <code class="literal">SHOW VARIABLES, SHOW PROCESSLIST, SHOW STATUS, SHOW
+          ENGINE INNODB LOGS, SHOW ENGINE INNODB STATUS, SHOW ENGINE
+          INNODB MUTEX, SHOW MASTER STATUS, SHOW REPLICA STATUS, SHOW
+          CHARACTER SET, SHOW COLLATION, SHOW BINARY LOGS, SHOW OPEN
+          TABLES, SHOW REPLICAS, SHOW BINLOG EVENTS, SHOW WARNINGS, SHOW
+          ERRORS, SHOW ENGINES, SHOW PRIVILEGES, SHOW PROCEDURE STATUS,
+          SHOW FUNCTION STATUS, SHOW PLUGINS, SHOW EVENTS, SHOW PROFILE,
+          SHOW PROFILES,</code> and <code class="literal">SHOW RELAYLOG
+          EVENTS</code>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-understanding-consistency-guarantees.html">Previous <span class="navHint"> Understanding Transaction Consistency Guarantees </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-consistency-guarantees.html">Up <span class="navHint"> Transaction Consistency Guarantees </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-distributed-recovery.html">Next <span class="navHint"> Distributed Recovery </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

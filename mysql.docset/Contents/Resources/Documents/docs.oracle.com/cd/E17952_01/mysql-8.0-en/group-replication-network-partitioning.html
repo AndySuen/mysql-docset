@@ -1,0 +1,247 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1077"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.7.8%C2%A0Handling%20a%20Network%20Partition%20and%20Loss%20of%20Quorum"></a><title>18.7.8&nbsp;Handling a Network Partition and Loss of Quorum</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-performance.html" title="18.7&nbsp;Group Replication Performance and Troubleshooting"/><link rel="prev" href="group-replication-responses-failure-exit.html" title="18.7.7.4&nbsp;Exit Action"/><link rel="next" href="mysql-gr-memory-monitoring-ps-instruments.html" title="18.7.9&nbsp;Monitoring Group Replication Memory Usage with Performance Schema Memory Instrumentation"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-network-partitioning.html#group-replication-network-partitioning">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-responses-failure-exit.html">Previous <span class="navHint"> Exit Action </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-performance.html">Up <span class="navHint"> Group Replication Performance and Troubleshooting </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-gr-memory-monitoring-ps-instruments.html">Next <span class="navHint"> Monitoring Group Replication Memory Usage with Performance Schema Memory
+      Instrumentation </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-replication-network-partitioning"></a>18.7.8&nbsp;Handling a Network Partition and Loss of Quorum</h3></div></div></div><a id="idm45828852765392" class="indexterm"></a><p>
+      The group needs to achieve consensus whenever a change that needs
+      to be replicated happens. This is the case for regular
+      transactions but is also required for group membership changes and
+      some internal messaging that keeps the group consistent. Consensus
+      requires a majority of group members to agree on a given decision.
+      When a majority of group members is lost, the group is unable to
+      progress and blocks because it cannot secure majority or quorum.
+    </p><p>
+      Quorum may be lost when there are multiple involuntary failures,
+      causing a majority of servers to be removed abruptly from the
+      group. For example, in a group of 5 servers, if 3 of them become
+      silent at once, the majority is compromised and thus no quorum can
+      be achieved. In fact, the remaining two are not able to tell if
+      the other 3 servers have crashed or whether a network partition
+      has isolated these 2 alone and therefore the group cannot be
+      reconfigured automatically.
+    </p><p>
+      On the other hand, if servers exit the group voluntarily, they
+      instruct the group that it should reconfigure itself. In practice,
+      this means that a server that is leaving tells others that it is
+      going away. This means that other members can reconfigure the
+      group properly, the consistency of the membership is maintained
+      and the majority is recalculated. For example, in the above
+      scenario of 5 servers where 3 leave at once, if the 3 leaving
+      servers warn the group that they are leaving, one by one, then the
+      membership is able to adjust itself from 5 to 2, and at the same
+      time, securing quorum while that happens.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        Loss of quorum is by itself a side-effect of bad planning. Plan
+        the group size for the number of expected failures (regardless
+        whether they are consecutive, happen all at once or are
+        sporadic).
+
+        
+      </p></div><p>
+      For a group in single-primary mode, the primary might have
+      transactions that are not yet present on other members at the time
+      of the network partition. If you are considering excluding the
+      primary from the new group, be aware that such transactions might
+      be lost. A member with extra transactions cannot rejoin the group,
+      and the attempt results in an error with the message
+      <span class="errortext">This member has more executed transactions than those
+      present in the group</span>. Set the
+      <a class="link" href="group-replication-options.html#sysvar_group_replication_unreachable_majority_timeout"><code class="literal">group_replication_unreachable_majority_timeout</code></a>
+      system variable for the group members to avoid this situation.
+    </p><p>
+      The following sections explain what to do if the system partitions
+      in such a way that no quorum is automatically achieved by the
+      servers in the group.
+    </p><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1075"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Detecting%20Partitions"></a><h4 class="title"><a id="group-replication-detecting-partitions"></a>Detecting Partitions</h4></div></div></div><p>
+        The
+        <a class="link" href="performance-schema-replication-group-members-table.html" title="27.12.11.11&nbsp;The replication_group_members Table"><code class="literal">replication_group_members</code></a>
+        performance schema table presents the status of each server in
+        the current view from the perspective of this server. The
+        majority of the time the system does not run into partitioning,
+        and therefore the table shows information that is consistent
+        across all servers in the group. In other words, the status of
+        each server on this table is agreed by all in the current view.
+        However, if there is network partitioning, and quorum is lost,
+        then the table shows the status <code class="literal">UNREACHABLE</code>
+        for those servers that it cannot contact. This information is
+        exported by the local failure detector built into Group
+        Replication.
+      </p><div class="figure"><a id="idm45828852751584"></a><p class="title"><strong>Figure&nbsp;18.14&nbsp;Losing Quorum</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/gr-majority-lost.png" width="243" height="408" alt="Five server instances, S1, S2, S3, S4, and S5, are deployed as an interconnected group, which is a stable group. When three of the servers, S3, S4, and S5, fail, the majority is lost and the group can no longer proceed without intervention."/></div></div></div><br class="figure-break"/><p>
+        To understand this type of network partition the following
+        section describes a scenario where there are initially 5 servers
+        working together correctly, and the changes that then happen to
+        the group once only 2 servers are online. The scenario is
+        depicted in the
+
+        
+
+        figure.
+      </p><p>
+        As such, lets assume that there is a group with these 5 servers
+        in it:
+
+        
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Server s1 with member identifier
+            <code class="literal">199b2df7-4aaf-11e6-bb16-28b2bd168d07</code>
+          </p></li><li class="listitem"><p>
+            Server s2 with member identifier
+            <code class="literal">199bb88e-4aaf-11e6-babe-28b2bd168d07</code>
+          </p></li><li class="listitem"><p>
+            Server s3 with member identifier
+            <code class="literal">1999b9fb-4aaf-11e6-bb54-28b2bd168d07</code>
+          </p></li><li class="listitem"><p>
+            Server s4 with member identifier
+            <code class="literal">19ab72fc-4aaf-11e6-bb51-28b2bd168d07</code>
+          </p></li><li class="listitem"><p>
+            Server s5 with member identifier
+            <code class="literal">19b33846-4aaf-11e6-ba81-28b2bd168d07</code>
+          </p></li></ul></div><p>
+        Initially the group is running fine and the servers are happily
+        communicating with each other. You can verify this by logging
+        into s1 and looking at its
+        <a class="link" href="performance-schema-replication-group-members-table.html" title="27.12.11.11&nbsp;The replication_group_members Table"><code class="literal">replication_group_members</code></a>
+        performance schema table. For example:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT MEMBER_ID,MEMBER_STATE, MEMBER_ROLE FROM performance_schema.replication_group_members;</code></strong>
++--------------------------------------+--------------+-------------+
+| MEMBER_ID                            | MEMBER_STATE | MEMBER_ROLE |
++--------------------------------------+--------------+-------------+
+| 1999b9fb-4aaf-11e6-bb54-28b2bd168d07 | ONLINE       | SECONDARY   |
+| 199b2df7-4aaf-11e6-bb16-28b2bd168d07 | ONLINE       | PRIMARY     |
+| 199bb88e-4aaf-11e6-babe-28b2bd168d07 | ONLINE       | SECONDARY   |
+| 19ab72fc-4aaf-11e6-bb51-28b2bd168d07 | ONLINE       | SECONDARY   |
+| 19b33846-4aaf-11e6-ba81-28b2bd168d07 | ONLINE       | SECONDARY   |
++--------------------------------------+--------------+-------------+
+</pre><p>
+        However, moments later there is a catastrophic failure and
+        servers s3, s4 and s5 stop unexpectedly. A few seconds after
+        this, looking again at the
+        <a class="link" href="performance-schema-replication-group-members-table.html" title="27.12.11.11&nbsp;The replication_group_members Table"><code class="literal">replication_group_members</code></a> table on
+        s1 shows that it is still online, but several others members are
+        not. In fact, as seen below they are marked as
+        <code class="literal">UNREACHABLE</code>. Moreover, the system could not
+        reconfigure itself to change the membership, because the
+        majority has been lost.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT MEMBER_ID,MEMBER_STATE FROM performance_schema.replication_group_members;</code></strong>
++--------------------------------------+--------------+
+| MEMBER_ID                            | MEMBER_STATE |
++--------------------------------------+--------------+
+| 1999b9fb-4aaf-11e6-bb54-28b2bd168d07 | UNREACHABLE  |
+| 199b2df7-4aaf-11e6-bb16-28b2bd168d07 | ONLINE       |
+| 199bb88e-4aaf-11e6-babe-28b2bd168d07 | ONLINE       |
+| 19ab72fc-4aaf-11e6-bb51-28b2bd168d07 | UNREACHABLE  |
+| 19b33846-4aaf-11e6-ba81-28b2bd168d07 | UNREACHABLE  |
++--------------------------------------+--------------+
+</pre><p>
+        The table shows that s1 is now in a group that has no means of
+        progressing without external intervention, because a majority of
+        the servers are unreachable. In this particular case, the group
+        membership list needs to be reset to allow the system to
+        proceed, which is explained in this section. Alternatively, you
+        could also choose to stop Group Replication on s1 and s2 (or
+        stop completely s1 and s2), figure out what happened with s3, s4
+        and s5 and then restart Group Replication (or the servers).
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1076"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Unblocking%20a%20Partition"></a><h4 class="title"><a id="group-replication-unblocking-a-partition"></a>Unblocking a Partition</h4></div></div></div><p>
+        Group replication enables you to reset the group membership list
+        by forcing a specific configuration. For instance in the case
+        above, where s1 and s2 are the only servers online, you could
+        choose to force a membership configuration consisting of only s1
+        and s2. This requires checking some information about s1 and s2
+        and then using the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_force_members"><code class="literal">group_replication_force_members</code></a>
+        variable.
+      </p><div class="figure"><a id="idm45828852720592"></a><p class="title"><strong>Figure&nbsp;18.15&nbsp;Forcing a New Membership</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/gr-majority-lost-to-stable-group.png" width="243" height="408" alt="Three of the servers in a group, S3, S4, and S5, have failed, so the majority is lost and the group can no longer proceed without intervention. With the intervention described in the following text, S1 and S2 are able to form a stable group by themselves."/></div></div></div><br class="figure-break"/><p>
+        Suppose that you are back in the situation where s1 and s2 are
+        the only servers left in the group. Servers s3, s4 and s5 have
+        left the group unexpectedly. To make servers s1 and s2 continue,
+        you want to force a membership configuration that contains only
+        s1 and s2.
+      </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+          This procedure uses
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_force_members"><code class="literal">group_replication_force_members</code></a>
+          and should be considered a last resort remedy. It
+          <span class="emphasis"><em>must</em></span> be used with extreme care and only
+          for overriding loss of quorum. If misused, it could create an
+          artificial split-brain scenario or block the entire system
+          altogether.
+        </p></div><p>
+        When forcing a new membership configuration, make sure that any
+        servers are going to be forced out of the group are indeed
+        stopped. In the scenario depicted above, if s3, s4 and s5 are
+        not really unreachable but instead are online, they may have
+        formed their own functional partition (they are 3 out of 5,
+        hence they have the majority). In that case, forcing a group
+        membership list with s1 and s2 could create an artificial
+        split-brain situation. Therefore it is important before forcing
+        a new membership configuration to ensure that the servers to be
+        excluded are indeed shut down and if they are not, shut them
+        down before proceeding.
+      </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+          For a group in single-primary mode, the primary might have
+          transactions that are not yet present on other members at the
+          time of the network partition. If you are considering
+          excluding the primary from the new group, be aware that such
+          transactions might be lost. A member with extra transactions
+          cannot rejoin the group, and the attempt results in an error
+          with the message <span class="errortext">This member has more executed
+          transactions than those present in the group</span>. Set
+          the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_unreachable_majority_timeout"><code class="literal">group_replication_unreachable_majority_timeout</code></a>
+          system variable for the group members to avoid this situation.
+        </p></div><p>
+        Recall that the system is blocked and the current configuration
+        is the following (as perceived by the local failure detector on
+        s1):
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT MEMBER_ID,MEMBER_STATE FROM performance_schema.replication_group_members;</code></strong>
++--------------------------------------+--------------+
+| MEMBER_ID                            | MEMBER_STATE |
++--------------------------------------+--------------+
+| 1999b9fb-4aaf-11e6-bb54-28b2bd168d07 | UNREACHABLE  |
+| 199b2df7-4aaf-11e6-bb16-28b2bd168d07 | ONLINE       |
+| 199bb88e-4aaf-11e6-babe-28b2bd168d07 | ONLINE       |
+| 19ab72fc-4aaf-11e6-bb51-28b2bd168d07 | UNREACHABLE  |
+| 19b33846-4aaf-11e6-ba81-28b2bd168d07 | UNREACHABLE  |
++--------------------------------------+--------------+
+</pre><p>
+        The first thing to do is to check what is the local address
+        (group communication identifier) for s1 and s2. Log in to s1 and
+        s2 and get that information as follows.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT @@group_replication_local_address;</code></strong>
+</pre><p>
+        Once you know the group communication addresses of s1
+        (<code class="literal">127.0.0.1:10000</code>) and s2
+        (<code class="literal">127.0.0.1:10001</code>), you can use that on one of
+        the two servers to inject a new membership configuration, thus
+        overriding the existing one that has lost quorum. To do that on
+        s1:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET GLOBAL group_replication_force_members=&#34;</code></strong>127.0.0.1:10000,127.0.0.1:10001&#34;;
+</pre><p>
+        This unblocks the group by forcing a different configuration.
+        Check <a class="link" href="performance-schema-replication-group-members-table.html" title="27.12.11.11&nbsp;The replication_group_members Table"><code class="literal">replication_group_members</code></a> on
+        both s1 and s2 to verify the group membership after this change.
+        First on s1.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT MEMBER_ID,MEMBER_STATE FROM performance_schema.replication_group_members;</code></strong>
++--------------------------------------+--------------+
+| MEMBER_ID                            | MEMBER_STATE |
++--------------------------------------+--------------+
+| b5ffe505-4ab6-11e6-b04b-28b2bd168d07 | ONLINE       |
+| b60907e7-4ab6-11e6-afb7-28b2bd168d07 | ONLINE       |
++--------------------------------------+--------------+
+</pre><p>
+        And then on s2.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.replication_group_members;</code></strong>
++--------------------------------------+--------------+
+| MEMBER_ID                            | MEMBER_STATE |
++--------------------------------------+--------------+
+| b5ffe505-4ab6-11e6-b04b-28b2bd168d07 | ONLINE       |
+| b60907e7-4ab6-11e6-afb7-28b2bd168d07 | ONLINE       |
++--------------------------------------+--------------+
+</pre><p>
+        After you have used the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_force_members"><code class="literal">group_replication_force_members</code></a>
+        system variable to successfully force a new group membership and
+        unblock the group, ensure that you clear the system variable.
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_force_members"><code class="literal">group_replication_force_members</code></a>
+        must be empty in order to issue a <a class="link" href="start-group-replication.html" title="13.4.3.1&nbsp;START GROUP_REPLICATION Statement"><code class="literal">START
+        GROUP_REPLICATION</code></a> statement.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-responses-failure-exit.html">Previous <span class="navHint"> Exit Action </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-performance.html">Up <span class="navHint"> Group Replication Performance and Troubleshooting </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-gr-memory-monitoring-ps-instruments.html">Next <span class="navHint"> Monitoring Group Replication Memory Usage with Performance Schema Memory
+      Instrumentation </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

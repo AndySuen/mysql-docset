@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.2.15.9 Lateral Derived Tables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="subqueries.html" title="13.2.15 Subqueries" /><link rel="prev" href="derived-tables.html" title="13.2.15.8 Derived Tables" /><link rel="next" href="subquery-errors.html" title="13.2.15.10 Subquery Errors" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="lateral-derived-tables.html#lateral-derived-tables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="derived-tables.html">Previous <span class="navHint"> Derived Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="subquery-errors.html">Next <span class="navHint"> Subquery Errors </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="lateral-derived-tables"></a>13.2.15.9 Lateral Derived Tables</h4></div></div></div><a id="idm45828906127648" class="indexterm"></a><a id="idm45828906126160" class="indexterm"></a><p>
+        A derived table cannot normally refer to (depend on) columns of
+        preceding tables in the same <code class="literal">FROM</code> clause. As
+        of MySQL 8.0.14, a derived table may be defined as a lateral
+        derived table to specify that such references are permitted.
+      </p><p>
+        Nonlateral derived tables are specified using the syntax
+        discussed in <a class="xref" href="derived-tables.html" title="13.2.15.8 Derived Tables">Section 13.2.15.8, “Derived Tables”</a>. The syntax for a
+        lateral derived table is the same as for a nonlateral derived
+        table except that the keyword <code class="literal">LATERAL</code> is
+        specified before the derived table specification. The
+        <code class="literal">LATERAL</code> keyword must precede each table to be
+        used as a lateral derived table.
+      </p><p>
+        Lateral derived tables are subject to these restrictions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A lateral derived table can occur only in a
+            <code class="literal">FROM</code> clause, either in a list of tables
+            separated with commas or in a join specification
+            (<code class="literal">JOIN</code>, <code class="literal">INNER JOIN</code>,
+            <code class="literal">CROSS JOIN</code>, <code class="literal">LEFT [OUTER]
+            JOIN</code>, or <code class="literal">RIGHT [OUTER] JOIN</code>).
+          </p></li><li class="listitem"><p>
+            If a lateral derived table is in the right operand of a join
+            clause and contains a reference to the left operand, the
+            join operation must be an <code class="literal">INNER JOIN</code>,
+            <code class="literal">CROSS JOIN</code>, or <code class="literal">LEFT [OUTER]
+            JOIN</code>.
+          </p><p>
+            If the table is in the left operand and contains a reference
+            to the right operand, the join operation must be an
+            <code class="literal">INNER JOIN</code>, <code class="literal">CROSS
+            JOIN</code>, or <code class="literal">RIGHT [OUTER] JOIN</code>.
+          </p></li><li class="listitem"><p>
+            If a lateral derived table references an aggregate function,
+            the function's aggregation query cannot be the one that owns
+            the <code class="literal">FROM</code> clause in which the lateral
+            derived table occurs.
+          </p></li><li class="listitem"><p>
+            In accordance with the SQL standard, MySQL always treats a
+            join with a table function such as
+            <a class="link" href="json-table-functions.html#function_json-table"><code class="literal">JSON_TABLE()</code></a> as though
+            <code class="literal">LATERAL</code> had been used. This is true
+            regardless of MySQL release version, which is why it is
+            possible to join against this function even in MySQL
+            versions prior to 8.0.14. In MySQL 8.0.14 and later, the
+            <code class="literal">LATERAL</code> keyword is implicit, and is not
+            allowed before <code class="literal">JSON_TABLE()</code>. This is also
+            according to the SQL standard.
+          </p></li></ul></div><p>
+        The following discussion shows how lateral derived tables make
+        possible certain SQL operations that cannot be done with
+        nonlateral derived tables or that require less-efficient
+        workarounds.
+      </p><p>
+        Suppose that we want to solve this problem: Given a table of
+        people in a sales force (where each row describes a member of
+        the sales force), and a table of all sales (where each row
+        describes a sale: salesperson, customer, amount, date),
+        determine the size and customer of the largest sale for each
+        salesperson. This problem can be approached two ways.
+      </p><p>
+        First approach to solving the problem: For each salesperson,
+        calculate the maximum sale size, and also find the customer who
+        provided this maximum. In MySQL, that can be done like this:
+      </p><pre class="programlisting">SELECT
+  salesperson.name,
+  -- find maximum sale size for this salesperson
+  (SELECT MAX(amount) AS amount
+    FROM all_sales
+    WHERE all_sales.salesperson_id = salesperson.id)
+  AS amount,
+  -- find customer for this maximum size
+  (SELECT customer_name
+    FROM all_sales
+    WHERE all_sales.salesperson_id = salesperson.id
+    AND all_sales.amount =
+         -- find maximum size, again
+         (SELECT MAX(amount) AS amount
+           FROM all_sales
+           WHERE all_sales.salesperson_id = salesperson.id))
+  AS customer_name
+FROM
+  salesperson;
+</pre><p>
+        That query is inefficient because it calculates the maximum size
+        twice per salesperson (once in the first subquery and once in
+        the second).
+      </p><p>
+        We can try to achieve an efficiency gain by calculating the
+        maximum once per salesperson and <span class="quote">“<span class="quote">caching</span>”</span> it in a
+        derived table, as shown by this modified query:
+      </p><pre class="programlisting">SELECT
+  salesperson.name,
+  max_sale.amount,
+  max_sale_customer.customer_name
+FROM
+  salesperson,
+  -- calculate maximum size, cache it in transient derived table max_sale
+  (SELECT MAX(amount) AS amount
+    FROM all_sales
+    WHERE all_sales.salesperson_id = salesperson.id)
+  AS max_sale,
+  -- find customer, reusing cached maximum size
+  (SELECT customer_name
+    FROM all_sales
+    WHERE all_sales.salesperson_id = salesperson.id
+    AND all_sales.amount =
+        -- the cached maximum size
+        max_sale.amount)
+  AS max_sale_customer;
+</pre><p>
+        However, the query is illegal in SQL-92 because derived tables
+        cannot depend on other tables in the same
+        <code class="literal">FROM</code> clause. Derived tables must be constant
+        over the query's duration, not contain references to columns of
+        other <code class="literal">FROM</code> clause tables. As written, the
+        query produces this error:
+      </p><pre class="programlisting">ERROR 1054 (42S22): Unknown column 'salesperson.id' in 'where clause'
+</pre><p>
+        In SQL:1999, the query becomes legal if the derived tables are
+        preceded by the <code class="literal">LATERAL</code> keyword (which means
+        <span class="quote">“<span class="quote">this derived table depends on previous tables on its left
+        side</span>”</span>):
+      </p><pre class="programlisting">SELECT
+  salesperson.name,
+  max_sale.amount,
+  max_sale_customer.customer_name
+FROM
+  salesperson,
+  -- calculate maximum size, cache it in transient derived table max_sale
+  LATERAL
+  (SELECT MAX(amount) AS amount
+    FROM all_sales
+    WHERE all_sales.salesperson_id = salesperson.id)
+  AS max_sale,
+  -- find customer, reusing cached maximum size
+  LATERAL
+  (SELECT customer_name
+    FROM all_sales
+    WHERE all_sales.salesperson_id = salesperson.id
+    AND all_sales.amount =
+        -- the cached maximum size
+        max_sale.amount)
+  AS max_sale_customer;
+</pre><p>
+        A lateral derived table need not be constant and is brought up
+        to date each time a new row from a preceding table on which it
+        depends is processed by the top query.
+      </p><p>
+        Second approach to solving the problem: A different solution
+        could be used if a subquery in the
+        <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> list could return multiple
+        columns:
+      </p><pre class="programlisting">SELECT
+  salesperson.name,
+  -- find maximum size and customer at same time
+  (SELECT amount, customer_name
+    FROM all_sales
+    WHERE all_sales.salesperson_id = salesperson.id
+    ORDER BY amount DESC LIMIT 1)
+FROM
+  salesperson;
+</pre><p>
+        That is efficient but illegal. It does not work because such
+        subqueries can return only a single column:
+      </p><pre class="programlisting">ERROR 1241 (21000): Operand should contain 1 column(s)
+</pre><p>
+        One attempt at rewriting the query is to select multiple columns
+        from a derived table:
+      </p><pre class="programlisting">SELECT
+  salesperson.name,
+  max_sale.amount,
+  max_sale.customer_name
+FROM
+  salesperson,
+  -- find maximum size and customer at same time
+  (SELECT amount, customer_name
+    FROM all_sales
+    WHERE all_sales.salesperson_id = salesperson.id
+    ORDER BY amount DESC LIMIT 1)
+  AS max_sale;
+</pre><p>
+        However, that also does not work. The derived table is dependent
+        on the <code class="literal">salesperson</code> table and thus fails
+        without <code class="literal">LATERAL</code>:
+      </p><pre class="programlisting">ERROR 1054 (42S22): Unknown column 'salesperson.id' in 'where clause'
+</pre><p>
+        Adding the <code class="literal">LATERAL</code> keyword makes the query
+        legal:
+      </p><pre class="programlisting">SELECT
+  salesperson.name,
+  max_sale.amount,
+  max_sale.customer_name
+FROM
+  salesperson,
+  -- find maximum size and customer at same time
+  LATERAL
+  (SELECT amount, customer_name
+    FROM all_sales
+    WHERE all_sales.salesperson_id = salesperson.id
+    ORDER BY amount DESC LIMIT 1)
+  AS max_sale;
+</pre><p>
+        In short, <code class="literal">LATERAL</code> is the efficient solution
+        to all drawbacks in the two approaches just discussed.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="derived-tables.html">Previous <span class="navHint"> Derived Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="subquery-errors.html">Next <span class="navHint"> Subquery Errors </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

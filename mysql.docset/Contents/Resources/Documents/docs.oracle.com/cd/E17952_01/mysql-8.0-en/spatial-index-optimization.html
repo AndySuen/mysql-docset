@@ -1,0 +1,64 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4091"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.3.3%C2%A0SPATIAL%20Index%20Optimization"></a><title>8.3.3&nbsp;SPATIAL Index Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimization-indexes.html" title="8.3&nbsp;Optimization and Indexes"/><link rel="prev" href="primary-key-optimization.html" title="8.3.2&nbsp;Primary Key Optimization"/><link rel="next" href="foreign-key-optimization.html" title="8.3.4&nbsp;Foreign Key Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="spatial-index-optimization.html#spatial-index-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="primary-key-optimization.html">Previous <span class="navHint"> Primary Key Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="foreign-key-optimization.html">Next <span class="navHint"> Foreign Key Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="spatial-index-optimization"></a>8.3.3&nbsp;SPATIAL Index Optimization</h3></div></div></div><a id="idm45828954315424" class="indexterm"></a><a id="idm45828954313936" class="indexterm"></a><p>
+        MySQL permits creation of <code class="literal">SPATIAL</code> indexes on
+        <code class="literal">NOT NULL</code> geometry-valued columns (see
+        <a class="xref" href="creating-spatial-indexes.html" title="11.4.10&nbsp;Creating Spatial Indexes">Section&nbsp;11.4.10, &ldquo;Creating Spatial Indexes&rdquo;</a>). The optimizer
+        checks the <code class="literal">SRID</code> attribute for indexed columns
+        to determine which spatial reference system (SRS) to use for
+        comparisons, and uses calculations appropriate to the SRS.
+        (Prior to MySQL 8.0, the optimizer performs
+        comparisons of <code class="literal">SPATIAL</code> index values using
+        Cartesian calculations; the results of such operations are
+        undefined if the column contains values with non-Cartesian
+        SRIDs.)
+      </p><p>
+        For comparisons to work properly, each column in a
+        <code class="literal">SPATIAL</code> index must be SRID-restricted. That
+        is, the column definition must include an explicit
+        <code class="literal">SRID</code> attribute, and all column values must
+        have the same SRID.
+      </p><p>
+        The optimizer considers <code class="literal">SPATIAL</code> indexes only
+        for SRID-restricted columns:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Indexes on columns restricted to a Cartesian SRID enable
+            Cartesian bounding box computations.
+          </p></li><li class="listitem"><p>
+            Indexes on columns restricted to a geographic SRID enable
+            geographic bounding box computations.
+          </p></li></ul></div><p>
+        The optimizer ignores <code class="literal">SPATIAL</code> indexes on
+        columns that have no <code class="literal">SRID</code> attribute (and thus
+        are not SRID-restricted). MySQL still maintains such indexes, as
+        follows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            They are updated for table modifications
+            (<a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a>,
+            <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a>,
+            <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a>, and so forth).
+            Updates occur as though the index was Cartesian, even though
+            the column might contain a mix of Cartesian and geographical
+            values.
+          </p></li><li class="listitem"><p>
+            They exist only for backward compatibility (for example, the
+            ability to perform a dump in MySQL 5.7 and restore in MySQL
+            8.0). Because <code class="literal">SPATIAL</code> indexes on columns
+            that are not SRID-restricted are of no use to the optimizer,
+            each such column should be modified:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                Verify that all values within the column have the same
+                SRID. To determine the SRIDs contained in a geometry
+                column <em class="replaceable"><code>col_name</code></em>, use the
+                following query:
+              </p><pre class="programlisting">SELECT DISTINCT ST_SRID(<em class="replaceable"><code>col_name</code></em>) FROM <em class="replaceable"><code>tbl_name</code></em>;
+</pre><p>
+                If the query returns more than one row, the column
+                contains a mix of SRIDs. In that case, modify its
+                contents so all values have the same SRID.
+              </p></li><li class="listitem"><p>
+                Redefine the column to have an explicit
+                <code class="literal">SRID</code> attribute.
+              </p></li><li class="listitem"><p>
+                Recreate the <code class="literal">SPATIAL</code> index.
+              </p></li></ul></div></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="primary-key-optimization.html">Previous <span class="navHint"> Primary Key Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="foreign-key-optimization.html">Next <span class="navHint"> Foreign Key Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

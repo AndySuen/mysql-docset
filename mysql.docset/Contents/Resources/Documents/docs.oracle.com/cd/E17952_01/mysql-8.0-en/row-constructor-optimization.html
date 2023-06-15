@@ -1,0 +1,77 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3858"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.22%C2%A0Row%20Constructor%20Expression%20Optimization"></a><title>8.2.1.22&nbsp;Row Constructor Expression Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="window-function-optimization.html" title="8.2.1.21&nbsp;Window Function Optimization"/><link rel="next" href="table-scan-avoidance.html" title="8.2.1.23&nbsp;Avoiding Full Table Scans"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="row-constructor-optimization.html#row-constructor-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="window-function-optimization.html">Previous <span class="navHint"> Window Function Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="table-scan-avoidance.html">Next <span class="navHint"> Avoiding Full Table Scans </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3857"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.22%C2%A0Row%20Constructor%20Expression%20Optimization"></a><h4 class="title"><a id="row-constructor-optimization"></a>8.2.1.22&nbsp;Row Constructor Expression Optimization</h4></div></div></div><a id="idm45828955293904" class="indexterm"></a><a id="idm45828955292416" class="indexterm"></a><p>
+          Row constructors permit simultaneous comparisons of multiple
+          values. For example, these two statements are semantically
+          equivalent:
+        </p><pre class="programlisting">SELECT * FROM t1 WHERE (column1,column2) = (1,1);
+SELECT * FROM t1 WHERE column1 = 1 AND column2 = 1;
+</pre><p>
+          In addition, the optimizer handles both expressions the same
+          way.
+        </p><p>
+          The optimizer is less likely to use available indexes if the
+          row constructor columns do not cover the prefix of an index.
+          Consider the following table, which has a primary key on
+          <code class="literal">(c1, c2, c3)</code>:
+        </p><pre class="programlisting">CREATE TABLE t1 (
+  c1 INT, c2 INT, c3 INT, c4 CHAR(100),
+  PRIMARY KEY(c1,c2,c3)
+);
+</pre><p>
+          In this query, the <code class="literal">WHERE</code> clause uses all
+          columns in the index. However, the row constructor itself does
+          not cover an index prefix, with the result that the optimizer
+          uses only <code class="literal">c1</code> (<code class="literal">key_len=4</code>,
+          the size of <code class="literal">c1</code>):
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t1</code></strong>
+       <strong class="userinput"><code>WHERE c1=1 AND (c2,c3) &gt; (1,1)\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t1
+   partitions: NULL
+         type: ref
+possible_keys: PRIMARY
+          key: PRIMARY
+      key_len: 4
+          ref: const
+         rows: 3
+     filtered: 100.00
+        Extra: Using where
+</pre><p>
+          In such cases, rewriting the row constructor expression using
+          an equivalent nonconstructor expression may result in more
+          complete index use. For the given query, the row constructor
+          and equivalent nonconstructor expressions are:
+        </p><pre class="programlisting">(c2,c3) &gt; (1,1)
+c2 &gt; 1 OR ((c2 = 1) AND (c3 &gt; 1))
+</pre><p>
+          Rewriting the query to use the nonconstructor expression
+          results in the optimizer using all three columns in the index
+          (<code class="literal">key_len=12</code>):
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t1</code></strong>
+       <strong class="userinput"><code>WHERE c1 = 1 AND (c2 &gt; 1 OR ((c2 = 1) AND (c3 &gt; 1)))\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t1
+   partitions: NULL
+         type: range
+possible_keys: PRIMARY
+          key: PRIMARY
+      key_len: 12
+          ref: NULL
+         rows: 3
+     filtered: 100.00
+        Extra: Using where
+</pre><p>
+          Thus, for better results, avoid mixing row constructors with
+          <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a>/<a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a>
+          expressions. Use one or the other.
+        </p><p>
+          Under certain conditions, the optimizer can apply the range
+          access method to <a class="link" href="comparison-operators.html#operator_in"><code class="literal">IN()</code></a> expressions
+          that have row constructor arguments. See
+          <a class="xref" href="range-optimization.html#row-constructor-range-optimization" title="Range Optimization of Row Constructor Expressions">Range Optimization of Row Constructor Expressions</a>.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="window-function-optimization.html">Previous <span class="navHint"> Window Function Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="table-scan-avoidance.html">Next <span class="navHint"> Avoiding Full Table Scans </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

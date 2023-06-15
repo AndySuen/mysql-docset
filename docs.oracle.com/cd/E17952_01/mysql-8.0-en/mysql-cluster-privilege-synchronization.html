@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.6.13 Privilege Synchronization and NDB_STORED_USER</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-management.html" title="23.6 Management of NDB Cluster" /><link rel="prev" href="mysql-cluster-online-operations.html" title="23.6.12 Online Operations with ALTER TABLE in NDB Cluster" /><link rel="next" href="mysql-cluster-tde.html" title="23.6.14 File System Encryption for NDB Cluster" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-privilege-synchronization.html#mysql-cluster-privilege-synchronization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-online-operations.html">Previous <span class="navHint"> Online Operations with ALTER TABLE in NDB Cluster </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-management.html">Up <span class="navHint"> Management of NDB Cluster </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-tde.html">Next <span class="navHint"> File System Encryption for NDB Cluster </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-privilege-synchronization"></a>23.6.13 Privilege Synchronization and NDB_STORED_USER</h3></div></div></div><a id="idm45828808695440" class="indexterm"></a><a id="idm45828808694400" class="indexterm"></a><p>
+      NDB 8.0 introduces a new mechanism for sharing and synchronizing
+      users, roles, and privileges between SQL nodes connected to an NDB
+      Cluster. This can be enabled by granting the
+      <a class="link" href="privileges-provided.html#priv_ndb-stored-user"><code class="literal">NDB_STORED_USER</code></a> privilege. See the
+      description of the privilege for usage information.
+    </p><p>
+      <code class="literal">NDB_STORED_USER</code> is printed in the output of
+      <a class="link" href="show-grants.html" title="13.7.7.21 SHOW GRANTS Statement"><code class="literal">SHOW GRANTS</code></a> as with any other
+      privilege, as shown here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW GRANTS for 'jon'@'localhost';</code></strong>
++---------------------------------------------------+
+| Grants for jon@localhost                          |
++---------------------------------------------------+
+| GRANT USAGE ON *.* TO `jon`@`localhost`           |
+| GRANT NDB_STORED_USER ON *.* TO `jon`@`localhost` |
++---------------------------------------------------+
+</pre><p>
+      You can also verify that privileges are shared for this account
+      using the <a class="link" href="mysql-cluster-programs-ndb-select-all.html" title="23.5.25 ndb_select_all — Print Rows from an NDB Table"><span class="command"><strong>ndb_select_all</strong></span></a> utility supplied with
+      NDB Cluster, like this (some output wrapped to preserve
+      formatting):
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>ndb_select_all -d mysql ndb_sql_metadata | grep '`jon`@`localhost`'</code></strong>
+12      "'jon'@'localhost'"     0       [NULL]  "GRANT USAGE ON *.* TO `jon`@`localhost`"
+11      "'jon'@'localhost'"     0       2       "CREATE USER `jon`@`localhost`
+IDENTIFIED WITH 'caching_sha2_password' AS
+0x2441243030352466014340225A107D590E6E653B5D587922306102716D752E6656772F3038512F
+6C5072776D30376D37347A384B557A4C564F70495158656A31382E45324E33
+REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT
+PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT"
+12      "'jon'@'localhost'"     1       [NULL]  "GRANT NDB_STORED_USER ON *.* TO `jon`@`localhost`"
+</pre><p>
+      <code class="literal">ndb_sql_metadata</code> is a special
+      <code class="literal">NDB</code> table that is not visible using the
+      <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> or other MySQL client.
+    </p><p>
+      A statement granting the
+      <a class="link" href="privileges-provided.html#priv_ndb-stored-user"><code class="literal">NDB_STORED_USER</code></a> privilege, such as
+      <code class="literal">GRANT NDB_STORED_USER ON *.* TO
+      'cluster_app_user'@'localhost'</code>, works by directing
+      <code class="literal">NDB</code> to create a snapshot using the queries
+      <code class="literal">SHOW CREATE USER cluster_app_user@localhost</code> and
+      <code class="literal">SHOW GRANTS FOR cluster_app_user@localhost</code>,
+      then storing the results in <code class="literal">ndb_sql_metadata</code>.
+      Any other SQL nodes are then requested to read and apply the
+      snapshot. Whenever a MySQL server starts up and joins the cluster
+      as an SQL node it executes these stored
+      <a class="link" href="create-user.html" title="13.7.1.3 CREATE USER Statement"><code class="literal">CREATE USER</code></a> and
+      <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statements as part of the
+      cluster schema synchronization process.
+    </p><p>
+      Whenever an SQL statement is executed on an SQL node other than
+      the one where it originated, the statement is run in a utility
+      thread of the <code class="literal">NDBCLUSTER</code> storage engine; this
+      is done within a security environment equivalent to that of the
+      MySQL replication replica applier thread.
+    </p><p>
+      Beginning with NDB 8.0.27, an SQL node performing a change to user
+      privileges takes a global lock before doing so, which prevents
+      deadlocks by concurrent ACL operations on different SQL nodes.
+      Prior to NDB 8.0.27, changes to users with
+      <a class="link" href="privileges-provided.html#priv_ndb-stored-user"><code class="literal">NDB_STORED_USER</code></a> were updated in a
+      completely asynchronous fashion, without any locks being taken.
+    </p><p>
+      You should keep in mind that, because shared schema change
+      operations are performed synchronously, the next shared schema
+      change following a change to any shared user or users serves as a
+      synchronization point. Any pending user changes run to completion
+      before the schema change distribution can begin; after this the
+      schema change itself runs synchronously. For example, if a
+      <a class="link" href="drop-database.html" title="13.1.24 DROP DATABASE Statement"><code class="literal">DROP DATABASE</code></a> statement follows a
+      <a class="link" href="drop-user.html" title="13.7.1.5 DROP USER Statement"><code class="literal">DROP USER</code></a> of a distributed user,
+      the drop of the database cannot take place until the drop of the
+      user has completed on all SQL nodes.
+    </p><p>
+      In the event that multiple <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a>,
+      <a class="link" href="revoke.html" title="13.7.1.8 REVOKE Statement"><code class="literal">REVOKE</code></a>, or other user
+      administration statements from multiple SQL nodes cause privileges
+      for a given user to diverge on different SQL nodes, you can fix
+      this problem by issuing <code class="literal">GRANT NDB_STORED_USER</code>
+      for this user on an SQL node where the privileges are known to be
+      correct; this causes a new snapshot of the privileges to be taken
+      and synchronized to the other SQL nodes.
+    </p><p>
+      NDB Cluster 8.0 does not support distribution of MySQL users and
+      privileges across SQL nodes in an NDB Cluster by altering the
+      MySQL privilege tables such that they used the
+      <code class="literal">NDB</code> storage engine as in NDB 7.6 and earlier
+      releases (see
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-5.7-en/mysql-cluster-privilege-distribution.html" target="_top">Distributed Privileges Using Shared Grant Tables</a>).
+      For information about the impact of this change on upgrades to NDB
+      8.0 from a previous release, see
+      <a class="xref" href="mysql-cluster-upgrade-downgrade.html" title="23.3.7 Upgrading and Downgrading NDB Cluster">Section 23.3.7, “Upgrading and Downgrading NDB Cluster”</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-online-operations.html">Previous <span class="navHint"> Online Operations with ALTER TABLE in NDB Cluster </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-management.html">Up <span class="navHint"> Management of NDB Cluster </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-tde.html">Next <span class="navHint"> File System Encryption for NDB Cluster </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

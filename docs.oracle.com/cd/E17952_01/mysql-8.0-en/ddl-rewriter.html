@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.6.5 The ddl_rewriter Plugin</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="server-plugins.html" title="5.6 MySQL Server Plugins" /><link rel="prev" href="rewriter-query-rewrite-plugin-reference.html" title="5.6.4.3 Rewriter Query Rewrite Plugin Reference" /><link rel="next" href="ddl-rewriter-installation.html" title="5.6.5.1 Installing or Uninstalling ddl_rewriter" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="ddl-rewriter.html#ddl-rewriter">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="rewriter-query-rewrite-plugin-reference.html">Previous <span class="navHint"> Rewriter Query Rewrite Plugin Reference </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="server-plugins.html">Up <span class="navHint"> MySQL Server Plugins </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="ddl-rewriter-installation.html">Next <span class="navHint"> Installing or Uninstalling ddl_rewriter </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="ddl-rewriter"></a>5.6.5 The ddl_rewriter Plugin</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="ddl-rewriter-installation.html">5.6.5.1 Installing or Uninstalling ddl_rewriter</a></span></li><li><span class="section"><a href="ddl-rewriter-options.html">5.6.5.2 ddl_rewriter Plugin Options</a></span></li></ul></div><a id="idm45828983889472" class="indexterm"></a><a id="idm45828983888464" class="indexterm"></a><p>
+      MySQL 8.0.16 and higher includes a <code class="literal">ddl_rewriter</code>
+      plugin that modifies <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>
+      statements received by the server before it parses and executes
+      them. The plugin removes <code class="literal">ENCRYPTION</code>,
+      <code class="literal">DATA DIRECTORY</code>, and <code class="literal">INDEX
+      DIRECTORY</code> clauses, which may be helpful when restoring
+      tables from SQL dump files created from databases that are
+      encrypted or that have their tables stored outside the data
+      directory. For example, the plugin may enable restoring such dump
+      files into an unencrypted instance or in an environment where the
+      paths outside the data directory are not accessible.
+    </p><p>
+      Before using the <code class="literal">ddl_rewriter</code> plugin, install
+      it according to the instructions provided in
+      <a class="xref" href="ddl-rewriter-installation.html" title="5.6.5.1 Installing or Uninstalling ddl_rewriter">Section 5.6.5.1, “Installing or Uninstalling ddl_rewriter”</a>.
+    </p><p>
+      <code class="literal">ddl_rewriter</code> examines SQL statements received
+      by the server prior to parsing, rewriting them according to these
+      conditions:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">ddl_rewriter</code> considers only
+          <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statements, and
+          only if they are standalone statements that occur at the
+          beginning of an input line or at the beginning of prepared
+          statement text. <code class="literal">ddl_rewriter</code> does not
+          consider <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>
+          statements within stored program definitions. Statements can
+          extend over multiple lines.
+        </p></li><li class="listitem"><p>
+          Within statements considered for rewrite, instances of the
+          following clauses are rewritten and each instance replaced by
+          a single space:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              <code class="literal">ENCRYPTION</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">DATA DIRECTORY</code> (at the table and
+              partition levels)
+            </p></li><li class="listitem"><p>
+              <code class="literal">INDEX DIRECTORY</code> (at the table and
+              partition levels)
+            </p></li></ul></div></li><li class="listitem"><p>
+          Rewriting does not depend on lettercase.
+        </p></li></ul></div><p>
+      If <code class="literal">ddl_rewriter</code> rewrites a statement, it
+      generates a warning:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t (i INT) DATA DIRECTORY '/var/mysql/data';</code></strong>
+Query OK, 0 rows affected, 1 warning (0.03 sec)
+
+mysql&gt; <strong class="userinput"><code>SHOW WARNINGS\G</code></strong>
+*************************** 1. row ***************************
+  Level: Note
+   Code: 1105
+Message: Query 'CREATE TABLE t (i INT) DATA DIRECTORY '/var/mysql/data''
+         rewritten to 'CREATE TABLE t (i INT) ' by a query rewrite plugin
+1 row in set (0.00 sec)
+</pre><p>
+      If the general query log or binary log is enabled, the server
+      writes to it statements as they appear after any rewriting by
+      <code class="literal">ddl_rewriter</code>.
+    </p><p>
+      When installed, <code class="literal">ddl_rewriter</code> exposes the
+      Performance Schema <code class="literal">memory/rewriter/ddl_rewriter</code>
+      instrument for tracking plugin memory use. See
+      <a class="xref" href="performance-schema-memory-summary-tables.html" title="27.12.20.10 Memory Summary Tables">Section 27.12.20.10, “Memory Summary Tables”</a>
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="rewriter-query-rewrite-plugin-reference.html">Previous <span class="navHint"> Rewriter Query Rewrite Plugin Reference </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="server-plugins.html">Up <span class="navHint"> MySQL Server Plugins </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="ddl-rewriter-installation.html">Next <span class="navHint"> Installing or Uninstalling ddl_rewriter </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

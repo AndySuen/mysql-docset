@@ -1,0 +1,147 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3758"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.2.5.2%C2%A0Evaluation%20of%20Table-Level%20Replication%20Options"></a><title>17.2.5.2&nbsp;Evaluation of Table-Level Replication Options</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-rules.html" title="17.2.5&nbsp;How Servers Evaluate Replication Filtering Rules"/><link rel="prev" href="replication-rules-db-options.html" title="17.2.5.1&nbsp;Evaluation of Database-Level Replication and Binary Logging Options"/><link rel="next" href="replication-rules-examples.html" title="17.2.5.3&nbsp;Interactions Between Replication Filtering Options"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-rules-table-options.html#replication-rules-table-options">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-rules-db-options.html">Previous <span class="navHint"> Evaluation of Database-Level Replication and Binary Logging Options </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-rules.html">Up <span class="navHint"> How Servers Evaluate Replication Filtering Rules </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-rules-examples.html">Next <span class="navHint"> Interactions Between Replication Filtering Options </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3733"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.2.5.2%C2%A0Evaluation%20of%20Table-Level%20Replication%20Options"></a><h4 class="title"><a id="replication-rules-table-options"></a>17.2.5.2&nbsp;Evaluation of Table-Level Replication Options</h4></div></div></div><p>
+        The replica checks for and evaluates table options only if
+        either of the following two conditions is true:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            No matching database options were found.
+          </p></li><li class="listitem"><p>
+            One or more database options were found, and were evaluated
+            to arrive at an <span class="quote">&ldquo;<span class="quote">execute</span>&rdquo;</span> condition according
+            to the rules described in the previous section (see
+            <a class="xref" href="replication-rules-db-options.html" title="17.2.5.1&nbsp;Evaluation of Database-Level Replication and Binary Logging Options">Section&nbsp;17.2.5.1, &ldquo;Evaluation of Database-Level Replication and Binary Logging Options&rdquo;</a>).
+          </p></li></ul></div><p>
+        First, as a preliminary condition, the replica checks whether
+        statement-based replication is enabled. If so, and the statement
+        occurs within a stored function, the replica executes the
+        statement and exits. If row-based replication is enabled, the
+        replica does not know whether a statement occurred within a
+        stored function on the source, so this condition does not apply.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          For statement-based replication, replication events represent
+          statements (all changes making up a given event are associated
+          with a single SQL statement); for row-based replication, each
+          event represents a change in a single table row (thus a single
+          statement such as <code class="literal">UPDATE mytable SET mycol =
+          1</code> may yield many row-based events). When viewed in
+          terms of events, the process of checking table options is the
+          same for both row-based and statement-based replication.
+        </p></div><p>
+        Having reached this point, if there are no table options, the
+        replica simply executes all events. If there are any
+        <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-table"><code class="option">--replicate-do-table</code></a> or
+        <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-do-table"><code class="option">--replicate-wild-do-table</code></a>
+        options, the event must match one of these if it is to be
+        executed; otherwise, it is ignored. If there are any
+        <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-table"><code class="option">--replicate-ignore-table</code></a> or
+        <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-ignore-table"><code class="option">--replicate-wild-ignore-table</code></a>
+        options, all events are executed except those that match any of
+        these options.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          Table-level replication filters are only applied to tables
+          that are explicitly mentioned and operated on in the query.
+          They do not apply to tables that are implicitly updated by the
+          query. For example, a <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a>
+          statement, which updates the <code class="literal">mysql.user</code>
+          system table but does not mention that table, is not affected
+          by a filter that specifies <code class="literal">mysql.%</code> as the
+          wildcard pattern.
+        </p></div><p>
+        The following steps describe this evaluation in more detail. The
+        starting point is the end of the evaluation of the
+        database-level options, as described in
+        <a class="xref" href="replication-rules-db-options.html" title="17.2.5.1&nbsp;Evaluation of Database-Level Replication and Binary Logging Options">Section&nbsp;17.2.5.1, &ldquo;Evaluation of Database-Level Replication and Binary Logging Options&rdquo;</a>.
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Are there any table replication options?
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3734"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                  Continue to step 2.
+                </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3735"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                  Execute the update and exit.
+                </p></li></ul></div></li><li class="listitem"><p>
+            Which logging format is used?
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3736"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/STATEMENT."></a><strong>STATEMENT.&nbsp;</strong>
+                  Carry out the remaining steps for each statement that
+                  performs an update.
+                </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3737"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/ROW."></a><strong>ROW.&nbsp;</strong>
+                  Carry out the remaining steps for each update of a
+                  table row.
+                </p></li></ul></div></li><li class="listitem"><p>
+            Are there any
+            <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-table"><code class="option">--replicate-do-table</code></a> options?
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3738"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                  Does the table match any of them?
+                </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3739"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                      Execute the update and exit.
+                    </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3740"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                      Continue to step 4.
+                    </p></li></ul></div></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3741"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                  Continue to step 4.
+                </p></li></ul></div></li><li class="listitem"><p>
+            Are there any
+            <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-table"><code class="option">--replicate-ignore-table</code></a>
+            options?
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3742"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                  Does the table match any of them?
+                </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3743"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                      Ignore the update and exit.
+                    </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3744"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                      Continue to step 5.
+                    </p></li></ul></div></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3745"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                  Continue to step 5.
+                </p></li></ul></div></li><li class="listitem"><p>
+            Are there any
+            <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-do-table"><code class="option">--replicate-wild-do-table</code></a>
+            options?
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3746"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                  Does the table match any of them?
+                </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3747"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                      Execute the update and exit.
+                    </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3748"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                      Continue to step 6.
+                    </p></li></ul></div></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3749"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                  Continue to step 6.
+                </p></li></ul></div></li><li class="listitem"><p>
+            Are there any
+            <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-ignore-table"><code class="option">--replicate-wild-ignore-table</code></a>
+            options?
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3750"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                  Does the table match any of them?
+                </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3751"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                      Ignore the update and exit.
+                    </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3752"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                      Continue to step 7.
+                    </p></li></ul></div></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3753"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                  Continue to step 7.
+                </p></li></ul></div></li><li class="listitem"><p>
+            Is there another table to be tested?
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3754"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                  Go back to step 3.
+                </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3755"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                  Continue to step 8.
+                </p></li></ul></div></li><li class="listitem"><p>
+            Are there any
+            <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-table"><code class="option">--replicate-do-table</code></a> or
+            <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-do-table"><code class="option">--replicate-wild-do-table</code></a>
+            options?
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-3756"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Yes."></a><strong>Yes.&nbsp;</strong>
+                  Ignore the update and exit.
+                </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3757"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No."></a><strong>No.&nbsp;</strong>
+                  Execute the update and exit.
+                </p></li></ul></div></li></ol></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Statement-based replication stops if a single SQL statement
+          operates on both a table that is included by a
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-table"><code class="option">--replicate-do-table</code></a> or
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-do-table"><code class="option">--replicate-wild-do-table</code></a>
+          option, and another table that is ignored by a
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-table"><code class="option">--replicate-ignore-table</code></a> or
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-ignore-table"><code class="option">--replicate-wild-ignore-table</code></a>
+          option. The replica must either execute or ignore the complete
+          statement (which forms a replication event), and it cannot
+          logically do this. This also applies to row-based replication
+          for DDL statements, because DDL statements are always logged
+          as statements, without regard to the logging format in effect.
+          The only type of statement that can update both an included
+          and an ignored table and still be replicated successfully is a
+          DML statement that has been logged with
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-rules-db-options.html">Previous <span class="navHint"> Evaluation of Database-Level Replication and Binary Logging Options </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-rules.html">Up <span class="navHint"> How Servers Evaluate Replication Filtering Rules </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-rules-examples.html">Next <span class="navHint"> Interactions Between Replication Filtering Options </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

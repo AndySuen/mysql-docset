@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>18.4.2 Group Replication Server States</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="group-replication-monitoring.html" title="18.4 Monitoring Group Replication" /><link rel="prev" href="group-replication-gtids.html" title="18.4.1 GTIDs and Group Replication" /><link rel="next" href="group-replication-replication-group-members.html" title="18.4.3 The replication_group_members Table" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-server-states.html#group-replication-server-states">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-replication-gtids.html">Previous <span class="navHint"> GTIDs and Group Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="group-replication-monitoring.html">Up <span class="navHint"> Monitoring Group Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-replication-group-members.html">Next <span class="navHint"> The replication_group_members Table </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-replication-server-states"></a>18.4.2 Group Replication Server States</h3></div></div></div><a id="idm45828854641232" class="indexterm"></a><p>
+      The state of a Group Replication group member shows its current
+      role in the group. The Performance Schema table
+      <a class="link" href="performance-schema-replication-group-members-table.html" title="27.12.11.11 The replication_group_members Table"><code class="literal">replication_group_members</code></a> shows the
+      state for each member in a group. If the group is fully functional
+      and all members are communicating properly, all members report the
+      same state for all other members. However, a member that has left
+      the group or is part of a network partition cannot report accurate
+      information on the other servers. In this situation, the member
+      does not attempt to guess the status of the other servers, and
+      instead reports them as unreachable.
+    </p><p>
+      A group member can be in the following states:
+    </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">
+          <code class="literal">ONLINE</code>
+        </span></dt><dd><p>
+            The server is an active member of a group and in a fully
+            functioning state. Other group members can connect to it, as
+            can clients if applicable. A member is only fully
+            synchronized with the group, and participating in it, when
+            it is in the <code class="literal">ONLINE</code> state.
+          </p></dd><dt><span class="term">
+          <code class="literal">RECOVERING</code>
+        </span></dt><dd><p>
+            The server has joined a group and is in the process of
+            becoming an active member. Distributed recovery is currently
+            taking place, where the member is receiving state transfer
+            from a donor using a remote cloning operation or the donor's
+            binary log. This state is
+          </p><p>
+            For more information, see
+            <a class="xref" href="group-replication-distributed-recovery.html" title="18.5.4 Distributed Recovery">Section 18.5.4, “Distributed Recovery”</a>.
+          </p></dd><dt><span class="term">
+          <code class="literal">OFFLINE</code>
+        </span></dt><dd><p>
+            The Group Replication plugin is loaded but the member does
+            not belong to any group. This status may briefly occur while
+            a member is joining or rejoining a group.
+          </p></dd><dt><span class="term">
+          <code class="literal">ERROR</code>
+        </span></dt><dd><p>
+            The member is in an error state and is not functioning
+            correctly as a group member. A member can enter error state
+            either while applying transactions or during the recovery
+            phase. A member in this state does not participate in the
+            group's transactions. For more information on possible
+            reasons for error states, see
+            <a class="xref" href="group-replication-responses-failure.html" title="18.7.7 Responses to Failure Detection and Network Partitioning">Section 18.7.7, “Responses to Failure Detection and Network Partitioning”</a>.
+          </p><p>
+            Depending on the exit action set by
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_exit_state_action"><code class="literal">group_replication_exit_state_action</code></a>,
+            the member is in read-only mode
+            (<a class="link" href="server-system-variables.html#sysvar_super_read_only"><code class="literal">super_read_only=ON</code></a>) and
+            could also be in offline mode
+            (<a class="link" href="server-system-variables.html#sysvar_offline_mode"><code class="literal">offline_mode=ON</code></a>). Note
+            that a server in offline mode following the
+            <code class="literal">OFFLINE_MODE</code> exit action is displayed
+            with <code class="literal">ERROR</code> status, not
+            <code class="literal">OFFLINE</code>. A server with the exit action
+            <code class="literal">ABORT_SERVER</code> shuts down and is removed
+            from the view of the group. For more information, see
+            <a class="xref" href="group-replication-responses-failure-exit.html" title="18.7.7.4 Exit Action">Section 18.7.7.4, “Exit Action”</a>.
+          </p><p>
+            While a member is joining or rejoining a replication group,
+            its status can be displayed as <code class="literal">ERROR</code>
+            before the group completes the compatibility checks and
+            accepts it as a member.
+          </p></dd><dt><span class="term">
+          <code class="literal">UNREACHABLE</code>
+        </span></dt><dd><p>
+            The local failure detector suspects that the member cannot
+            be contacted, because the group's messages are timing out.
+            This can happen if a member is disconnected involuntarily,
+            for example. If you see this status for other servers, it
+            can also mean that the member where you query this table is
+            part of a partition, where a subset of the group's servers
+            can contact each other but cannot contact the other servers
+            in the group. For more information, see
+            <a class="xref" href="group-replication-network-partitioning.html" title="18.7.8 Handling a Network Partition and Loss of Quorum">Section 18.7.8, “Handling a Network Partition and Loss of Quorum”</a>.
+          </p></dd></dl></div><p>
+      See <a class="xref" href="group-replication-replication-group-members.html" title="18.4.3 The replication_group_members Table">Section 18.4.3, “The replication_group_members Table”</a>
+      for an example of the Performance Schema table contents.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-gtids.html">Previous <span class="navHint"> GTIDs and Group Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-monitoring.html">Up <span class="navHint"> Monitoring Group Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-replication-group-members.html">Next <span class="navHint"> The replication_group_members Table </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

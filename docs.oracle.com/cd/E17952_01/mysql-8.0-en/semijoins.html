@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.2.1 Optimizing IN and EXISTS Subquery Predicates with Semijoin Transformations</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="subquery-optimization.html" title="8.2.2 Optimizing Subqueries, Derived Tables, View References, and Common Table Expressions" /><link rel="prev" href="subquery-optimization.html" title="8.2.2 Optimizing Subqueries, Derived Tables, View References, and Common Table Expressions" /><link rel="next" href="subquery-materialization.html" title="8.2.2.2 Optimizing Subqueries with Materialization" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="semijoins.html#semijoins">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="subquery-optimization.html">Previous <span class="navHint"> Optimizing Subqueries, Derived Tables, View References, and Common Table
+        Expressions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="subquery-optimization.html">Up <span class="navHint"> Optimizing Subqueries, Derived Tables, View References, and Common Table
+        Expressions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="subquery-materialization.html">Next <span class="navHint"> Optimizing Subqueries with Materialization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="semijoins"></a>8.2.2.1 Optimizing IN and EXISTS Subquery Predicates with Semijoin
+          Transformations</h4></div></div></div><a id="idm45828955202016" class="indexterm"></a><p>
+          A semijoin is a preparation-time transformation that enables
+          multiple execution strategies such as table pullout, duplicate
+          weedout, first match, loose scan, and materialization. The
+          optimizer uses semijoin strategies to improve subquery
+          execution, as described in this section.
+        </p><p>
+          For an inner join between two tables, the join returns a row
+          from one table as many times as there are matches in the other
+          table. But for some questions, the only information that
+          matters is whether there is a match, not the number of
+          matches. Suppose that there are tables named
+          <code class="literal">class</code> and <code class="literal">roster</code> that
+          list classes in a course curriculum and class rosters
+          (students enrolled in each class), respectively. To list the
+          classes that actually have students enrolled, you could use
+          this join:
+        </p><pre class="programlisting">SELECT class.class_num, class.class_name
+    FROM class
+    INNER JOIN roster
+    WHERE class.class_num = roster.class_num;
+</pre><p>
+          However, the result lists each class once for each enrolled
+          student. For the question being asked, this is unnecessary
+          duplication of information.
+        </p><p>
+          Assuming that <code class="literal">class_num</code> is a primary key in
+          the <code class="literal">class</code> table, duplicate suppression is
+          possible by using
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT
+          DISTINCT</code></a>, but it is inefficient to generate all
+          matching rows first only to eliminate duplicates later.
+        </p><p>
+          The same duplicate-free result can be obtained by using a
+          subquery:
+        </p><pre class="programlisting">SELECT class_num, class_name
+    FROM class
+    WHERE class_num IN
+        (SELECT class_num FROM roster);
+</pre><p>
+          Here, the optimizer can recognize that the
+          <code class="literal">IN</code> clause requires the subquery to return
+          only one instance of each class number from the
+          <code class="literal">roster</code> table. In this case, the query can
+          use a <span class="firstterm">semijoin</span>; that is,
+          an operation that returns only one instance of each row in
+          <code class="literal">class</code> that is matched by rows in
+          <code class="literal">roster</code>.
+        </p><p>
+          The following statement, which contains an
+          <code class="literal">EXISTS</code> subquery predicate, is equivalent to
+          the previous statement containing an <code class="literal">IN</code>
+          subquery predicate:
+        </p><pre class="programlisting">SELECT class_num, class_name
+    FROM class
+    WHERE EXISTS
+        (SELECT * FROM roster WHERE class.class_num = roster.class_num);
+</pre><p>
+          In MySQL 8.0.16 and later, any statement with an
+          <code class="literal">EXISTS</code> subquery predicate is subject to the
+          same semijoin transforms as a statement with an equivalent
+          <code class="literal">IN</code> subquery predicate.
+        </p><p>
+          Beginning with MySQL 8.0.17, the following subqueries are
+          transformed into antijoins:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">NOT IN (SELECT ... FROM ...)</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">NOT EXISTS (SELECT ... FROM ...)</code>.
+            </p></li><li class="listitem"><p>
+              <code class="literal">IN (SELECT ... FROM ...) IS NOT TRUE</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">EXISTS (SELECT ... FROM ...) IS NOT
+              TRUE</code>.
+            </p></li><li class="listitem"><p>
+              <code class="literal">IN (SELECT ... FROM ...) IS FALSE</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">EXISTS (SELECT ... FROM ...) IS FALSE</code>.
+            </p></li></ul></div><p>
+          In short, any negation of a subquery of the form <code class="literal">IN
+          (SELECT ... FROM ...)</code> or <code class="literal">EXISTS (SELECT ...
+          FROM ...)</code> is transformed into an antijoin.
+        </p><p>
+          An antijoin is an operation that returns only rows for which
+          there is no match. Consider the query shown here:
+        </p><pre class="programlisting">SELECT class_num, class_name
+    FROM class
+    WHERE class_num NOT IN
+        (SELECT class_num FROM roster);
+</pre><p>
+          This query is rewritten internally as the antijoin
+          <code class="literal">SELECT class_num, class_name FROM class ANTIJOIN
+          roster ON class_num</code>, which returns one instance of
+          each row in <code class="literal">class</code> that is
+          <span class="emphasis"><em>not</em></span> matched by any rows in
+          <code class="literal">roster</code>. This means that, for each row in
+          <code class="literal">class</code>, as soon as a match is found in
+          <code class="literal">roster</code>, the row in <code class="literal">class</code>
+          can be discarded.
+        </p><p>
+          Antijoin transformations cannot in most cases be applied if
+          the expressions being compared are nullable. An exception to
+          this rule is that <code class="literal">(... NOT IN (SELECT ...)) IS NOT
+          FALSE</code> and its equivalent <code class="literal">(... IN (SELECT
+          ...)) IS NOT TRUE</code> can be transformed into antijoins.
+        </p><p>
+          Outer join and inner join syntax is permitted in the outer
+          query specification, and table references may be base tables,
+          derived tables, view references, or common table expressions.
+        </p><p>
+          In MySQL, a subquery must satisfy these criteria to be handled
+          as a semijoin (or, in MySQL 8.0.17 and later, an antijoin if
+          <code class="literal">NOT</code> modifies the subquery):
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              It must be part of an <code class="literal">IN</code>, <code class="literal">=
+              ANY</code>, or <code class="literal">EXISTS</code> predicate that
+              appears at the top level of the <code class="literal">WHERE</code>
+              or <code class="literal">ON</code> clause, possibly as a term in an
+              <code class="literal">AND</code> expression. For example:
+            </p><pre class="programlisting">SELECT ...
+    FROM ot1, ...
+    WHERE (oe1, ...) IN
+        (SELECT ie1, ... FROM it1, ... WHERE ...);
+</pre><p>
+              Here, <code class="literal">ot_<em class="replaceable"><code>i</code></em></code>
+              and <code class="literal">it_<em class="replaceable"><code>i</code></em></code>
+              represent tables in the outer and inner parts of the
+              query, and
+              <code class="literal">oe_<em class="replaceable"><code>i</code></em></code> and
+              <code class="literal">ie_<em class="replaceable"><code>i</code></em></code>
+              represent expressions that refer to columns in the outer
+              and inner tables.
+            </p><p>
+              In MySQL 8.0.17 and later, the subquery can also be the
+              argument to an expression modified by
+              <code class="literal">NOT</code>, <code class="literal">IS [NOT] TRUE</code>,
+              or <code class="literal">IS [NOT] FALSE</code>.
+            </p></li><li class="listitem"><p>
+              It must be a single <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>
+              without <a class="link" href="union.html" title="13.2.18 UNION Clause"><code class="literal">UNION</code></a> constructs.
+            </p></li><li class="listitem"><p>
+              It must not contain a <code class="literal">HAVING</code> clause.
+            </p></li><li class="listitem"><p>
+              It must not contain any aggregate functions (whether it is
+              explicitly or implicitly grouped).
+            </p></li><li class="listitem"><p>
+              It must not have a <code class="literal">LIMIT</code> clause.
+            </p></li><li class="listitem"><p>
+              The statement must not use the
+              <code class="literal">STRAIGHT_JOIN</code> join type in the outer
+              query.
+            </p><a id="idm45828955136992" class="indexterm"></a></li><li class="listitem"><p>
+              The <code class="literal">STRAIGHT_JOIN</code> modifier must not be
+              present.
+            </p><a id="idm45828955133936" class="indexterm"></a></li><li class="listitem"><p>
+              The number of outer and inner tables together must be less
+              than the maximum number of tables permitted in a join.
+            </p></li><li class="listitem"><p>
+              The subquery may be correlated or uncorrelated. In MySQL
+              8.0.16 and later, decorrelation looks at trivially
+              correlated predicates in the <code class="literal">WHERE</code>
+              clause of a subquery used as the argument to
+              <code class="literal">EXISTS</code>, and makes it possible to
+              optimize it as if it was used within <code class="literal">IN (SELECT b
+              FROM ...)</code>. The term <span class="emphasis"><em>trivially
+              correlated</em></span> means that the predicate is an
+              equality predicate, that it is the sole predicate in the
+              <code class="literal">WHERE</code> clause (or is combined with
+              <code class="literal">AND</code>), and that one operand is from a
+              table referenced in the subquery and the other operand is
+              from the outer query block.
+            </p></li><li class="listitem"><p>
+              The <code class="literal">DISTINCT</code> keyword is permitted but
+              ignored. Semijoin strategies automatically handle
+              duplicate removal.
+            </p></li><li class="listitem"><p>
+              A <code class="literal">GROUP BY</code> clause is permitted but
+              ignored, unless the subquery also contains one or more
+              aggregate functions.
+            </p></li><li class="listitem"><p>
+              An <code class="literal">ORDER BY</code> clause is permitted but
+              ignored, since ordering is irrelevant to the evaluation of
+              semijoin strategies.
+            </p></li></ul></div><p>
+          If a subquery meets the preceding criteria, MySQL converts it
+          to a semijoin (or, in MySQL 8.0.17 or later, an antijoin if
+          applicable) and makes a cost-based choice from these
+          strategies:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Convert the subquery to a join, or use table pullout and
+              run the query as an inner join between subquery tables and
+              outer tables. Table pullout pulls a table out from the
+              subquery to the outer query.
+            </p><a id="idm45828955119088" class="indexterm"></a></li><li class="listitem"><p>
+              <span class="emphasis"><em>Duplicate Weedout</em></span>: Run the semijoin
+              as if it was a join and remove duplicate records using a
+              temporary table.
+            </p><a id="idm45828955116272" class="indexterm"></a></li><li class="listitem"><p>
+              <span class="emphasis"><em>FirstMatch</em></span>: When scanning the inner
+              tables for row combinations and there are multiple
+              instances of a given value group, choose one rather than
+              returning them all. This "shortcuts" scanning and
+              eliminates production of unnecessary rows.
+            </p><a id="idm45828955113296" class="indexterm"></a></li><li class="listitem"><p>
+              <span class="emphasis"><em>LooseScan</em></span>: Scan a subquery table
+              using an index that enables a single value to be chosen
+              from each subquery's value group.
+            </p><a id="idm45828955110448" class="indexterm"></a></li><li class="listitem"><p>
+              Materialize the subquery into an indexed temporary table
+              that is used to perform a join, where the index is used to
+              remove duplicates. The index might also be used later for
+              lookups when joining the temporary table with the outer
+              tables; if not, the table is scanned. For more information
+              about materialization, see
+              <a class="xref" href="subquery-materialization.html" title="8.2.2.2 Optimizing Subqueries with Materialization">Section 8.2.2.2, “Optimizing Subqueries with Materialization”</a>.
+            </p><a id="idm45828955106832" class="indexterm"></a></li></ul></div><p>
+          Each of these strategies can be enabled or disabled using the
+          following <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a>
+          system variable flags:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The <a class="link" href="switchable-optimizations.html#optflag_semijoin"><code class="literal">semijoin</code></a> flag
+              controls whether semijoins are used. Starting with MySQL
+              8.0.17, this also applies to antijoins.
+            </p></li><li class="listitem"><p>
+              If <a class="link" href="switchable-optimizations.html#optflag_semijoin"><code class="literal">semijoin</code></a> is enabled,
+              the <a class="link" href="switchable-optimizations.html#optflag_firstmatch"><code class="literal">firstmatch</code></a>,
+              <a class="link" href="switchable-optimizations.html#optflag_loosescan"><code class="literal">loosescan</code></a>,
+              <a class="link" href="switchable-optimizations.html#optflag_duplicateweedout"><code class="literal">duplicateweedout</code></a>, and
+              <a class="link" href="switchable-optimizations.html#optflag_materialization"><code class="literal">materialization</code></a> flags
+              enable finer control over the permitted semijoin
+              strategies.
+            </p></li><li class="listitem"><p>
+              If the <a class="link" href="switchable-optimizations.html#optflag_duplicateweedout"><code class="literal">duplicateweedout</code></a>
+              semijoin strategy is disabled, it is not used unless all
+              other applicable strategies are also disabled.
+            </p></li><li class="listitem"><p>
+              If <a class="link" href="switchable-optimizations.html#optflag_duplicateweedout"><code class="literal">duplicateweedout</code></a> is
+              disabled, on occasion the optimizer may generate a query
+              plan that is far from optimal. This occurs due to
+              heuristic pruning during greedy search, which can be
+              avoided by setting
+              <a class="link" href="server-system-variables.html#sysvar_optimizer_prune_level"><code class="literal">optimizer_prune_level=0</code></a>.
+            </p></li></ul></div><p>
+          These flags are enabled by default. See
+          <a class="xref" href="switchable-optimizations.html" title="8.9.2 Switchable Optimizations">Section 8.9.2, “Switchable Optimizations”</a>.
+        </p><p>
+          The optimizer minimizes differences in handling of views and
+          derived tables. This affects queries that use the
+          <code class="literal">STRAIGHT_JOIN</code> modifier and a view with an
+          <code class="literal">IN</code> subquery that can be converted to a
+          semijoin. The following query illustrates this because the
+          change in processing causes a change in transformation, and
+          thus a different execution strategy:
+        </p><pre class="programlisting">CREATE VIEW v AS
+SELECT *
+FROM t1
+WHERE a IN (SELECT b
+           FROM t2);
+
+SELECT STRAIGHT_JOIN *
+FROM t3 JOIN v ON t3.x = v.a;
+</pre><p>
+          The optimizer first looks at the view and converts the
+          <code class="literal">IN</code> subquery to a semijoin, then checks
+          whether it is possible to merge the view into the outer query.
+          Because the <code class="literal">STRAIGHT_JOIN</code> modifier in the
+          outer query prevents semijoin, the optimizer refuses the
+          merge, causing derived table evaluation using a materialized
+          table.
+        </p><p>
+          <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output indicates the
+          use of semijoin strategies as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              For extended <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>
+              output, the text displayed by a following
+              <a class="link" href="show-warnings.html" title="13.7.7.42 SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a> shows the
+              rewritten query, which displays the semijoin structure.
+              (See <a class="xref" href="explain-extended.html" title="8.8.3 Extended EXPLAIN Output Format">Section 8.8.3, “Extended EXPLAIN Output Format”</a>.) From this you
+              can get an idea about which tables were pulled out of the
+              semijoin. If a subquery was converted to a semijoin, you
+              should see that the subquery predicate is gone and its
+              tables and <code class="literal">WHERE</code> clause were merged
+              into the outer query join list and
+              <code class="literal">WHERE</code> clause.
+            </p></li><li class="listitem"><p>
+              Temporary table use for Duplicate Weedout is indicated by
+              <code class="literal">Start temporary</code> and <code class="literal">End
+              temporary</code> in the <code class="literal">Extra</code>
+              column. Tables that were not pulled out and are in the
+              range of <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output
+              rows covered by <code class="literal">Start temporary</code> and
+              <code class="literal">End temporary</code> have their
+              <code class="literal">rowid</code> in the temporary table.
+            </p></li><li class="listitem"><p>
+              <code class="literal">FirstMatch(<em class="replaceable"><code>tbl_name</code></em>)</code>
+              in the <code class="literal">Extra</code> column indicates join
+              shortcutting.
+            </p></li><li class="listitem"><p>
+              <code class="literal">LooseScan(<em class="replaceable"><code>m</code></em>..<em class="replaceable"><code>n</code></em>)</code>
+              in the <code class="literal">Extra</code> column indicates use of
+              the LooseScan strategy. <em class="replaceable"><code>m</code></em> and
+              <em class="replaceable"><code>n</code></em> are key part numbers.
+            </p></li><li class="listitem"><p>
+              Temporary table use for materialization is indicated by
+              rows with a <code class="literal">select_type</code> value of
+              <code class="literal">MATERIALIZED</code> and rows with a
+              <code class="literal">table</code> value of
+              <code class="literal">&lt;subquery<em class="replaceable"><code>N</code></em>&gt;</code>.
+            </p></li></ul></div><p>
+          In MySQL 8.0.21 and later, a semijoin transformation can also
+          be applied to a single-table
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> or
+          <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> statement that uses a
+          <code class="literal">[NOT] IN</code> or <code class="literal">[NOT] EXISTS</code>
+          subquery predicate, provided that the statement does not use
+          <code class="literal">ORDER BY</code> or <code class="literal">LIMIT</code>, and
+          that semijoin transformations are allowed by an optimizer hint
+          or by the <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a>
+          setting.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="subquery-optimization.html">Previous <span class="navHint"> Optimizing Subqueries, Derived Tables, View References, and Common Table
+        Expressions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="subquery-optimization.html">Up <span class="navHint"> Optimizing Subqueries, Derived Tables, View References, and Common Table
+        Expressions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="subquery-materialization.html">Next <span class="navHint"> Optimizing Subqueries with Materialization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

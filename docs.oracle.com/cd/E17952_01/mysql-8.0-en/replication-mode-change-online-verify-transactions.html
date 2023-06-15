@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.1.4.4 Verifying Replication of Anonymous Transactions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-mode-change-online.html" title="17.1.4 Changing GTID Mode on Online Servers" /><link rel="prev" href="replication-mode-change-online-disable-gtids.html" title="17.1.4.3 Disabling GTID Transactions Online" /><link rel="next" href="replication-multi-source.html" title="17.1.5 MySQL Multi-Source Replication" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-mode-change-online-verify-transactions.html#replication-mode-change-online-verify-transactions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-mode-change-online-disable-gtids.html">Previous <span class="navHint"> Disabling GTID Transactions Online </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-mode-change-online.html">Up <span class="navHint"> Changing GTID Mode on Online Servers </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-multi-source.html">Next <span class="navHint"> MySQL Multi-Source Replication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-mode-change-online-verify-transactions"></a>17.1.4.4 Verifying Replication of Anonymous Transactions</h4></div></div></div><a id="idm45828867893632" class="indexterm"></a><p>
+      This section explains how to monitor a replication topology and
+      verify that all anonymous transactions have been replicated. This
+      is helpful when changing the replication mode online as you can
+      verify that it is safe to change to GTID transactions.
+    </p><p>
+      There are several possible ways to wait for transactions to
+      replicate:
+    </p><p>
+      The simplest method, which works regardless of your topology but
+      relies on timing is as follows: if you are sure that the replica
+      never lags more than N seconds, just wait for a bit more than N
+      seconds. Or wait for a day, or whatever time period you consider
+      safe for your deployment.
+    </p><p>
+      A safer method in the sense that it does not depend on timing: if
+      you only have a source with one or more replicas, do the
+      following:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          On the source, execute:
+        </p><pre class="programlisting">SHOW MASTER STATUS;</pre><p>
+          Note down the values in the <code class="literal">File</code> and
+          <code class="literal">Position</code> column.
+        </p></li><li class="listitem"><p>
+          On every replica, use the file and position information from
+          the source to execute:
+        </p><pre class="programlisting">SELECT MASTER_POS_WAIT(file, position);
+
+Or from MySQL 8.0.26:
+SELECT SOURCE_POS_WAIT(file, position);
+</pre></li></ol></div><p>
+      If you have a source and multiple levels of replicas, or in other
+      words you have replicas of replicas, repeat step 2 on each level,
+      starting from the source, then all the direct replicas, then all
+      the replicas of replicas, and so on.
+    </p><p>
+      If you use a circular replication topology where multiple servers
+      may have write clients, perform step 2 for each source-replica
+      connection, until you have completed the full circle. Repeat the
+      whole process so that you do the full circle
+      <span class="emphasis"><em>twice</em></span>.
+    </p><p>
+      For example, suppose you have three servers A, B, and C,
+      replicating in a circle so that A -&gt; B -&gt; C -&gt; A. The
+      procedure is then:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Do step 1 on A and step 2 on B.
+        </p></li><li class="listitem"><p>
+          Do step 1 on B and step 2 on C.
+        </p></li><li class="listitem"><p>
+          Do step 1 on C and step 2 on A.
+        </p></li><li class="listitem"><p>
+          Do step 1 on A and step 2 on B.
+        </p></li><li class="listitem"><p>
+          Do step 1 on B and step 2 on C.
+        </p></li><li class="listitem"><p>
+          Do step 1 on C and step 2 on A.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-mode-change-online-disable-gtids.html">Previous <span class="navHint"> Disabling GTID Transactions Online </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-mode-change-online.html">Up <span class="navHint"> Changing GTID Mode on Online Servers </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-multi-source.html">Next <span class="navHint"> MySQL Multi-Source Replication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

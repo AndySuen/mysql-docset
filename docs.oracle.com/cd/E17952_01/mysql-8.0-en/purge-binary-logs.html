@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.4.1.1 PURGE BINARY LOGS Statement</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-statements-master.html" title="13.4.1 SQL Statements for Controlling Source Servers" /><link rel="prev" href="replication-statements-master.html" title="13.4.1 SQL Statements for Controlling Source Servers" /><link rel="next" href="reset-master.html" title="13.4.1.2 RESET MASTER Statement" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="purge-binary-logs.html#purge-binary-logs">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-statements-master.html">Previous <span class="navHint"> SQL Statements for Controlling Source Servers </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-statements-master.html">Up <span class="navHint"> SQL Statements for Controlling Source Servers </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="reset-master.html">Next <span class="navHint"> RESET MASTER Statement </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="purge-binary-logs"></a>13.4.1.1 PURGE BINARY LOGS Statement</h4></div></div></div><a id="idm45828904265056" class="indexterm"></a><a id="idm45828904264016" class="indexterm"></a><pre class="programlisting">PURGE { BINARY | MASTER } LOGS {
+    TO '<em class="replaceable"><code>log_name</code></em>'
+  | BEFORE <em class="replaceable"><code>datetime_expr</code></em>
+}
+</pre><p>
+        The binary log is a set of files that contain information about
+        data modifications made by the MySQL server. The log consists of
+        a set of binary log files, plus an index file (see
+        <a class="xref" href="binary-log.html" title="5.4.4 The Binary Log">Section 5.4.4, “The Binary Log”</a>).
+      </p><p>
+        The <a class="link" href="purge-binary-logs.html" title="13.4.1.1 PURGE BINARY LOGS Statement"><code class="literal">PURGE BINARY LOGS</code></a> statement
+        deletes all the binary log files listed in the log index file
+        prior to the specified log file name or date.
+        <code class="literal">BINARY</code> and <code class="literal">MASTER</code> are
+        synonyms. Deleted log files also are removed from the list
+        recorded in the index file, so that the given log file becomes
+        the first in the list.
+      </p><p>
+        <a class="link" href="purge-binary-logs.html" title="13.4.1.1 PURGE BINARY LOGS Statement"><code class="literal">PURGE BINARY LOGS</code></a> requires the
+        <a class="link" href="privileges-provided.html#priv_binlog-admin"><code class="literal">BINLOG_ADMIN</code></a> privilege. This
+        statement has no effect if the server was not started with the
+        <a class="link" href="replication-options-binary-log.html#option_mysqld_log-bin"><code class="option">--log-bin</code></a> option to enable binary
+        logging.
+      </p><p>
+        Examples:
+      </p><pre class="programlisting">PURGE BINARY LOGS TO 'mysql-bin.010';
+PURGE BINARY LOGS BEFORE '2019-04-02 22:46:26';
+</pre><p>
+        The <code class="literal">BEFORE</code> variant's
+        <em class="replaceable"><code>datetime_expr</code></em> argument should
+        evaluate to a <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATETIME</code></a> value (a
+        value in <code class="literal">'<em class="replaceable"><code>YYYY-MM-DD
+        hh:mm:ss</code></em>'</code> format).
+      </p><p>
+        <a class="link" href="purge-binary-logs.html" title="13.4.1.1 PURGE BINARY LOGS Statement"><code class="literal">PURGE BINARY LOGS</code></a> is safe to run
+        while replicas are replicating. You need not stop them. If you
+        have an active replica that currently is reading one of the log
+        files you are trying to delete, this statement does not delete
+        the log file that is in use or any log files later than that
+        one, but it deletes any earlier log files. A warning message is
+        issued in this situation. However, if a replica is not connected
+        and you happen to purge one of the log files it has yet to read,
+        the replica cannot replicate after it reconnects.
+      </p><p>
+        <a class="link" href="purge-binary-logs.html" title="13.4.1.1 PURGE BINARY LOGS Statement"><code class="literal">PURGE BINARY LOGS</code></a> should not be
+        issued while a <a class="link" href="lock-instance-for-backup.html" title="13.3.5 LOCK INSTANCE FOR BACKUP and UNLOCK INSTANCE Statements"><code class="literal">LOCK INSTANCE FOR
+        BACKUP</code></a> statement is in effect for the instance,
+        because it contravenes the rules of the backup lock by removing
+        files from the server. From MySQL 8.0.28, this is disallowed.
+      </p><p>
+        To safely purge binary log files, follow this procedure:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            On each replica, use
+            <a class="link" href="show-replica-status.html" title="13.7.7.35 SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+            REPLICA STATUS</code></a> to check which log file it is
+            reading.
+          </p></li><li class="listitem"><p>
+            Obtain a listing of the binary log files on the source with
+            <a class="link" href="show-binary-logs.html" title="13.7.7.1 SHOW BINARY LOGS Statement"><code class="literal">SHOW BINARY LOGS</code></a>.
+          </p></li><li class="listitem"><p>
+            Determine the earliest log file among all the replicas. This
+            is the target file. If all the replicas are up to date, this
+            is the last log file on the list.
+          </p></li><li class="listitem"><p>
+            Make a backup of all the log files you are about to delete.
+            (This step is optional, but always advisable.)
+          </p></li><li class="listitem"><p>
+            Purge all log files up to but not including the target file.
+          </p></li></ol></div><p>
+        <code class="literal">PURGE BINARY LOGS TO</code> and <code class="literal">PURGE
+        BINARY LOGS BEFORE</code> both fail with an error when binary
+        log files listed in the <code class="filename">.index</code> file had
+        been removed from the system by some other means (such as using
+        <span class="command"><strong>rm</strong></span> on Linux). (Bug #18199, Bug #18453) To
+        handle such errors, edit the <code class="filename">.index</code> file
+        (which is a simple text file) manually to ensure that it lists
+        only the binary log files that are actually present, then run
+        again the <a class="link" href="purge-binary-logs.html" title="13.4.1.1 PURGE BINARY LOGS Statement"><code class="literal">PURGE BINARY LOGS</code></a>
+        statement that failed.
+      </p><p>
+        Binary log files are automatically removed after the server's
+        binary log expiration period. Removal of the files can take
+        place at startup and when the binary log is flushed. The default
+        binary log expiration period is 30 days. You can specify an
+        alternative expiration period using the
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_expire_logs_seconds"><code class="literal">binlog_expire_logs_seconds</code></a>
+        system variable. If you are using replication, you should
+        specify an expiration period that is no lower than the maximum
+        amount of time your replicas might lag behind the source.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-statements-master.html">Previous <span class="navHint"> SQL Statements for Controlling Source Servers </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-statements-master.html">Up <span class="navHint"> SQL Statements for Controlling Source Servers </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="reset-master.html">Next <span class="navHint"> RESET MASTER Statement </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>2.9.1 Initializing the Data Directory</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="postinstallation.html" title="2.9 Postinstallation Setup and Testing" /><link rel="prev" href="postinstallation.html" title="2.9 Postinstallation Setup and Testing" /><link rel="next" href="starting-server.html" title="2.9.2 Starting the Server" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="data-directory-initialization.html#data-directory-initialization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="postinstallation.html">Previous <span class="navHint"> Postinstallation Setup and Testing </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="postinstallation.html">Up <span class="navHint"> Postinstallation Setup and Testing </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="starting-server.html">Next <span class="navHint"> Starting the Server </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="data-directory-initialization"></a>2.9.1 Initializing the Data Directory</h3></div></div></div><p>
+      After MySQL is installed, the data directory must be initialized,
+      including the tables in the <code class="literal">mysql</code> system
+      schema:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          For some MySQL installation methods, data directory
+          initialization is automatic, as described in
+          <a class="xref" href="postinstallation.html" title="2.9 Postinstallation Setup and Testing">Section 2.9, “Postinstallation Setup and Testing”</a>.
+        </p></li><li class="listitem"><p>
+          For other installation methods, you must initialize the data
+          directory manually. These include installation from generic
+          binary and source distributions on Unix and Unix-like systems,
+          and installation from a ZIP Archive package on Windows.
+        </p></li></ul></div><p>
+      This section describes how to initialize the data directory
+      manually for MySQL installation methods for which data directory
+      initialization is not automatic. For some suggested commands that
+      enable testing whether the server is accessible and working
+      properly, see <a class="xref" href="testing-server.html" title="2.9.3 Testing the Server">Section 2.9.3, “Testing the Server”</a>.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        In MySQL 8.0, the default authentication plugin has changed from
+        <code class="literal">mysql_native_password</code> to
+        <code class="literal">caching_sha2_password</code>, and the
+        <code class="literal">'root'@'localhost'</code> administrative account
+        uses <code class="literal">caching_sha2_password</code> by default. If you
+        prefer that the <code class="literal">root</code> account use the previous
+        default authentication plugin
+        (<code class="literal">mysql_native_password</code>), see
+        <a class="xref" href="upgrading-from-previous-series.html#upgrade-caching-sha2-password-root-account" title="caching_sha2_password and the root Administrative Account">caching_sha2_password and the root Administrative Account</a>.
+      </p></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="data-directory-initialization.html#data-directory-initialization-overview" title="Data Directory Initialization Overview">Data Directory Initialization Overview</a></p></li><li class="listitem"><p><a class="xref" href="data-directory-initialization.html#data-directory-initialization-procedure" title="Data Directory Initialization Procedure">Data Directory Initialization Procedure</a></p></li><li class="listitem"><p><a class="xref" href="data-directory-initialization.html#data-directory-initialization-server-actions" title="Server Actions During Data Directory Initialization">Server Actions During Data Directory Initialization</a></p></li><li class="listitem"><p><a class="xref" href="data-directory-initialization.html#data-directory-initialization-password-assignment" title="Post-Initialization root Password Assignment">Post-Initialization root Password Assignment</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="data-directory-initialization-overview"></a>Data Directory Initialization Overview</h4></div></div></div><p>
+        In the examples shown here, the server is intended to run under
+        the user ID of the <code class="literal">mysql</code> login account.
+        Either create the account if it does not exist (see
+        <a class="xref" href="binary-installation.html#binary-installation-createsysuser" title="Create a mysql User and Group">Create a mysql User and Group</a>), or
+        substitute the name of a different existing login account that
+        you plan to use for running the server.
+      </p><a id="idm45829052987504" class="indexterm"></a><a id="idm45829052986016" class="indexterm"></a><a id="idm45829052984528" class="indexterm"></a><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Change location to the top-level directory of your MySQL
+            installation, which is typically
+            <code class="filename">/usr/local/mysql</code> (adjust the path name
+            for your system as necessary):
+          </p><pre class="programlisting">cd /usr/local/mysql
+</pre><p>
+            Within this directory you can find several files and
+            subdirectories, including the <code class="filename">bin</code>
+            subdirectory that contains the server, as well as client and
+            utility programs.
+          </p></li><li class="listitem"><p>
+            The <a class="link" href="server-system-variables.html#sysvar_secure_file_priv"><code class="literal">secure_file_priv</code></a> system
+            variable limits import and export operations to a specific
+            directory. Create a directory whose location can be
+            specified as the value of that variable:
+          </p><pre class="programlisting">mkdir mysql-files
+</pre><p>
+            Grant directory user and group ownership to the
+            <code class="literal">mysql</code> user and <code class="literal">mysql</code>
+            group, and set the directory permissions appropriately:
+          </p><pre class="programlisting">chown mysql:mysql mysql-files
+chmod 750 mysql-files
+</pre></li><li class="listitem"><p>
+            Use the server to initialize the data directory, including
+            the <code class="literal">mysql</code> schema containing the initial
+            MySQL grant tables that determine how users are permitted to
+            connect to the server. For example:
+          </p><pre class="programlisting">bin/mysqld --initialize --user=mysql
+</pre><p>
+            For important information about the command, especially
+            regarding command options you might use, see
+            <a class="xref" href="data-directory-initialization.html#data-directory-initialization-procedure" title="Data Directory Initialization Procedure">Data Directory Initialization Procedure</a>.
+            For details about how the server performs initialization,
+            see
+            <a class="xref" href="data-directory-initialization.html#data-directory-initialization-server-actions" title="Server Actions During Data Directory Initialization">Server Actions During Data Directory Initialization</a>.
+          </p><p>
+            Typically, data directory initialization need be done only
+            after you first install MySQL. (For upgrades to an existing
+            installation, perform the upgrade procedure instead; see
+            <a class="xref" href="upgrading.html" title="2.10 Upgrading MySQL">Section 2.10, “Upgrading MySQL”</a>.) However, the command that
+            initializes the data directory does not overwrite any
+            existing <code class="literal">mysql</code> schema tables, so it is
+            safe to run in any circumstances.
+          </p></li><li class="listitem"><p>
+            If you want to deploy the server with automatic support for
+            secure connections, use the
+            <a class="link" href="mysql-ssl-rsa-setup.html" title="4.4.3 mysql_ssl_rsa_setup — Create SSL/RSA Files"><span class="command"><strong>mysql_ssl_rsa_setup</strong></span></a> utility to create
+            default SSL and RSA files:
+          </p><pre class="programlisting">bin/mysql_ssl_rsa_setup
+</pre><p>
+            For more information, see
+            <a class="xref" href="mysql-ssl-rsa-setup.html" title="4.4.3 mysql_ssl_rsa_setup — Create SSL/RSA Files">Section 4.4.3, “mysql_ssl_rsa_setup — Create SSL/RSA Files”</a>.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              The <a class="link" href="mysql-ssl-rsa-setup.html" title="4.4.3 mysql_ssl_rsa_setup — Create SSL/RSA Files"><span class="command"><strong>mysql_ssl_rsa_setup</strong></span></a> utility is
+              deprecated as of MySQL 8.0.34.
+            </p></div></li><li class="listitem"><p>
+            In the absence of any option files, the server starts with
+            its default settings. (See
+            <a class="xref" href="server-configuration-defaults.html" title="5.1.2 Server Configuration Defaults">Section 5.1.2, “Server Configuration Defaults”</a>.) To
+            explicitly specify options that the MySQL server should use
+            at startup, put them in an option file such as
+            <code class="filename">/etc/my.cnf</code> or
+            <code class="filename">/etc/mysql/my.cnf</code>. (See
+            <a class="xref" href="option-files.html" title="4.2.2.2 Using Option Files">Section 4.2.2.2, “Using Option Files”</a>.) For example, you can use an
+            option file to set the
+            <a class="link" href="server-system-variables.html#sysvar_secure_file_priv"><code class="literal">secure_file_priv</code></a> system
+            variable.
+          </p></li><li class="listitem"><p>
+            To arrange for MySQL to start without manual intervention at
+            system boot time, see <a class="xref" href="automatic-start.html" title="2.9.5 Starting and Stopping MySQL Automatically">Section 2.9.5, “Starting and Stopping MySQL Automatically”</a>.
+          </p></li><li class="listitem"><p>
+            Data directory initialization creates time zone tables in
+            the <code class="literal">mysql</code> schema but does not populate
+            them. To do so, use the instructions in
+            <a class="xref" href="time-zone-support.html" title="5.1.15 MySQL Server Time Zone Support">Section 5.1.15, “MySQL Server Time Zone Support”</a>.
+          </p></li></ol></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="data-directory-initialization-procedure"></a>Data Directory Initialization Procedure</h4></div></div></div><p>
+        Change location to the top-level directory of your MySQL
+        installation, which is typically
+        <code class="filename">/usr/local/mysql</code> (adjust the path name for
+        your system as necessary):
+      </p><pre class="programlisting">cd /usr/local/mysql
+</pre><p>
+        To initialize the data directory, invoke
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> with the
+        <a class="link" href="server-options.html#option_mysqld_initialize"><code class="option">--initialize</code></a> or
+        <a class="link" href="server-options.html#option_mysqld_initialize-insecure"><code class="option">--initialize-insecure</code></a> option,
+        depending on whether you want the server to generate a random
+        initial password for the <code class="literal">'root'@'localhost'</code>
+        account, or to create that account with no password:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Use <a class="link" href="server-options.html#option_mysqld_initialize"><code class="option">--initialize</code></a> for
+            <span class="quote">“<span class="quote">secure by default</span>”</span> installation (that is,
+            including generation of a random initial
+            <code class="literal">root</code> password). In this case, the
+            password is marked as expired and you must choose a new one.
+          </p></li><li class="listitem"><p>
+            With <a class="link" href="server-options.html#option_mysqld_initialize-insecure"><code class="option">--initialize-insecure</code></a>,
+            no <code class="literal">root</code> password is generated. This is
+            insecure; it is assumed that you intend to assign a password
+            to the account in a timely fashion before putting the server
+            into production use.
+          </p></li></ul></div><p>
+        For instructions on assigning a new
+        <code class="literal">'root'@'localhost'</code> password, see
+        <a class="xref" href="data-directory-initialization.html#data-directory-initialization-password-assignment" title="Post-Initialization root Password Assignment">Post-Initialization root Password Assignment</a>.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          The server writes any messages (including any initial
+          password) to its standard error output. This may be redirected
+          to the error log, so look there if you do not see the messages
+          on your screen. For information about the error log, including
+          where it is located, see <a class="xref" href="error-log.html" title="5.4.2 The Error Log">Section 5.4.2, “The Error Log”</a>.
+        </p><p>
+          On Windows, use the <a class="link" href="server-options.html#option_mysqld_console"><code class="option">--console</code></a>
+          option to direct messages to the console.
+        </p></div><p>
+        On Unix and Unix-like systems, it is important for the database
+        directories and files to be owned by the
+        <code class="literal">mysql</code> login account so that the server has
+        read and write access to them when you run it later. To ensure
+        this, start <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> from the system
+        <code class="literal">root</code> account and include the
+        <a class="link" href="server-options.html#option_mysqld_user"><code class="option">--user</code></a> option as shown here:
+      </p><pre class="programlisting">bin/mysqld --initialize --user=mysql
+bin/mysqld --initialize-insecure --user=mysql
+</pre><p>
+        Alternatively, execute <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> while logged in
+        as <code class="literal">mysql</code>, in which case you can omit the
+        <a class="link" href="server-options.html#option_mysqld_user"><code class="option">--user</code></a> option from the command.
+      </p><p>
+        On Windows, use one of these commands:
+      </p><pre class="programlisting">bin\mysqld --initialize --console
+bin\mysqld --initialize-insecure --console
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Data directory initialization might fail if required system
+          libraries are missing. For example, you might see an error
+          like this:
+        </p><pre class="programlisting">bin/mysqld: error while loading shared libraries:
+libnuma.so.1: cannot open shared object file:
+No such file or directory
+</pre><p>
+          If this happens, you must install the missing libraries
+          manually or with your system's package manager. Then
+          retry the data directory initialization command.
+        </p></div><p>
+        It might be necessary to specify other options such as
+        <a class="link" href="server-system-variables.html#sysvar_basedir"><code class="option">--basedir</code></a> or
+        <a class="link" href="server-system-variables.html#sysvar_datadir"><code class="option">--datadir</code></a> if
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> cannot identify the correct locations
+        for the installation directory or data directory. For example
+        (enter the command on a single line):
+      </p><pre class="programlisting">bin/mysqld --initialize --user=mysql
+  --basedir=/opt/mysql/mysql
+  --datadir=/opt/mysql/mysql/data
+</pre><p>
+        Alternatively, put the relevant option settings in an option
+        file and pass the name of that file to
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>. For Unix and Unix-like systems,
+        suppose that the option file name is
+        <code class="filename">/opt/mysql/mysql/etc/my.cnf</code>. Put these
+        lines in the file:
+      </p><pre class="programlisting">[mysqld]
+basedir=/opt/mysql/mysql
+datadir=/opt/mysql/mysql/data
+</pre><p>
+        Then invoke <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> as follows (enter the
+        command on a single line, with the
+        <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a> option first):
+      </p><pre class="programlisting">bin/mysqld --defaults-file=/opt/mysql/mysql/etc/my.cnf
+  --initialize --user=mysql
+</pre><p>
+        On Windows, suppose that <code class="filename">C:\my.ini</code> contains
+        these lines:
+      </p><pre class="programlisting">[mysqld]
+basedir=C:\\Program Files\\MySQL\\MySQL Server 8.0
+datadir=D:\\MySQLdata
+</pre><p>
+        Then invoke <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> as follows (again, you
+        should enter the command on a single line, with the
+        <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a> option first):
+      </p><pre class="programlisting">bin\mysqld --defaults-file=C:\my.ini
+   --initialize --console
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          When initializing the data directory, you should not specify
+          any options other than those used for setting directory
+          locations such as <a class="link" href="server-system-variables.html#sysvar_basedir"><code class="option">--basedir</code></a> or
+          <a class="link" href="server-system-variables.html#sysvar_datadir"><code class="option">--datadir</code></a>, and the
+          <a class="link" href="server-options.html#option_mysqld_user"><code class="option">--user</code></a> option if needed.
+          Options to be employed by the MySQL server during normal use
+          can be set when restarting it following initialization. See
+          the description of the
+          <a class="link" href="server-options.html#option_mysqld_initialize"><code class="option">--initialize</code></a> option for further
+          information.
+        </p></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="data-directory-initialization-server-actions"></a>Server Actions During Data Directory Initialization</h4></div></div></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          The data directory initialization sequence performed by the
+          server does not substitute for the actions performed by
+          <a class="link" href="mysql-secure-installation.html" title="4.4.2 mysql_secure_installation — Improve MySQL Installation Security"><span class="command"><strong>mysql_secure_installation</strong></span></a> and
+          <a class="link" href="mysql-ssl-rsa-setup.html" title="4.4.3 mysql_ssl_rsa_setup — Create SSL/RSA Files"><span class="command"><strong>mysql_ssl_rsa_setup</strong></span></a>. See
+          <a class="xref" href="mysql-secure-installation.html" title="4.4.2 mysql_secure_installation — Improve MySQL Installation Security">Section 4.4.2, “mysql_secure_installation — Improve MySQL Installation Security”</a>, and
+          <a class="xref" href="mysql-ssl-rsa-setup.html" title="4.4.3 mysql_ssl_rsa_setup — Create SSL/RSA Files">Section 4.4.3, “mysql_ssl_rsa_setup — Create SSL/RSA Files”</a>.
+        </p></div><p>
+        When invoked with the
+        <a class="link" href="server-options.html#option_mysqld_initialize"><code class="option">--initialize</code></a> or
+        <a class="link" href="server-options.html#option_mysqld_initialize-insecure"><code class="option">--initialize-insecure</code></a> option,
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> performs the following actions during
+        the data directory initialization sequence:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            The server checks for the existence of the data directory as
+            follows:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                If no data directory exists, the server creates it.
+              </p></li><li class="listitem"><p>
+                If the data directory exists but is not empty (that is,
+                it contains files or subdirectories), the server exits
+                after producing an error message:
+              </p><pre class="programlisting">[ERROR] --initialize specified but the data directory exists. Aborting.
+</pre><p>
+                In this case, remove or rename the data directory and
+                try again.
+              </p><p>
+                An existing data directory is permitted to be nonempty
+                if every entry has a name that begins with a period
+                (<code class="literal">.</code>).
+              </p></li></ul></div></li><li class="listitem"><p>
+            Within the data directory, the server creates the
+            <code class="literal">mysql</code> system schema and its tables,
+            including the data dictionary tables, grant tables, time
+            zone tables, and server-side help tables. See
+            <a class="xref" href="system-schema.html" title="5.3 The mysql System Schema">Section 5.3, “The mysql System Schema”</a>.
+          </p></li><li class="listitem"><p>
+            The server initializes the
+            <a class="link" href="glossary.html#glos_system_tablespace" title="system tablespace">system
+            tablespace</a> and related data structures needed to
+            manage <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> tables.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              After <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> sets up the
+              <code class="literal">InnoDB</code>
+              <a class="link" href="glossary.html#glos_system_tablespace" title="system tablespace">system
+              tablespace</a>, certain changes to tablespace
+              characteristics require setting up a whole new
+              <a class="link" href="glossary.html#glos_instance" title="instance">instance</a>. Qualifying
+              changes include the file name of the first file in the
+              system tablespace and the number of undo logs. If you do
+              not want to use the default values, make sure that the
+              settings for the
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_data_file_path"><code class="literal">innodb_data_file_path</code></a> and
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_log_file_size"><code class="literal">innodb_log_file_size</code></a>
+              configuration parameters are in place in the MySQL
+              <a class="link" href="glossary.html#glos_configuration_file" title="configuration file">configuration
+              file</a> <span class="emphasis"><em>before</em></span> running
+              <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>. Also make sure to specify as
+              necessary other parameters that affect the creation and
+              location of <code class="literal">InnoDB</code> files, such as
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a> and
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_log_group_home_dir"><code class="literal">innodb_log_group_home_dir</code></a>.
+            </p><p>
+              If those options are in your configuration file but that
+              file is not in a location that MySQL reads by default,
+              specify the file location using the
+              <a class="link" href="server-options.html#option_mysqld_defaults-extra-file"><code class="option">--defaults-extra-file</code></a>
+              option when you run <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>.
+            </p></div></li><li class="listitem"><p>
+            The server creates a <code class="literal">'root'@'localhost'</code>
+            superuser account and other reserved accounts (see
+            <a class="xref" href="reserved-accounts.html" title="6.2.9 Reserved Accounts">Section 6.2.9, “Reserved Accounts”</a>). Some reserved accounts
+            are locked and cannot be used by clients, but
+            <code class="literal">'root'@'localhost'</code> is intended for
+            administrative use and you should assign it a password.
+          </p><p>
+            Server actions with respect to a password for the
+            <code class="literal">'root'@'localhost'</code> account depend on how
+            you invoke it:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                With <a class="link" href="server-options.html#option_mysqld_initialize"><code class="option">--initialize</code></a> but not
+                <a class="link" href="server-options.html#option_mysqld_initialize-insecure"><code class="option">--initialize-insecure</code></a>,
+                the server generates a random password, marks it as
+                expired, and writes a message displaying the password:
+              </p><pre class="programlisting">[Warning] A temporary password is generated for root@localhost:
+iTag*AfrH5ej
+</pre></li><li class="listitem"><p>
+                With
+                <a class="link" href="server-options.html#option_mysqld_initialize-insecure"><code class="option">--initialize-insecure</code></a>,
+                (either with or without
+                <a class="link" href="server-options.html#option_mysqld_initialize"><code class="option">--initialize</code></a> because
+                <a class="link" href="server-options.html#option_mysqld_initialize-insecure"><code class="option">--initialize-insecure</code></a>
+                implies <a class="link" href="server-options.html#option_mysqld_initialize"><code class="option">--initialize</code></a>),
+                the server does not generate a password or mark it
+                expired, and writes a warning message:
+              </p><pre class="programlisting">[Warning] root@localhost is created with an empty password ! Please
+consider switching off the --initialize-insecure option.
+</pre></li></ul></div><p>
+            For instructions on assigning a new
+            <code class="literal">'root'@'localhost'</code> password, see
+            <a class="xref" href="data-directory-initialization.html#data-directory-initialization-password-assignment" title="Post-Initialization root Password Assignment">Post-Initialization root Password Assignment</a>.
+          </p></li><li class="listitem"><p>
+            The server populates the server-side help tables used for
+            the <a class="link" href="help.html" title="13.8.3 HELP Statement"><code class="literal">HELP</code></a> statement (see
+            <a class="xref" href="help.html" title="13.8.3 HELP Statement">Section 13.8.3, “HELP Statement”</a>). The server does not populate the
+            time zone tables. To do so manually, see
+            <a class="xref" href="time-zone-support.html" title="5.1.15 MySQL Server Time Zone Support">Section 5.1.15, “MySQL Server Time Zone Support”</a>.
+          </p></li><li class="listitem"><p>
+            If the <a class="link" href="server-system-variables.html#sysvar_init_file"><code class="literal">init_file</code></a> system
+            variable was given to name a file of SQL statements, the
+            server executes the statements in the file. This option
+            enables you to perform custom bootstrapping sequences.
+          </p><p>
+            When the server operates in bootstrap mode, some
+            functionality is unavailable that limits the statements
+            permitted in the file. These include statements that relate
+            to account management (such as <a class="link" href="create-user.html" title="13.7.1.3 CREATE USER Statement"><code class="literal">CREATE
+            USER</code></a> or <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a>),
+            replication, and global transaction identifiers.
+          </p></li><li class="listitem"><p>
+            The server exits.
+          </p></li></ol></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="data-directory-initialization-password-assignment"></a>Post-Initialization root Password Assignment</h4></div></div></div><p>
+        After you initialize the data directory by starting the server
+        with <a class="link" href="server-options.html#option_mysqld_initialize"><code class="option">--initialize</code></a> or
+        <a class="link" href="server-options.html#option_mysqld_initialize-insecure"><code class="option">--initialize-insecure</code></a>, start the
+        server normally (that is, without either of those options) and
+        assign the <code class="literal">'root'@'localhost'</code> account a new
+        password:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Start the server. For instructions, see
+            <a class="xref" href="starting-server.html" title="2.9.2 Starting the Server">Section 2.9.2, “Starting the Server”</a>.
+          </p></li><li class="listitem"><p>
+            Connect to the server:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                If you used <a class="link" href="server-options.html#option_mysqld_initialize"><code class="option">--initialize</code></a>
+                but not
+                <a class="link" href="server-options.html#option_mysqld_initialize-insecure"><code class="option">--initialize-insecure</code></a> to
+                initialize the data directory, connect to the server as
+                <code class="literal">root</code>:
+              </p><pre class="programlisting">mysql -u root -p
+</pre><p>
+                Then, at the password prompt, enter the random password
+                that the server generated during the initialization
+                sequence:
+              </p><pre class="programlisting">Enter password: <em class="replaceable"><code>(enter the random root password here)</code></em>
+</pre><p>
+                Look in the server error log if you do not know this
+                password.
+              </p></li><li class="listitem"><p>
+                If you used
+                <a class="link" href="server-options.html#option_mysqld_initialize-insecure"><code class="option">--initialize-insecure</code></a> to
+                initialize the data directory, connect to the server as
+                <code class="literal">root</code> without a password:
+              </p><pre class="programlisting">mysql -u root --skip-password
+</pre></li></ul></div></li><li class="listitem"><p>
+            After connecting, use an <a class="link" href="alter-user.html" title="13.7.1.1 ALTER USER Statement"><code class="literal">ALTER
+            USER</code></a> statement to assign a new
+            <code class="literal">root</code> password:
+          </p><pre class="programlisting">ALTER USER 'root'@'localhost' IDENTIFIED BY '<em class="replaceable"><code>root-password'</code></em>;
+</pre></li></ol></div><p>
+        See also <a class="xref" href="default-privileges.html" title="2.9.4 Securing the Initial MySQL Account">Section 2.9.4, “Securing the Initial MySQL Account”</a>.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Attempts to connect to the host <code class="literal">127.0.0.1</code>
+          normally resolve to the <code class="literal">localhost</code> account.
+          However, this fails if the server is run with
+          <a class="link" href="server-system-variables.html#sysvar_skip_name_resolve"><code class="literal">skip_name_resolve</code></a> enabled. If
+          you plan to do that, make sure that an account exists that can
+          accept a connection. For example, to be able to connect as
+          <code class="literal">root</code> using
+          <code class="option">--host=127.0.0.1</code> or
+          <code class="option">--host=::1</code>, create these accounts:
+        </p><pre class="programlisting">CREATE USER 'root'@'127.0.0.1' IDENTIFIED BY '<em class="replaceable"><code>root-password</code></em>';
+CREATE USER 'root'@'::1' IDENTIFIED BY '<em class="replaceable"><code>root-password</code></em>';
+</pre><p>
+          It is possible to put those statements in a file to be
+          executed using the <a class="link" href="server-system-variables.html#sysvar_init_file"><code class="literal">init_file</code></a>
+          system variable, as discussed in
+          <a class="xref" href="data-directory-initialization.html#data-directory-initialization-server-actions" title="Server Actions During Data Directory Initialization">Server Actions During Data Directory Initialization</a>.
+        </p></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="postinstallation.html">Previous <span class="navHint"> Postinstallation Setup and Testing </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="postinstallation.html">Up <span class="navHint"> Postinstallation Setup and Testing </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="starting-server.html">Next <span class="navHint"> Starting the Server </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.3.3 Replication Privilege Checks</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-security.html" title="17.3 Replication Security" /><link rel="prev" href="replication-binlog-encryption-key-rotation.html" title="17.3.2.3 Binary Log Master Key Rotation" /><link rel="next" href="replication-privilege-checks-account.html" title="17.3.3.1 Privileges For The Replication PRIVILEGE_CHECKS_USER Account" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-privilege-checks.html#replication-privilege-checks">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-binlog-encryption-key-rotation.html">Previous <span class="navHint"> Binary Log Master Key Rotation </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-security.html">Up <span class="navHint"> Replication Security </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-privilege-checks-account.html">Next <span class="navHint"> Privileges For The Replication PRIVILEGE_CHECKS_USER Account </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="replication-privilege-checks"></a>17.3.3 Replication Privilege Checks</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="replication-privilege-checks-account.html">17.3.3.1 Privileges For The Replication PRIVILEGE_CHECKS_USER Account</a></span></li><li><span class="section"><a href="replication-privilege-checks-gr.html">17.3.3.2 Privilege Checks For Group Replication Channels</a></span></li><li><span class="section"><a href="replication-privilege-checks-recover.html">17.3.3.3 Recovering From Failed Replication Privilege Checks</a></span></li></ul></div><p>
+      By default, MySQL replication (including Group Replication) does
+      not carry out privilege checks when transactions that were already
+      accepted by another server are applied on a replica or group
+      member. From MySQL 8.0.18, you can create a user account with the
+      appropriate privileges to apply the transactions that are normally
+      replicated on a channel, and specify this as the
+      <code class="literal">PRIVILEGE_CHECKS_USER</code> account for the
+      replication applier, using a <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE
+      REPLICATION SOURCE TO</code></a> statement (from MySQL 8.0.23) or
+      <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement (before
+      MySQL 8.0.23). MySQL then checks each transaction against the user
+      account's privileges to verify that you have authorized the
+      operation for that channel. The account can also be safely used by
+      an administrator to apply or reapply transactions from
+      <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> output, for example to recover from
+      a replication error on the channel.
+    </p><p>
+      The use of a <code class="literal">PRIVILEGE_CHECKS_USER</code> account
+      helps secure a replication channel against the unauthorized or
+      accidental use of privileged or unwanted operations. The
+      <code class="literal">PRIVILEGE_CHECKS_USER</code> account provides an
+      additional layer of security in situations such as these:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          You are replicating between a server instance on your
+          organization's network, and a server instance on another
+          network, such as an instance supplied by a cloud service
+          provider.
+        </p></li><li class="listitem"><p>
+          You want to have multiple on-premise or off-site deployments
+          administered as separate units, without giving one
+          administrator account privileges on all the deployments.
+        </p></li><li class="listitem"><p>
+          You want to have an administrator account that enables an
+          administrator to perform only operations that are directly
+          relevant to the replication channel and the databases it
+          replicates, rather than having wide privileges on the server
+          instance.
+        </p></li></ul></div><p>
+      You can increase the security of a replication channel where
+      privilege checks are applied by adding one or both of these
+      options to the <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+      TO</code></a> | <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a>
+      statement when you specify the
+      <code class="literal">PRIVILEGE_CHECKS_USER</code> account for the channel:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The <code class="literal">REQUIRE_ROW_FORMAT</code> option (available
+          from MySQL 8.0.19) makes the replication channel accept only
+          row-based replication events. When
+          <code class="literal">REQUIRE_ROW_FORMAT</code> is set, you must use
+          row-based binary logging
+          (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a>) on the
+          source server. In MySQL 8.0.18,
+          <code class="literal">REQUIRE_ROW_FORMAT</code> is not available, but
+          the use of row-based binary logging for secured replication
+          channels is still strongly recommended. With statement-based
+          binary logging, some administrator-level privileges might be
+          required for the <code class="literal">PRIVILEGE_CHECKS_USER</code>
+          account to execute transactions successfully.
+        </p></li><li class="listitem"><p>
+          The <code class="literal">REQUIRE_TABLE_PRIMARY_KEY_CHECK</code> option
+          (available from MySQL 8.0.20) makes the replication channel
+          use its own policy for primary key checks. Setting
+          <code class="literal">ON</code> means that primary keys are always
+          required, and setting <code class="literal">OFF</code> means that
+          primary keys are never required. The default setting,
+          <code class="literal">STREAM</code>, sets the session value of the
+          <a class="link" href="server-system-variables.html#sysvar_sql_require_primary_key"><code class="literal">sql_require_primary_key</code></a>
+          system variable using the value that is replicated from the
+          source for each transaction. When
+          <code class="literal">PRIVILEGE_CHECKS_USER</code> is set, setting
+          <code class="literal">REQUIRE_TABLE_PRIMARY_KEY_CHECK</code> to either
+          <code class="literal">ON</code> or <code class="literal">OFF</code> means that the
+          user account does not need session administration level
+          privileges to set restricted session variables, which are
+          required to change the value of
+          <a class="link" href="server-system-variables.html#sysvar_sql_require_primary_key"><code class="literal">sql_require_primary_key</code></a>. It
+          also normalizes the behavior across replication channels for
+          different sources.
+        </p></li></ul></div><p>
+      You grant the <a class="link" href="privileges-provided.html#priv_replication-applier"><code class="literal">REPLICATION_APPLIER</code></a>
+      privilege to enable a user account to appear as the
+      <code class="literal">PRIVILEGE_CHECKS_USER</code> for a replication applier
+      thread, and to execute the internal-use
+      <a class="link" href="binlog.html" title="13.7.8.1 BINLOG Statement"><code class="literal">BINLOG</code></a> statements used by
+      mysqlbinlog. The user name and host name for the
+      <code class="literal">PRIVILEGE_CHECKS_USER</code> account must follow the
+      syntax described in <a class="xref" href="account-names.html" title="6.2.4 Specifying Account Names">Section 6.2.4, “Specifying Account Names”</a>, and the user
+      must not be an anonymous user (with a blank user name) or the
+      <code class="literal">CURRENT_USER</code>. To create a new account, use
+      <a class="link" href="create-user.html" title="13.7.1.3 CREATE USER Statement"><code class="literal">CREATE USER</code></a>. To grant this account
+      the <a class="link" href="privileges-provided.html#priv_replication-applier"><code class="literal">REPLICATION_APPLIER</code></a> privilege,
+      use the <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statement. For
+      example, to create a user account <code class="literal">priv_repl</code>,
+      which can be used manually by an administrator from any host in
+      the <code class="literal">example.com</code> domain, and requires an
+      encrypted connection, issue the following statements:
+    </p><pre class="programlisting">mysql&gt; SET sql_log_bin = 0;
+mysql&gt; CREATE USER 'priv_repl'@'%.example.com' IDENTIFIED BY '<em class="replaceable"><code>password</code></em>' REQUIRE SSL;
+mysql&gt; GRANT REPLICATION_APPLIER ON *.* TO 'priv_repl'@'%.example.com';
+mysql&gt; SET sql_log_bin = 1;
+</pre><p>
+      The <code class="literal">SET sql_log_bin</code> statements are used so that
+      the account management statements are not added to the binary log
+      and sent to the replication channels (see
+      <a class="xref" href="set-sql-log-bin.html" title="13.4.1.3 SET sql_log_bin Statement">Section 13.4.1.3, “SET sql_log_bin Statement”</a>).
+    </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        The <code class="literal">caching_sha2_password</code> authentication
+        plugin is the default for new users created from MySQL 8.0 (for
+        details, see
+        <a class="xref" href="caching-sha2-pluggable-authentication.html" title="6.4.1.2 Caching SHA-2 Pluggable Authentication">Section 6.4.1.2, “Caching SHA-2 Pluggable Authentication”</a>). To
+        connect to a server using a user account that authenticates with
+        this plugin, you must either set up an encrypted connection as
+        described in
+        <a class="xref" href="replication-encrypted-connections.html" title="17.3.1 Setting Up Replication to Use Encrypted Connections">Section 17.3.1, “Setting Up Replication to Use Encrypted Connections”</a>, or enable
+        the unencrypted connection to support password exchange using an
+        RSA key pair.
+      </p></div><p>
+      After setting up the user account, use the
+      <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statement to grant additional
+      privileges to enable the user account to make the database changes
+      that you expect the applier thread to carry out, such as updating
+      specific tables held on the server. These same privileges enable
+      an administrator to use the account if they need to execute any of
+      those transactions manually on the replication channel. If an
+      unexpected operation is attempted for which you did not grant the
+      appropriate privileges, the operation is disallowed and the
+      replication applier thread stops with an error.
+      <a class="xref" href="replication-privilege-checks-account.html" title="17.3.3.1 Privileges For The Replication PRIVILEGE_CHECKS_USER Account">Section 17.3.3.1, “Privileges For The Replication PRIVILEGE_CHECKS_USER Account”</a> explains
+      what additional privileges the account needs. For example, to
+      grant the <code class="literal">priv_repl</code> user account the
+      <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a> privilege to add rows to the
+      <code class="literal">cust</code> table in <code class="literal">db1</code>, issue the
+      following statement:
+    </p><pre class="programlisting">mysql&gt; GRANT INSERT ON db1.cust TO 'priv_repl'@'%.example.com';
+</pre><p>
+      You assign the <code class="literal">PRIVILEGE_CHECKS_USER</code> account
+      for a replication channel using a <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE
+      REPLICATION SOURCE TO</code></a> statement (from MySQL 8.0.23) or
+      <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement (before
+      MySQL 8.0.23). If replication is running, issue
+      <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+      REPLICA</code></a> (or before MySQL 8.0.22,
+      <a class="link" href="stop-slave.html" title="13.4.2.11 STOP SLAVE Statement"><code class="literal">STOP SLAVE</code></a>)
+      before the <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a>
+      statement, and
+      <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+      REPLICA</code></a> after it. The use of row-based binary logging is
+      strongly recommended when <code class="literal">PRIVILEGE_CHECKS_USER</code>
+      is set, and from MySQL 8.0.19 you can use the statement to set
+      <code class="literal">REQUIRE_ROW_FORMAT</code> to enforce this.
+    </p><p>
+      When you restart the replication channel, checks on dynamic
+      privileges are applied from that point on. However, static global
+      privileges are not active in the applier's context until you
+      reload the grant tables, because these privileges are not changed
+      for a connected client. To activate static privileges, perform a
+      flush-privileges operation. This can be done by issuing a
+      <a class="link" href="flush.html#flush-privileges"><code class="literal">FLUSH PRIVILEGES</code></a> statement or by
+      executing a <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin flush-privileges</strong></span></a> or
+      <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin reload</strong></span></a> command.
+    </p><p>
+      For example, to start privilege checks on the channel
+      <code class="literal">channel_1</code> on a running replica in MySQL 8.0.23
+      and later, issue the following statements:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>STOP REPLICA FOR CHANNEL 'channel_1';</code></strong>
+mysql&gt; <strong class="userinput"><code>CHANGE REPLICATION SOURCE TO</code></strong>
+     &gt;    <strong class="userinput"><code>PRIVILEGE_CHECKS_USER = 'priv_repl'@'%.example.com',</code></strong>
+     &gt;    <strong class="userinput"><code>REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_1';</code></strong>
+mysql&gt; <strong class="userinput"><code>FLUSH PRIVILEGES;</code></strong>
+mysql&gt; <strong class="userinput"><code>START REPLICA FOR CHANNEL 'channel_1';</code></strong>
+</pre><p>
+      Prior to MySQL 8.0.23, you can use the statements shown here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>STOP SLAVE FOR CHANNEL 'channel_1';</code></strong>
+mysql&gt; <strong class="userinput"><code>CHANGE MASTER TO</code></strong>
+     &gt;    <strong class="userinput"><code>PRIVILEGE_CHECKS_USER = 'priv_repl'@'%.example.com',</code></strong>
+     &gt;    <strong class="userinput"><code>REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_1';</code></strong>
+mysql&gt; <strong class="userinput"><code>FLUSH PRIVILEGES;</code></strong>
+mysql&gt; <strong class="userinput"><code>START SLAVE FOR CHANNEL 'channel_1';</code></strong>
+</pre><p>
+      If you do not specify a channel and no other channels exist, the
+      statement is applied to the default channel. The user name and
+      host name for the <code class="literal">PRIVILEGE_CHECKS_USER</code> account
+      for a channel are shown in the Performance Schema
+      <a class="link" href="performance-schema-replication-applier-configuration-table.html" title="27.12.11.5 The replication_applier_configuration Table"><code class="literal">replication_applier_configuration</code></a>
+      table, where they are properly escaped so they can be copied
+      directly into SQL statements to execute individual transactions.
+    </p><p>
+      In MySQL 8.0.31 and later, if you are using the
+      <code class="literal">Rewriter</code> plugin, you should grant the
+      <code class="literal">PRIVILEGE_CHECKS_USER</code> user account the
+      <a class="link" href="privileges-provided.html#priv_skip-query-rewrite"><code class="literal">SKIP_QUERY_REWRITE</code></a> privilege. This
+      prevents statements issued by this user from being rewritten. See
+      <a class="xref" href="rewriter-query-rewrite-plugin.html" title="5.6.4 The Rewriter Query Rewrite Plugin">Section 5.6.4, “The Rewriter Query Rewrite Plugin”</a>, for more
+      information.
+    </p><p>
+      When <code class="literal">REQUIRE_ROW_FORMAT</code> is set for a
+      replication channel, the replication applier does not create or
+      drop temporary tables, and so does not set the
+      <a class="link" href="server-system-variables.html#sysvar_pseudo_thread_id"><code class="literal">pseudo_thread_id</code></a> session system
+      variable. It does not execute <code class="literal">LOAD DATA INFILE</code>
+      instructions, and so does not attempt file operations to access or
+      delete the temporary files associated with data loads (logged as a
+      <code class="literal">Format_description_log_event</code>). It does not
+      execute <code class="literal">INTVAR</code>, <code class="literal">RAND</code>, and
+      <code class="literal">USER_VAR</code> events, which are used to reproduce
+      the client's connection state for statement-based replication. (An
+      exception is <code class="literal">USER_VAR</code> events that are
+      associated with DDL queries, which are executed.) It does not
+      execute any statements that are logged within DML transactions. If
+      the replication applier detects any of these types of event while
+      attempting to queue or apply a transaction, the event is not
+      applied, and replication stops with an error.
+    </p><p>
+      You can set <code class="literal">REQUIRE_ROW_FORMAT</code> for a
+      replication channel whether or not you set a
+      <code class="literal">PRIVILEGE_CHECKS_USER</code> account. The restrictions
+      implemented when you set this option increase the security of the
+      replication channel even without privilege checks. You can also
+      specify the <code class="option">--require-row-format</code> option when you
+      use <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>, to enforce row-based
+      replication events in <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> output.
+    </p><p><strong>Security Context. </strong>
+        By default, when a replication applier thread is started with a
+        user account specified as the
+        <code class="literal">PRIVILEGE_CHECKS_USER</code>, the security context
+        is created using default roles, or with all roles if
+        <a class="link" href="server-system-variables.html#sysvar_activate_all_roles_on_login"><code class="literal">activate_all_roles_on_login</code></a> is
+        set to <code class="literal">ON</code>.
+      </p><p>
+      You can use roles to supply a general privilege set to accounts
+      that are used as <code class="literal">PRIVILEGE_CHECKS_USER</code>
+      accounts, as in the following example. Here, instead of granting
+      the <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a> privilege for the
+      <code class="literal">db1.cust</code> table directly to a user account as in
+      the earlier example, this privilege is granted to the role
+      <code class="literal">priv_repl_role</code> along with the
+      <a class="link" href="privileges-provided.html#priv_replication-applier"><code class="literal">REPLICATION_APPLIER</code></a> privilege. The
+      role is then used to grant the privilege set to two user accounts,
+      both of which can now be used as
+      <code class="literal">PRIVILEGE_CHECKS_USER</code> accounts:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET sql_log_bin = 0;</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE USER 'priv_repa'@'%.example.com'</code></strong>
+                  <strong class="userinput"><code>IDENTIFIED BY '<em class="replaceable"><code>password</code></em>'</code></strong>
+                  <strong class="userinput"><code>REQUIRE SSL;</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE USER 'priv_repb'@'%.example.com'</code></strong>
+                  <strong class="userinput"><code>IDENTIFIED BY '<em class="replaceable"><code>password</code></em>'</code></strong>
+                  <strong class="userinput"><code>REQUIRE SSL;</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE ROLE 'priv_repl_role';</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT REPLICATION_APPLIER TO 'priv_repl_role';</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT INSERT ON db1.cust TO 'priv_repl_role';</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT 'priv_repl_role' TO</code></strong>
+                  <strong class="userinput"><code>'priv_repa'@'%.example.com',</code></strong>
+                  <strong class="userinput"><code>'priv_repb'@'%.example.com';</code></strong>
+mysql&gt; <strong class="userinput"><code>SET DEFAULT ROLE 'priv_repl_role' TO</code></strong>
+                  <strong class="userinput"><code>'priv_repa'@'%.example.com',</code></strong>
+                  <strong class="userinput"><code>'priv_repb'@'%.example.com';</code></strong>
+mysql&gt; <strong class="userinput"><code>SET sql_log_bin = 1;</code></strong>
+</pre><p>
+      Be aware that when the replication applier thread creates the
+      security context, it checks the privileges for the
+      <code class="literal">PRIVILEGE_CHECKS_USER</code> account, but does not
+      carry out password validation, and does not carry out checks
+      relating to account management, such as checking whether the
+      account is locked. The security context that is created remains
+      unchanged for the lifetime of the replication applier thread.
+    </p><p><strong>Limitation. </strong>
+        In MySQL 8.0.18 only, if the replica <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+        is restarted immediately after issuing a
+        <a class="link" href="reset-replica.html" title="13.4.2.5 RESET REPLICA Statement"><code class="literal">RESET
+        REPLICA</code></a> statement (due to an unexpected server exit or
+        deliberate restart), the
+        <code class="literal">PRIVILEGE_CHECKS_USER</code> account setting, which
+        is held in the <code class="literal">mysql.slave_relay_log_info</code>
+        table, is lost and must be respecified. When you use privilege
+        checks in that release, always verify that they are in place
+        after a restart, and respecify them if required. From MySQL
+        8.0.19, the <code class="literal">PRIVILEGE_CHECKS_USER</code> account
+        setting is preserved in this situation, so it is retrieved from
+        the table and reapplied to the channel.
+
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-binlog-encryption-key-rotation.html">Previous <span class="navHint"> Binary Log Master Key Rotation </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-security.html">Up <span class="navHint"> Replication Security </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-privilege-checks-account.html">Next <span class="navHint"> Privileges For The Replication PRIVILEGE_CHECKS_USER Account </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

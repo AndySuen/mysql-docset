@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>7.3 Example Backup and Recovery Strategy</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="backup-and-recovery.html" title="Chapter 7 Backup and Recovery" /><link rel="prev" href="backup-methods.html" title="7.2 Database Backup Methods" /><link rel="next" href="backup-policy.html" title="7.3.1 Establishing a Backup Policy" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="backup-strategy-example.html#backup-strategy-example">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="backup-methods.html">Previous <span class="navHint"> Database Backup Methods </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="backup-and-recovery.html">Up <span class="navHint"> Backup and Recovery </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="backup-policy.html">Next <span class="navHint"> Establishing a Backup Policy </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="backup-strategy-example"></a>7.3 Example Backup and Recovery Strategy</h2></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="backup-policy.html">7.3.1 Establishing a Backup Policy</a></span></li><li><span class="section"><a href="recovery-from-backups.html">7.3.2 Using Backups for Recovery</a></span></li><li><span class="section"><a href="backup-strategy-summary.html">7.3.3 Backup Strategy Summary</a></span></li></ul></div><p>
+      This section discusses a procedure for performing backups that
+      enables you to recover data after several types of crashes:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Operating system crash
+        </p></li><li class="listitem"><p>
+          Power failure
+        </p></li><li class="listitem"><p>
+          File system crash
+        </p></li><li class="listitem"><p>
+          Hardware problem (hard drive, motherboard, and so forth)
+        </p></li></ul></div><p>
+      The example commands do not include options such as
+      <a class="link" href="connection-options.html#option_general_user"><code class="option">--user</code></a> and
+      <a class="link" href="connection-options.html#option_general_password"><code class="option">--password</code></a> for the
+      <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> and <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client
+      programs. You should include such options as necessary to enable
+      client programs to connect to the MySQL server.
+    </p><p>
+      Assume that data is stored in the <code class="literal">InnoDB</code>
+      storage engine, which has support for transactions and automatic
+      crash recovery. Assume also that the MySQL server is under load at
+      the time of the crash. If it were not, no recovery would ever be
+      needed.
+    </p><p>
+      For cases of operating system crashes or power failures, we can
+      assume that MySQL's disk data is available after a restart. The
+      <code class="literal">InnoDB</code> data files might not contain consistent
+      data due to the crash, but <code class="literal">InnoDB</code> reads its
+      logs and finds in them the list of pending committed and
+      noncommitted transactions that have not been flushed to the data
+      files. <code class="literal">InnoDB</code> automatically rolls back those
+      transactions that were not committed, and flushes to its data
+      files those that were committed. Information about this recovery
+      process is conveyed to the user through the MySQL error log. The
+      following is an example log excerpt:
+    </p><pre class="programlisting">InnoDB: Database was not shut down normally.
+InnoDB: Starting recovery from log files...
+InnoDB: Starting log scan based on checkpoint at
+InnoDB: log sequence number 0 13674004
+InnoDB: Doing recovery: scanned up to log sequence number 0 13739520
+InnoDB: Doing recovery: scanned up to log sequence number 0 13805056
+InnoDB: Doing recovery: scanned up to log sequence number 0 13870592
+InnoDB: Doing recovery: scanned up to log sequence number 0 13936128
+...
+InnoDB: Doing recovery: scanned up to log sequence number 0 20555264
+InnoDB: Doing recovery: scanned up to log sequence number 0 20620800
+InnoDB: Doing recovery: scanned up to log sequence number 0 20664692
+InnoDB: 1 uncommitted transaction(s) which must be rolled back
+InnoDB: Starting rollback of uncommitted transactions
+InnoDB: Rolling back trx no 16745
+InnoDB: Rolling back of trx no 16745 completed
+InnoDB: Rollback of uncommitted transactions completed
+InnoDB: Starting an apply batch of log records to the database...
+InnoDB: Apply batch completed
+InnoDB: Started
+mysqld: ready for connections
+</pre><p>
+      For the cases of file system crashes or hardware problems, we can
+      assume that the MySQL disk data is <span class="emphasis"><em>not</em></span>
+      available after a restart. This means that MySQL fails to start
+      successfully because some blocks of disk data are no longer
+      readable. In this case, it is necessary to reformat the disk,
+      install a new one, or otherwise correct the underlying problem.
+      Then it is necessary to recover our MySQL data from backups, which
+      means that backups must already have been made. To make sure that
+      is the case, design and implement a backup policy.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="backup-methods.html">Previous <span class="navHint"> Database Backup Methods </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="backup-and-recovery.html">Up <span class="navHint"> Backup and Recovery </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="backup-policy.html">Next <span class="navHint"> Establishing a Backup Policy </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

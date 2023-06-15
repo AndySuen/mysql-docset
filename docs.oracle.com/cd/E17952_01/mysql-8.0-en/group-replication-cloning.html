@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>18.5.4.2 Cloning for Distributed Recovery</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="group-replication-distributed-recovery.html" title="18.5.4 Distributed Recovery" /><link rel="prev" href="group-replication-distributed-recovery-connections.html" title="18.5.4.1 Connections for Distributed Recovery" /><link rel="next" href="group-replication-tuning-recovery.html" title="18.5.4.3 Configuring Distributed Recovery" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-cloning.html#group-replication-cloning">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-replication-distributed-recovery-connections.html">Previous <span class="navHint"> Connections for Distributed Recovery </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="group-replication-distributed-recovery.html">Up <span class="navHint"> Distributed Recovery </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-tuning-recovery.html">Next <span class="navHint"> Configuring Distributed Recovery </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="group-replication-cloning"></a>18.5.4.2 Cloning for Distributed Recovery</h4></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="group-replication-cloning.html#group-replication-cloning-prerequisites">18.5.4.2.1 Prerequisites for Cloning</a></span></li><li><span class="section"><a href="group-replication-cloning.html#group-replication-cloning-threshold">18.5.4.2.2 Threshold for Cloning</a></span></li><li><span class="section"><a href="group-replication-cloning.html#group-replication-cloning-operations">18.5.4.2.3 Cloning Operations</a></span></li><li><span class="section"><a href="group-replication-cloning.html#group-replication-cloning-manual">18.5.4.2.4 Cloning for Other Purposes</a></span></li></ul></div><p>
+        MySQL Server's clone plugin is available from MySQL 8.0.17. If
+        you want to use remote cloning operations for distributed
+        recovery in a group, you must set up existing members and
+        joining members beforehand to support this function. If you do
+        not want to use this function in a group, do not set it up, in
+        which case Group Replication only uses state transfer from the
+        binary log.
+      </p><p>
+        To use cloning, at least one existing group member and the
+        joining member must be set up beforehand to support remote
+        cloning operations. As a minimum, you must install the clone
+        plugin on the donor and joining member, grant the
+        <a class="link" href="privileges-provided.html#priv_backup-admin"><code class="literal">BACKUP_ADMIN</code></a> permission to the
+        replication user for distributed recovery, and set the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_clone_threshold"><code class="literal">group_replication_clone_threshold</code></a>
+        system variable to an appropriate level. To ensure the maximum
+        availability of donors, it is advisable to set up all current
+        and future group members to support remote cloning operations.
+      </p><p>
+        Be aware that a remote cloning operation removes user-created
+        tablespaces and data from the joining member before transferring
+        the data from the donor. If the operation is stopped while in
+        progress, the joining member might be left with partial data or
+        no data. This can be repaired by retrying the remote cloning
+        operation, which Group Replication does automatically.
+      </p><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-cloning-prerequisites"></a>18.5.4.2.1 Prerequisites for Cloning</h5></div></div></div><p>
+          For full instructions to set up and configure the clone
+          plugin, see <a class="xref" href="clone-plugin.html" title="5.6.7 The Clone Plugin">Section 5.6.7, “The Clone Plugin”</a> . Detailed
+          prerequisites for a remote cloning operation are covered in
+          <a class="xref" href="clone-plugin-remote.html" title="5.6.7.3 Cloning Remote Data">Section 5.6.7.3, “Cloning Remote Data”</a> . For Group Replication,
+          note the following key points and differences:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The donor (an existing group member) and the recipient
+              (the joining member) must have the clone plugin installed
+              and active. For instructions to do this, see
+              <a class="xref" href="clone-plugin-installation.html" title="5.6.7.1 Installing the Clone Plugin">Section 5.6.7.1, “Installing the Clone Plugin”</a> .
+            </p></li><li class="listitem"><p>
+              The donor and the recipient must run on the same operating
+              system, and must have the same MySQL Server version (which
+              must be MySQL 8.0.17 or above to support the clone
+              plugin). Cloning is therefore not suitable for groups
+              where members run different MySQL Server versions.
+            </p></li><li class="listitem"><p>
+              The donor and the recipient must have the Group
+              Replication plugin installed and active, and any other
+              plugins that are active on the donor (such as a keyring
+              plugin) must also be active on the recipient.
+            </p></li><li class="listitem"><p>
+              If distributed recovery is configured to use SSL
+              (<a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_use_ssl"><code class="literal">group_replication_recovery_use_ssl=ON</code></a>),
+              Group Replication applies this setting for remote cloning
+              operations. Group Replication automatically configures the
+              settings for the clone SSL options
+              (<a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_ca"><code class="literal">clone_ssl_ca</code></a>,
+              <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_cert"><code class="literal">clone_ssl_cert</code></a>, and
+              <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_key"><code class="literal">clone_ssl_key</code></a>) to match
+              your settings for the corresponding Group Replication
+              distributed recovery options
+              (<a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_ssl_ca"><code class="literal">group_replication_recovery_ssl_ca</code></a>,
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_ssl_cert"><code class="literal">group_replication_recovery_ssl_cert</code></a>,
+              and
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_ssl_key"><code class="literal">group_replication_recovery_ssl_key</code></a>).
+            </p></li><li class="listitem"><p>
+              You do not need to set up a list of valid donors in the
+              <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_valid_donor_list"><code class="literal">clone_valid_donor_list</code></a>
+              system variable for the purpose of joining a replication
+              group. Group Replication configures this setting
+              automatically for you after it selects a donor from the
+              existing group members. Note that remote cloning
+              operations use the server's SQL protocol hostname and
+              port.
+            </p></li><li class="listitem"><p>
+              The clone plugin has a number of system variables to
+              manage the network load and performance impact of the
+              remote cloning operation. Group Replication does not
+              configure these settings, so you can review them and set
+              them if you want to, or allow them to default. Note that
+              when a remote cloning operation is used for distributed
+              recovery, the clone plugin's
+              <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_enable_compression"><code class="literal">clone_enable_compression</code></a>
+              setting applies to the operation, rather than the Group
+              Replication compression setting.
+            </p></li><li class="listitem"><p>
+              To invoke the remote cloning operation on the recipient,
+              Group Replication uses the internal
+              <code class="literal">mysql.session</code> user, which already has
+              the <a class="link" href="privileges-provided.html#priv_clone-admin"><code class="literal">CLONE_ADMIN</code></a> privilege,
+              so you do not need to set this up.
+            </p></li><li class="listitem"><p>
+              As the clone user on the donor for the remote cloning
+              operation, Group Replication uses the replication user
+              that you set up for distributed recovery (which is covered
+              in <a class="xref" href="group-replication-user-credentials.html" title="18.2.1.3 User Credentials For Distributed Recovery">Section 18.2.1.3, “User Credentials For Distributed Recovery”</a>).
+              You must therefore give the
+              <a class="link" href="privileges-provided.html#priv_backup-admin"><code class="literal">BACKUP_ADMIN</code></a> privilege to
+              this replication user on all group members that support
+              cloning. Also give the privilege to the replication user
+              on joining members when you are configuring them for Group
+              Replication, because they can act as donors after they
+              join the group. The same replication user is used for
+              distributed recovery on every group member. To give this
+              privilege to the replication user on existing members, you
+              can issue this statement on each group member individually
+              with binary logging disabled, or on one group member with
+              binary logging enabled:
+            </p><pre class="programlisting">GRANT BACKUP_ADMIN ON *.* TO <em class="replaceable"><code>rpl_user</code></em>@'%';
+</pre></li><li class="listitem"><p>
+              If you use <a class="link" href="start-group-replication.html" title="13.4.3.1 START GROUP_REPLICATION Statement"><code class="literal">START
+              GROUP_REPLICATION</code></a> to specify the replication
+              user credentials on a server that previously supplied the
+              user credentials using <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE
+              REPLICATION SOURCE TO</code></a> |
+              <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a>, ensure
+              that you remove the user credentials from the replication
+              metadata repositories before any remote cloning operations
+              take place. Also ensure that
+              <a class="link" href="group-replication-options.html#sysvar_group_replication_start_on_boot"><code class="literal">group_replication_start_on_boot=OFF</code></a>
+              is set on the joining member. For instructions, see
+              <a class="xref" href="group-replication-distributed-recovery-securing.html" title="18.6.3 Securing Distributed Recovery Connections">Section 18.6.3, “Securing Distributed Recovery Connections”</a>.
+              If you do not unset the user credentials, they are
+              transferred to the joining member during remote cloning
+              operations. The
+              <code class="literal">group_replication_recovery</code> channel
+              could then be inadvertently started with the stored
+              credentials, on either the original member or members that
+              were cloned from it. An automatic start of Group
+              Replication on server boot (including after a remote
+              cloning operation) would use the stored user credentials,
+              and they would also be used if an operator did not specify
+              the distributed recovery credentials on a
+              <a class="link" href="start-group-replication.html" title="13.4.3.1 START GROUP_REPLICATION Statement"><code class="literal">START GROUP_REPLICATION</code></a>
+              command.
+            </p></li></ul></div></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-cloning-threshold"></a>18.5.4.2.2 Threshold for Cloning</h5></div></div></div><p>
+          When group members have been set up to support cloning, the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_clone_threshold"><code class="literal">group_replication_clone_threshold</code></a>
+          system variable specifies a threshold, expressed as a number
+          of transactions, for the use of a remote cloning operation in
+          distributed recovery. If the gap between the transactions on
+          the donor and the transactions on the joining member is larger
+          than this number, a remote cloning operation is used for state
+          transfer to the joining member when this is technically
+          possible. Group Replication calculates whether the threshold
+          has been exceeded based on the
+          <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> sets of the
+          existing group members. Using a remote cloning operation in
+          the event of a large transaction gap lets you add new members
+          to the group without transferring the group's data to the
+          server manually beforehand, and also enables a member that is
+          very out of date to catch up more efficiently.
+        </p><p>
+          The default setting for the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_clone_threshold"><code class="literal">group_replication_clone_threshold</code></a>
+          Group Replication system variable is extremely high (the
+          maximum permitted sequence number for a transaction in a
+          GTID), so it effectively deactivates cloning wherever state
+          transfer from the binary log is possible. To enable Group
+          Replication to select a remote cloning operation for state
+          transfer where this is more appropriate, set the system
+          variable to specify a number of transactions as the
+          transaction gap above which you want cloning to take place.
+        </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+            Do not use a low setting for
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_clone_threshold"><code class="literal">group_replication_clone_threshold</code></a>
+            in an active group. If a number of transactions above the
+            threshold takes place in the group while the remote cloning
+            operation is in progress, the joining member triggers a
+            remote cloning operation again after restarting, and could
+            continue this indefinitely. To avoid this situation, ensure
+            that you set the threshold to a number higher than the
+            number of transactions that you would expect to occur in the
+            group during the time taken for the remote cloning
+            operation.
+          </p></div><p>
+          Group Replication attempts to execute a remote cloning
+          operation regardless of your threshold when state transfer
+          from a donor's binary log is impossible, for example because
+          the transactions needed by the joining member are not
+          available in the binary log on any existing group member.
+          Group Replication identifies this based on the
+          <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> sets of the
+          existing group members. You cannot use the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_clone_threshold"><code class="literal">group_replication_clone_threshold</code></a>
+          system variable to deactivate cloning when the required
+          transactions are not available in any member's binary log
+          files, because in that situation cloning is the only
+          alternative to transferring data to the joining member
+          manually.
+        </p></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-cloning-operations"></a>18.5.4.2.3 Cloning Operations</h5></div></div></div><p>
+          When group members and joining members are set up for cloning,
+          Group Replication manages remote cloning operations for you. A
+          remote cloning operation might take some time to complete,
+          depending on the size of the data. See
+          <a class="xref" href="clone-plugin-monitoring.html" title="5.6.7.10 Monitoring Cloning Operations">Section 5.6.7.10, “Monitoring Cloning Operations”</a> for information on
+          monitoring the process.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            When state transfer is complete, Group Replication restarts
+            the joining member to complete the process. If
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_start_on_boot"><code class="literal">group_replication_start_on_boot=OFF</code></a>
+            is set on the joining member, for example because you
+            specify the replication user credentials on the
+            <a class="link" href="start-group-replication.html" title="13.4.3.1 START GROUP_REPLICATION Statement"><code class="literal">START GROUP_REPLICATION</code></a>
+            statement, you must issue <a class="link" href="start-group-replication.html" title="13.4.3.1 START GROUP_REPLICATION Statement"><code class="literal">START
+            GROUP_REPLICATION</code></a> manually again following this
+            restart. If
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_start_on_boot"><code class="literal">group_replication_start_on_boot=ON</code></a>
+            and other settings required to start Group Replication were
+            set in a configuration file or using a <code class="literal">SET
+            PERSIST</code> statement, you do not need to intervene
+            and the process continues automatically to bring the joining
+            member online.
+          </p></div><p>
+          If the remote cloning procedure takes a long time, in releases
+          before MySQL 8.0.22, it is possible for the set of
+          certification information that accumulates for the group
+          during that time to become too large to transmit to the
+          joining member. In that case, the joining member logs an error
+          message and does not join the group. From MySQL 8.0.22, Group
+          Replication manages the garbage collection process for applied
+          transactions differently to avoid this scenario. In earlier
+          releases, if you do see this error, after the remote cloning
+          operation completes, wait two minutes to allow a round of
+          garbage collection to take place to reduce the size of the
+          group's certification information. Then issue the following
+          statement on the joining member, so that it stops trying to
+          apply the previous set of certification information:
+        </p><pre class="programlisting">RESET SLAVE FOR CHANNEL group_replication_recovery;
+Or from MySQL 8.0.22:
+RESET REPLICA FOR CHANNEL group_replication_recovery;
+</pre><p>
+          A remote cloning operation clones settings that are persisted
+          in tables from the donor to the recipient, as well as the
+          data. Group Replication manages the settings that relate
+          specifically to Group Replication channels. Group Replication
+          member settings that are persisted in configuration files,
+          such as the group replication local address, are not cloned
+          and are not changed on the joining member. Group Replication
+          also preserves the channel settings that relate to the use of
+          SSL, so these are unique to the individual member.
+        </p><p>
+          If the replication user credentials used by the donor for the
+          <code class="literal">group_replication_recovery</code> replication
+          channel have been stored in the replication metadata
+          repositories using a <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION
+          SOURCE TO</code></a> | <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER
+          TO</code></a> statement, they are transferred to and used by
+          the joining member after cloning, and they must be valid
+          there. With stored credentials, all group members that
+          received state transfer by a remote cloning operation
+          therefore automatically receive the replication user and
+          password for distributed recovery. If you specify the
+          replication user credentials on the <a class="link" href="start-group-replication.html" title="13.4.3.1 START GROUP_REPLICATION Statement"><code class="literal">START
+          GROUP_REPLICATION</code></a> statement, these are used to start
+          the remote cloning operation, but they are not transferred to
+          and used by the joining member after cloning. If you do not
+          want the credentials transferred to new joiners and recorded
+          there, ensure that you unset them before remote cloning
+          operations take place, as described in
+          <a class="xref" href="group-replication-distributed-recovery-securing.html" title="18.6.3 Securing Distributed Recovery Connections">Section 18.6.3, “Securing Distributed Recovery Connections”</a>,
+          and use <a class="link" href="start-group-replication.html" title="13.4.3.1 START GROUP_REPLICATION Statement"><code class="literal">START GROUP_REPLICATION</code></a>
+          to supply them instead.
+        </p><p>
+          If a <code class="literal">PRIVILEGE_CHECKS_USER</code> account has been
+          used to help secure the replication appliers (see
+          <a class="xref" href="replication-privilege-checks-gr.html" title="17.3.3.2 Privilege Checks For Group Replication Channels">Section 17.3.3.2, “Privilege Checks For Group Replication Channels”</a>), from MySQL
+          8.0.19, the <code class="literal">PRIVILEGE_CHECKS_USER</code> account
+          and related settings from the donor are cloned to the joining
+          member. If the joining member is set to start Group
+          Replication on boot, it automatically uses the account for
+          privilege checks on the appropriate replication channels. (In
+          MySQL 8.0.18, due to a number of limitations, it is
+          recommended that you do not use a
+          <code class="literal">PRIVILEGE_CHECKS_USER</code> account with Group
+          Replication channels.)
+        </p></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-cloning-manual"></a>18.5.4.2.4 Cloning for Other Purposes</h5></div></div></div><p>
+          Group Replication initiates and manages cloning operations for
+          distributed recovery. Group members that have been set up to
+          support cloning may also participate in cloning operations
+          that a user initiates manually. For example, you might want to
+          create a new server instance by cloning from a group member as
+          the donor, but you do not want the new server instance to join
+          the group immediately, or maybe not ever.
+        </p><p>
+          In all releases that support cloning, you can initiate a
+          cloning operation manually involving a group member on which
+          Group Replication is stopped. Note that because cloning
+          requires that the active plugins on a donor and recipient must
+          match, the Group Replication plugin must be installed and
+          active on the other server instance, even if you do not intend
+          that server instance to join a group. You can install the
+          plugin by issuing this statement:
+        </p><pre class="programlisting">INSTALL PLUGIN group_replication SONAME 'group_replication.so';
+</pre><p>
+          In releases before MySQL 8.0.20, you cannot initiate a cloning
+          operation manually if the operation involves a group member on
+          which Group Replication is running. From MySQL 8.0.20, you can
+          do this, provided that the cloning operation does not remove
+          and replace the data on the recipient. The statement to
+          initiate the cloning operation must therefore include the
+          <code class="literal">DATA DIRECTORY</code> clause if Group Replication
+          is running.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-distributed-recovery-connections.html">Previous <span class="navHint"> Connections for Distributed Recovery </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-distributed-recovery.html">Up <span class="navHint"> Distributed Recovery </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-tuning-recovery.html">Next <span class="navHint"> Configuring Distributed Recovery </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

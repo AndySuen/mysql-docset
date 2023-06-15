@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.20.7 The InnoDB memcached Plugin and Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-memcached.html" title="15.20 InnoDB memcached Plugin" /><link rel="prev" href="innodb-memcached-ddl.html" title="15.20.6.6 Performing DML and DDL Statements on the Underlying InnoDB Table" /><link rel="next" href="innodb-memcached-internals.html" title="15.20.8 InnoDB memcached Plugin Internals" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-memcached-replication.html#innodb-memcached-replication">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-memcached-ddl.html">Previous <span class="navHint"> Performing DML and DDL Statements on the Underlying InnoDB Table </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-memcached.html">Up <span class="navHint"> InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-memcached-internals.html">Next <span class="navHint"> InnoDB memcached Plugin Internals </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-memcached-replication"></a>15.20.7 The InnoDB memcached Plugin and Replication</h3></div></div></div><p>
+      Because the <code class="literal">daemon_memcached</code> plugin supports
+      the MySQL <a class="link" href="glossary.html#glos_binary_log" title="binary log">binary log</a>,
+      source server through the <span class="command"><strong>memcached</strong></span> interface
+      can be replicated for backup, balancing intensive read workloads,
+      and high availability. All <span class="command"><strong>memcached</strong></span> commands
+      are supported with binary logging.
+    </p><p>
+      You do not need to set up the <code class="literal">daemon_memcached</code>
+      plugin on replica servers. The primary advantage of this
+      configuration is increased write throughput on the source. The
+      speed of the replication mechanism is not affected.
+    </p><p>
+      The following sections show how to use the binary log capability
+      when using the <code class="literal">daemon_memcached</code> plugin with
+      MySQL replication. It is assumed that you have completed the setup
+      described in <a class="xref" href="innodb-memcached-setup.html" title="15.20.3 Setting Up the InnoDB memcached Plugin">Section 15.20.3, “Setting Up the InnoDB memcached Plugin”</a>.
+    </p><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-replication-enable-binlog"></a>Enabling the InnoDB memcached Binary Log</h4></div></div></div><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            To use the <code class="literal">daemon_memcached</code> plugin with
+            the MySQL <a class="link" href="glossary.html#glos_binary_log" title="binary log">binary log</a>,
+            enable the
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_api_enable_binlog"><code class="literal">innodb_api_enable_binlog</code></a>
+            configuration option on the source server. This option can
+            only be set at server startup. You must also enable the
+            MySQL binary log on the source server using the
+            <a class="link" href="replication-options-binary-log.html#sysvar_log_bin"><code class="literal">--log-bin</code></a> option. You can
+            add these options to the MySQL configuration file, or on the
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> command line.
+          </p><pre class="programlisting">mysqld ... --log-bin -–innodb_api_enable_binlog=1
+</pre></li><li class="listitem"><p>
+            Configure the source and replica server, as described in
+            <a class="xref" href="replication-howto.html" title="17.1.2 Setting Up Binary Log File Position Based Replication">Section 17.1.2, “Setting Up Binary Log File Position Based Replication”</a>.
+          </p></li><li class="listitem"><p>
+            Use <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> to create a source data
+            snapshot, and sync the snapshot to the replica server.
+          </p><pre class="programlisting">source $&gt; <strong class="userinput"><code>mysqldump --all-databases --lock-all-tables &gt; dbdump.db</code></strong>
+replica $&gt; <strong class="userinput"><code>mysql &lt; dbdump.db</code></strong>
+</pre></li><li class="listitem"><p>
+            On the source server, issue <a class="link" href="show-master-status.html" title="13.7.7.23 SHOW MASTER STATUS Statement"><code class="literal">SHOW MASTER
+            STATUS</code></a> to obtain the source binary log
+            coordinates.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW MASTER STATUS;</code></strong>
+</pre></li><li class="listitem"><p>
+            On the replica server, use a <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE
+            REPLICATION SOURCE TO</code></a> statement (from MySQL
+            8.0.23) or <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a>
+            statement (before MySQL 8.0.23) to set up a replica server
+            using the source binary log coordinates.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CHANGE MASTER TO</code></strong>
+       <strong class="userinput"><code>MASTER_HOST='localhost',</code></strong>
+       <strong class="userinput"><code>MASTER_USER='root',</code></strong>
+       <strong class="userinput"><code>MASTER_PASSWORD='',</code></strong>
+       <strong class="userinput"><code>MASTER_PORT = 13000,</code></strong>
+       <strong class="userinput"><code>MASTER_LOG_FILE='0.000001,</code></strong>
+       <strong class="userinput"><code>MASTER_LOG_POS=114;</code></strong>
+
+Or from MySQL 8.0.23:
+mysql&gt; <strong class="userinput"><code>CHANGE REPLICATION SOURCE TO</code></strong>
+       <strong class="userinput"><code>SOURCE_HOST='localhost',</code></strong>
+       <strong class="userinput"><code>SOURCE_USER='root',</code></strong>
+       <strong class="userinput"><code>SOURCE_PASSWORD='',</code></strong>
+       <strong class="userinput"><code>SOURCE_PORT = 13000,</code></strong>
+       <strong class="userinput"><code>SOURCE_LOG_FILE='0.000001,</code></strong>
+       <strong class="userinput"><code>SOURCE_LOG_POS=114;</code></strong></pre></li><li class="listitem"><p>
+            Start the replica.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>START SLAVE;</code></strong>
+Or from MySQL 8.0.22:
+mysql&gt; <strong class="userinput"><code>START REPLICA;</code></strong>
+</pre><p>
+            If the error log prints output similar to the following, the
+            replica is ready for replication.
+          </p><pre class="programlisting">2013-09-24T13:04:38.639684Z 49 [Note] Replication I/O thread: connected to
+source 'root@localhost:13000', replication started in log '0.000001'
+at position 114
+</pre></li></ol></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-replication-testing"></a>Testing the InnoDB memcached Replication Configuration</h4></div></div></div><p>
+        This example demonstrates how to test the
+        <code class="literal">InnoDB</code> <span class="command"><strong>memcached</strong></span>
+        replication configuration using the <span class="command"><strong>memcached</strong></span>
+        and telnet to insert, update, and delete data. A MySQL client is
+        used to verify results on the source and replica servers.
+      </p><p>
+        The example uses the <code class="literal">demo_test</code> table, which
+        was created by the
+        <code class="filename">innodb_memcached_config.sql</code> configuration
+        script during the initial setup of the
+        <code class="literal">daemon_memcached</code> plugin. The
+        <code class="literal">demo_test</code> table contains a single example
+        record.
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Use the <code class="literal">set</code> command to insert a record
+            with a key of <code class="literal">test1</code>, a flag value of
+            <code class="literal">10</code>, an expiration value of
+            <code class="literal">0</code>, a cas value of 1, and a value of
+            <code class="literal">t1</code>.
+          </p><pre class="programlisting"><strong class="userinput"><code>telnet 127.0.0.1 11211</code></strong>
+Trying 127.0.0.1...
+Connected to 127.0.0.1.
+Escape character is '^]'.
+<strong class="userinput"><code>set test1 10 0 1</code></strong>
+<strong class="userinput"><code>t1</code></strong>
+STORED
+</pre></li><li class="listitem"><p>
+            On the source server, check that the record was inserted
+            into the <code class="literal">demo_test</code> table. Assuming the
+            <code class="literal">demo_test</code> table was not previously
+            modified, there should be two records. The example record
+            with a key of <code class="literal">AA</code>, and the record you just
+            inserted, with a key of <code class="literal">test1</code>. The
+            <code class="literal">c1</code> column maps to the key, the
+            <code class="literal">c2</code> column to the value, the
+            <code class="literal">c3</code> column to the flag value, the
+            <code class="literal">c4</code> column to the cas value, and the
+            <code class="literal">c5</code> column to the expiration time. The
+            expiration time was set to 0, since it is unused.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test.demo_test;</code></strong>
++-------+--------------+------+------+------+
+| c1    | c2           | c3   | c4   | c5   |
++-------+--------------+------+------+------+
+| AA    | HELLO, HELLO |    8 |    0 |    0 |
+| test1 | t1           |   10 |    1 |    0 |
++-------+--------------+------+------+------+
+</pre></li><li class="listitem"><p>
+            Check to verify that the same record was replicated to the
+            replica server.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test.demo_test;</code></strong>
++-------+--------------+------+------+------+
+| c1    | c2           | c3   | c4   | c5   |
++-------+--------------+------+------+------+
+| AA    | HELLO, HELLO |    8 |    0 |    0 |
+| test1 | t1           |   10 |    1 |    0 |
++-------+--------------+------+------+------+
+</pre></li><li class="listitem"><p>
+            Use the <code class="literal">set</code> command to update the key to
+            a value of <code class="literal">new</code>.
+          </p><pre class="programlisting"><strong class="userinput"><code>telnet 127.0.0.1 11211</code></strong>
+Trying 127.0.0.1...
+Connected to 127.0.0.1.
+Escape character is '^]'.
+<strong class="userinput"><code>set test1 10 0 2</code></strong>
+<strong class="userinput"><code>new</code></strong>
+STORED
+</pre><p>
+            The update is replicated to the replica server (notice that
+            the <code class="literal">cas</code> value is also updated).
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test.demo_test;</code></strong>
++-------+--------------+------+------+------+
+| c1    | c2           | c3   | c4   | c5   |
++-------+--------------+------+------+------+
+| AA    | HELLO, HELLO |    8 |    0 |    0 |
+| test1 | new          |   10 |    2 |    0 |
++-------+--------------+------+------+------+
+</pre></li><li class="listitem"><p>
+            Delete the <code class="literal">test1</code> record using a
+            <code class="literal">delete</code> command.
+          </p><pre class="programlisting"><strong class="userinput"><code>telnet 127.0.0.1 11211</code></strong>
+Trying 127.0.0.1...
+Connected to 127.0.0.1.
+Escape character is '^]'.
+<strong class="userinput"><code>delete test1</code></strong>
+DELETED
+</pre><p>
+            When the <code class="literal">delete</code> operation is replicated
+            to the replica, the <code class="literal">test1</code> record on the
+            replica is also deleted.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test.demo_test;</code></strong>
++----+--------------+------+------+------+
+| c1 | c2           | c3   | c4   | c5   |
++----+--------------+------+------+------+
+| AA | HELLO, HELLO |    8 |    0 |    0 |
++----+--------------+------+------+------+
+</pre></li><li class="listitem"><p>
+            Remove all rows from the table using the
+            <code class="literal">flush_all</code> command.
+          </p><pre class="programlisting"><strong class="userinput"><code>telnet 127.0.0.1 11211</code></strong>
+Trying 127.0.0.1...
+Connected to 127.0.0.1.
+Escape character is '^]'.
+<strong class="userinput"><code>flush_all</code></strong>
+OK
+</pre><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test.demo_test;</code></strong>
+Empty set (0.00 sec)
+</pre></li><li class="listitem"><p>
+            Telnet to the source server and enter two new records.
+          </p><pre class="programlisting"><strong class="userinput"><code>telnet 127.0.0.1 11211</code></strong>
+Trying 127.0.0.1...
+Connected to 127.0.0.1.
+Escape character is '^]'
+<strong class="userinput"><code>set test2 10 0 4</code></strong>
+<strong class="userinput"><code>again</code></strong>
+STORED
+<strong class="userinput"><code>set test3 10 0 5</code></strong>
+<strong class="userinput"><code>again1</code></strong>
+STORED
+</pre></li><li class="listitem"><p>
+            Confirm that the two records were replicated to the replica
+            server.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test.demo_test;</code></strong>
++-------+--------------+------+------+------+
+| c1    | c2           | c3   | c4   | c5   |
++-------+--------------+------+------+------+
+| test2 | again        |   10 |    4 |    0 |
+| test3 | again1       |   10 |    5 |    0 |
++-------+--------------+------+------+------+
+</pre></li><li class="listitem"><p>
+            Remove all rows from the table using the
+            <code class="literal">flush_all</code> command.
+          </p><pre class="programlisting"><strong class="userinput"><code>telnet 127.0.0.1 11211</code></strong>
+Trying 127.0.0.1...
+Connected to 127.0.0.1.
+Escape character is '^]'.
+<strong class="userinput"><code>flush_all</code></strong>
+OK
+</pre></li><li class="listitem"><p>
+            Check to ensure that the <code class="literal">flush_all</code>
+            operation was replicated on the replica server.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test.demo_test;</code></strong>
+Empty set (0.00 sec)
+</pre></li></ol></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-binlog-notes"></a>InnoDB memcached Binary Log Notes</h4></div></div></div><p>
+        Binary Log Format:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Most <span class="command"><strong>memcached</strong></span> operations are mapped to
+            <a class="link" href="glossary.html#glos_dml" title="DML">DML</a> statements (analogous to
+            insert, delete, update). Since there is no actual SQL
+            statement being processed by the MySQL server, all
+            <span class="command"><strong>memcached</strong></span> commands (except for
+            <code class="literal">flush_all</code>) use Row-Based Replication
+            (RBR) logging, which is independent of any server
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> setting.
+          </p></li><li class="listitem"><p>
+            The <span class="command"><strong>memcached</strong></span>
+            <code class="literal">flush_all</code> command is mapped to the
+            <a class="link" href="truncate-table.html" title="13.1.37 TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a> command in
+            MySQL 5.7 and earlier. Since
+            <a class="link" href="glossary.html#glos_ddl" title="DDL">DDL</a> commands can only use
+            statement-based logging, the <code class="literal">flush_all</code>
+            command is replicated by sending a
+            <a class="link" href="truncate-table.html" title="13.1.37 TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a> statement. In
+            MySQL 8.0 and later, <code class="literal">flush_all</code> is mapped
+            to <code class="literal">DELETE</code> but is still replicated by
+            sending a <a class="link" href="truncate-table.html" title="13.1.37 TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a>
+            statement.
+          </p></li></ul></div><p>
+        Transactions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The concept of
+            <a class="link" href="glossary.html#glos_transaction" title="transaction">transactions</a> has not
+            typically been part of <span class="command"><strong>memcached</strong></span>
+            applications. For performance considerations,
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_r_batch_size"><code class="literal">daemon_memcached_r_batch_size</code></a>
+            and
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+            are used to control the batch size for read and write
+            transactions. These settings do not affect replication. Each
+            SQL operation on the underlying <code class="literal">InnoDB</code>
+            table is replicated after successful completion.
+          </p></li><li class="listitem"><p>
+            The default value of
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+            is <code class="literal">1</code>, which means that each
+            <span class="command"><strong>memcached</strong></span> write operation is committed
+            immediately. This default setting incurs a certain amount of
+            performance overhead to avoid inconsistencies in the data
+            that is visible on the source and replica servers. The
+            replicated records are always available immediately on the
+            replica server. If you set
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+            to a value greater than <code class="literal">1</code>, records
+            inserted or updated through <span class="command"><strong>memcached</strong></span> are
+            not immediately visible on the source server; to view the
+            records on the source server before they are committed,
+            issue <a class="link" href="set-transaction.html" title="13.3.7 SET TRANSACTION Statement"><code class="literal">SET
+            TRANSACTION ISOLATION LEVEL READ UNCOMMITTED</code></a>.
+          </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-memcached-ddl.html">Previous <span class="navHint"> Performing DML and DDL Statements on the Underlying InnoDB Table </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-memcached.html">Up <span class="navHint"> InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-memcached-internals.html">Next <span class="navHint"> InnoDB memcached Plugin Internals </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.6.3.6 Moving Tablespace Files While the Server is Offline</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-tablespace.html" title="15.6.3 Tablespaces" /><link rel="prev" href="innodb-temporary-tablespace.html" title="15.6.3.5 Temporary Tablespaces" /><link rel="next" href="innodb-disabling-tablespace-path-validation.html" title="15.6.3.7 Disabling Tablespace Path Validation" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-moving-data-files-offline.html#innodb-moving-data-files-offline">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-temporary-tablespace.html">Previous <span class="navHint"> Temporary Tablespaces </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-tablespace.html">Up <span class="navHint"> Tablespaces </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-disabling-tablespace-path-validation.html">Next <span class="navHint"> Disabling Tablespace Path Validation </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-moving-data-files-offline"></a>15.6.3.6 Moving Tablespace Files While the Server is Offline</h4></div></div></div><p>
+      The <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> variable,
+      which defines directories to scan at startup for tablespace files,
+      supports moving or restoring tablespace files to a new location
+      while the server is offline. During startup, discovered tablespace
+      files are used instead those referenced in the data dictionary,
+      and the data dictionary is updated to reference the relocated
+      files. If duplicate tablespace files are discovered by the scan,
+      startup fails with an error indicating that multiple files were
+      found for the same tablespace ID.
+    </p><p>
+      The directories defined by the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a>,
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_undo_directory"><code class="literal">innodb_undo_directory</code></a>, and
+      <a class="link" href="server-system-variables.html#sysvar_datadir"><code class="literal">datadir</code></a> variables are
+      automatically appended to the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> argument
+      value. These directories are scanned at startup regardless of
+      whether an <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a>
+      setting is specified explicitly. The implicit addition of these
+      directories permits moving system tablespace files, the data
+      directory, or undo tablespace files without configuring the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> setting.
+      However, settings must be updated when directories change. For
+      example, after relocating the data directory, you must update the
+      <a class="link" href="server-system-variables.html#sysvar_datadir"><code class="literal">--datadir</code></a> setting before
+      restarting the server.
+    </p><p>
+      The <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> variable
+      can be specified in a startup command or MySQL option file. Quotes
+      are used around the argument value because a semicolon (;) is
+      interpreted as a special character by some command interpreters.
+      (Unix shells treat it as a command terminator, for example.)
+    </p><p>
+      Startup command:
+    </p><pre class="programlisting">mysqld --innodb-directories="<em class="replaceable"><code>directory_path_1</code></em>;<em class="replaceable"><code>directory_path_2</code></em>"
+</pre><p>
+      MySQL option file:
+    </p><pre class="programlisting">[mysqld]
+innodb_directories="<em class="replaceable"><code>directory_path_1</code></em>;<em class="replaceable"><code>directory_path_2</code></em>"
+</pre><p>
+      The following procedure is applicable to moving individual
+      <a class="link" href="glossary.html#glos_file_per_table" title="file-per-table">file-per-table</a> and
+      <a class="link" href="glossary.html#glos_general_tablespace" title="general tablespace">general tablespace</a>
+      files, <a class="link" href="glossary.html#glos_system_tablespace" title="system tablespace">system
+      tablespace</a> files, <a class="link" href="glossary.html#glos_undo_tablespace" title="undo tablespace">undo
+      tablespace</a> files, or the data directory. Before moving
+      files or directories, review the usage notes that follow.
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Stop the server.
+        </p></li><li class="listitem"><p>
+          Move the tablespace files or directories to the desired
+          location.
+        </p></li><li class="listitem"><p>
+          Make the new directory known to <code class="literal">InnoDB</code>.
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              If moving individual
+              <a class="link" href="glossary.html#glos_file_per_table" title="file-per-table">file-per-table</a>
+              or <a class="link" href="glossary.html#glos_general_tablespace" title="general tablespace">general
+              tablespace</a> files, add unknown directories to the
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> value.
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                  The directories defined by the
+                  <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a>,
+                  <a class="link" href="innodb-parameters.html#sysvar_innodb_undo_directory"><code class="literal">innodb_undo_directory</code></a>,
+                  and <a class="link" href="server-system-variables.html#sysvar_datadir"><code class="literal">datadir</code></a> variables
+                  are automatically appended to the
+                  <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a>
+                  argument value, so you need not specify these.
+                </p></li><li class="listitem"><p>
+                  A file-per-table tablespace file can only be moved to
+                  a directory with same name as the schema. For example,
+                  if the <code class="literal">actor</code> table belongs to the
+                  <code class="literal">sakila</code> schema, then the
+                  <code class="filename">actor.ibd</code> data file can only be
+                  moved to a directory named
+                  <code class="filename">sakila</code>.
+                </p></li><li class="listitem"><p>
+                  General tablespace files cannot be moved to the data
+                  directory or a subdirectory of the data directory.
+                </p></li></ul></div></li><li class="listitem"><p>
+              If moving system tablespace files, undo tablespaces, or
+              the data directory, update the
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a>,
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_undo_directory"><code class="literal">innodb_undo_directory</code></a>,
+              and <a class="link" href="server-system-variables.html#sysvar_datadir"><code class="literal">datadir</code></a> settings, as
+              necessary.
+            </p></li></ul></div></li><li class="listitem"><p>
+          Restart the server.
+        </p></li></ol></div><h5><a id="idm45828890197232"></a>Usage Notes</h5><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Wildcard expressions cannot be used in the
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> argument
+          value.
+        </p></li><li class="listitem"><p>
+          The <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> scan
+          also traverses subdirectories of specified directories.
+          Duplicate directories and subdirectories are discarded from
+          the list of directories to be scanned.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> supports
+          moving <code class="literal">InnoDB</code> tablespace files. Moving
+          files that belong to a storage engine other than
+          <code class="literal">InnoDB</code> is not supported. This restriction
+          also applies when moving the entire data directory.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> supports
+          renaming of tablespace files when moving files to a scanned
+          directory. It also supports moving tablespaces files to other
+          supported operating systems.
+        </p></li><li class="listitem"><p>
+          When moving tablespace files to a different operating system,
+          ensure that tablespace file names do not include prohibited
+          characters or characters with a special meaning on the
+          destination system.
+        </p></li><li class="listitem"><p>
+          When moving a data directory from a Windows operating system
+          to a Linux operating system, modify the binary log file paths
+          in the binary log index file to use backward slashes instead
+          of forward slashes. By default, the binary log index file has
+          the same base name as the binary log file, with the extension
+          '<code class="filename">.index</code>'. The location of the binary log
+          index file is defined by
+          <a class="link" href="replication-options-binary-log.html#option_mysqld_log-bin"><code class="option">--log-bin</code></a>. The default location
+          is the data directory.
+        </p></li><li class="listitem"><p>
+          If moving tablespace files to a different operating system
+          introduces cross-platform replication, it is the database
+          administrator's responsibility to ensure proper replication of
+          DDL statements that contain platform-specific directories.
+          Statements that permit specifying directories include
+          <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE ...
+          DATA DIRECTORY</code></a> and
+          <a class="link" href="create-tablespace.html" title="13.1.21 CREATE TABLESPACE Statement"><code class="literal">CREATE
+          TABLESPACE ... ADD DATAFILE</code></a>.
+        </p></li><li class="listitem"><p>
+          Add the directories of file-per-table and general tablespaces
+          created with an absolute path or in a location outside of the
+          data directory to the
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> setting.
+          Otherwise, <code class="literal">InnoDB</code> is not able to locate the
+          files during recovery. For related information, see
+          <a class="xref" href="innodb-recovery.html#innodb-recovery-tablespace-discovery" title="Tablespace Discovery During Crash Recovery">Tablespace Discovery During Crash Recovery</a>.
+        </p><p>
+          To view tablespace file locations, query the Information
+          Schema <a class="link" href="information-schema-files-table.html" title="26.3.15 The INFORMATION_SCHEMA FILES Table"><code class="literal">FILES</code></a> table:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT TABLESPACE_NAME, FILE_NAME FROM INFORMATION_SCHEMA.FILES \G</code></strong>
+</pre></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-temporary-tablespace.html">Previous <span class="navHint"> Temporary Tablespaces </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-tablespace.html">Up <span class="navHint"> Tablespaces </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-disabling-tablespace-path-validation.html">Next <span class="navHint"> Disabling Tablespace Path Validation </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

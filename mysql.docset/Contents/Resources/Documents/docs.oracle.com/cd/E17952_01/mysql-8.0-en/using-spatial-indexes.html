@@ -1,0 +1,125 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4513"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/11.4.11%C2%A0Using%20Spatial%20Indexes"></a><title>11.4.11&nbsp;Using Spatial Indexes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="spatial-types.html" title="11.4&nbsp;Spatial Data Types"/><link rel="prev" href="creating-spatial-indexes.html" title="11.4.10&nbsp;Creating Spatial Indexes"/><link rel="next" href="json.html" title="11.5&nbsp;The JSON Data Type"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="using-spatial-indexes.html#using-spatial-indexes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="creating-spatial-indexes.html">Previous <span class="navHint"> Creating Spatial Indexes </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="spatial-types.html">Up <span class="navHint"> Spatial Data Types </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="json.html">Next <span class="navHint"> The JSON Data Type </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="using-spatial-indexes"></a>11.4.11&nbsp;Using Spatial Indexes</h3></div></div></div><p>
+        The optimizer investigates whether available spatial indexes can
+        be involved in the search for queries that use a function such
+        as <a class="link" href="spatial-relation-functions-mbr.html#function_mbrcontains"><code class="literal">MBRContains()</code></a> or
+        <a class="link" href="spatial-relation-functions-mbr.html#function_mbrwithin"><code class="literal">MBRWithin()</code></a> in the
+        <code class="literal">WHERE</code> clause. The following query finds all
+        objects that are in the given rectangle:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @poly =</code></strong>
+    -&gt; <strong class="userinput"><code>&#39;Polygon((30000 15000,
+                 31000 15000,
+                 31000 16000,
+                 30000 16000,
+                 30000 15000))&#39;;</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT fid,ST_AsText(g) FROM geom WHERE</code></strong>
+    -&gt; <strong class="userinput"><code>MBRContains(ST_GeomFromText(@poly),g);</code></strong>
++-----+---------------------------------------------------------------+
+| fid | ST_AsText(g)                                                  |
++-----+---------------------------------------------------------------+
+|  21 | LINESTRING(30350.4 15828.8,30350.6 15845,30333.8 15845,30 ... |
+|  22 | LINESTRING(30350.6 15871.4,30350.6 15887.8,30334 15887.8, ... |
+|  23 | LINESTRING(30350.6 15914.2,30350.6 15930.4,30334 15930.4, ... |
+|  24 | LINESTRING(30290.2 15823,30290.2 15839.4,30273.4 15839.4, ... |
+|  25 | LINESTRING(30291.4 15866.2,30291.6 15882.4,30274.8 15882. ... |
+|  26 | LINESTRING(30291.6 15918.2,30291.6 15934.4,30275 15934.4, ... |
+| 249 | LINESTRING(30337.8 15938.6,30337.8 15946.8,30320.4 15946. ... |
+|   1 | LINESTRING(30250.4 15129.2,30248.8 15138.4,30238.2 15136. ... |
+|   2 | LINESTRING(30220.2 15122.8,30217.2 15137.8,30207.6 15136, ... |
+|   3 | LINESTRING(30179 15114.4,30176.6 15129.4,30167 15128,3016 ... |
+|   4 | LINESTRING(30155.2 15121.4,30140.4 15118.6,30142 15109,30 ... |
+|   5 | LINESTRING(30192.4 15085,30177.6 15082.2,30179.2 15072.4, ... |
+|   6 | LINESTRING(30244 15087,30229 15086.2,30229.4 15076.4,3024 ... |
+|   7 | LINESTRING(30200.6 15059.4,30185.6 15058.6,30186 15048.8, ... |
+|  10 | LINESTRING(30179.6 15017.8,30181 15002.8,30190.8 15003.6, ... |
+|  11 | LINESTRING(30154.2 15000.4,30168.6 15004.8,30166 15014.2, ... |
+|  13 | LINESTRING(30105 15065.8,30108.4 15050.8,30118 15053,3011 ... |
+| 154 | LINESTRING(30276.2 15143.8,30261.4 15141,30263 15131.4,30 ... |
+| 155 | LINESTRING(30269.8 15084,30269.4 15093.4,30258.6 15093,30 ... |
+| 157 | LINESTRING(30128.2 15011,30113.2 15010.2,30113.6 15000.4, ... |
++-----+---------------------------------------------------------------+
+20 rows in set (0.00 sec)
+</pre><p>
+        Use <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> to check the way this
+        query is executed:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @poly =</code></strong>
+    -&gt; <strong class="userinput"><code>&#39;Polygon((30000 15000,
+                 31000 15000,
+                 31000 16000,
+                 30000 16000,
+                 30000 15000))&#39;;</code></strong>
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT fid,ST_AsText(g) FROM geom WHERE</code></strong>
+    -&gt; <strong class="userinput"><code>MBRContains(ST_GeomFromText(@poly),g)\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: geom
+         type: range
+possible_keys: g
+          key: g
+      key_len: 32
+          ref: NULL
+         rows: 50
+        Extra: Using where
+1 row in set (0.00 sec)
+</pre><p>
+        Check what would happen without a spatial index:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @poly =</code></strong>
+    -&gt; <strong class="userinput"><code>&#39;Polygon((30000 15000,
+                 31000 15000,
+                 31000 16000,
+                 30000 16000,
+                 30000 15000))&#39;;</code></strong>
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT fid,ST_AsText(g) FROM g IGNORE INDEX (g) WHERE</code></strong>
+    -&gt; <strong class="userinput"><code>MBRContains(ST_GeomFromText(@poly),g)\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: geom
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 32376
+        Extra: Using where
+1 row in set (0.00 sec)
+</pre><p>
+        Executing the <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statement
+        without the spatial index yields the same result but causes the
+        execution time to rise from 0.00 seconds to 0.46 seconds:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @poly =</code></strong>
+    -&gt; <strong class="userinput"><code>&#39;Polygon((30000 15000,
+                 31000 15000,
+                 31000 16000,
+                 30000 16000,
+                 30000 15000))&#39;;</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT fid,ST_AsText(g) FROM geom IGNORE INDEX (g) WHERE</code></strong>
+    -&gt; <strong class="userinput"><code>MBRContains(ST_GeomFromText(@poly),g);</code></strong>
++-----+---------------------------------------------------------------+
+| fid | ST_AsText(g)                                                  |
++-----+---------------------------------------------------------------+
+|   1 | LINESTRING(30250.4 15129.2,30248.8 15138.4,30238.2 15136. ... |
+|   2 | LINESTRING(30220.2 15122.8,30217.2 15137.8,30207.6 15136, ... |
+|   3 | LINESTRING(30179 15114.4,30176.6 15129.4,30167 15128,3016 ... |
+|   4 | LINESTRING(30155.2 15121.4,30140.4 15118.6,30142 15109,30 ... |
+|   5 | LINESTRING(30192.4 15085,30177.6 15082.2,30179.2 15072.4, ... |
+|   6 | LINESTRING(30244 15087,30229 15086.2,30229.4 15076.4,3024 ... |
+|   7 | LINESTRING(30200.6 15059.4,30185.6 15058.6,30186 15048.8, ... |
+|  10 | LINESTRING(30179.6 15017.8,30181 15002.8,30190.8 15003.6, ... |
+|  11 | LINESTRING(30154.2 15000.4,30168.6 15004.8,30166 15014.2, ... |
+|  13 | LINESTRING(30105 15065.8,30108.4 15050.8,30118 15053,3011 ... |
+|  21 | LINESTRING(30350.4 15828.8,30350.6 15845,30333.8 15845,30 ... |
+|  22 | LINESTRING(30350.6 15871.4,30350.6 15887.8,30334 15887.8, ... |
+|  23 | LINESTRING(30350.6 15914.2,30350.6 15930.4,30334 15930.4, ... |
+|  24 | LINESTRING(30290.2 15823,30290.2 15839.4,30273.4 15839.4, ... |
+|  25 | LINESTRING(30291.4 15866.2,30291.6 15882.4,30274.8 15882. ... |
+|  26 | LINESTRING(30291.6 15918.2,30291.6 15934.4,30275 15934.4, ... |
+| 154 | LINESTRING(30276.2 15143.8,30261.4 15141,30263 15131.4,30 ... |
+| 155 | LINESTRING(30269.8 15084,30269.4 15093.4,30258.6 15093,30 ... |
+| 157 | LINESTRING(30128.2 15011,30113.2 15010.2,30113.6 15000.4, ... |
+| 249 | LINESTRING(30337.8 15938.6,30337.8 15946.8,30320.4 15946. ... |
++-----+---------------------------------------------------------------+
+20 rows in set (0.46 sec)
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="creating-spatial-indexes.html">Previous <span class="navHint"> Creating Spatial Indexes </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="spatial-types.html">Up <span class="navHint"> Spatial Data Types </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="json.html">Next <span class="navHint"> The JSON Data Type </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

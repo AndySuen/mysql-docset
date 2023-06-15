@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>28.4.4.25 The statement_performance_analyzer() Procedure</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="sys-schema-procedures.html" title="28.4.4 sys Schema Stored Procedures" /><link rel="prev" href="sys-ps-truncate-all-tables.html" title="28.4.4.24 The ps_truncate_all_tables() Procedure" /><link rel="next" href="sys-table-exists.html" title="28.4.4.26 The table_exists() Procedure" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="sys-statement-performance-analyzer.html#sys-statement-performance-analyzer">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="sys-ps-truncate-all-tables.html">Previous <span class="navHint"> The ps_truncate_all_tables() Procedure </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="sys-schema-procedures.html">Up <span class="navHint"> sys Schema Stored Procedures </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="sys-table-exists.html">Next <span class="navHint"> The table_exists() Procedure </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="sys-statement-performance-analyzer"></a>28.4.4.25 The statement_performance_analyzer() Procedure</h4></div></div></div><a id="idm45828778624416" class="indexterm"></a><a id="idm45828778622896" class="indexterm"></a><p>
+          Creates a report of the statements running on the server. The
+          views are calculated based on the overall and/or delta
+          activity.
+        </p><p>
+          This procedure disables binary logging during its execution by
+          manipulating the session value of the
+          <a class="link" href="replication-options-binary-log.html#sysvar_sql_log_bin"><code class="literal">sql_log_bin</code></a> system variable.
+          That is a restricted operation, so the procedure requires
+          privileges sufficient to set restricted session variables. See
+          <a class="xref" href="system-variable-privileges.html" title="5.1.9.1 System Variable Privileges">Section 5.1.9.1, “System Variable Privileges”</a>.
+        </p><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="sys-statement-performance-analyzer-parameters"></a>Parameters</h5></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                <code class="literal">in_action ENUM('snapshot', 'overall', 'delta',
+                'create_tmp', 'create_table', 'save',
+                'cleanup')</code>: The action to take. These values
+                are permitted:
+              </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                    <code class="literal">snapshot</code>: Store a snapshot. The
+                    default is to make a snapshot of the current content
+                    of the Performance Schema
+                    <a class="link" href="performance-schema-statement-summary-tables.html" title="27.12.20.3 Statement Summary Tables"><code class="literal">events_statements_summary_by_digest</code></a>
+                    table. By setting <code class="literal">in_table</code>, this
+                    can be overwritten to copy the content of the
+                    specified table. The snapshot is stored in the
+                    <a class="link" href="sys-schema.html" title="Chapter 28 MySQL sys Schema"><code class="literal">sys</code></a> schema
+                    <code class="literal">tmp_digests</code> temporary table.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">overall</code>: Generate an analysis
+                    based on the content of the table specified by
+                    <code class="literal">in_table</code>. For the overall
+                    analysis, <code class="literal">in_table</code> can be
+                    <a class="link" href="date-and-time-functions.html#function_now"><code class="literal">NOW()</code></a> to use a fresh
+                    snapshot. This overwrites an existing snapshot. Use
+                    <code class="literal">NULL</code> for
+                    <code class="literal">in_table</code> to use the existing
+                    snapshot. If <code class="literal">in_table</code> is
+                    <code class="literal">NULL</code> and no snapshot exists, a
+                    new snapshot is created. The
+                    <code class="literal">in_views</code> parameter and the
+                    <code class="literal">statement_performance_analyzer.limit</code>
+                    configuration option affect the operation of this
+                    procedure.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">delta</code>: Generate a delta analysis.
+                    The delta is calculated between the reference table
+                    specified by <code class="literal">in_table</code> and the
+                    snapshot, which must exist. This action uses the
+                    <a class="link" href="sys-schema.html" title="Chapter 28 MySQL sys Schema"><code class="literal">sys</code></a> schema
+                    <code class="literal">tmp_digests_delta</code> temporary
+                    table. The <code class="literal">in_views</code> parameter and
+                    the
+                    <code class="literal">statement_performance_analyzer.limit</code>
+                    configuration option affect the operation of this
+                    procedure.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">create_table</code>: Create a regular
+                    table suitable for storing the snapshot for later
+                    use (for example, for calculating deltas).
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">create_tmp</code>: Create a temporary
+                    table suitable for storing the snapshot for later
+                    use (for example, for calculating deltas).
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">save</code>: Save the snapshot in the
+                    table specified by <code class="literal">in_table</code>. The
+                    table must exist and have the correct structure. If
+                    no snapshot exists, a new snapshot is created.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">cleanup</code>: Remove the temporary
+                    tables used for the snapshot and delta.
+                  </p></li></ul></div></li><li class="listitem"><p>
+                <code class="literal">in_table VARCHAR(129)</code>: The table
+                parameter used for some of the actions specified by the
+                <code class="literal">in_action</code> parameter. Use the format
+                <em class="replaceable"><code>db_name.tbl_name</code></em> or
+                <em class="replaceable"><code>tbl_name</code></em> without using any
+                backtick (<code class="literal">`</code>) identifier-quoting
+                characters. Periods (<code class="literal">.</code>) are not
+                supported in database and table names.
+              </p><p>
+                The meaning of the <code class="literal">in_table</code> value for
+                each <code class="literal">in_action</code> value is detailed in
+                the individual <code class="literal">in_action</code> value
+                descriptions.
+              </p></li><li class="listitem"><p>
+                <code class="literal">in_views SET
+                ('with_runtimes_in_95th_percentile', 'analysis',
+                'with_errors_or_warnings', 'with_full_table_scans',
+                'with_sorting', 'with_temp_tables', 'custom')</code>:
+                Which views to include. This parameter is a
+                <code class="literal">SET</code> value, so it can contain multiple
+                view names, separated by commas. The default is to
+                include all views except <code class="literal">custom</code>. The
+                following values are permitted:
+              </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                    <code class="literal">with_runtimes_in_95th_percentile</code>:
+                    Use the
+                    <a class="link" href="sys-statements-with-runtimes-in-95th-percentile.html" title="28.4.3.38 The statements_with_runtimes_in_95th_percentile and x$statements_with_runtimes_in_95th_percentile Views"><code class="literal">statements_with_runtimes_in_95th_percentile</code></a>
+                    view.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">analysis</code>: Use the
+                    <a class="link" href="sys-statement-analysis.html" title="28.4.3.35 The statement_analysis and x$statement_analysis Views"><code class="literal">statement_analysis</code></a>
+                    view.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">with_errors_or_warnings</code>: Use the
+                    <a class="link" href="sys-statements-with-errors-or-warnings.html" title="28.4.3.36 The statements_with_errors_or_warnings and x$statements_with_errors_or_warnings Views"><code class="literal">statements_with_errors_or_warnings</code></a>
+                    view.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">with_full_table_scans</code>: Use the
+                    <a class="link" href="sys-statements-with-full-table-scans.html" title="28.4.3.37 The statements_with_full_table_scans and x$statements_with_full_table_scans Views"><code class="literal">statements_with_full_table_scans</code></a>
+                    view.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">with_sorting</code>: Use the
+                    <a class="link" href="sys-statements-with-sorting.html" title="28.4.3.39 The statements_with_sorting and x$statements_with_sorting Views"><code class="literal">statements_with_sorting</code></a>
+                    view.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">with_temp_tables</code>: Use the
+                    <a class="link" href="sys-statements-with-temp-tables.html" title="28.4.3.40 The statements_with_temp_tables and x$statements_with_temp_tables Views"><code class="literal">statements_with_temp_tables</code></a>
+                    view.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">custom</code>: Use a custom view. This
+                    view must be specified using the
+                    <code class="literal">statement_performance_analyzer.view</code>
+                    configuration option to name a query or an existing
+                    view.
+                  </p></li></ul></div></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="sys-statement-performance-analyzer-configuration-options"></a>Configuration Options</h5></div></div></div><p>
+            <a class="link" href="sys-statement-performance-analyzer.html" title="28.4.4.25 The statement_performance_analyzer() Procedure"><code class="literal">statement_performance_analyzer()</code></a>
+            operation can be modified using the following configuration
+            options or their corresponding user-defined variables (see
+            <a class="xref" href="sys-sys-config.html" title="28.4.2.1 The sys_config Table">Section 28.4.2.1, “The sys_config Table”</a>):
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                <code class="literal">debug</code>, <code class="literal">@sys.debug</code>
+              </p><p>
+                If this option is <code class="literal">ON</code>, produce
+                debugging output. The default is <code class="literal">OFF</code>.
+              </p></li><li class="listitem"><p>
+                <code class="literal">statement_performance_analyzer.limit</code>,
+                <code class="literal">@sys.statement_performance_analyzer.limit</code>
+              </p><p>
+                The maximum number of rows to return for views that have
+                no built-in limit. The default is 100.
+              </p></li><li class="listitem"><p>
+                <code class="literal">statement_performance_analyzer.view</code>,
+                <code class="literal">@sys.statement_performance_analyzer.view</code>
+              </p><p>
+                The custom query or view to be used. If the option value
+                contains a space, it is interpreted as a query.
+                Otherwise, it must be the name of an existing view that
+                queries the Performance Schema
+                <a class="link" href="performance-schema-statement-summary-tables.html" title="27.12.20.3 Statement Summary Tables"><code class="literal">events_statements_summary_by_digest</code></a>
+                table. There cannot be any <code class="literal">LIMIT</code>
+                clause in the query or view definition if the
+                <code class="literal">statement_performance_analyzer.limit</code>
+                configuration option is greater than 0. If specifying a
+                view, use the same format as for the
+                <code class="literal">in_table</code> parameter. The default is
+                <code class="literal">NULL</code> (no custom view defined).
+              </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="sys-statement-performance-analyzer-example"></a>Example</h5></div></div></div><p>
+            To create a report with the queries in the 95th percentile
+            since the last truncation of
+            <a class="link" href="performance-schema-statement-summary-tables.html" title="27.12.20.3 Statement Summary Tables"><code class="literal">events_statements_summary_by_digest</code></a>
+            and with a one-minute delta period:
+          </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                Create a temporary table to store the initial snapshot.
+              </p></li><li class="listitem"><p>
+                Create the initial snapshot.
+              </p></li><li class="listitem"><p>
+                Save the initial snapshot in the temporary table.
+              </p></li><li class="listitem"><p>
+                Wait one minute.
+              </p></li><li class="listitem"><p>
+                Create a new snapshot.
+              </p></li><li class="listitem"><p>
+                Perform analysis based on the new snapshot.
+              </p></li><li class="listitem"><p>
+                Perform analysis based on the delta between the initial
+                and new snapshots.
+              </p></li></ol></div><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CALL sys.statement_performance_analyzer('create_tmp', 'mydb.tmp_digests_ini', NULL);</code></strong>
+Query OK, 0 rows affected (0.08 sec)
+
+mysql&gt; <strong class="userinput"><code>CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);</code></strong>
+Query OK, 0 rows affected (0.02 sec)
+
+mysql&gt; <strong class="userinput"><code>CALL sys.statement_performance_analyzer('save', 'mydb.tmp_digests_ini', NULL);</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>DO SLEEP(60);</code></strong>
+Query OK, 0 rows affected (1 min 0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);</code></strong>
+Query OK, 0 rows affected (0.02 sec)
+
+mysql&gt; <strong class="userinput"><code>CALL sys.statement_performance_analyzer('overall', NULL, 'with_runtimes_in_95th_percentile');</code></strong>
++-----------------------------------------+
+| Next Output                             |
++-----------------------------------------+
+| Queries with Runtime in 95th Percentile |
++-----------------------------------------+
+1 row in set (0.05 sec)
+
+...
+
+mysql&gt; <strong class="userinput"><code>CALL sys.statement_performance_analyzer('delta', 'mydb.tmp_digests_ini', 'with_runtimes_in_95th_percentile');</code></strong>
++-----------------------------------------+
+| Next Output                             |
++-----------------------------------------+
+| Queries with Runtime in 95th Percentile |
++-----------------------------------------+
+1 row in set (0.03 sec)
+
+...
+</pre><p>
+            Create an overall report of the 95th percentile queries and
+            the top 10 queries with full table scans:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);</code></strong>
+Query OK, 0 rows affected (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>SET @sys.statement_performance_analyzer.limit = 10;</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>CALL sys.statement_performance_analyzer('overall', NULL, 'with_runtimes_in_95th_percentile,with_full_table_scans');</code></strong>
++-----------------------------------------+
+| Next Output                             |
++-----------------------------------------+
+| Queries with Runtime in 95th Percentile |
++-----------------------------------------+
+1 row in set (0.01 sec)
+
+...
+
++-------------------------------------+
+| Next Output                         |
++-------------------------------------+
+| Top 10 Queries with Full Table Scan |
++-------------------------------------+
+1 row in set (0.09 sec)
+
+...
+</pre><p>
+            Use a custom view showing the top 10 queries sorted by total
+            execution time, refreshing the view every minute using the
+            <span class="command"><strong>watch</strong></span> command in Linux:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE OR REPLACE VIEW mydb.my_statements AS</code></strong>
+       <strong class="userinput"><code>SELECT sys.format_statement(DIGEST_TEXT) AS query,</code></strong>
+              <strong class="userinput"><code>SCHEMA_NAME AS db,</code></strong>
+              <strong class="userinput"><code>COUNT_STAR AS exec_count,</code></strong>
+              <strong class="userinput"><code>sys.format_time(SUM_TIMER_WAIT) AS total_latency,</code></strong>
+              <strong class="userinput"><code>sys.format_time(AVG_TIMER_WAIT) AS avg_latency,</code></strong>
+              <strong class="userinput"><code>ROUND(IFNULL(SUM_ROWS_SENT / NULLIF(COUNT_STAR, 0), 0)) AS rows_sent_avg,</code></strong>
+              <strong class="userinput"><code>ROUND(IFNULL(SUM_ROWS_EXAMINED / NULLIF(COUNT_STAR, 0), 0)) AS rows_examined_avg,</code></strong>
+              <strong class="userinput"><code>ROUND(IFNULL(SUM_ROWS_AFFECTED / NULLIF(COUNT_STAR, 0), 0)) AS rows_affected_avg,</code></strong>
+              <strong class="userinput"><code>DIGEST AS digest</code></strong>
+         <strong class="userinput"><code>FROM performance_schema.events_statements_summary_by_digest</code></strong>
+       <strong class="userinput"><code>ORDER BY SUM_TIMER_WAIT DESC;</code></strong>
+Query OK, 0 rows affected (0.10 sec)
+
+mysql&gt; <strong class="userinput"><code>CALL sys.statement_performance_analyzer('create_table', 'mydb.digests_prev', NULL);</code></strong>
+Query OK, 0 rows affected (0.10 sec)
+
+$&gt; <strong class="userinput"><code>watch -n 60 "mysql sys --table -e \"</code></strong>
+&gt; <strong class="userinput"><code>SET @sys.statement_performance_analyzer.view = 'mydb.my_statements';</code></strong>
+&gt; <strong class="userinput"><code>SET @sys.statement_performance_analyzer.limit = 10;</code></strong>
+&gt; <strong class="userinput"><code>CALL statement_performance_analyzer('snapshot', NULL, NULL);</code></strong>
+&gt; <strong class="userinput"><code>CALL statement_performance_analyzer('delta', 'mydb.digests_prev', 'custom');</code></strong>
+&gt; <strong class="userinput"><code>CALL statement_performance_analyzer('save', 'mydb.digests_prev', NULL);</code></strong>
+&gt; <strong class="userinput"><code>\""</code></strong>
+
+Every 60.0s: mysql sys --table -e "        ...  Mon Dec 22 10:58:51 2014
+
++----------------------------------+
+| Next Output                      |
++----------------------------------+
+| Top 10 Queries Using Custom View |
++----------------------------------+
++-------------------+-------+------------+---------------+-------------+---------------+-------------------+-------------------+----------------------------------+
+| query             | db    | exec_count | total_latency | avg_latency | rows_sent_avg | rows_examined_avg | rows_affected_avg | digest                           |
++-------------------+-------+------------+---------------+-------------+---------------+-------------------+-------------------+----------------------------------+
+...
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="sys-ps-truncate-all-tables.html">Previous <span class="navHint"> The ps_truncate_all_tables() Procedure </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sys-schema-procedures.html">Up <span class="navHint"> sys Schema Stored Procedures </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="sys-table-exists.html">Next <span class="navHint"> The table_exists() Procedure </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.1.3.5 Using GTIDs for Failover and Scaleout</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-gtids.html" title="17.1.3 Replication with Global Transaction Identifiers" /><link rel="prev" href="replication-gtids-howto.html" title="17.1.3.4 Setting Up Replication Using GTIDs" /><link rel="next" href="replication-gtids-assign-anon.html" title="17.1.3.6 Replication From a Source Without GTIDs to a Replica With GTIDs" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-gtids-failover.html#replication-gtids-failover">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-gtids-howto.html">Previous <span class="navHint"> Setting Up Replication Using GTIDs </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-gtids-assign-anon.html">Next <span class="navHint"> Replication From a Source Without GTIDs to a Replica With GTIDs </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-gtids-failover"></a>17.1.3.5 Using GTIDs for Failover and Scaleout</h4></div></div></div><a id="idm45828868569488" class="indexterm"></a><a id="idm45828868568000" class="indexterm"></a><p>
+      There are a number of techniques when using MySQL Replication with
+      Global Transaction Identifiers (GTIDs) for provisioning a new
+      replica which can then be used for scaleout, being promoted to
+      source as necessary for failover. This section describes the
+      following techniques:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <a class="xref" href="replication-gtids-failover.html#replication-gtids-failover-replicate" title="Simple replication">Simple replication</a>
+        </p></li><li class="listitem"><p>
+          <a class="xref" href="replication-gtids-failover.html#replication-gtids-failover-copy" title="Copying data and transactions to the replica">Copying data and transactions to the replica</a>
+        </p></li><li class="listitem"><p>
+          <a class="xref" href="replication-gtids-failover.html#replication-gtids-failover-empty" title="Injecting empty transactions">Injecting empty transactions</a>
+        </p></li><li class="listitem"><p>
+          <a class="xref" href="replication-gtids-failover.html#replication-gtids-failover-gtid-purged" title="Excluding transactions with gtid_purged">Excluding transactions with gtid_purged</a>
+        </p></li><li class="listitem"><p>
+          <a class="xref" href="replication-gtids-failover.html#replication-gtids-restoring-mysqlbinlog" title="Restoring GTID mode replicas">Restoring GTID mode replicas</a>
+        </p></li></ul></div><p>
+      Global transaction identifiers were added to MySQL Replication for
+      the purpose of simplifying in general management of the
+      replication data flow and of failover activities in particular.
+      Each identifier uniquely identifies a set of binary log events
+      that together make up a transaction. GTIDs play a key role in
+      applying changes to the database: the server automatically skips
+      any transaction having an identifier which the server recognizes
+      as one that it has processed before. This behavior is critical for
+      automatic replication positioning and correct failover.
+    </p><p>
+      The mapping between identifiers and sets of events comprising a
+      given transaction is captured in the binary log. This poses some
+      challenges when provisioning a new server with data from another
+      existing server. To reproduce the identifier set on the new
+      server, it is necessary to copy the identifiers from the old
+      server to the new one, and to preserve the relationship between
+      the identifiers and the actual events. This is necessary for
+      restoring a replica that is immediately available as a candidate
+      to become a new source on failover or switchover.
+    </p><p><a id="replication-gtids-failover-replicate"></a><strong>Simple replication. </strong>
+        The easiest way to reproduce all identifiers and transactions on
+        a new server is to make the new server into the replica of a
+        source that has the entire execution history, and enable global
+        transaction identifiers on both servers. See
+        <a class="xref" href="replication-gtids-howto.html" title="17.1.3.4 Setting Up Replication Using GTIDs">Section 17.1.3.4, “Setting Up Replication Using GTIDs”</a>, for more information.
+      </p><p>
+      Once replication is started, the new server copies the entire
+      binary log from the source and thus obtains all information about
+      all GTIDs.
+    </p><p>
+      This method is simple and effective, but requires the replica to
+      read the binary log from the source; it can sometimes take a
+      comparatively long time for the new replica to catch up with the
+      source, so this method is not suitable for fast failover or
+      restoring from backup. This section explains how to avoid fetching
+      all of the execution history from the source by copying binary log
+      files to the new server.
+    </p><p><a id="replication-gtids-failover-copy"></a><strong>Copying data and transactions to the replica. </strong>
+        Executing the entire transaction history can be time-consuming
+        when the source server has processed a large number of
+        transactions previously, and this can represent a major
+        bottleneck when setting up a new replica. To eliminate this
+        requirement, a snapshot of the data set, the binary logs and the
+        global transaction information the source server contains can be
+        imported to the new replica. The server where the snapshot is
+        taken can be either the source or one of its replicas, but you
+        must ensure that the server has processed all required
+        transactions before copying the data.
+      </p><p>
+      There are several variants of this method, the difference being in
+      the manner in which data dumps and transactions from binary logs
+      are transferred to the replica, as outlined here:
+    </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">
+          Data Set
+        </span></dt><dd><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                Create a dump file using <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> on
+                the source server. Set the <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>
+                option <a class="link" href="mysqldump.html#option_mysqldump_master-data"><code class="option">--master-data</code></a>
+                (with the default value of 1) to include a
+                <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+                TO</code></a> | <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER
+                TO</code></a> statement with binary logging information.
+                Set the
+                <a class="link" href="mysqldump.html#option_mysqldump_set-gtid-purged"><code class="option">--set-gtid-purged</code></a>
+                option to <code class="literal">AUTO</code> (the default) or
+                <code class="literal">ON</code>, to include information about
+                executed transactions in the dump. Then use the
+                <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client to import the dump file
+                on the target server.
+              </p></li><li class="listitem"><p>
+                Alternatively, create a data snapshot of the source
+                server using raw data files, then copy these files to
+                the target server, following the instructions in
+                <a class="xref" href="replication-snapshot-method.html" title="17.1.2.5 Choosing a Method for Data Snapshots">Section 17.1.2.5, “Choosing a Method for Data Snapshots”</a>. If you
+                use <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> tables, you can
+                use the <span class="command"><strong>mysqlbackup</strong></span> command from the
+                MySQL Enterprise Backup component to produce a
+                consistent snapshot. This command records the log name
+                and offset corresponding to the snapshot to be used on
+                the replica. MySQL Enterprise Backup is a commercial
+                product that is included as part of a MySQL Enterprise
+                subscription. See
+                <a class="xref" href="mysql-enterprise-backup.html" title="30.2 MySQL Enterprise Backup Overview">Section 30.2, “MySQL Enterprise Backup Overview”</a> for detailed
+                information.
+              </p></li><li class="listitem"><p>
+                Alternatively, stop both the source and target servers,
+                copy the contents of the source's data directory to the
+                new replica's data directory, then restart the
+                replica. If you use this method, the replica must be
+                configured for GTID-based replication, in other words
+                with <a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">gtid_mode=ON</code></a>. For
+                instructions and important information for this method,
+                see
+                <a class="xref" href="replication-howto-additionalslaves.html" title="17.1.2.8 Adding Replicas to a Replication Environment">Section 17.1.2.8, “Adding Replicas to a Replication Environment”</a>.
+              </p></li></ol></div></dd><dt><span class="term">
+          Transaction History
+        </span></dt><dd><p>
+            If the source server has a complete transaction history in
+            its binary logs (that is, the GTID set
+            <code class="literal">@@GLOBAL.gtid_purged</code> is empty), you can
+            use these methods.
+          </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                Import the binary logs from the source server to the new
+                replica using <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>, with the
+                <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_read-from-remote-server"><code class="option">--read-from-remote-server</code></a>,
+                <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_read-from-remote-source"><code class="option">--read-from-remote-source</code></a>,
+                and
+                <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_read-from-remote-master"><code class="option">--read-from-remote-master</code></a>
+                options.
+              </p></li><li class="listitem"><p>
+                Alternatively, copy the source server's binary log files
+                to the replica. You can make copies from the replica
+                using <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> with the
+                <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_read-from-remote-server"><code class="option">--read-from-remote-server</code></a>
+                and <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_raw"><code class="option">--raw</code></a> options.
+                These can be read into the replica by using
+                <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> <code class="literal">&gt;</code>
+                <code class="filename"><em class="replaceable"><code>file</code></em></code>
+                (without the <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_raw"><code class="option">--raw</code></a>
+                option) to export the binary log files to SQL files,
+                then passing these files to the <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a>
+                client for processing. Ensure that all of the binary log
+                files are processed using a single
+                <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> process, rather than multiple
+                connections. For example:
+              </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog copied-binlog.000001 copied-binlog.000002 | mysql -u root -p</code></strong>
+</pre><p>
+                For more information, see
+                <a class="xref" href="mysqlbinlog-backup.html" title="4.6.9.3 Using mysqlbinlog to Back Up Binary Log Files">Section 4.6.9.3, “Using mysqlbinlog to Back Up Binary Log Files”</a>.
+              </p></li></ol></div></dd></dl></div><p>
+      This method has the advantage that a new server is available
+      almost immediately; only those transactions that were committed
+      while the snapshot or dump file was being replayed still need to
+      be obtained from the existing source. This means that the
+      replica's availability is not instantaneous, but only a
+      relatively short amount of time should be required for the replica
+      to catch up with these few remaining transactions.
+    </p><p>
+      Copying over binary logs to the target server in advance is
+      usually faster than reading the entire transaction execution
+      history from the source in real time. However, it may not always
+      be feasible to move these files to the target when required, due
+      to size or other considerations. The two remaining methods for
+      provisioning a new replica discussed in this section use other
+      means to transfer information about transactions to the new
+      replica.
+    </p><p><a id="replication-gtids-failover-empty"></a><strong>Injecting empty transactions. </strong>
+        The source's global
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> variable contains
+        the set of all transactions executed on the source. Rather than
+        copy the binary logs when taking a snapshot to provision a new
+        server, you can instead note the content of
+        <code class="literal">gtid_executed</code> on the server from which the
+        snapshot was taken. Before adding the new server to the
+        replication chain, simply commit an empty transaction on the new
+        server for each transaction identifier contained in the
+        source's <code class="literal">gtid_executed</code>, like this:
+      </p><pre class="programlisting">SET GTID_NEXT='aaa-bbb-ccc-ddd:N';
+
+BEGIN;
+COMMIT;
+
+SET GTID_NEXT='AUTOMATIC';
+</pre><p>
+      Once all transaction identifiers have been reinstated in this way
+      using empty transactions, you must flush and purge the
+      replica's binary logs, as shown here, where
+      <em class="replaceable"><code>N</code></em> is the nonzero suffix of the current
+      binary log file name:
+    </p><pre class="programlisting">FLUSH LOGS;
+PURGE BINARY LOGS TO 'source-bin.00000<em class="replaceable"><code>N</code></em>';
+</pre><p>
+      You should do this to prevent this server from flooding the
+      replication stream with false transactions in the event that it is
+      later promoted to the source. (The <a class="link" href="flush.html#flush-logs"><code class="literal">FLUSH
+      LOGS</code></a> statement forces the creation of a new binary log
+      file; <a class="link" href="purge-binary-logs.html" title="13.4.1.1 PURGE BINARY LOGS Statement"><code class="literal">PURGE BINARY LOGS</code></a> purges the
+      empty transactions, but retains their identifiers.)
+    </p><p>
+      This method creates a server that is essentially a snapshot, but
+      in time is able to become a source as its binary log history
+      converges with that of the replication stream (that is, as it
+      catches up with the source or sources). This outcome is similar in
+      effect to that obtained using the remaining provisioning method,
+      which we discuss in the next few paragraphs.
+    </p><p><a id="replication-gtids-failover-gtid-purged"></a><strong>Excluding transactions with gtid_purged. </strong>
+        The source's global
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> variable contains
+        the set of all transactions that have been purged from the
+        source's binary log. As with the method discussed
+        previously (see
+        <a class="xref" href="replication-gtids-failover.html#replication-gtids-failover-empty" title="Injecting empty transactions">Injecting empty transactions</a>), you can
+        record the value of
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> on the server
+        from which the snapshot was taken (in place of copying the
+        binary logs to the new server). Unlike the previous method,
+        there is no need to commit empty transactions (or to issue
+        <a class="link" href="purge-binary-logs.html" title="13.4.1.1 PURGE BINARY LOGS Statement"><code class="literal">PURGE BINARY LOGS</code></a>); instead, you
+        can set <a class="link" href="replication-options-gtids.html#sysvar_gtid_purged"><code class="literal">gtid_purged</code></a> on the
+        replica directly, based on the value of
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> on the server
+        from which the backup or snapshot was taken.
+      </p><p>
+      As with the method using empty transactions, this method creates a
+      server that is functionally a snapshot, but in time is able to
+      become a source as its binary log history converges with that of
+      the source and other replicas.
+    </p><p><a id="replication-gtids-restoring-mysqlbinlog"></a><strong>Restoring GTID mode replicas. </strong>
+        When restoring a replica in a GTID based replication setup that
+        has encountered an error, injecting an empty transaction may not
+        solve the problem because an event does not have a GTID.
+      </p><p>
+      Use <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> to find the next transaction,
+      which is probably the first transaction in the next log file after
+      the event. Copy everything up to the <code class="literal">COMMIT</code> for
+      that transaction, being sure to include the <code class="literal">SET
+      @@SESSION.gtid_next</code>. Even if you are not using row-based
+      replication, you can still run binary log row events in the
+      command line client.
+    </p><p>
+      Stop the replica and run the transaction you copied. The
+      <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> output sets the delimiter to
+      <code class="literal">/*!*/;</code>, so set it back:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>DELIMITER ;</code></strong>
+</pre><p>
+      Restart replication from the correct position automatically:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET GTID_NEXT=automatic;</code></strong>
+mysql&gt; <strong class="userinput"><code>RESET SLAVE;</code></strong>
+mysql&gt; <strong class="userinput"><code>START SLAVE;</code></strong>
+Or from MySQL 8.0.22:
+mysql&gt; <strong class="userinput"><code>SET GTID_NEXT=automatic;</code></strong>
+mysql&gt; <strong class="userinput"><code>RESET REPLICA;</code></strong>
+mysql&gt; <strong class="userinput"><code>START REPLICA;</code></strong>
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-gtids-howto.html">Previous <span class="navHint"> Setting Up Replication Using GTIDs </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-gtids-assign-anon.html">Next <span class="navHint"> Replication From a Source Without GTIDs to a Replica With GTIDs </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

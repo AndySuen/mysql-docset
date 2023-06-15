@@ -1,0 +1,664 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1628"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.8.10.1%C2%A0Configuring%20Persistent%20Optimizer%20Statistics%20Parameters"></a><title>15.8.10.1&nbsp;Configuring Persistent Optimizer Statistics Parameters</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-performance-optimizer-statistics.html" title="15.8.10&nbsp;Configuring Optimizer Statistics for InnoDB"/><link rel="prev" href="innodb-performance-optimizer-statistics.html" title="15.8.10&nbsp;Configuring Optimizer Statistics for InnoDB"/><link rel="next" href="innodb-statistics-estimation.html" title="15.8.10.2&nbsp;Configuring Non-Persistent Optimizer Statistics Parameters"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-persistent-stats.html#innodb-persistent-stats">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-performance-optimizer-statistics.html">Previous <span class="navHint"> Configuring Optimizer Statistics for InnoDB </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-performance-optimizer-statistics.html">Up <span class="navHint"> Configuring Optimizer Statistics for InnoDB </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-statistics-estimation.html">Next <span class="navHint"> Configuring Non-Persistent Optimizer Statistics Parameters </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1627"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/15.8.10.1%C2%A0Configuring%20Persistent%20Optimizer%20Statistics%20Parameters"></a><h4 class="title"><a id="innodb-persistent-stats"></a>15.8.10.1&nbsp;Configuring Persistent Optimizer Statistics Parameters</h4></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="innodb-persistent-stats.html#innodb-persistent-stats-auto-recalc">15.8.10.1.1 Configuring Automatic Statistics Calculation for Persistent Optimizer
+          Statistics</a></span></li><li><span class="section"><a href="innodb-persistent-stats.html#innodb-persistent-stats-table-configuration">15.8.10.1.2 Configuring Optimizer Statistics Parameters for Individual Tables</a></span></li><li><span class="section"><a href="innodb-persistent-stats.html#innodb-persistent-stats-pages-sampled">15.8.10.1.3 Configuring the Number of Sampled Pages for InnoDB Optimizer Statistics</a></span></li><li><span class="section"><a href="innodb-persistent-stats.html#innodb-persistent-stats-delete-marked">15.8.10.1.4 Including Delete-marked Records in Persistent Statistics Calculations</a></span></li><li><span class="section"><a href="innodb-persistent-stats.html#innodb-persistent-stats-tables">15.8.10.1.5 InnoDB Persistent Statistics Tables</a></span></li><li><span class="section"><a href="innodb-persistent-stats.html#innodb-persistent-stats-tables-example">15.8.10.1.6 InnoDB Persistent Statistics Tables Example</a></span></li><li><span class="section"><a href="innodb-persistent-stats.html#innodb-persistent-stats-tables-index-size">15.8.10.1.7 Retrieving Index Size Using the innodb_index_stats Table</a></span></li></ul></div><a id="idm45828887514384" class="indexterm"></a><a id="idm45828887512912" class="indexterm"></a><a id="idm45828887511408" class="indexterm"></a><a id="idm45828887509904" class="indexterm"></a><a id="idm45828887508400" class="indexterm"></a><p>
+        The persistent optimizer statistics feature improves
+        <a class="link" href="glossary.html#glos_plan_stability" title="plan stability">plan stability</a> by
+        storing statistics to disk and making them persistent across
+        server restarts so that the
+        <a class="link" href="glossary.html#glos_optimizer" title="optimizer">optimizer</a> is more likely
+        to make consistent choices each time for a given query.
+      </p><p>
+        Optimizer statistics are persisted to disk when
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_persistent"><code class="literal">innodb_stats_persistent=ON</code></a> or
+        when individual tables are defined with
+        <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">STATS_PERSISTENT=1</code></a>.
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_persistent"><code class="literal">innodb_stats_persistent</code></a> is
+        enabled by default.
+      </p><p>
+        Formerly, optimizer statistics were cleared when restarting the
+        server and after some other types of operations, and recomputed
+        on the next table access. Consequently, different estimates
+        could be produced when recalculating statistics leading to
+        different choices in query execution plans and variation in
+        query performance.
+      </p><p>
+        Persistent statistics are stored in the
+        <code class="literal">mysql.innodb_table_stats</code> and
+        <code class="literal">mysql.innodb_index_stats</code> tables. See
+        <a class="xref" href="innodb-persistent-stats.html#innodb-persistent-stats-tables" title="15.8.10.1.5&nbsp;InnoDB Persistent Statistics Tables">Section&nbsp;15.8.10.1.5, &ldquo;InnoDB Persistent Statistics Tables&rdquo;</a>.
+      </p><p>
+        If you prefer not to persist optimizer statistics to disk, see
+        <a class="xref" href="innodb-statistics-estimation.html" title="15.8.10.2&nbsp;Configuring Non-Persistent Optimizer Statistics Parameters">Section&nbsp;15.8.10.2, &ldquo;Configuring Non-Persistent Optimizer Statistics Parameters&rdquo;</a>
+      </p><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-persistent-stats-auto-recalc"></a>15.8.10.1.1&nbsp;Configuring Automatic Statistics Calculation for Persistent Optimizer
+          Statistics</h5></div></div></div><p>
+          The <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_auto_recalc"><code class="literal">innodb_stats_auto_recalc</code></a>
+          variable, which is enabled by default, controls whether
+          statistics are calculated automatically when a table undergoes
+          changes to more than 10% of its rows. You can also configure
+          automatic statistics recalculation for individual tables by
+          specifying the <code class="literal">STATS_AUTO_RECALC</code> clause
+          when creating or altering a table.
+        </p><p>
+          Because of the asynchronous nature of automatic statistics
+          recalculation, which occurs in the background, statistics may
+          not be recalculated instantly after running a DML operation
+          that affects more than 10% of a table, even when
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_auto_recalc"><code class="literal">innodb_stats_auto_recalc</code></a> is
+          enabled. Statistics recalculation can be delayed by few
+          seconds in some cases. If up-to-date statistics are required
+          immediately, run <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a>
+          to initiate a synchronous (foreground) recalculation of
+          statistics.
+        </p><p>
+          If <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_auto_recalc"><code class="literal">innodb_stats_auto_recalc</code></a>
+          is disabled, you can ensure the accuracy of optimizer
+          statistics by executing the <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE
+          TABLE</code></a> statement after making substantial changes to
+          indexed columns. You might also consider adding
+          <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a> to setup scripts
+          that you run after loading data, and running
+          <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a> on a schedule at
+          times of low activity.
+        </p><p>
+          When an index is added to an existing table, or when a column
+          is added or dropped, index statistics are calculated and added
+          to the <code class="literal">innodb_index_stats</code> table regardless
+          of the value of
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_auto_recalc"><code class="literal">innodb_stats_auto_recalc</code></a>.
+        </p></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-persistent-stats-table-configuration"></a>15.8.10.1.2&nbsp;Configuring Optimizer Statistics Parameters for Individual Tables</h5></div></div></div><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_persistent"><code class="literal">innodb_stats_persistent</code></a>,
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_auto_recalc"><code class="literal">innodb_stats_auto_recalc</code></a>, and
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_persistent_sample_pages"><code class="literal">innodb_stats_persistent_sample_pages</code></a>
+          are global variables. To override these system-wide settings
+          and configure optimizer statistics parameters for individual
+          tables, you can define <code class="literal">STATS_PERSISTENT</code>,
+          <code class="literal">STATS_AUTO_RECALC</code>, and
+          <code class="literal">STATS_SAMPLE_PAGES</code> clauses in
+          <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> or
+          <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statements.
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">STATS_PERSISTENT</code> specifies whether to
+              enable
+              <a class="link" href="glossary.html#glos_persistent_statistics" title="persistent statistics">persistent
+              statistics</a> for an <code class="literal">InnoDB</code> table.
+              The value <code class="literal">DEFAULT</code> causes the persistent
+              statistics setting for the table to be determined by the
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_persistent"><code class="literal">innodb_stats_persistent</code></a>
+              setting. A value of <code class="literal">1</code> enables
+              persistent statistics for the table, while a value of
+              <code class="literal">0</code> disables the feature. After enabling
+              persistent statistics for an individual table, use
+              <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a> to calculate
+              statistics after table data is loaded.
+            </p></li><li class="listitem"><p>
+              <code class="literal">STATS_AUTO_RECALC</code> specifies whether to
+              automatically recalculate
+              <a class="link" href="glossary.html#glos_persistent_statistics" title="persistent statistics">persistent
+              statistics</a>. The value <code class="literal">DEFAULT</code>
+              causes the persistent statistics setting for the table to
+              be determined by the
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_auto_recalc"><code class="literal">innodb_stats_auto_recalc</code></a>
+              setting. A value of <code class="literal">1</code> causes statistics
+              to be recalculated when 10% of table data has changed. A
+              value <code class="literal">0</code> prevents automatic
+              recalculation for the table. When using a value of 0, use
+              <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a> to
+              recalculate statistics after making substantial changes to
+              the table.
+            </p></li><li class="listitem"><p>
+              <code class="literal">STATS_SAMPLE_PAGES</code> specifies the number
+              of index pages to sample when cardinality and other
+              statistics are calculated for an indexed column, by an
+              <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a> operation,
+              for example.
+            </p></li></ul></div><p>
+          All three clauses are specified in the following
+          <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> example:
+        </p><pre class="programlisting">CREATE TABLE `t1` (
+`id` int(8) NOT NULL auto_increment,
+`data` varchar(255),
+`date` datetime,
+PRIMARY KEY  (`id`),
+INDEX `DATE_IX` (`date`)
+) ENGINE=InnoDB,
+  STATS_PERSISTENT=1,
+  STATS_AUTO_RECALC=1,
+  STATS_SAMPLE_PAGES=25;
+</pre></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-persistent-stats-pages-sampled"></a>15.8.10.1.3&nbsp;Configuring the Number of Sampled Pages for InnoDB Optimizer Statistics</h5></div></div></div><p>
+          The optimizer uses estimated
+          <a class="link" href="glossary.html#glos_statistics" title="statistics">statistics</a> about key
+          distributions to choose the indexes for an execution plan,
+          based on the relative
+          <a class="link" href="glossary.html#glos_selectivity" title="selectivity">selectivity</a> of the
+          index. Operations such as <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE
+          TABLE</code></a> cause <code class="literal">InnoDB</code> to sample
+          random pages from each index on a table to estimate the
+          <a class="link" href="glossary.html#glos_cardinality" title="cardinality">cardinality</a> of the
+          index. This sampling technique is known as a
+          <a class="link" href="glossary.html#glos_random_dive" title="random dive">random dive</a>.
+        </p><p>
+          The
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_persistent_sample_pages"><code class="literal">innodb_stats_persistent_sample_pages</code></a>
+          controls the number of sampled pages. You can adjust the
+          setting at runtime to manage the quality of statistics
+          estimates used by the optimizer. The default value is 20.
+          Consider modifying the setting when encountering the following
+          issues:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              <span class="emphasis"><em>Statistics are not accurate enough and the
+              optimizer chooses suboptimal plans</em></span>, as shown in
+              <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output. You can
+              check the accuracy of statistics by comparing the actual
+              cardinality of an index (determined by running
+              <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT
+              DISTINCT</code></a> on the index columns) with the
+              estimates in the
+              <code class="literal">mysql.innodb_index_stats</code> table.
+            </p><p>
+              If it is determined that statistics are not accurate
+              enough, the value of
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_persistent_sample_pages"><code class="literal">innodb_stats_persistent_sample_pages</code></a>
+              should be increased until the statistics estimates are
+              sufficiently accurate. Increasing
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_persistent_sample_pages"><code class="literal">innodb_stats_persistent_sample_pages</code></a>
+              too much, however, could cause
+              <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a> to run
+              slowly.
+            </p></li><li class="listitem"><p>
+              <span class="emphasis"><em><a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a> is
+              too slow</em></span>. In this case
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_persistent_sample_pages"><code class="literal">innodb_stats_persistent_sample_pages</code></a>
+              should be decreased until <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE
+              TABLE</code></a> execution time is acceptable. Decreasing
+              the value too much, however, could lead to the first
+              problem of inaccurate statistics and suboptimal query
+              execution plans.
+            </p><p>
+              If a balance cannot be achieved between accurate
+              statistics and <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE
+              TABLE</code></a> execution time, consider decreasing the
+              number of indexed columns in the table or limiting the
+              number of partitions to reduce
+              <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a> complexity.
+              The number of columns in the table&#39;s primary key is also
+              important to consider, as primary key columns are appended
+              to each nonunique index.
+            </p><p>
+              For related information, see
+              <a class="xref" href="innodb-analyze-table-complexity.html" title="15.8.10.3&nbsp;Estimating ANALYZE TABLE Complexity for InnoDB Tables">Section&nbsp;15.8.10.3, &ldquo;Estimating ANALYZE TABLE Complexity for InnoDB Tables&rdquo;</a>.
+            </p></li></ol></div></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-persistent-stats-delete-marked"></a>15.8.10.1.4&nbsp;Including Delete-marked Records in Persistent Statistics Calculations</h5></div></div></div><a id="idm45828887416992" class="indexterm"></a><a id="idm45828887415888" class="indexterm"></a><p>
+          By default, <code class="literal">InnoDB</code> reads uncommitted data
+          when calculating statistics. In the case of an uncommitted
+          transaction that deletes rows from a table, delete-marked
+          records are excluded when calculating row estimates and index
+          statistics, which can lead to non-optimal execution plans for
+          other transactions that are operating on the table
+          concurrently using a transaction isolation level other than
+          <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-uncommitted"><code class="literal">READ UNCOMMITTED</code></a>. To avoid
+          this scenario,
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_include_delete_marked"><code class="literal">innodb_stats_include_delete_marked</code></a>
+          can be enabled to ensure that delete-marked records are
+          included when calculating persistent optimizer statistics.
+        </p><p>
+          When
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_include_delete_marked"><code class="literal">innodb_stats_include_delete_marked</code></a>
+          is enabled, <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a>
+          considers delete-marked records when recalculating statistics.
+        </p><p>
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_include_delete_marked"><code class="literal">innodb_stats_include_delete_marked</code></a>
+          is a global setting that affects all <code class="literal">InnoDB</code>
+          tables, and it is only applicable to persistent optimizer
+          statistics.
+        </p></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-persistent-stats-tables"></a>15.8.10.1.5&nbsp;InnoDB Persistent Statistics Tables</h5></div></div></div><p>
+          The persistent statistics feature relies on the internally
+          managed tables in the <code class="literal">mysql</code> database, named
+          <code class="literal">innodb_table_stats</code> and
+          <code class="literal">innodb_index_stats</code>. These tables are set up
+          automatically in all install, upgrade, and build-from-source
+          procedures.
+        </p><div class="table"><a id="innodb-table-stats-table"></a><p class="title"><strong>Table&nbsp;15.6&nbsp;Columns of innodb_table_stats</strong></p><div class="table-contents"><table summary="Columns of the mysql.innodb_table_stats table."><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><thead><tr>
+              <th>Column name</th>
+              <th>Description</th>
+            </tr></thead><tbody><tr>
+              <td><code class="literal">database_name</code></td>
+              <td>Database name</td>
+            </tr><tr>
+              <td><code class="literal">table_name</code></td>
+              <td>Table name, partition name, or subpartition name</td>
+            </tr><tr>
+              <td><code class="literal">last_update</code></td>
+              <td>A timestamp indicating the last time that <code class="literal">InnoDB</code>
+                updated this row</td>
+            </tr><tr>
+              <td><code class="literal">n_rows</code></td>
+              <td>The number of rows in the table</td>
+            </tr><tr>
+              <td><code class="literal">clustered_index_size</code></td>
+              <td>The size of the primary index, in pages</td>
+            </tr><tr>
+              <td><code class="literal">sum_of_other_index_sizes</code></td>
+              <td>The total size of other (non-primary) indexes, in pages</td>
+            </tr></tbody></table></div></div><br class="table-break"/><div class="table"><a id="innodb-index-stats-table"></a><p class="title"><strong>Table&nbsp;15.7&nbsp;Columns of innodb_index_stats</strong></p><div class="table-contents"><table summary="Columns of the mysql.innodb_index_stats table."><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><thead><tr>
+              <th>Column name</th>
+              <th>Description</th>
+            </tr></thead><tbody><tr>
+              <td><code class="literal">database_name</code></td>
+              <td>Database name</td>
+            </tr><tr>
+              <td><code class="literal">table_name</code></td>
+              <td>Table name, partition name, or subpartition name</td>
+            </tr><tr>
+              <td><code class="literal">index_name</code></td>
+              <td>Index name</td>
+            </tr><tr>
+              <td><code class="literal">last_update</code></td>
+              <td>A timestamp indicating the last time the row was updated</td>
+            </tr><tr>
+              <td><code class="literal">stat_name</code></td>
+              <td>The name of the statistic, whose value is reported in the
+                <code class="literal">stat_value</code> column</td>
+            </tr><tr>
+              <td><code class="literal">stat_value</code></td>
+              <td>The value of the statistic that is named in <code class="literal">stat_name</code>
+                column</td>
+            </tr><tr>
+              <td><code class="literal">sample_size</code></td>
+              <td>The number of pages sampled for the estimate provided in the
+                <code class="literal">stat_value</code> column</td>
+            </tr><tr>
+              <td><code class="literal">stat_description</code></td>
+              <td>Description of the statistic that is named in the
+                <code class="literal">stat_name</code> column</td>
+            </tr></tbody></table></div></div><br class="table-break"/><p>
+          The <code class="literal">innodb_table_stats</code> and
+          <code class="literal">innodb_index_stats</code> tables include a
+          <code class="literal">last_update</code> column that shows when index
+          statistics were last updated:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM innodb_table_stats \G</code></strong>
+*************************** 1. row ***************************
+           database_name: sakila
+              table_name: actor
+             last_update: 2014-05-28 16:16:44
+                  n_rows: 200
+    clustered_index_size: 1
+sum_of_other_index_sizes: 1
+...</pre><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM innodb_index_stats \G</code></strong>
+*************************** 1. row ***************************
+   database_name: sakila
+      table_name: actor
+      index_name: PRIMARY
+     last_update: 2014-05-28 16:16:44
+       stat_name: n_diff_pfx01
+      stat_value: 200
+     sample_size: 1
+     ...</pre><p>
+          The <code class="literal">innodb_table_stats</code> and
+          <code class="literal">innodb_index_stats</code> tables can be updated
+          manually, which makes it possible to force a specific query
+          optimization plan or test alternative plans without modifying
+          the database. If you manually update statistics, use the
+          <code class="literal">FLUSH TABLE
+          <em class="replaceable"><code>tbl_name</code></em></code> statement to
+          load the updated statistics.
+        </p><p>
+          Persistent statistics are considered local information,
+          because they relate to the server instance. The
+          <code class="literal">innodb_table_stats</code> and
+          <code class="literal">innodb_index_stats</code> tables are therefore not
+          replicated when automatic statistics recalculation takes
+          place. If you run <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a>
+          to initiate a synchronous recalculation of statistics, the
+          statement is replicated (unless you suppressed logging for
+          it), and recalculation takes place on replicas.
+        </p></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-persistent-stats-tables-example"></a>15.8.10.1.6&nbsp;InnoDB Persistent Statistics Tables Example</h5></div></div></div><p>
+          The <code class="literal">innodb_table_stats</code> table contains one
+          row for each table. The following example demonstrates the
+          type of data collected.
+        </p><p>
+          Table <code class="literal">t1</code> contains a primary index (columns
+          <code class="literal">a</code>, <code class="literal">b</code>) secondary index
+          (columns <code class="literal">c</code>, <code class="literal">d</code>), and
+          unique index (columns <code class="literal">e</code>,<code class="literal">
+          f</code>):
+        </p><pre class="programlisting">CREATE TABLE t1 (
+a INT, b INT, c INT, d INT, e INT, f INT,
+PRIMARY KEY (a, b), KEY i1 (c, d), UNIQUE KEY i2uniq (e, f)
+) ENGINE=INNODB;
+</pre><p>
+          After inserting five rows of sample data, table
+          <code class="literal">t1</code> appears as follows:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM t1;</code></strong>
++---+---+------+------+------+------+
+| a | b | c    | d    | e    | f    |
++---+---+------+------+------+------+
+| 1 | 1 |   10 |   11 |  100 |  101 |
+| 1 | 2 |   10 |   11 |  200 |  102 |
+| 1 | 3 |   10 |   11 |  100 |  103 |
+| 1 | 4 |   10 |   12 |  200 |  104 |
+| 1 | 5 |   10 |   12 |  100 |  105 |
++---+---+------+------+------+------+
+</pre><p>
+          To immediately update statistics, run
+          <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a> (if
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_stats_auto_recalc"><code class="literal">innodb_stats_auto_recalc</code></a> is
+          enabled, statistics are updated automatically within a few
+          seconds assuming that the 10% threshold for changed table rows
+          is reached):
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ANALYZE TABLE t1;</code></strong>
++---------+---------+----------+----------+
+| Table   | Op      | Msg_type | Msg_text |
++---------+---------+----------+----------+
+| test.t1 | analyze | status   | OK       |
++---------+---------+----------+----------+
+</pre><p>
+          Table statistics for table <code class="literal">t1</code> show the last
+          time <code class="literal">InnoDB</code> updated the table statistics
+          (<code class="literal">2014-03-14 14:36:34</code>), the number of rows
+          in the table (<code class="literal">5</code>), the clustered index size
+          (<code class="literal">1</code> page), and the combined size of the
+          other indexes (<code class="literal">2</code> pages).
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM mysql.innodb_table_stats WHERE table_name like &#39;t1&#39;\G</code></strong>
+*************************** 1. row ***************************
+           database_name: test
+              table_name: t1
+             last_update: 2014-03-14 14:36:34
+                  n_rows: 5
+    clustered_index_size: 1
+sum_of_other_index_sizes: 2
+</pre><p>
+          The <code class="literal">innodb_index_stats</code> table contains
+          multiple rows for each index. Each row in the
+          <code class="literal">innodb_index_stats</code> table provides data
+          related to a particular index statistic which is named in the
+          <code class="literal">stat_name</code> column and described in the
+          <code class="literal">stat_description</code> column. For example:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT index_name, stat_name, stat_value, stat_description</code></strong>
+       <strong class="userinput"><code>FROM mysql.innodb_index_stats WHERE table_name like &#39;t1&#39;;</code></strong>
++------------+--------------+------------+-----------------------------------+
+| index_name | stat_name    | stat_value | stat_description                  |
++------------+--------------+------------+-----------------------------------+
+| PRIMARY    | n_diff_pfx01 |          1 | a                                 |
+| PRIMARY    | n_diff_pfx02 |          5 | a,b                               |
+| PRIMARY    | n_leaf_pages |          1 | Number of leaf pages in the index |
+| PRIMARY    | size         |          1 | Number of pages in the index      |
+| i1         | n_diff_pfx01 |          1 | c                                 |
+| i1         | n_diff_pfx02 |          2 | c,d                               |
+| i1         | n_diff_pfx03 |          2 | c,d,a                             |
+| i1         | n_diff_pfx04 |          5 | c,d,a,b                           |
+| i1         | n_leaf_pages |          1 | Number of leaf pages in the index |
+| i1         | size         |          1 | Number of pages in the index      |
+| i2uniq     | n_diff_pfx01 |          2 | e                                 |
+| i2uniq     | n_diff_pfx02 |          5 | e,f                               |
+| i2uniq     | n_leaf_pages |          1 | Number of leaf pages in the index |
+| i2uniq     | size         |          1 | Number of pages in the index      |
++------------+--------------+------------+-----------------------------------+
+</pre><p>
+          The <code class="literal">stat_name</code> column shows the following
+          types of statistics:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">size</code>: Where
+              <code class="literal">stat_name</code>=<code class="literal">size</code>, the
+              <code class="literal">stat_value</code> column displays the total
+              number of pages in the index.
+            </p></li><li class="listitem"><p>
+              <code class="literal">n_leaf_pages</code>: Where
+              <code class="literal">stat_name</code>=<code class="literal">n_leaf_pages</code>,
+              the <code class="literal">stat_value</code> column displays the
+              number of leaf pages in the index.
+            </p></li><li class="listitem"><p>
+              <code class="literal">n_diff_pfx<em class="replaceable"><code>NN</code></em></code>:
+              Where
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx01</code>,
+              the <code class="literal">stat_value</code> column displays the
+              number of distinct values in the first column of the
+              index. Where
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx02</code>,
+              the <code class="literal">stat_value</code> column displays the
+              number of distinct values in the first two columns of the
+              index, and so on. Where
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx<em class="replaceable"><code>NN</code></em></code>,
+              the <code class="literal">stat_description</code> column shows a
+              comma separated list of the index columns that are
+              counted.
+            </p></li></ul></div><p>
+          To further illustrate the
+          <code class="literal">n_diff_pfx<em class="replaceable"><code>NN</code></em></code>
+          statistic, which provides cardinality data, consider once
+          again the <code class="literal">t1</code> table example that was
+          introduced previously. As shown below, the
+          <code class="literal">t1</code> table is created with a primary index
+          (columns <code class="literal">a</code>, <code class="literal">b</code>), a
+          secondary index (columns <code class="literal">c</code>,
+          <code class="literal">d</code>), and a unique index (columns
+          <code class="literal">e</code>, <code class="literal">f</code>):
+        </p><pre class="programlisting">CREATE TABLE t1 (
+  a INT, b INT, c INT, d INT, e INT, f INT,
+  PRIMARY KEY (a, b), KEY i1 (c, d), UNIQUE KEY i2uniq (e, f)
+) ENGINE=INNODB;
+</pre><p>
+          After inserting five rows of sample data, table
+          <code class="literal">t1</code> appears as follows:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM t1;</code></strong>
++---+---+------+------+------+------+
+| a | b | c    | d    | e    | f    |
++---+---+------+------+------+------+
+| 1 | 1 |   10 |   11 |  100 |  101 |
+| 1 | 2 |   10 |   11 |  200 |  102 |
+| 1 | 3 |   10 |   11 |  100 |  103 |
+| 1 | 4 |   10 |   12 |  200 |  104 |
+| 1 | 5 |   10 |   12 |  100 |  105 |
++---+---+------+------+------+------+
+</pre><p>
+          When you query the <code class="literal">index_name</code>,
+          <code class="literal">stat_name</code>, <code class="literal">stat_value</code>,
+          and <code class="literal">stat_description</code>, where
+          <code class="literal">stat_name LIKE &#39;n_diff%&#39;</code>, the following
+          result set is returned:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT index_name, stat_name, stat_value, stat_description</code></strong>
+       <strong class="userinput"><code>FROM mysql.innodb_index_stats</code></strong>
+       <strong class="userinput"><code>WHERE table_name like &#39;t1&#39; AND stat_name LIKE &#39;n_diff%&#39;;</code></strong>
++------------+--------------+------------+------------------+
+| index_name | stat_name    | stat_value | stat_description |
++------------+--------------+------------+------------------+
+| PRIMARY    | n_diff_pfx01 |          1 | a                |
+| PRIMARY    | n_diff_pfx02 |          5 | a,b              |
+| i1         | n_diff_pfx01 |          1 | c                |
+| i1         | n_diff_pfx02 |          2 | c,d              |
+| i1         | n_diff_pfx03 |          2 | c,d,a            |
+| i1         | n_diff_pfx04 |          5 | c,d,a,b          |
+| i2uniq     | n_diff_pfx01 |          2 | e                |
+| i2uniq     | n_diff_pfx02 |          5 | e,f              |
++------------+--------------+------------+------------------+
+</pre><p>
+          For the <code class="literal">PRIMARY</code> index, there are two
+          <code class="literal">n_diff%</code> rows. The number of rows is equal
+          to the number of columns in the index.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            For nonunique indexes, <code class="literal">InnoDB</code> appends the
+            columns of the primary key.
+          </p></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Where
+              <code class="literal">index_name</code>=<code class="literal">PRIMARY</code>
+              and
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx01</code>,
+              the <code class="literal">stat_value</code> is <code class="literal">1</code>,
+              which indicates that there is a single distinct value in
+              the first column of the index (column
+              <code class="literal">a</code>). The number of distinct values in
+              column <code class="literal">a</code> is confirmed by viewing the
+              data in column <code class="literal">a</code> in table
+              <code class="literal">t1</code>, in which there is a single distinct
+              value (<code class="literal">1</code>). The counted column
+              (<code class="literal">a</code>) is shown in the
+              <code class="literal">stat_description</code> column of the result
+              set.
+            </p></li><li class="listitem"><p>
+              Where
+              <code class="literal">index_name</code>=<code class="literal">PRIMARY</code>
+              and
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx02</code>,
+              the <code class="literal">stat_value</code> is <code class="literal">5</code>,
+              which indicates that there are five distinct values in the
+              two columns of the index (<code class="literal">a,b</code>). The
+              number of distinct values in columns <code class="literal">a</code>
+              and <code class="literal">b</code> is confirmed by viewing the data
+              in columns <code class="literal">a</code> and <code class="literal">b</code>
+              in table <code class="literal">t1</code>, in which there are five
+              distinct values: (<code class="literal">1,1</code>),
+              (<code class="literal">1,2</code>), (<code class="literal">1,3</code>),
+              (<code class="literal">1,4</code>) and (<code class="literal">1,5</code>). The
+              counted columns (<code class="literal">a,b</code>) are shown in the
+              <code class="literal">stat_description</code> column of the result
+              set.
+            </p></li></ul></div><p>
+          For the secondary index (<code class="literal">i1</code>), there are
+          four <code class="literal">n_diff%</code> rows. Only two columns are
+          defined for the secondary index (<code class="literal">c,d</code>) but
+          there are four <code class="literal">n_diff%</code> rows for the
+          secondary index because <code class="literal">InnoDB</code> suffixes all
+          nonunique indexes with the primary key. As a result, there are
+          four <code class="literal">n_diff%</code> rows instead of two to account
+          for the both the secondary index columns
+          (<code class="literal">c,d</code>) and the primary key columns
+          (<code class="literal">a,b</code>).
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Where <code class="literal">index_name</code>=<code class="literal">i1</code>
+              and
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx01</code>,
+              the <code class="literal">stat_value</code> is <code class="literal">1</code>,
+              which indicates that there is a single distinct value in
+              the first column of the index (column
+              <code class="literal">c</code>). The number of distinct values in
+              column <code class="literal">c</code> is confirmed by viewing the
+              data in column <code class="literal">c</code> in table
+              <code class="literal">t1</code>, in which there is a single distinct
+              value: (<code class="literal">10</code>). The counted column
+              (<code class="literal">c</code>) is shown in the
+              <code class="literal">stat_description</code> column of the result
+              set.
+            </p></li><li class="listitem"><p>
+              Where <code class="literal">index_name</code>=<code class="literal">i1</code>
+              and
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx02</code>,
+              the <code class="literal">stat_value</code> is <code class="literal">2</code>,
+              which indicates that there are two distinct values in the
+              first two columns of the index (<code class="literal">c,d</code>).
+              The number of distinct values in columns
+              <code class="literal">c</code> an <code class="literal">d</code> is confirmed
+              by viewing the data in columns <code class="literal">c</code> and
+              <code class="literal">d</code> in table <code class="literal">t1</code>, in
+              which there are two distinct values:
+              (<code class="literal">10,11</code>) and (<code class="literal">10,12</code>).
+              The counted columns (<code class="literal">c,d</code>) are shown in
+              the <code class="literal">stat_description</code> column of the
+              result set.
+            </p></li><li class="listitem"><p>
+              Where <code class="literal">index_name</code>=<code class="literal">i1</code>
+              and
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx03</code>,
+              the <code class="literal">stat_value</code> is <code class="literal">2</code>,
+              which indicates that there are two distinct values in the
+              first three columns of the index
+              (<code class="literal">c,d,a</code>). The number of distinct values
+              in columns <code class="literal">c</code>, <code class="literal">d</code>, and
+              <code class="literal">a</code> is confirmed by viewing the data in
+              column <code class="literal">c</code>, <code class="literal">d</code>, and
+              <code class="literal">a</code> in table <code class="literal">t1</code>, in
+              which there are two distinct values:
+              (<code class="literal">10,11,1</code>) and
+              (<code class="literal">10,12,1</code>). The counted columns
+              (<code class="literal">c,d,a</code>) are shown in the
+              <code class="literal">stat_description</code> column of the result
+              set.
+            </p></li><li class="listitem"><p>
+              Where <code class="literal">index_name</code>=<code class="literal">i1</code>
+              and
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx04</code>,
+              the <code class="literal">stat_value</code> is <code class="literal">5</code>,
+              which indicates that there are five distinct values in the
+              four columns of the index (<code class="literal">c,d,a,b</code>).
+              The number of distinct values in columns
+              <code class="literal">c</code>, <code class="literal">d</code>,
+              <code class="literal">a</code> and <code class="literal">b</code> is confirmed
+              by viewing the data in columns <code class="literal">c</code>,
+              <code class="literal">d</code>, <code class="literal">a</code>, and
+              <code class="literal">b</code> in table <code class="literal">t1</code>, in
+              which there are five distinct values:
+              (<code class="literal">10,11,1,1</code>),
+              (<code class="literal">10,11,1,2</code>),
+              (<code class="literal">10,11,1,3</code>),
+              (<code class="literal">10,12,1,4</code>), and
+              (<code class="literal">10,12,1,5</code>). The counted columns
+              (<code class="literal">c,d,a,b</code>) are shown in the
+              <code class="literal">stat_description</code> column of the result
+              set.
+            </p></li></ul></div><p>
+          For the unique index (<code class="literal">i2uniq</code>), there are
+          two <code class="literal">n_diff%</code> rows.
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Where
+              <code class="literal">index_name</code>=<code class="literal">i2uniq</code>
+              and
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx01</code>,
+              the <code class="literal">stat_value</code> is <code class="literal">2</code>,
+              which indicates that there are two distinct values in the
+              first column of the index (column <code class="literal">e</code>).
+              The number of distinct values in column
+              <code class="literal">e</code> is confirmed by viewing the data in
+              column <code class="literal">e</code> in table
+              <code class="literal">t1</code>, in which there are two distinct
+              values: (<code class="literal">100</code>) and
+              (<code class="literal">200</code>). The counted column
+              (<code class="literal">e</code>) is shown in the
+              <code class="literal">stat_description</code> column of the result
+              set.
+            </p></li><li class="listitem"><p>
+              Where
+              <code class="literal">index_name</code>=<code class="literal">i2uniq</code>
+              and
+              <code class="literal">stat_name</code>=<code class="literal">n_diff_pfx02</code>,
+              the <code class="literal">stat_value</code> is <code class="literal">5</code>,
+              which indicates that there are five distinct values in the
+              two columns of the index (<code class="literal">e,f</code>). The
+              number of distinct values in columns <code class="literal">e</code>
+              and <code class="literal">f</code> is confirmed by viewing the data
+              in columns <code class="literal">e</code> and <code class="literal">f</code>
+              in table <code class="literal">t1</code>, in which there are five
+              distinct values: (<code class="literal">100,101</code>),
+              (<code class="literal">200,102</code>),
+              (<code class="literal">100,103</code>),
+              (<code class="literal">200,104</code>), and
+              (<code class="literal">100,105</code>). The counted columns
+              (<code class="literal">e,f</code>) are shown in the
+              <code class="literal">stat_description</code> column of the result
+              set.
+            </p></li></ul></div></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-persistent-stats-tables-index-size"></a>15.8.10.1.7&nbsp;Retrieving Index Size Using the innodb_index_stats Table</h5></div></div></div><p>
+          You can retrieve the index size for tables, partitions, or
+          subpartitions can using the
+          <code class="literal">innodb_index_stats</code> table. In the following
+          example, index sizes are retrieved for table
+          <code class="literal">t1</code>. For a definition of table
+          <code class="literal">t1</code> and corresponding index statistics, see
+          <a class="xref" href="innodb-persistent-stats.html#innodb-persistent-stats-tables-example" title="15.8.10.1.6&nbsp;InnoDB Persistent Statistics Tables Example">Section&nbsp;15.8.10.1.6, &ldquo;InnoDB Persistent Statistics Tables Example&rdquo;</a>.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT SUM(stat_value) pages, index_name,</code></strong>
+       <strong class="userinput"><code>SUM(stat_value)*@@innodb_page_size size</code></strong>
+       <strong class="userinput"><code>FROM mysql.innodb_index_stats WHERE table_name=&#39;t1&#39;</code></strong>
+       <strong class="userinput"><code>AND stat_name = &#39;size&#39; GROUP BY index_name;</code></strong>
++-------+------------+-------+
+| pages | index_name | size  |
++-------+------------+-------+
+|     1 | PRIMARY    | 16384 |
+|     1 | i1         | 16384 |
+|     1 | i2uniq     | 16384 |
++-------+------------+-------+
+</pre><p>
+          For partitions or subpartitions, you can use the same query
+          with a modified <code class="literal">WHERE</code> clause to retrieve
+          index sizes. For example, the following query retrieves index
+          sizes for partitions of table <code class="literal">t1</code>:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT SUM(stat_value) pages, index_name,</code></strong>
+       <strong class="userinput"><code>SUM(stat_value)*@@innodb_page_size size</code></strong>
+       <strong class="userinput"><code>FROM mysql.innodb_index_stats WHERE table_name like &#39;t1#P%&#39;</code></strong>
+       <strong class="userinput"><code>AND stat_name = &#39;size&#39; GROUP BY index_name;</code></strong>
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-performance-optimizer-statistics.html">Previous <span class="navHint"> Configuring Optimizer Statistics for InnoDB </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-performance-optimizer-statistics.html">Up <span class="navHint"> Configuring Optimizer Statistics for InnoDB </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-statistics-estimation.html">Next <span class="navHint"> Configuring Non-Persistent Optimizer Statistics Parameters </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

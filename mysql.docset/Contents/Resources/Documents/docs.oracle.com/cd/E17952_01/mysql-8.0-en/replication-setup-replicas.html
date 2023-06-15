@@ -1,0 +1,179 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3772"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.1.2.6%C2%A0Setting%20Up%20Replicas"></a><title>17.1.2.6&nbsp;Setting Up Replicas</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-howto.html" title="17.1.2&nbsp;Setting Up Binary Log File Position Based Replication"/><link rel="prev" href="replication-snapshot-method.html" title="17.1.2.5&nbsp;Choosing a Method for Data Snapshots"/><link rel="next" href="replication-howto-slaveinit.html" title="17.1.2.7&nbsp;Setting the Source Configuration on the Replica"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-setup-replicas.html#replication-setup-replicas">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-snapshot-method.html">Previous <span class="navHint"> Choosing a Method for Data Snapshots </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-howto.html">Up <span class="navHint"> Setting Up Binary Log File Position Based Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-howto-slaveinit.html">Next <span class="navHint"> Setting the Source Configuration on the Replica </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3771"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.1.2.6%C2%A0Setting%20Up%20Replicas"></a><h4 class="title"><a id="replication-setup-replicas"></a>17.1.2.6&nbsp;Setting Up Replicas</h4></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="replication-setup-replicas.html#replication-howto-newservers">17.1.2.6.1 Setting Up Replication with New Source and Replicas</a></span></li><li><span class="section"><a href="replication-setup-replicas.html#replication-howto-existingdata">17.1.2.6.2 Setting Up Replication with Existing Data</a></span></li></ul></div><p>
+        The following sections describe how to set up replicas. Before
+        you proceed, ensure that you have:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Configured the source with the necessary configuration
+            properties. See
+            <a class="xref" href="replication-howto-masterbaseconfig.html" title="17.1.2.1&nbsp;Setting the Replication Source Configuration">Section&nbsp;17.1.2.1, &ldquo;Setting the Replication Source Configuration&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            Obtained the source status information, or a copy of the
+            source&#39;s binary log index file made during a shutdown for
+            the data snapshot. See
+            <a class="xref" href="replication-howto-masterstatus.html" title="17.1.2.4&nbsp;Obtaining the Replication Source Binary Log Coordinates">Section&nbsp;17.1.2.4, &ldquo;Obtaining the Replication Source Binary Log Coordinates&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            On the source, released the read lock:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UNLOCK TABLES;</code></strong>
+</pre></li><li class="listitem"><p>
+            On the replica, edited the MySQL configuration. See
+            <a class="xref" href="replication-howto-slavebaseconfig.html" title="17.1.2.2&nbsp;Setting the Replica Configuration">Section&nbsp;17.1.2.2, &ldquo;Setting the Replica Configuration&rdquo;</a>.
+          </p></li></ul></div><p>
+        The next steps depend on whether you have existing data to
+        import to the replica or not. See
+        <a class="xref" href="replication-snapshot-method.html" title="17.1.2.5&nbsp;Choosing a Method for Data Snapshots">Section&nbsp;17.1.2.5, &ldquo;Choosing a Method for Data Snapshots&rdquo;</a> for more
+        information. Choose one of the following:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If you do not have a snapshot of a database to import, see
+            <a class="xref" href="replication-setup-replicas.html#replication-howto-newservers" title="17.1.2.6.1&nbsp;Setting Up Replication with New Source and Replicas">Section&nbsp;17.1.2.6.1, &ldquo;Setting Up Replication with New Source and Replicas&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            If you have a snapshot of a database to import, see
+            <a class="xref" href="replication-setup-replicas.html#replication-howto-existingdata" title="17.1.2.6.2&nbsp;Setting Up Replication with Existing Data">Section&nbsp;17.1.2.6.2, &ldquo;Setting Up Replication with Existing Data&rdquo;</a>.
+          </p></li></ul></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="replication-howto-newservers"></a>17.1.2.6.1&nbsp;Setting Up Replication with New Source and Replicas</h5></div></div></div><p>
+          When there is no snapshot of a previous database to import,
+          configure the replica to start replication from the new
+          source.
+        </p><p>
+          To set up replication between a source and a new replica:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              Start up the replica.
+            </p></li><li class="listitem"><p>
+              Execute a <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+              TO</code></a> | <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER
+              TO</code></a> statement on the replica to set the source
+              configuration. See
+              <a class="xref" href="replication-howto-slaveinit.html" title="17.1.2.7&nbsp;Setting the Source Configuration on the Replica">Section&nbsp;17.1.2.7, &ldquo;Setting the Source Configuration on the Replica&rdquo;</a>.
+            </p></li></ol></div><p>
+          Perform these replica setup steps on each replica.
+        </p><p>
+          This method can also be used if you are setting up new servers
+          but have an existing dump of the databases from a different
+          server that you want to load into your replication
+          configuration. By loading the data into a new source, the data
+          is automatically replicated to the replicas.
+        </p><p>
+          If you are setting up a new replication environment using the
+          data from a different existing database server to create a new
+          source, run the dump file generated from that server on the
+          new source. The database updates are automatically propagated
+          to the replicas:
+        </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql -h source &lt; fulldb.dump</code></strong>
+</pre></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="replication-howto-existingdata"></a>17.1.2.6.2&nbsp;Setting Up Replication with Existing Data</h5></div></div></div><p>
+          When setting up replication with existing data, transfer the
+          snapshot from the source to the replica before starting
+          replication. The process for importing data to the replica
+          depends on how you created the snapshot of data on the source.
+        </p><div class="tip" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Tip</div><p>
+            To deploy multiple instances of MySQL, you can use <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-innodb-cluster.html" target="_top">InnoDB Cluster</a> which enables you to easily administer a group of MySQL server instances in <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/" target="_top">MySQL Shell</a>. InnoDB Cluster wraps MySQL Group Replication in a programmatic environment that enables you easily deploy a cluster of MySQL instances to achieve high availability. In addition, InnoDB Cluster interfaces seamlessly with <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-router-8.0-en/" target="_top">MySQL Router</a>, which enables your applications to connect to the cluster without writing your own failover process. For similar use cases that do not require high availability, however, you can use <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-innodb-replicaset.html" target="_top">InnoDB ReplicaSet</a>. Installation instructions for MySQL Shell can be found <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-shell-install.html" target="_top">here</a>.
+          </p></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            If the replication source server or existing replica that
+            you are copying to create the new replica has any scheduled
+            events, ensure that these are disabled on the new replica
+            before you start it. If an event runs on the new replica
+            that has already run on the source, the duplicated operation
+            causes an error. The Event Scheduler is controlled by the
+            <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> system
+            variable, which defaults to <code class="literal">ON</code> from MySQL
+            8.0, so events that are active on the original server run by
+            default when the new replica starts up. To stop all events
+            from running on the new replica, set the
+            <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> system
+            variable to <code class="literal">OFF</code> or
+            <code class="literal">DISABLED</code> on the new replica.
+            Alternatively, you can use the <a class="link" href="alter-event.html" title="13.1.3&nbsp;ALTER EVENT Statement"><code class="literal">ALTER
+            EVENT</code></a> statement to set individual events to
+            <code class="literal">DISABLE</code> or <code class="literal">DISABLE ON
+            SLAVE</code> to prevent them from running on the new
+            replica. You can list the events on a server using the
+            <a class="link" href="show.html" title="13.7.7&nbsp;SHOW Statements"><code class="literal">SHOW</code></a> statement or the
+            Information Schema <a class="link" href="information-schema-events-table.html" title="26.3.14&nbsp;The INFORMATION_SCHEMA EVENTS Table"><code class="literal">EVENTS</code></a>
+            table. For more information, see
+            <a class="xref" href="replication-features-invoked.html" title="17.5.1.16&nbsp;Replication of Invoked Features">Section&nbsp;17.5.1.16, &ldquo;Replication of Invoked Features&rdquo;</a>.
+          </p></div><p>
+          As an alternative to creating a new replica in this way, MySQL
+          Server&#39;s clone plugin can be used to transfer all the data and
+          replication settings from an existing replica to a clone. For
+          instructions to use this method, see
+          <a class="xref" href="clone-plugin-replication.html" title="5.6.7.7&nbsp;Cloning for Replication">Section&nbsp;5.6.7.7, &ldquo;Cloning for Replication&rdquo;</a>.
+        </p><p>
+          Follow this procedure to set up replication with existing
+          data:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              If you used MySQL Server&#39;s clone plugin to create a clone
+              from an existing replica (see
+              <a class="xref" href="clone-plugin-replication.html" title="5.6.7.7&nbsp;Cloning for Replication">Section&nbsp;5.6.7.7, &ldquo;Cloning for Replication&rdquo;</a>), the data is
+              already transferred. Otherwise, import the data to the
+              replica using one of the following methods.
+            </p><div class="orderedlist"><ol class="orderedlist" type="a"><li class="listitem"><p>
+                  If you used <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>, start the
+                  replica server, ensuring that replication does not
+                  start by using the
+                  <a class="link" href="replication-options-replica.html#option_mysqld_skip-slave-start"><code class="option">--skip-slave-start</code></a>
+                  option, or from MySQL 8.0.24, the
+                  <a class="link" href="replication-options-replica.html#sysvar_skip_slave_start"><code class="literal">skip_slave_start</code></a>
+                  system variable. Then import the dump file:
+                </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql &lt; fulldb.dump</code></strong>
+</pre></li><li class="listitem"><p>
+                  If you created a snapshot using the raw data files,
+                  extract the data files into your replica&#39;s data
+                  directory. For example:
+                </p><pre class="programlisting">$&gt; <strong class="userinput"><code>tar xvf dbdump.tar</code></strong>
+</pre><p>
+                  You may need to set permissions and ownership on the
+                  files so that the replica server can access and modify
+                  them. Then start the replica server, ensuring that
+                  replication does not start by using the
+                  <a class="link" href="replication-options-replica.html#option_mysqld_skip-slave-start"><code class="option">--skip-slave-start</code></a>
+                  option, or from MySQL 8.0.24, the
+                  <a class="link" href="replication-options-replica.html#sysvar_skip_slave_start"><code class="literal">skip_slave_start</code></a>
+                  system variable.
+                </p></li></ol></div></li><li class="listitem"><p>
+              Configure the replica with the replication coordinates
+              from the source. This tells the replica the binary log
+              file and position within the file where replication needs
+              to start. Also, configure the replica with the login
+              credentials and host name of the source. For more
+              information on the <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION
+              SOURCE TO</code></a> | <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER
+              TO</code></a> statement required, see
+              <a class="xref" href="replication-howto-slaveinit.html" title="17.1.2.7&nbsp;Setting the Source Configuration on the Replica">Section&nbsp;17.1.2.7, &ldquo;Setting the Source Configuration on the Replica&rdquo;</a>.
+            </p></li><li class="listitem"><p>
+              Start the replication threads by issuing a
+              <a class="link" href="start-replica.html" title="13.4.2.8&nbsp;START REPLICA Statement"><code class="literal">START
+              REPLICA</code></a> (or before MySQL 8.0.22,
+              <a class="link" href="start-replica.html" title="13.4.2.8&nbsp;START REPLICA Statement"><code class="literal">START
+              SLAVE</code></a>) statement.
+            </p></li></ol></div><p>
+          After you have performed this procedure, the replica connects
+          to the source and replicates any updates that have occurred on
+          the source since the snapshot was taken. Error messages are
+          issued to the replica&#39;s error log if it is not able to
+          replicate for any reason.
+        </p><p>
+          The replica uses information logged in its connection metadata
+          repository and applier metadata repository to keep track of
+          how much of the source&#39;s binary log it has processed.
+          From MySQL 8.0, by default, these repositories are tables
+          named <code class="literal">slave_master_info</code> and
+          <code class="literal">slave_relay_log_info</code> in the
+          <code class="literal">mysql</code> database. Do <span class="emphasis"><em>not</em></span>
+          remove or edit these tables unless you know exactly what you
+          are doing and fully understand the implications. Even in that
+          case, it is preferred that you use the
+          <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a> |
+          <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement to
+          change replication parameters. The replica uses the values
+          specified in the statement to update the replication metadata
+          repositories automatically. See
+          <a class="xref" href="replica-logs.html" title="17.2.4&nbsp;Relay Log and Replication Metadata Repositories">Section&nbsp;17.2.4, &ldquo;Relay Log and Replication Metadata Repositories&rdquo;</a>, for more information.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            The contents of the replica&#39;s connection metadata repository
+            override some of the server options specified on the command
+            line or in <code class="filename">my.cnf</code>. See
+            <a class="xref" href="replication-options.html" title="17.1.6&nbsp;Replication and Binary Logging Options and Variables">Section&nbsp;17.1.6, &ldquo;Replication and Binary Logging Options and Variables&rdquo;</a>, for more details.
+          </p></div><p>
+          A single snapshot of the source suffices for multiple
+          replicas. To set up additional replicas, use the same source
+          snapshot and follow the replica portion of the procedure just
+          described.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-snapshot-method.html">Previous <span class="navHint"> Choosing a Method for Data Snapshots </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-howto.html">Up <span class="navHint"> Setting Up Binary Log File Position Based Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-howto-slaveinit.html">Next <span class="navHint"> Setting the Source Configuration on the Replica </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

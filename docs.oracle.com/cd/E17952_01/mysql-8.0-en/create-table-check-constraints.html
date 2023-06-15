@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.1.20.6 CHECK Constraints</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="create-table.html" title="13.1.20 CREATE TABLE Statement" /><link rel="prev" href="create-table-foreign-keys.html" title="13.1.20.5 FOREIGN KEY Constraints" /><link rel="next" href="silent-column-changes.html" title="13.1.20.7 Silent Column Specification Changes" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="create-table-check-constraints.html#create-table-check-constraints">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="create-table-foreign-keys.html">Previous <span class="navHint"> FOREIGN KEY Constraints </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="create-table.html">Up <span class="navHint"> CREATE TABLE Statement </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="silent-column-changes.html">Next <span class="navHint"> Silent Column Specification Changes </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="create-table-check-constraints"></a>13.1.20.6 CHECK Constraints</h4></div></div></div><a id="idm45828911384096" class="indexterm"></a><p>
+        Prior to MySQL 8.0.16, <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE
+        TABLE</code></a> permits only the following limited version of
+        table <code class="literal">CHECK</code> constraint syntax, which is
+        parsed and ignored:
+      </p><pre class="programlisting">CHECK (<em class="replaceable"><code>expr</code></em>)
+</pre><p>
+        As of MySQL 8.0.16, <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>
+        permits the core features of table and column
+        <code class="literal">CHECK</code> constraints, for all storage engines.
+        <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> permits the
+        following <code class="literal">CHECK</code> constraint syntax, for both
+        table constraints and column constraints:
+      </p><pre class="programlisting">[CONSTRAINT [<em class="replaceable"><code>symbol</code></em>]] CHECK (<em class="replaceable"><code>expr</code></em>) [[NOT] ENFORCED]
+</pre><p>
+        The optional <em class="replaceable"><code>symbol</code></em> specifies a name
+        for the constraint. If omitted, MySQL generates a name from the
+        table name, a literal <code class="literal">_chk_</code>, and an ordinal
+        number (1, 2, 3, ...). Constraint names have a maximum length of
+        64 characters. They are case-sensitive, but not
+        accent-sensitive.
+      </p><p>
+        <em class="replaceable"><code>expr</code></em> specifies the constraint
+        condition as a boolean expression that must evaluate to
+        <code class="literal">TRUE</code> or <code class="literal">UNKNOWN</code> (for
+        <code class="literal">NULL</code> values) for each row of the table. If
+        the condition evaluates to <code class="literal">FALSE</code>, it fails
+        and a constraint violation occurs. The effect of a violation
+        depends on the statement being executed, as described later in
+        this section.
+      </p><p>
+        The optional enforcement clause indicates whether the constraint
+        is enforced:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If omitted or specified as <code class="literal">ENFORCED</code>, the
+            constraint is created and enforced.
+          </p></li><li class="listitem"><p>
+            If specified as <code class="literal">NOT ENFORCED</code>, the
+            constraint is created but not enforced.
+          </p></li></ul></div><p>
+        A <code class="literal">CHECK</code> constraint is specified as either a
+        table constraint or column constraint:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A table constraint does not appear within a column
+            definition and can refer to any table column or columns.
+            Forward references are permitted to columns appearing later
+            in the table definition.
+          </p></li><li class="listitem"><p>
+            A column constraint appears within a column definition and
+            can refer only to that column.
+          </p></li></ul></div><p>
+        Consider this table definition:
+      </p><pre class="programlisting">CREATE TABLE t1
+(
+  CHECK (c1 &lt;&gt; c2),
+  c1 INT CHECK (c1 &gt; 10),
+  c2 INT CONSTRAINT c2_positive CHECK (c2 &gt; 0),
+  c3 INT CHECK (c3 &lt; 100),
+  CONSTRAINT c1_nonzero CHECK (c1 &lt;&gt; 0),
+  CHECK (c1 &gt; c3)
+);
+</pre><p>
+        The definition includes table constraints and column
+        constraints, in named and unnamed formats:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The first constraint is a table constraint: It occurs
+            outside any column definition, so it can (and does) refer to
+            multiple table columns. This constraint contains forward
+            references to columns not defined yet. No constraint name is
+            specified, so MySQL generates a name.
+          </p></li><li class="listitem"><p>
+            The next three constraints are column constraints: Each
+            occurs within a column definition, and thus can refer only
+            to the column being defined. One of the constraints is named
+            explicitly. MySQL generates a name for each of the other
+            two.
+          </p></li><li class="listitem"><p>
+            The last two constraints are table constraints. One of them
+            is named explicitly. MySQL generates a name for the other
+            one.
+          </p></li></ul></div><p>
+        As mentioned, MySQL generates a name for any
+        <code class="literal">CHECK</code> constraint specified without one. To
+        see the names generated for the preceding table definition, use
+        <code class="literal">SHOW CREATE TABLE</code>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW CREATE TABLE t1\G</code></strong>
+*************************** 1. row ***************************
+       Table: t1
+Create Table: CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  CONSTRAINT `c1_nonzero` CHECK ((`c1` &lt;&gt; 0)),
+  CONSTRAINT `c2_positive` CHECK ((`c2` &gt; 0)),
+  CONSTRAINT `t1_chk_1` CHECK ((`c1` &lt;&gt; `c2`)),
+  CONSTRAINT `t1_chk_2` CHECK ((`c1` &gt; 10)),
+  CONSTRAINT `t1_chk_3` CHECK ((`c3` &lt; 100)),
+  CONSTRAINT `t1_chk_4` CHECK ((`c1` &gt; `c3`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+</pre><p>
+        The SQL standard specifies that all types of constraints
+        (primary key, unique index, foreign key, check) belong to the
+        same namespace. In MySQL, each constraint type has its own
+        namespace per schema (database). Consequently,
+        <code class="literal">CHECK</code> constraint names must be unique per
+        schema; no two tables in the same schema can share a
+        <code class="literal">CHECK</code> constraint name. (Exception: A
+        <code class="literal">TEMPORARY</code> table hides a
+        non-<code class="literal">TEMPORARY</code> table of the same name, so it
+        can have the same <code class="literal">CHECK</code> constraint names as
+        well.)
+      </p><p>
+        Beginning generated constraint names with the table name helps
+        ensure schema uniqueness because table names also must be unique
+        within the schema.
+      </p><p>
+        <code class="literal">CHECK</code> condition expressions must adhere to
+        the following rules. An error occurs if an expression contains
+        disallowed constructs.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Nongenerated and generated columns are permitted, except
+            columns with the <code class="literal">AUTO_INCREMENT</code> attribute
+            and columns in other tables.
+          </p></li><li class="listitem"><p>
+            Literals, deterministic built-in functions, and operators
+            are permitted. A function is deterministic if, given the
+            same data in tables, multiple invocations produce the same
+            result, independently of the connected user. Examples of
+            functions that are nondeterministic and fail this
+            definition: <a class="link" href="information-functions.html#function_connection-id"><code class="literal">CONNECTION_ID()</code></a>,
+            <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a>,
+            <a class="link" href="date-and-time-functions.html#function_now"><code class="literal">NOW()</code></a>.
+          </p></li><li class="listitem"><p>
+            Stored functions and loadable functions are not permitted.
+          </p></li><li class="listitem"><p>
+            Stored procedure and function parameters are not permitted.
+          </p></li><li class="listitem"><p>
+            Variables (system variables, user-defined variables, and
+            stored program local variables) are not permitted.
+          </p></li><li class="listitem"><p>
+            Subqueries are not permitted.
+          </p></li></ul></div><p>
+        Foreign key referential actions (<code class="literal">ON UPDATE</code>,
+        <code class="literal">ON DELETE</code>) are prohibited on columns used in
+        <code class="literal">CHECK</code> constraints. Likewise,
+        <code class="literal">CHECK</code> constraints are prohibited on columns
+        used in foreign key referential actions.
+      </p><p>
+        <code class="literal">CHECK</code> constraints are evaluated for
+        <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>,
+        <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>,
+        <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE</code></a>,
+        <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA</code></a>, and
+        <a class="link" href="load-xml.html" title="13.2.10 LOAD XML Statement"><code class="literal">LOAD XML</code></a> statements and an error
+        occurs if a constraint evaluates to <code class="literal">FALSE</code>. If
+        an error occurs, handling of changes already applied differs for
+        transactional and nontransactional storage engines, and also
+        depends on whether strict SQL mode is in effect, as described in
+        <a class="xref" href="sql-mode.html#sql-mode-strict" title="Strict SQL Mode">Strict SQL Mode</a>.
+      </p><p>
+        <code class="literal">CHECK</code> constraints are evaluated for
+        <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT IGNORE</code></a>,
+        <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE IGNORE</code></a>,
+        <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA ...
+        IGNORE</code></a>, and
+        <a class="link" href="load-xml.html" title="13.2.10 LOAD XML Statement"><code class="literal">LOAD XML ...
+        IGNORE</code></a> statements and a warning occurs if a constraint
+        evaluates to <code class="literal">FALSE</code>. The insert or update for
+        any offending row is skipped.
+      </p><p>
+        If the constraint expression evaluates to a data type that
+        differs from the declared column type, implicit coercion to the
+        declared type occurs according to the usual MySQL
+        type-conversion rules. See <a class="xref" href="type-conversion.html" title="12.3 Type Conversion in Expression Evaluation">Section 12.3, “Type Conversion in Expression Evaluation”</a>. If
+        type conversion fails or results in a loss of precision, an
+        error occurs.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Constraint expression evaluation uses the SQL mode in effect
+          at evaluation time. If any component of the expression depends
+          on the SQL mode, different results may occur for different
+          uses of the table unless the SQL mode is the same during all
+          uses.
+        </p></div><p>
+        The Information Schema
+        <a class="link" href="information-schema-check-constraints-table.html" title="26.3.5 The INFORMATION_SCHEMA CHECK_CONSTRAINTS Table"><code class="literal">CHECK_CONSTRAINTS</code></a> table provides
+        information about <code class="literal">CHECK</code> constraints defined
+        on tables. See
+        <a class="xref" href="information-schema-check-constraints-table.html" title="26.3.5 The INFORMATION_SCHEMA CHECK_CONSTRAINTS Table">Section 26.3.5, “The INFORMATION_SCHEMA CHECK_CONSTRAINTS Table”</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="create-table-foreign-keys.html">Previous <span class="navHint"> FOREIGN KEY Constraints </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="create-table.html">Up <span class="navHint"> CREATE TABLE Statement </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="silent-column-changes.html">Next <span class="navHint"> Silent Column Specification Changes </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

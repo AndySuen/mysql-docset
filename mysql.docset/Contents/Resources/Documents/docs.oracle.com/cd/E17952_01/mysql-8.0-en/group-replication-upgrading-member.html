@@ -1,0 +1,92 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1154"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.8.3.2%C2%A0Upgrading%20a%20Group%20Replication%20Member"></a><title>18.8.3.2&nbsp;Upgrading a Group Replication Member</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-online-upgrade.html" title="18.8.3&nbsp;Group Replication Online Upgrade"/><link rel="prev" href="group-replication-online-upgrade-considerations.html" title="18.8.3.1&nbsp;Online Upgrade Considerations"/><link rel="next" href="group-replication-online-upgrade-methods.html" title="18.8.3.3&nbsp;Group Replication Online Upgrade Methods"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-upgrading-member.html#group-replication-upgrading-member">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-online-upgrade-considerations.html">Previous <span class="navHint"> Online Upgrade Considerations </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-online-upgrade.html">Up <span class="navHint"> Group Replication Online Upgrade </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-online-upgrade-methods.html">Next <span class="navHint"> Group Replication Online Upgrade Methods </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1153"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/18.8.3.2%C2%A0Upgrading%20a%20Group%20Replication%20Member"></a><h4 class="title"><a id="group-replication-upgrading-member"></a>18.8.3.2&nbsp;Upgrading a Group Replication Member</h4></div></div></div><a id="idm45828852458112" class="indexterm"></a><p>
+        This section explains the steps required for upgrading a member
+        of a group. This procedure is part of the methods described at
+        <a class="xref" href="group-replication-online-upgrade-methods.html" title="18.8.3.3&nbsp;Group Replication Online Upgrade Methods">Section&nbsp;18.8.3.3, &ldquo;Group Replication Online Upgrade Methods&rdquo;</a>. The
+        process of upgrading a member of a group is common to all
+        methods and is explained first. The way which you join upgraded
+        members can depend on which method you are following, and other
+        factors such as whether the group is operating in single-primary
+        or multi-primary mode. How you upgrade the server instance,
+        using either the in-place or provision approach, does not impact
+        on the methods described here.
+      </p><p>
+        The process of upgrading a member consists of removing it from
+        the group, following your chosen method of upgrading the member,
+        and then rejoining the upgraded member to a group. The
+        recommended order of upgrading members in a single-primary group
+        is to upgrade all secondaries, and then upgrade the primary
+        last. If the primary is upgraded before a secondary, a new
+        primary using the older MySQL version is chosen, but there is no
+        need for this step.
+      </p><p>
+        To upgrade a member of a group:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Connect a client to the group member and issue
+            <a class="link" href="stop-group-replication.html" title="13.4.3.2&nbsp;STOP GROUP_REPLICATION Statement"><code class="literal">STOP GROUP_REPLICATION</code></a>.
+            Before proceeding, ensure that the member&#39;s status is
+            <code class="literal">OFFLINE</code> by monitoring the
+            <a class="link" href="performance-schema-replication-group-members-table.html" title="27.12.11.11&nbsp;The replication_group_members Table"><code class="literal">replication_group_members</code></a>
+            table.
+          </p></li><li class="listitem"><p>
+            Disable Group Replication from starting up automatically so
+            that you can safely connect to the member after upgrading
+            and configure it without it rejoining the group by setting
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_start_on_boot"><code class="literal">
+            group_replication_start_on_boot=0</code></a>.
+          </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+              If an upgraded member has <a class="link" href="group-replication-options.html#sysvar_group_replication_start_on_boot"><code class="literal">
+              group_replication_start_on_boot=1</code></a> then it could
+              rejoin the group before you can perform the MySQL upgrade
+              procedure and could result in issues. For example, if the
+              upgrade fails and the server restarts again, then a
+              possibly broken server could try to join the group.
+            </p></div></li><li class="listitem"><p>
+            Stop the member, for example using <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin
+            shutdown</strong></span></a> or the
+            <a class="link" href="shutdown.html" title="13.7.8.9&nbsp;SHUTDOWN Statement"><code class="literal">SHUTDOWN</code></a> statement. Any other
+            members in the group continue running.
+          </p></li><li class="listitem"><p>
+            Upgrade the member, using the in-place or provisioning
+            approach. See <a class="xref" href="upgrading.html" title="2.10&nbsp;Upgrading MySQL">Section&nbsp;2.10, &ldquo;Upgrading MySQL&rdquo;</a> for details. When
+            restarting the upgraded member, because
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_start_on_boot"><code class="literal">
+            group_replication_start_on_boot</code></a> is set to 0, Group
+            Replication does not start on the instance, and therefore it
+            does not rejoin the group.
+          </p></li><li class="listitem"><p>
+            Once the MySQL upgrade procedure has been performed on the
+            member,
+            <a class="link" href="group-replication-options.html#sysvar_group_replication_start_on_boot"><code class="literal">group_replication_start_on_boot</code></a>
+            must be set to 1 to ensure Group Replication starts
+            correctly after restart. Restart the member.
+          </p></li><li class="listitem"><p>
+            Connect to the upgraded member and issue
+            <a class="link" href="start-group-replication.html" title="13.4.3.1&nbsp;START GROUP_REPLICATION Statement"><code class="literal">START GROUP_REPLICATION</code></a>. This
+            rejoins the member to the group. The Group Replication
+            metadata is in place on the upgraded server, therefore there
+            is usually no need to reconfigure Group Replication. The
+            server has to catch up with any transactions processed by
+            the group while the server was offline. Once it has caught
+            up with the group, it becomes an online member of the group.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              The longer it takes to upgrade a server, the more time
+              that member is offline and therefore the more time it
+              takes for the server to catch up when added back to the
+              group.
+            </p></div></li></ul></div><p>
+        When an upgraded member joins a group which has any member
+        running an earlier MySQL Server version, the upgraded member
+        joins with <a class="link" href="server-system-variables.html#sysvar_super_read_only"><code class="literal">super_read_only=on</code></a>.
+        This ensures that no writes are made to upgraded members until
+        all members are running the newer version. In a multi-primary
+        mode group, when the upgrade has been completed successfully and
+        the group is ready to process transactions, members that are
+        intended as writeable primaries must be set to read-write mode.
+        From MySQL 8.0.17, when all members of a group have been
+        upgraded to the same release, they all change back to read-write
+        mode automatically. For earlier releases you must set each
+        member manually to read-write mode. Connect to each member and
+        issue:
+      </p><pre class="programlisting"><strong class="userinput"><code>SET GLOBAL super_read_only=OFF;</code></strong></pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-online-upgrade-considerations.html">Previous <span class="navHint"> Online Upgrade Considerations </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-online-upgrade.html">Up <span class="navHint"> Group Replication Online Upgrade </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-online-upgrade-methods.html">Next <span class="navHint"> Group Replication Online Upgrade Methods </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

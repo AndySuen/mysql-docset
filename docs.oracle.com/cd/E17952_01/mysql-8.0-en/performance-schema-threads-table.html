@@ -1,0 +1,474 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>27.12.21.7 The threads Table</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="performance-schema-miscellaneous-tables.html" title="27.12.21 Performance Schema Miscellaneous Tables" /><link rel="prev" href="performance-schema-processlist-table.html" title="27.12.21.6 The processlist Table" /><link rel="next" href="performance-schema-tls-channel-status-table.html" title="27.12.21.8 The tls_channel_status Table" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-threads-table.html#performance-schema-threads-table">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="performance-schema-processlist-table.html">Previous <span class="navHint"> The processlist Table </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="performance-schema-miscellaneous-tables.html">Up <span class="navHint"> Performance Schema Miscellaneous Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="performance-schema-tls-channel-status-table.html">Next <span class="navHint"> The tls_channel_status Table </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="performance-schema-threads-table"></a>27.12.21.7 The threads Table</h4></div></div></div><a id="idm45828784585744" class="indexterm"></a><a id="idm45828784584256" class="indexterm"></a><a id="idm45828784582768" class="indexterm"></a><p>
+          The <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a> table contains a row
+          for each server thread. Each row contains information about a
+          thread and indicates whether monitoring and historical event
+          logging are enabled for it:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.threads\G</code></strong>
+*************************** 1. row ***************************
+            THREAD_ID: 1
+                 NAME: thread/sql/main
+                 TYPE: BACKGROUND
+       PROCESSLIST_ID: NULL
+     PROCESSLIST_USER: NULL
+     PROCESSLIST_HOST: NULL
+       PROCESSLIST_DB: mysql
+  PROCESSLIST_COMMAND: NULL
+     PROCESSLIST_TIME: 418094
+    PROCESSLIST_STATE: NULL
+     PROCESSLIST_INFO: NULL
+     PARENT_THREAD_ID: NULL
+                 ROLE: NULL
+         INSTRUMENTED: YES
+              HISTORY: YES
+      CONNECTION_TYPE: NULL
+         THREAD_OS_ID: 5856
+       RESOURCE_GROUP: SYS_default
+     EXECUTION_ENGINE: PRIMARY
+    CONTROLLED_MEMORY: 1456
+MAX_CONTROLLED_MEMORY: 67480
+         TOTAL_MEMORY: 1270430
+     MAX_TOTAL_MEMORY: 1307317
+     TELEMETRY_ACTIVE: NO
+...
+
+</pre><p>
+          When the Performance Schema initializes, it populates the
+          <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a> table based on the
+          threads in existence then. Thereafter, a new row is added each
+          time the server creates a thread.
+        </p><p>
+          The <code class="literal">INSTRUMENTED</code> and
+          <code class="literal">HISTORY</code> column values for new threads are
+          determined by the contents of the
+          <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> table. For
+          information about how to use the
+          <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> table to control
+          these columns, see
+          <a class="xref" href="performance-schema-thread-filtering.html" title="27.4.6 Pre-Filtering by Thread">Section 27.4.6, “Pre-Filtering by Thread”</a>.
+        </p><a id="idm45828784569840" class="indexterm"></a><p>
+          Removal of rows from the <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a>
+          table occurs when threads end. For a thread associated with a
+          client session, removal occurs when the session ends. If a
+          client has auto-reconnect enabled and the session reconnects
+          after a disconnect, the session becomes associated with a new
+          row in the <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a> table that has
+          a different <code class="literal">PROCESSLIST_ID</code> value. The
+          initial <code class="literal">INSTRUMENTED</code> and
+          <code class="literal">HISTORY</code> values for the new thread may be
+          different from those of the original thread: The
+          <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> table may have
+          changed in the meantime, and if the
+          <code class="literal">INSTRUMENTED</code> or <code class="literal">HISTORY</code>
+          value for the original thread was changed after the row was
+          initialized, the change does not carry over to the new thread.
+        </p><p>
+          You can enable or disable thread monitoring (that is, whether
+          events executed by the thread are instrumented) and historical
+          event logging. To control the initial
+          <code class="literal">INSTRUMENTED</code> and <code class="literal">HISTORY</code>
+          values for new foreground threads, use the
+          <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> table. To control
+          these aspects of existing threads, set the
+          <code class="literal">INSTRUMENTED</code> and <code class="literal">HISTORY</code>
+          columns of <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a> table rows.
+          (For more information about the conditions under which thread
+          monitoring and historical event logging occur, see the
+          descriptions of the <code class="literal">INSTRUMENTED</code> and
+          <code class="literal">HISTORY</code> columns.)
+        </p><p>
+          For a comparison of the <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a>
+          table columns with names having a prefix of
+          <code class="literal">PROCESSLIST_</code> to other process information
+          sources, see <a class="xref" href="processlist-access.html#processlist-sources" title="Sources of Process Information">Sources of Process Information</a>.
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            For thread information sources other than the
+            <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a> table, information
+            about threads for other users is shown only if the current
+            user has the <a class="link" href="privileges-provided.html#priv_process"><code class="literal">PROCESS</code></a>
+            privilege. That is not true of the
+            <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a> table; all rows are
+            shown to any user who has the
+            <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> privilege for the
+            table. Users who should not be able to see threads for other
+            users by accessing the <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a>
+            table should not be given the
+            <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> privilege for it.
+          </p></div><p>
+          The <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a> table has these
+          columns:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">THREAD_ID</code>
+            </p><p>
+              A unique thread identifier.
+            </p></li><li class="listitem"><p>
+              <code class="literal">NAME</code>
+            </p><p>
+              The name associated with the thread instrumentation code
+              in the server. For example,
+              <code class="literal">thread/sql/one_connection</code> corresponds
+              to the thread function in the code responsible for
+              handling a user connection, and
+              <code class="literal">thread/sql/main</code> stands for the
+              <code class="literal">main()</code> function of the server.
+            </p></li><li class="listitem"><p>
+              <code class="literal">TYPE</code>
+            </p><p>
+              The thread type, either <code class="literal">FOREGROUND</code> or
+              <code class="literal">BACKGROUND</code>. User connection threads are
+              foreground threads. Threads associated with internal
+              server activity are background threads. Examples are
+              internal <code class="literal">InnoDB</code> threads, <span class="quote">“<span class="quote">binlog
+              dump</span>”</span> threads sending information to replicas, and
+              replication I/O and SQL threads.
+            </p></li><li class="listitem"><p>
+              <code class="literal">PROCESSLIST_ID</code>
+            </p><p>
+              For a foreground thread (associated with a user
+              connection), this is the connection identifier. This is
+              the same value displayed in the <code class="literal">ID</code>
+              column of the <code class="literal">INFORMATION_SCHEMA</code>
+              <a class="link" href="information-schema-processlist-table.html" title="26.3.23 The INFORMATION_SCHEMA PROCESSLIST Table"><code class="literal">PROCESSLIST</code></a> table, displayed
+              in the <code class="literal">Id</code> column of
+              <a class="link" href="show-processlist.html" title="13.7.7.29 SHOW PROCESSLIST Statement"><code class="literal">SHOW PROCESSLIST</code></a> output,
+              and returned by the
+              <a class="link" href="information-functions.html#function_connection-id"><code class="literal">CONNECTION_ID()</code></a> function
+              within the thread.
+            </p><p>
+              For a background thread (not associated with a user
+              connection), <code class="literal">PROCESSLIST_ID</code> is
+              <code class="literal">NULL</code>, so the values are not unique.
+            </p></li><li class="listitem"><p>
+              <code class="literal">PROCESSLIST_USER</code>
+            </p><p>
+              The user associated with a foreground thread,
+              <code class="literal">NULL</code> for a background thread.
+            </p></li><li class="listitem"><p>
+              <code class="literal">PROCESSLIST_HOST</code>
+            </p><p>
+              The host name of the client associated with a foreground
+              thread, <code class="literal">NULL</code> for a background thread.
+            </p><p>
+              Unlike the <code class="literal">HOST</code> column of the
+              <code class="literal">INFORMATION_SCHEMA</code>
+              <a class="link" href="information-schema-processlist-table.html" title="26.3.23 The INFORMATION_SCHEMA PROCESSLIST Table"><code class="literal">PROCESSLIST</code></a> table or the
+              <code class="literal">Host</code> column of
+              <a class="link" href="show-processlist.html" title="13.7.7.29 SHOW PROCESSLIST Statement"><code class="literal">SHOW PROCESSLIST</code></a> output,
+              the <code class="literal">PROCESSLIST_HOST</code> column does not
+              include the port number for TCP/IP connections. To obtain
+              this information from the Performance Schema, enable the
+              socket instrumentation (which is not enabled by default)
+              and examine the
+              <a class="link" href="performance-schema-socket-instances-table.html" title="27.12.3.5 The socket_instances Table"><code class="literal">socket_instances</code></a> table:
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT NAME, ENABLED, TIMED</code></strong>
+       <strong class="userinput"><code>FROM performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE 'wait/io/socket%';</code></strong>
++----------------------------------------+---------+-------+
+| NAME                                   | ENABLED | TIMED |
++----------------------------------------+---------+-------+
+| wait/io/socket/sql/server_tcpip_socket | NO      | NO    |
+| wait/io/socket/sql/server_unix_socket  | NO      | NO    |
+| wait/io/socket/sql/client_connection   | NO      | NO    |
++----------------------------------------+---------+-------+
+3 rows in set (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>SET ENABLED='YES'</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE 'wait/io/socket%';</code></strong>
+Query OK, 3 rows affected (0.00 sec)
+Rows matched: 3  Changed: 3  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.socket_instances\G</code></strong>
+*************************** 1. row ***************************
+           EVENT_NAME: wait/io/socket/sql/client_connection
+OBJECT_INSTANCE_BEGIN: 140612577298432
+            THREAD_ID: 31
+            SOCKET_ID: 53
+                   IP: ::ffff:127.0.0.1
+                 PORT: 55642
+                STATE: ACTIVE
+...
+</pre></li><li class="listitem"><p>
+              <code class="literal">PROCESSLIST_DB</code>
+            </p><p>
+              The default database for the thread, or
+              <code class="literal">NULL</code> if none has been selected.
+            </p></li><li class="listitem"><p>
+              <code class="literal">PROCESSLIST_COMMAND</code>
+            </p><p>
+              For foreground threads, the type of command the thread is
+              executing on behalf of the client, or
+              <code class="literal">Sleep</code> if the session is idle. For
+              descriptions of thread commands, see
+              <a class="xref" href="thread-information.html" title="8.14 Examining Server Thread (Process) Information">Section 8.14, “Examining Server Thread (Process) Information”</a>. The value of this
+              column corresponds to the
+              <code class="literal">COM_<em class="replaceable"><code>xxx</code></em></code>
+              commands of the client/server protocol and
+              <code class="literal">Com_<em class="replaceable"><code>xxx</code></em></code>
+              status variables. See
+              <a class="xref" href="server-status-variables.html" title="5.1.10 Server Status Variables">Section 5.1.10, “Server Status Variables”</a>
+            </p><p>
+              Background threads do not execute commands on behalf of
+              clients, so this column may be <code class="literal">NULL</code>.
+            </p></li><li class="listitem"><p>
+              <code class="literal">PROCESSLIST_TIME</code>
+            </p><p>
+              The time in seconds that the thread has been in its
+              current state. For a replica SQL thread, the value is the
+              number of seconds between the timestamp of the last
+              replicated event and the real time of the replica host.
+              See <a class="xref" href="replication-threads.html" title="17.2.3 Replication Threads">Section 17.2.3, “Replication Threads”</a>.
+            </p></li><li class="listitem"><p>
+              <code class="literal">PROCESSLIST_STATE</code>
+            </p><p>
+              An action, event, or state that indicates what the thread
+              is doing. For descriptions of
+              <code class="literal">PROCESSLIST_STATE</code> values, see
+              <a class="xref" href="thread-information.html" title="8.14 Examining Server Thread (Process) Information">Section 8.14, “Examining Server Thread (Process) Information”</a>. If the value if
+              <code class="literal">NULL</code>, the thread may correspond to an
+              idle client session or the work it is doing is not
+              instrumented with stages.
+            </p><p>
+              Most states correspond to very quick operations. If a
+              thread stays in a given state for many seconds, there
+              might be a problem that bears investigation.
+            </p></li><li class="listitem"><p>
+              <code class="literal">PROCESSLIST_INFO</code>
+            </p><p>
+              The statement the thread is executing, or
+              <code class="literal">NULL</code> if it is executing no statement.
+              The statement might be the one sent to the server, or an
+              innermost statement if the statement executes other
+              statements. For example, if a <code class="literal">CALL</code>
+              statement executes a stored procedure that is executing a
+              <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statement, the
+              <code class="literal">PROCESSLIST_INFO</code> value shows the
+              <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statement.
+            </p></li><li class="listitem"><p>
+              <code class="literal">PARENT_THREAD_ID</code>
+            </p><p>
+              If this thread is a subthread (spawned by another thread),
+              this is the <code class="literal">THREAD_ID</code> value of the
+              spawning thread.
+            </p></li><li class="listitem"><p>
+              <code class="literal">ROLE</code>
+            </p><p>
+              Unused.
+            </p></li><li class="listitem"><p>
+              <code class="literal">INSTRUMENTED</code>
+            </p><p>
+              Whether events executed by the thread are instrumented.
+              The value is <code class="literal">YES</code> or
+              <code class="literal">NO</code>.
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                  For foreground threads, the initial
+                  <code class="literal">INSTRUMENTED</code> value is determined by
+                  whether the user account associated with the thread
+                  matches any row in the
+                  <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> table.
+                  Matching is based on the values of the
+                  <code class="literal">PROCESSLIST_USER</code> and
+                  <code class="literal">PROCESSLIST_HOST</code> columns.
+                </p><p>
+                  If the thread spawns a subthread, matching occurs
+                  again for the <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a>
+                  table row created for the subthread.
+                </p></li><li class="listitem"><p>
+                  For background threads,
+                  <code class="literal">INSTRUMENTED</code> is
+                  <code class="literal">YES</code> by default.
+                  <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> is not
+                  consulted because there is no associated user for
+                  background threads.
+                </p></li><li class="listitem"><p>
+                  For any thread, its <code class="literal">INSTRUMENTED</code>
+                  value can be changed during the lifetime of the
+                  thread.
+                </p></li></ul></div><p>
+              For monitoring of events executed by the thread to occur,
+              these things must be true:
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                  The <code class="literal">thread_instrumentation</code> consumer
+                  in the <a class="link" href="performance-schema-setup-consumers-table.html" title="27.12.2.2 The setup_consumers Table"><code class="literal">setup_consumers</code></a>
+                  table must be <code class="literal">YES</code>.
+                </p></li><li class="listitem"><p>
+                  The <code class="literal">threads.INSTRUMENTED</code> column
+                  must be <code class="literal">YES</code>.
+                </p></li><li class="listitem"><p>
+                  Monitoring occurs only for those thread events
+                  produced from instruments that have the
+                  <code class="literal">ENABLED</code> column set to
+                  <code class="literal">YES</code> in the
+                  <a class="link" href="performance-schema-setup-instruments-table.html" title="27.12.2.3 The setup_instruments Table"><code class="literal">setup_instruments</code></a> table.
+                </p></li></ul></div></li><li class="listitem"><p>
+              <code class="literal">HISTORY</code>
+            </p><p>
+              Whether to log historical events for the thread. The value
+              is <code class="literal">YES</code> or <code class="literal">NO</code>.
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                  For foreground threads, the initial
+                  <code class="literal">HISTORY</code> value is determined by
+                  whether the user account associated with the thread
+                  matches any row in the
+                  <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> table.
+                  Matching is based on the values of the
+                  <code class="literal">PROCESSLIST_USER</code> and
+                  <code class="literal">PROCESSLIST_HOST</code> columns.
+                </p><p>
+                  If the thread spawns a subthread, matching occurs
+                  again for the <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a>
+                  table row created for the subthread.
+                </p></li><li class="listitem"><p>
+                  For background threads, <code class="literal">HISTORY</code> is
+                  <code class="literal">YES</code> by default.
+                  <a class="link" href="performance-schema-setup-actors-table.html" title="27.12.2.1 The setup_actors Table"><code class="literal">setup_actors</code></a> is not
+                  consulted because there is no associated user for
+                  background threads.
+                </p></li><li class="listitem"><p>
+                  For any thread, its <code class="literal">HISTORY</code> value
+                  can be changed during the lifetime of the thread.
+                </p></li></ul></div><p>
+              For historical event logging for the thread to occur,
+              these things must be true:
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                  The appropriate history-related consumers in the
+                  <a class="link" href="performance-schema-setup-consumers-table.html" title="27.12.2.2 The setup_consumers Table"><code class="literal">setup_consumers</code></a> table
+                  must be enabled. For example, wait event logging in
+                  the <a class="link" href="performance-schema-events-waits-history-table.html" title="27.12.4.2 The events_waits_history Table"><code class="literal">events_waits_history</code></a>
+                  and
+                  <a class="link" href="performance-schema-events-waits-history-long-table.html" title="27.12.4.3 The events_waits_history_long Table"><code class="literal">events_waits_history_long</code></a>
+                  tables requires the corresponding
+                  <code class="literal">events_waits_history</code> and
+                  <code class="literal">events_waits_history_long</code> consumers
+                  to be <code class="literal">YES</code>.
+                </p></li><li class="listitem"><p>
+                  The <code class="literal">threads.HISTORY</code> column must be
+                  <code class="literal">YES</code>.
+                </p></li><li class="listitem"><p>
+                  Logging occurs only for those thread events produced
+                  from instruments that have the
+                  <code class="literal">ENABLED</code> column set to
+                  <code class="literal">YES</code> in the
+                  <a class="link" href="performance-schema-setup-instruments-table.html" title="27.12.2.3 The setup_instruments Table"><code class="literal">setup_instruments</code></a> table.
+                </p></li></ul></div></li><li class="listitem"><p>
+              <code class="literal">CONNECTION_TYPE</code>
+            </p><p>
+              The protocol used to establish the connection, or
+              <code class="literal">NULL</code> for background threads. Permitted
+              values are <code class="literal">TCP/IP</code> (TCP/IP connection
+              established without encryption),
+              <code class="literal">SSL/TLS</code> (TCP/IP connection established
+              with encryption), <code class="literal">Socket</code> (Unix socket
+              file connection), <code class="literal">Named Pipe</code> (Windows
+              named pipe connection), and <code class="literal">Shared
+              Memory</code> (Windows shared memory connection).
+            </p></li><li class="listitem"><p>
+              <code class="literal">THREAD_OS_ID</code>
+            </p><p>
+              The thread or task identifier as defined by the underlying
+              operating system, if there is one:
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                  When a MySQL thread is associated with the same
+                  operating system thread for its lifetime,
+                  <code class="literal">THREAD_OS_ID</code> contains the operating
+                  system thread ID.
+                </p></li><li class="listitem"><p>
+                  When a MySQL thread is not associated with the same
+                  operating system thread for its lifetime,
+                  <code class="literal">THREAD_OS_ID</code> contains
+                  <code class="literal">NULL</code>. This is typical for user
+                  sessions when the thread pool plugin is used (see
+                  <a class="xref" href="thread-pool.html" title="5.6.3 MySQL Enterprise Thread Pool">Section 5.6.3, “MySQL Enterprise Thread Pool”</a>).
+                </p></li></ul></div><p>
+              For Windows, <code class="literal">THREAD_OS_ID</code> corresponds
+              to the thread ID visible in Process Explorer
+              (<a class="ulink" href="https://technet.microsoft.com/en-us/sysinternals/bb896653.aspx" target="_top">https://technet.microsoft.com/en-us/sysinternals/bb896653.aspx</a>).
+            </p><p>
+              For Linux, <code class="literal">THREAD_OS_ID</code> corresponds to
+              the value of the <code class="literal">gettid()</code> function.
+              This value is exposed, for example, using the
+              <span class="command"><strong>perf</strong></span> or <span class="command"><strong>ps -L</strong></span>
+              commands, or in the <code class="literal">proc</code> file system
+              (<code class="filename">/proc/<em class="replaceable"><code>[pid]</code></em>/task/<em class="replaceable"><code>[tid]</code></em></code>).
+              For more information, see the
+              <code class="literal">perf-stat(1)</code>, <code class="literal">ps(1)</code>,
+              and <code class="literal">proc(5)</code> man pages.
+            </p></li><li class="listitem"><p>
+              <code class="literal">RESOURCE_GROUP</code>
+            </p><p>
+              The resource group label. This value is
+              <code class="literal">NULL</code> if resource groups are not
+              supported on the current platform or server configuration
+              (see <a class="xref" href="resource-groups.html#resource-group-restrictions" title="Resource Group Restrictions">Resource Group Restrictions</a>).
+            </p></li><li class="listitem"><p>
+              <code class="literal">EXECUTION_ENGINE</code>
+            </p><p>
+              The query execution engine. The value is either
+              <code class="literal">PRIMARY</code> or
+              <code class="literal">SECONDARY</code>. For use with MySQL Database Service and
+              HeatWave, where the <code class="literal">PRIMARY</code> engine is
+              <code class="literal">InnoDB</code> and the
+              <code class="literal">SECONDARY</code> engine is HeatWave
+              (<code class="literal">RAPID</code>). For MySQL Community Edition Server, MySQL Enterprise Edition Server
+              (on-premise), and MySQL Database Service without HeatWave, the value is
+              always <code class="literal">PRIMARY</code>. This column was added
+              in MySQL 8.0.29.
+            </p></li><li class="listitem"><p>
+              <code class="literal">CONTROLLED_MEMORY</code>
+            </p><p>
+              Amount of controlled memory used by the thread.
+            </p><p>
+              This column was added in MySQL 8.0.31.
+            </p></li><li class="listitem"><p>
+              <code class="literal">MAX_CONTROLLED_MEMORY</code>
+            </p><p>
+              Maximum value of <code class="literal">CONTROLLED_MEMORY</code> seen
+              during the thread execution.
+            </p><p>
+              This column was added in MySQL 8.0.31.
+            </p></li><li class="listitem"><p>
+              <code class="literal">TOTAL_MEMORY</code>
+            </p><p>
+              The current amount of memory, controlled or not, used by
+              the thread.
+            </p><p>
+              This column was added in MySQL 8.0.31.
+            </p></li><li class="listitem"><p>
+              <code class="literal">MAX_TOTAL_MEMORY</code>
+            </p><p>
+              The maximum value of <code class="literal">TOTAL_MEMORY</code> seen
+              during the thread execution.
+            </p><p>
+              This column was added in MySQL 8.0.31.
+            </p></li><li class="listitem"><p>
+              <code class="literal">TELEMETRY_ACTIVE</code>
+            </p><p>
+              Whether the thread has an active telemetry seesion
+              attached. The value is <code class="literal">YES</code> or
+              <code class="literal">NO</code>.
+            </p><p>
+              This column was added in MySQL 8.0.33.
+            </p></li></ul></div><p>
+          The <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a> table has these
+          indexes:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Primary key on (<code class="literal">THREAD_ID</code>)
+            </p></li><li class="listitem"><p>
+              Index on (<code class="literal">NAME</code>)
+            </p></li><li class="listitem"><p>
+              Index on (<code class="literal">PROCESSLIST_ID</code>)
+            </p></li><li class="listitem"><p>
+              Index on (<code class="literal">PROCESSLIST_USER</code>,
+              <code class="literal">PROCESSLIST_HOST</code>)
+            </p></li><li class="listitem"><p>
+              Index on (<code class="literal">PROCESSLIST_HOST</code>)
+            </p></li><li class="listitem"><p>
+              Index on (<code class="literal">THREAD_OS_ID</code>)
+            </p></li><li class="listitem"><p>
+              Index on (<code class="literal">RESOURCE_GROUP</code>)
+            </p></li></ul></div><p>
+          <a class="link" href="truncate-table.html" title="13.1.37 TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a> is not permitted
+          for the <a class="link" href="performance-schema-threads-table.html" title="27.12.21.7 The threads Table"><code class="literal">threads</code></a> table.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="performance-schema-processlist-table.html">Previous <span class="navHint"> The processlist Table </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="performance-schema-miscellaneous-tables.html">Up <span class="navHint"> Performance Schema Miscellaneous Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-tls-channel-status-table.html">Next <span class="navHint"> The tls_channel_status Table </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

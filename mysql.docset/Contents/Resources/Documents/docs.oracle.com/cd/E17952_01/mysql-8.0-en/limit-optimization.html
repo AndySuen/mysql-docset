@@ -1,0 +1,238 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1829"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.19%C2%A0LIMIT%20Query%20Optimization"></a><title>8.2.1.19&nbsp;LIMIT Query Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="distinct-optimization.html" title="8.2.1.18&nbsp;DISTINCT Optimization"/><link rel="next" href="function-optimization.html" title="8.2.1.20&nbsp;Function Call Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="limit-optimization.html#limit-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="distinct-optimization.html">Previous <span class="navHint"> DISTINCT Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="function-optimization.html">Next <span class="navHint"> Function Call Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1830"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.19%C2%A0LIMIT%20Query%20Optimization"></a><h4 class="title"><a id="limit-optimization"></a>8.2.1.19&nbsp;LIMIT Query Optimization</h4></div></div></div><a id="idm45828955490848" class="indexterm"></a><a id="idm45828955489392" class="indexterm"></a><p>
+          If you need only a specified number of rows from a result set,
+          use a <code class="literal">LIMIT</code> clause in the query, rather
+          than fetching the whole result set and throwing away the extra
+          data.
+        </p><p>
+          MySQL sometimes optimizes a query that has a <code class="literal">LIMIT
+          <em class="replaceable"><code>row_count</code></em></code> clause and no
+          <code class="literal">HAVING</code> clause:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              If you select only a few rows with
+              <code class="literal">LIMIT</code>, MySQL uses indexes in some cases
+              when normally it would prefer to do a full table scan.
+            </p></li><li class="listitem"><p>
+              If you combine <code class="literal">LIMIT
+              <em class="replaceable"><code>row_count</code></em></code> with
+              <code class="literal">ORDER BY</code>, MySQL stops sorting as soon
+              as it has found the first
+              <em class="replaceable"><code>row_count</code></em> rows of the sorted
+              result, rather than sorting the entire result. If ordering
+              is done by using an index, this is very fast. If a
+              filesort must be done, all rows that match the query
+              without the <code class="literal">LIMIT</code> clause are selected,
+              and most or all of them are sorted, before the first
+              <em class="replaceable"><code>row_count</code></em> are found. After the
+              initial rows have been found, MySQL does not sort any
+              remainder of the result set.
+            </p><p>
+              One manifestation of this behavior is that an
+              <code class="literal">ORDER BY</code> query with and without
+              <code class="literal">LIMIT</code> may return rows in different
+              order, as described later in this section.
+            </p></li><li class="listitem"><p>
+              If you combine <code class="literal">LIMIT
+              <em class="replaceable"><code>row_count</code></em></code> with
+              <code class="literal">DISTINCT</code>, MySQL stops as soon as it
+              finds <em class="replaceable"><code>row_count</code></em> unique rows.
+            </p></li><li class="listitem"><p>
+              In some cases, a <code class="literal">GROUP BY</code> can be
+              resolved by reading the index in order (or doing a sort on
+              the index), then calculating summaries until the index
+              value changes. In this case, <code class="literal">LIMIT
+              <em class="replaceable"><code>row_count</code></em></code> does not
+              calculate any unnecessary <code class="literal">GROUP BY</code>
+              values.
+            </p></li><li class="listitem"><p>
+              As soon as MySQL has sent the required number of rows to
+              the client, it aborts the query unless you are using
+              <code class="literal">SQL_CALC_FOUND_ROWS</code>. In that case, the
+              number of rows can be retrieved with <code class="literal">SELECT
+              FOUND_ROWS()</code>. See
+              <a class="xref" href="information-functions.html" title="12.15&nbsp;Information Functions">Section&nbsp;12.15, &ldquo;Information Functions&rdquo;</a>.
+            </p><a id="idm45828955466240" class="indexterm"></a></li><li class="listitem"><p>
+              <code class="literal">LIMIT 0</code> quickly returns an empty set.
+              This can be useful for checking the validity of a query.
+              It can also be employed to obtain the types of the result
+              columns within applications that use a MySQL API that
+              makes result set metadata available. With the
+              <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client program, you can use the
+              <a class="link" href="mysql-command-options.html#option_mysql_column-type-info"><code class="option">--column-type-info</code></a> option to
+              display result column types.
+            </p></li><li class="listitem"><p>
+              If the server uses temporary tables to resolve a query, it
+              uses the <code class="literal">LIMIT
+              <em class="replaceable"><code>row_count</code></em></code> clause to
+              calculate how much space is required.
+            </p></li><li class="listitem"><p>
+              If an index is not used for <code class="literal">ORDER BY</code>
+              but a <code class="literal">LIMIT</code> clause is also present, the
+              optimizer may be able to avoid using a merge file and sort
+              the rows in memory using an in-memory
+              <code class="literal">filesort</code> operation.
+            </p></li></ul></div><p>
+          If multiple rows have identical values in the <code class="literal">ORDER
+          BY</code> columns, the server is free to return those rows
+          in any order, and may do so differently depending on the
+          overall execution plan. In other words, the sort order of
+          those rows is nondeterministic with respect to the nonordered
+          columns.
+        </p><p>
+          One factor that affects the execution plan is
+          <code class="literal">LIMIT</code>, so an <code class="literal">ORDER BY</code>
+          query with and without <code class="literal">LIMIT</code> may return
+          rows in different orders. Consider this query, which is sorted
+          by the <code class="literal">category</code> column but nondeterministic
+          with respect to the <code class="literal">id</code> and
+          <code class="literal">rating</code> columns:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM ratings ORDER BY category;</code></strong>
++----+----------+--------+
+| id | category | rating |
++----+----------+--------+
+|  1 |        1 |    4.5 |
+|  5 |        1 |    3.2 |
+|  3 |        2 |    3.7 |
+|  4 |        2 |    3.5 |
+|  6 |        2 |    3.5 |
+|  2 |        3 |    5.0 |
+|  7 |        3 |    2.7 |
++----+----------+--------+
+</pre><p>
+          Including <code class="literal">LIMIT</code> may affect order of rows
+          within each <code class="literal">category</code> value. For example,
+          this is a valid query result:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM ratings ORDER BY category LIMIT 5;</code></strong>
++----+----------+--------+
+| id | category | rating |
++----+----------+--------+
+|  1 |        1 |    4.5 |
+|  5 |        1 |    3.2 |
+|  4 |        2 |    3.5 |
+|  3 |        2 |    3.7 |
+|  6 |        2 |    3.5 |
++----+----------+--------+
+</pre><p>
+          In each case, the rows are sorted by the <code class="literal">ORDER
+          BY</code> column, which is all that is required by the SQL
+          standard.
+        </p><p>
+          If it is important to ensure the same row order with and
+          without <code class="literal">LIMIT</code>, include additional columns
+          in the <code class="literal">ORDER BY</code> clause to make the order
+          deterministic. For example, if <code class="literal">id</code> values
+          are unique, you can make rows for a given
+          <code class="literal">category</code> value appear in
+          <code class="literal">id</code> order by sorting like this:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM ratings ORDER BY category, id;</code></strong>
++----+----------+--------+
+| id | category | rating |
++----+----------+--------+
+|  1 |        1 |    4.5 |
+|  5 |        1 |    3.2 |
+|  3 |        2 |    3.7 |
+|  4 |        2 |    3.5 |
+|  6 |        2 |    3.5 |
+|  2 |        3 |    5.0 |
+|  7 |        3 |    2.7 |
++----+----------+--------+
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM ratings ORDER BY category, id LIMIT 5;</code></strong>
++----+----------+--------+
+| id | category | rating |
++----+----------+--------+
+|  1 |        1 |    4.5 |
+|  5 |        1 |    3.2 |
+|  3 |        2 |    3.7 |
+|  4 |        2 |    3.5 |
+|  6 |        2 |    3.5 |
++----+----------+--------+
+</pre><p>
+          For a query with an <code class="literal">ORDER BY</code> or
+          <code class="literal">GROUP BY</code> and a <code class="literal">LIMIT</code>
+          clause, the optimizer tries to choose an ordered index by
+          default when it appears doing so would speed up query
+          execution. Prior to MySQL 8.0.21, there was no way to override
+          this behavior, even in cases where using some other
+          optimization might be faster. Beginning with MySQL 8.0.21, it
+          is possible to turn off this optimization by setting the
+          <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> system
+          variable&#39;s
+          <a class="link" href="switchable-optimizations.html#optflag_prefer-ordering-index"><code class="literal">prefer_ordering_index</code></a> flag
+          to <code class="literal">off</code>.
+        </p><p>
+          <span class="emphasis"><em>Example</em></span>: First we create and populate a
+          table <code class="literal">t</code> as shown here:
+        </p><pre class="programlisting"># Create and populate a table t:
+
+mysql&gt; <strong class="userinput"><code>CREATE TABLE t (</code></strong>
+    -&gt;     <strong class="userinput"><code>id1 BIGINT NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>id2 BIGINT NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>c1 VARCHAR(50) NOT NULL,</code></strong>
+    -&gt;     <strong class="userinput"><code>c2 VARCHAR(50) NOT NULL,</code></strong>
+    -&gt;  <strong class="userinput"><code>PRIMARY KEY (id1),</code></strong>
+    -&gt;  <strong class="userinput"><code>INDEX i (id2, c1)</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+
+# [Insert some rows into table t - not shown]
+</pre><p>
+          Verify that the
+          <a class="link" href="switchable-optimizations.html#optflag_prefer-ordering-index"><code class="literal">prefer_ordering_index</code></a> flag
+          is enabled:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT @@optimizer_switch LIKE &#39;%prefer_ordering_index=on%&#39;;</code></strong>
++------------------------------------------------------+
+| @@optimizer_switch LIKE &#39;%prefer_ordering_index=on%&#39; |
++------------------------------------------------------+
+|                                                    1 |
++------------------------------------------------------+
+</pre><p>
+          Since the following query has a <code class="literal">LIMIT</code>
+          clause, we expect it to use an ordered index, if possible. In
+          this case, as we can see from the
+          <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output, it uses the
+          table&#39;s primary key.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT c2 FROM t</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE id2 &gt; 3</code></strong>
+    -&gt;     <strong class="userinput"><code>ORDER BY id1 ASC LIMIT 2\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t
+   partitions: NULL
+         type: index
+possible_keys: i
+          key: PRIMARY
+      key_len: 8
+          ref: NULL
+         rows: 2
+     filtered: 70.00
+        Extra: Using where
+</pre><p>
+          Now we disable the
+          <a class="link" href="switchable-optimizations.html#optflag_prefer-ordering-index"><code class="literal">prefer_ordering_index</code></a> flag,
+          and re-run the same query; this time it uses the index
+          <code class="literal">i</code> (which includes the
+          <code class="literal">id2</code> column used in the
+          <code class="literal">WHERE</code> clause), and a filesort:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET optimizer_switch = &#34;prefer_ordering_index=off&#34;;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT c2 FROM t</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE id2 &gt; 3</code></strong>
+    -&gt;     <strong class="userinput"><code>ORDER BY id1 ASC LIMIT 2\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t
+   partitions: NULL
+         type: range
+possible_keys: i
+          key: i
+      key_len: 8
+          ref: NULL
+         rows: 14
+     filtered: 100.00
+        Extra: Using index condition; Using filesort
+</pre><p>
+          See also <a class="xref" href="switchable-optimizations.html" title="8.9.2&nbsp;Switchable Optimizations">Section&nbsp;8.9.2, &ldquo;Switchable Optimizations&rdquo;</a>.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="distinct-optimization.html">Previous <span class="navHint"> DISTINCT Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="function-optimization.html">Next <span class="navHint"> Function Call Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.4.1.1 Backing Up a Replica Using mysqldump</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-solutions-backups.html" title="17.4.1 Using Replication for Backups" /><link rel="prev" href="replication-solutions-backups.html" title="17.4.1 Using Replication for Backups" /><link rel="next" href="replication-solutions-backups-rawdata.html" title="17.4.1.2 Backing Up Raw Data from a Replica" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-solutions-backups-mysqldump.html#replication-solutions-backups-mysqldump">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-solutions-backups.html">Previous <span class="navHint"> Using Replication for Backups </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-solutions-backups.html">Up <span class="navHint"> Using Replication for Backups </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-solutions-backups-rawdata.html">Next <span class="navHint"> Backing Up Raw Data from a Replica </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-solutions-backups-mysqldump"></a>17.4.1.1 Backing Up a Replica Using mysqldump</h4></div></div></div><p>
+        Using <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> to create a copy of a
+        database enables you to capture all of the data in the database
+        in a format that enables the information to be imported into
+        another instance of MySQL Server (see
+        <a class="xref" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program">Section 4.5.4, “mysqldump — A Database Backup Program”</a>). Because the format of the
+        information is SQL statements, the file can easily be
+        distributed and applied to running servers in the event that you
+        need access to the data in an emergency. However, if the size of
+        your data set is very large, <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> may be
+        impractical.
+      </p><div class="tip" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Tip</div><p>
+          Consider using the <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-shell-utilities-dump-instance-schema.html" target="_top">MySQL Shell dump utilities</a>, which provide parallel dumping with multiple threads, file compression, and progress information display, as well as cloud features such as Oracle Cloud Infrastructure Object Storage streaming, and MySQL Database Service compatibility checks and modifications. Dumps can be easily imported into a MySQL Server instance or a MySQL Database Service DB System using the <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-shell-utilities-load-dump.html" target="_top">MySQL Shell load dump utilities</a>. Installation instructions for MySQL Shell can be found <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-shell-install.html" target="_top">here</a>.
+        </p></div><p>
+        When using <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>, you should stop
+        replication on the replica before starting the dump process to
+        ensure that the dump contains a consistent set of data:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Stop the replica from processing requests. You can stop
+            replication completely on the replica using
+            <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin</strong></span></a>:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqladmin stop-slave</code></strong></pre><p>
+            Alternatively, you can stop only the replication SQL thread
+            to pause event execution:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql -e 'STOP SLAVE SQL_THREAD;'</code></strong>
+Or from MySQL 8.0.22:
+$&gt; <strong class="userinput"><code>mysql -e 'STOP REPLICA SQL_THREAD;'</code></strong>
+</pre><p>
+            This enables the replica to continue to receive data change
+            events from the source's binary log and store them in the
+            relay logs using the replication receiver thread, but
+            prevents the replica from executing these events and
+            changing its data. Within busy replication environments,
+            permitting the replication receiver thread to run during
+            backup may speed up the catch-up process when you restart
+            the replication applier thread.
+          </p></li><li class="listitem"><p>
+            Run <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> to dump your databases. You
+            may either dump all databases or select databases to be
+            dumped. For example, to dump all databases:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqldump --all-databases &gt; fulldb.dump</code></strong></pre></li><li class="listitem"><p>
+            Once the dump has completed, start replication again:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqladmin start-slave</code></strong></pre></li></ol></div><p>
+        In the preceding example, you may want to add login credentials
+        (user name, password) to the commands, and bundle the process up
+        into a script that you can run automatically each day.
+      </p><p>
+        If you use this approach, make sure you monitor the replication
+        process to ensure that the time taken to run the backup does not
+        affect the replica's ability to keep up with events from the
+        source. See <a class="xref" href="replication-administration-status.html" title="17.1.7.1 Checking Replication Status">Section 17.1.7.1, “Checking Replication Status”</a>.
+        If the replica is unable to keep up, you may want to add another
+        replica and distribute the backup process. For an example of how
+        to configure this scenario, see
+        <a class="xref" href="replication-solutions-partitioning.html" title="17.4.6 Replicating Different Databases to Different Replicas">Section 17.4.6, “Replicating Different Databases to Different Replicas”</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-solutions-backups.html">Previous <span class="navHint"> Using Replication for Backups </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-solutions-backups.html">Up <span class="navHint"> Using Replication for Backups </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-solutions-backups-rawdata.html">Next <span class="navHint"> Backing Up Raw Data from a Replica </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

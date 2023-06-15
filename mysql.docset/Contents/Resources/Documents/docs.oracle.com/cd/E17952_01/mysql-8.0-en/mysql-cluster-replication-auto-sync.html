@@ -1,0 +1,189 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2452"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.7.9.1%C2%A0NDB%20Cluster%20Replication%3A%20Automating%20Synchronization%20of%20the%20Replica%20to%20the%20Source%20Binary%20Log"></a><title>23.7.9.1&nbsp;NDB Cluster Replication: Automating Synchronization of the Replica to the Source Binary Log</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-replication-backups.html" title="23.7.9&nbsp;NDB Cluster Backups With NDB Cluster Replication"/><link rel="prev" href="mysql-cluster-replication-backups.html" title="23.7.9&nbsp;NDB Cluster Backups With NDB Cluster Replication"/><link rel="next" href="mysql-cluster-replication-pitr.html" title="23.7.9.2&nbsp;Point-In-Time Recovery Using NDB Cluster Replication"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-replication-auto-sync.html#mysql-cluster-replication-auto-sync">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-replication-backups.html">Previous <span class="navHint"> NDB Cluster Backups With NDB Cluster Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-replication-backups.html">Up <span class="navHint"> NDB Cluster Backups With NDB Cluster Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-replication-pitr.html">Next <span class="navHint"> Point-In-Time Recovery Using NDB Cluster Replication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2451"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/23.7.9.1%C2%A0NDB%20Cluster%20Replication%3A%20Automating%20Synchronization%20of%20the%20Replica%20to%0A%20%20%20%20%20%20%20%20the%20Source%20Binary%20Log"></a><h4 class="title"><a id="mysql-cluster-replication-auto-sync"></a>23.7.9.1&nbsp;NDB Cluster Replication: Automating Synchronization of the Replica to
+        the Source Binary Log</h4></div></div></div><a id="idm45828803569264" class="indexterm"></a><a id="idm45828803567808" class="indexterm"></a><p>
+        It is possible to automate much of the process described in the
+        previous section (see
+        <a class="xref" href="mysql-cluster-replication-backups.html" title="23.7.9&nbsp;NDB Cluster Backups With NDB Cluster Replication">Section&nbsp;23.7.9, &ldquo;NDB Cluster Backups With NDB Cluster Replication&rdquo;</a>). The
+        following Perl script <code class="filename">reset-replica.pl</code>
+        serves as an example of how you can do this.
+      </p><a id="idm45828803564288" class="indexterm"></a><a id="idm45828803562768" class="indexterm"></a><pre class="programlisting">#!/user/bin/perl -w
+
+#  file: reset-replica.pl
+
+#  Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to:
+#  Free Software Foundation, Inc.
+#  59 Temple Place, Suite 330
+#  Boston, MA 02111-1307 USA
+#
+#  Version 1.1
+
+
+######################## Includes ###############################
+
+use DBI;
+
+######################## Globals ################################
+
+my  $m_host=&#39;&#39;;
+my  $m_port=&#39;&#39;;
+my  $m_user=&#39;&#39;;
+my  $m_pass=&#39;&#39;;
+my  $s_host=&#39;&#39;;
+my  $s_port=&#39;&#39;;
+my  $s_user=&#39;&#39;;
+my  $s_pass=&#39;&#39;;
+my  $dbhM=&#39;&#39;;
+my  $dbhS=&#39;&#39;;
+
+####################### Sub Prototypes ##########################
+
+sub CollectCommandPromptInfo;
+sub ConnectToDatabases;
+sub DisconnectFromDatabases;
+sub GetReplicaEpoch;
+sub GetSourceInfo;
+sub UpdateReplica;
+
+######################## Program Main ###########################
+
+CollectCommandPromptInfo;
+ConnectToDatabases;
+GetReplicaEpoch;
+GetSourceInfo;
+UpdateReplica;
+DisconnectFromDatabases;
+
+################## Collect Command Prompt Info ##################
+
+sub CollectCommandPromptInfo
+{
+  ### Check that user has supplied correct number of command line args
+  die &#34;Usage:\n
+       reset-replica &gt;source MySQL host&lt; &gt;source MySQL port&lt; \n
+                   &gt;source user&lt; &gt;source pass&lt; &gt;replica MySQL host&lt; \n
+                   &gt;replica MySQL port&lt; &gt;replica user&lt; &gt;replica pass&lt; \n
+       All 8 arguments must be passed. Use BLANK for NULL passwords\n&#34;
+       unless @ARGV == 8;
+
+  $m_host  =  $ARGV[0];
+  $m_port  =  $ARGV[1];
+  $m_user  =  $ARGV[2];
+  $m_pass  =  $ARGV[3];
+  $s_host  =  $ARGV[4];
+  $s_port  =  $ARGV[5];
+  $s_user  =  $ARGV[6];
+  $s_pass  =  $ARGV[7];
+
+  if ($m_pass eq &#34;BLANK&#34;) { $m_pass = &#39;&#39;;}
+  if ($s_pass eq &#34;BLANK&#34;) { $s_pass = &#39;&#39;;}
+}
+
+###############  Make connections to both databases #############
+
+sub ConnectToDatabases
+{
+  ### Connect to both source and replica cluster databases
+
+  ### Connect to source
+  $dbhM
+    = DBI-&gt;connect(
+    &#34;dbi:mysql:database=mysql;host=$m_host;port=$m_port&#34;,
+    &#34;$m_user&#34;, &#34;$m_pass&#34;)
+      or die &#34;Can&#39;t connect to source cluster MySQL process!
+              Error: $DBI::errstr\n&#34;;
+
+  ### Connect to replica
+  $dbhS
+    = DBI-&gt;connect(
+          &#34;dbi:mysql:database=mysql;host=$s_host&#34;,
+          &#34;$s_user&#34;, &#34;$s_pass&#34;)
+    or die &#34;Can&#39;t connect to replica cluster MySQL process!
+            Error: $DBI::errstr\n&#34;;
+}
+
+################  Disconnect from both databases ################
+
+sub DisconnectFromDatabases
+{
+  ### Disconnect from source
+
+  $dbhM-&gt;disconnect
+  or warn &#34; Disconnection failed: $DBI::errstr\n&#34;;
+
+  ### Disconnect from replica
+
+  $dbhS-&gt;disconnect
+  or warn &#34; Disconnection failed: $DBI::errstr\n&#34;;
+}
+
+######################  Find the last good GCI ##################
+
+sub GetReplicaEpoch
+{
+  $sth = $dbhS-&gt;prepare(&#34;SELECT MAX(epoch)
+                         FROM mysql.ndb_apply_status;&#34;)
+      or die &#34;Error while preparing to select epoch from replica: &#34;,
+             $dbhS-&gt;errstr;
+
+  $sth-&gt;execute
+      or die &#34;Selecting epoch from replica error: &#34;, $sth-&gt;errstr;
+
+  $sth-&gt;bind_col (1, \$epoch);
+  $sth-&gt;fetch;
+  print &#34;\tReplica epoch =  $epoch\n&#34;;
+  $sth-&gt;finish;
+}
+
+#######  Find the position of the last GCI in the binary log ########
+
+sub GetSourceInfo
+{
+  $sth = $dbhM-&gt;prepare(&#34;SELECT
+                           SUBSTRING_INDEX(File, &#39;/&#39;, -1), Position
+                         FROM mysql.ndb_binlog_index
+                         WHERE epoch &gt; $epoch
+                         ORDER BY epoch ASC LIMIT 1;&#34;)
+      or die &#34;Prepare to select from source error: &#34;, $dbhM-&gt;errstr;
+
+  $sth-&gt;execute
+      or die &#34;Selecting from source error: &#34;, $sth-&gt;errstr;
+
+  $sth-&gt;bind_col (1, \$binlog);
+  $sth-&gt;bind_col (2, \$binpos);
+  $sth-&gt;fetch;
+  print &#34;\tSource binary log file =  $binlog\n&#34;;
+  print &#34;\tSource binary log position =  $binpos\n&#34;;
+  $sth-&gt;finish;
+}
+
+##########  Set the replica to process from that location #########
+
+sub UpdateReplica
+{
+  $sth = $dbhS-&gt;prepare(&#34;CHANGE MASTER TO
+                         MASTER_LOG_FILE=&#39;$binlog&#39;,
+                         MASTER_LOG_POS=$binpos;&#34;)
+      or die &#34;Prepare to CHANGE MASTER error: &#34;, $dbhS-&gt;errstr;
+
+  $sth-&gt;execute
+       or die &#34;CHANGE MASTER on replica error: &#34;, $sth-&gt;errstr;
+  $sth-&gt;finish;
+  print &#34;\tReplica has been updated. You may now start the replica.\n&#34;;
+}
+
+# end reset-replica.pl
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-replication-backups.html">Previous <span class="navHint"> NDB Cluster Backups With NDB Cluster Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-replication-backups.html">Up <span class="navHint"> NDB Cluster Backups With NDB Cluster Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-replication-pitr.html">Next <span class="navHint"> Point-In-Time Recovery Using NDB Cluster Replication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

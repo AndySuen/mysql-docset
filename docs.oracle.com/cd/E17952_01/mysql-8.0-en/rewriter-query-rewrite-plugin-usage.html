@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.6.4.2 Using the Rewriter Query Rewrite Plugin</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="rewriter-query-rewrite-plugin.html" title="5.6.4 The Rewriter Query Rewrite Plugin" /><link rel="prev" href="rewriter-query-rewrite-plugin-installation.html" title="5.6.4.1 Installing or Uninstalling the Rewriter Query Rewrite Plugin" /><link rel="next" href="rewriter-query-rewrite-plugin-reference.html" title="5.6.4.3 Rewriter Query Rewrite Plugin Reference" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="rewriter-query-rewrite-plugin-usage.html#rewriter-query-rewrite-plugin-usage">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="rewriter-query-rewrite-plugin-installation.html">Previous <span class="navHint"> Installing or Uninstalling the Rewriter Query Rewrite Plugin </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="rewriter-query-rewrite-plugin.html">Up <span class="navHint"> The Rewriter Query Rewrite Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="rewriter-query-rewrite-plugin-reference.html">Next <span class="navHint"> Rewriter Query Rewrite Plugin Reference </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="rewriter-query-rewrite-plugin-usage"></a>5.6.4.2 Using the Rewriter Query Rewrite Plugin</h4></div></div></div><p>
+        To enable or disable the plugin, enable or disable the
+        <a class="link" href="rewriter-query-rewrite-plugin-reference.html#sysvar_rewriter_enabled"><code class="literal">rewriter_enabled</code></a> system
+        variable. By default, the <code class="literal">Rewriter</code> plugin is
+        enabled when you install it (see
+        <a class="xref" href="rewriter-query-rewrite-plugin-installation.html" title="5.6.4.1 Installing or Uninstalling the Rewriter Query Rewrite Plugin">Section 5.6.4.1, “Installing or Uninstalling the Rewriter Query Rewrite Plugin”</a>).
+        To set the initial plugin state explicitly, you can set the
+        variable at server startup. For example, to enable the plugin in
+        an option file, use these lines:
+      </p><pre class="programlisting">[mysqld]
+rewriter_enabled=ON
+</pre><p>
+        It is also possible to enable or disable the plugin at runtime:
+      </p><pre class="programlisting">SET GLOBAL rewriter_enabled = ON;
+SET GLOBAL rewriter_enabled = OFF;
+</pre><p>
+        Assuming that the <code class="literal">Rewriter</code> plugin is enabled,
+        it examines and possibly modifies each rewritable statement
+        received by the server. The plugin determines whether to rewrite
+        statements based on its in-memory cache of rewriting rules,
+        which are loaded from the <code class="literal">rewrite_rules</code> table
+        in the <code class="literal">query_rewrite</code> database.
+      </p><p>
+        These statements are subject to rewriting:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            As of MySQL 8.0.12: <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>,
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>,
+            <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE</code></a>,
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>, and
+            <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a>.
+          </p></li><li class="listitem"><p>
+            Prior to MySQL 8.0.12: <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>
+            only.
+          </p></li></ul></div><p>
+        Standalone statements and prepared statements are subject to
+        rewriting. Statements occurring within view definitions or
+        stored programs are not subject to rewriting.
+      </p><p>
+        Beginning with MySQL 8.0.31, statements run by users with the
+        <a class="link" href="privileges-provided.html#priv_skip-query-rewrite"><code class="literal">SKIP_QUERY_REWRITE</code></a> privilege are
+        not subject to rewriting, provided that the
+        <a class="link" href="rewriter-query-rewrite-plugin-reference.html#sysvar_rewriter_enabled_for_threads_without_privilege_checks"><code class="literal">rewriter_enabled_for_threads_without_privilege_checks</code></a>
+        system variable is set to <code class="literal">OFF</code> (default
+        <code class="literal">ON</code>). This can be used for control statements
+        and statements that should be replicated unchanged, such as
+        those from the <code class="literal">SOURCE_USER</code> specified by
+        <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>.
+        This is also true for statements executed by MySQL client
+        programs including <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>,
+        <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin</strong></span></a>, <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>, and
+        <a class="link" href="mysqlpump.html" title="4.5.6 mysqlpump — A Database Backup Program"><span class="command"><strong>mysqlpump</strong></span></a>; for this reason, you should grant
+        <code class="literal">SKIP_QUERY_REWRITE</code> to the user account or
+        accounts used by these utilities to connect to MySQL.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="rewriter-query-rewrite-plugin-usage.html#rewriter-query-rewrite-plugin-adding-rewrite-rules" title="Adding Rewrite Rules">Adding Rewrite Rules</a></p></li><li class="listitem"><p><a class="xref" href="rewriter-query-rewrite-plugin-usage.html#rewriter-query-rewrite-plugin-how-statement-matching-works" title="How Statement Matching Works">How Statement Matching Works</a></p></li><li class="listitem"><p><a class="xref" href="rewriter-query-rewrite-plugin-usage.html#rewriter-query-rewrite-plugin-rewriting-prepared-statements" title="Rewriting Prepared Statements">Rewriting Prepared Statements</a></p></li><li class="listitem"><p><a class="xref" href="rewriter-query-rewrite-plugin-usage.html#rewriter-query-rewrite-plugin-operational-information" title="Rewriter Plugin Operational Information">Rewriter Plugin Operational Information</a></p></li><li class="listitem"><p><a class="xref" href="rewriter-query-rewrite-plugin-usage.html#rewriter-query-rewrite-plugin-use-of-character-sets" title="Rewriter Plugin Use of Character Sets">Rewriter Plugin Use of Character Sets</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="rewriter-query-rewrite-plugin-adding-rewrite-rules"></a>Adding Rewrite Rules</h5></div></div></div><p>
+          To add rules for the <code class="literal">Rewriter</code> plugin, add
+          rows to the <code class="literal">rewrite_rules</code> table, then
+          invoke the <code class="literal">flush_rewrite_rules()</code> stored
+          procedure to load the rules from the table into the plugin.
+          The following example creates a simple rule to match
+          statements that select a single literal value:
+        </p><pre class="programlisting">INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+VALUES('SELECT ?', 'SELECT ? + 1');
+</pre><p>
+          The resulting table contents look like this:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM query_rewrite.rewrite_rules\G</code></strong>
+*************************** 1. row ***************************
+                id: 1
+           pattern: SELECT ?
+  pattern_database: NULL
+       replacement: SELECT ? + 1
+           enabled: YES
+           message: NULL
+    pattern_digest: NULL
+normalized_pattern: NULL
+</pre><p>
+          The rule specifies a pattern template indicating which
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements to match, and
+          a replacement template indicating how to rewrite matching
+          statements. However, adding the rule to the
+          <code class="literal">rewrite_rules</code> table is not sufficient to
+          cause the <code class="literal">Rewriter</code> plugin to use the rule.
+          You must invoke <code class="literal">flush_rewrite_rules()</code> to
+          load the table contents into the plugin in-memory cache:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CALL query_rewrite.flush_rewrite_rules();</code></strong>
+</pre><div class="tip" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Tip</div><p>
+            If your rewrite rules seem not to be working properly, make
+            sure that you have reloaded the rules table by calling
+            <code class="literal">flush_rewrite_rules()</code>.
+          </p></div><p>
+          When the plugin reads each rule from the rules table, it
+          computes a normalized (statement digest) form from the pattern
+          and a digest hash value, and uses them to update the
+          <code class="literal">normalized_pattern</code> and
+          <code class="literal">pattern_digest</code> columns:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM query_rewrite.rewrite_rules\G</code></strong>
+*************************** 1. row ***************************
+                id: 1
+           pattern: SELECT ?
+  pattern_database: NULL
+       replacement: SELECT ? + 1
+           enabled: YES
+           message: NULL
+    pattern_digest: d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae
+normalized_pattern: select ?
+</pre><p>
+          For information about statement digesting, normalized
+          statements, and digest hash values, see
+          <a class="xref" href="performance-schema-statement-digests.html" title="27.10 Performance Schema Statement Digests and Sampling">Section 27.10, “Performance Schema Statement Digests and Sampling”</a>.
+        </p><p>
+          If a rule cannot be loaded due to some error, calling
+          <code class="literal">flush_rewrite_rules()</code> produces an error:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CALL query_rewrite.flush_rewrite_rules();</code></strong>
+ERROR 1644 (45000): Loading of some rule(s) failed.
+</pre><p>
+          When this occurs, the plugin writes an error message to the
+          <code class="literal">message</code> column of the rule row to
+          communicate the problem. Check the
+          <code class="literal">rewrite_rules</code> table for rows with
+          non-<code class="literal">NULL</code> <code class="literal">message</code> column
+          values to see what problems exist.
+        </p><p>
+          Patterns use the same syntax as prepared statements (see
+          <a class="xref" href="prepare.html" title="13.5.1 PREPARE Statement">Section 13.5.1, “PREPARE Statement”</a>). Within a pattern template,
+          <code class="literal">?</code> characters act as parameter markers that
+          match data values. The <code class="literal">?</code> characters should
+          not be enclosed within quotation marks. Parameter markers can
+          be used only where data values should appear, and they cannot
+          be used for SQL keywords, identifiers, functions, and so on.
+          The plugin parses a statement to identify the literal values
+          (as defined in <a class="xref" href="literals.html" title="9.1 Literal Values">Section 9.1, “Literal Values”</a>), so you can put a
+          parameter marker in place of any literal value.
+        </p><p>
+          Like the pattern, the replacement can contain
+          <code class="literal">?</code> characters. For a statement that matches
+          a pattern template, the plugin rewrites it, replacing
+          <code class="literal">?</code> parameter markers in the replacement
+          using data values matched by the corresponding markers in the
+          pattern. The result is a complete statement string. The plugin
+          asks the server to parse it, and returns the result to the
+          server as the representation of the rewritten statement.
+        </p><p>
+          After adding and loading the rule, check whether rewriting
+          occurs according to whether statements match the rule pattern:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT PI();</code></strong>
++----------+
+| PI()     |
++----------+
+| 3.141593 |
++----------+
+1 row in set (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT 10;</code></strong>
++--------+
+| 10 + 1 |
++--------+
+|     11 |
++--------+
+1 row in set, 1 warning (0.00 sec)
+</pre><p>
+          No rewriting occurs for the first
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statement, but does for
+          the second. The second statement illustrates that when the
+          <code class="literal">Rewriter</code> plugin rewrites a statement, it
+          produces a warning message. To view the message, use
+          <a class="link" href="show-warnings.html" title="13.7.7.42 SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a>:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW WARNINGS\G</code></strong>
+*************************** 1. row ***************************
+  Level: Note
+   Code: 1105
+Message: Query 'SELECT 10' rewritten to 'SELECT 10 + 1' by a query rewrite plugin
+</pre><p>
+          A statement need not be rewritten to a statement of the same
+          type. The following example loads a rule that rewrites
+          <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> statements to
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> statements:
+        </p><pre class="programlisting">INSERT INTO query_rewrite.rewrite_rules (pattern, replacement)
+VALUES('DELETE FROM db1.t1 WHERE col = ?',
+       'UPDATE db1.t1 SET col = NULL WHERE col = ?');
+CALL query_rewrite.flush_rewrite_rules();
+</pre><p>
+          To enable or disable an existing rule, modify its
+          <code class="literal">enabled</code> column and reload the table into
+          the plugin. To disable rule 1:
+        </p><pre class="programlisting">UPDATE query_rewrite.rewrite_rules SET enabled = 'NO' WHERE id = 1;
+CALL query_rewrite.flush_rewrite_rules();
+</pre><p>
+          This enables you to deactivate a rule without removing it from
+          the table.
+        </p><p>
+          To re-enable rule 1:
+        </p><pre class="programlisting">UPDATE query_rewrite.rewrite_rules SET enabled = 'YES' WHERE id = 1;
+CALL query_rewrite.flush_rewrite_rules();
+</pre><p>
+          The <code class="literal">rewrite_rules</code> table contains a
+          <code class="literal">pattern_database</code> column that
+          <code class="literal">Rewriter</code> uses for matching table names that
+          are not qualified with a database name:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Qualified table names in statements match qualified names
+              in the pattern if corresponding database and table names
+              are identical.
+            </p></li><li class="listitem"><p>
+              Unqualified table names in statements match unqualified
+              names in the pattern only if the default database is the
+              same as <code class="literal">pattern_database</code> and the table
+              names are identical.
+            </p></li></ul></div><p>
+          Suppose that a table named <code class="literal">appdb.users</code> has
+          a column named <code class="literal">id</code> and that applications are
+          expected to select rows from the table using a query of one of
+          these forms, where the second can be used when
+          <code class="literal">appdb</code> is the default database:
+        </p><pre class="programlisting">SELECT * FROM users WHERE appdb.id = <em class="replaceable"><code>id_value</code></em>;
+SELECT * FROM users WHERE id = <em class="replaceable"><code>id_value</code></em>;
+</pre><p>
+          Suppose also that the <code class="literal">id</code> column is renamed
+          to <code class="literal">user_id</code> (perhaps the table must be
+          modified to add another type of ID and it is necessary to
+          indicate more specifically what type of ID the
+          <code class="literal">id</code> column represents).
+        </p><p>
+          The change means that applications must refer to
+          <code class="literal">user_id</code> rather than <code class="literal">id</code>
+          in the <code class="literal">WHERE</code> clause, but old applications
+          that cannot be updated no longer work properly. The
+          <code class="literal">Rewriter</code> plugin can solve this problem by
+          matching and rewriting problematic statements. To match the
+          statement <code class="literal">SELECT * FROM appdb.users WHERE id =
+          <em class="replaceable"><code>value</code></em></code> and rewrite it as
+          <code class="literal">SELECT * FROM appdb.users WHERE user_id =
+          <em class="replaceable"><code>value</code></em></code>, you can insert a
+          row representing a replacement rule into the rewrite rules
+          table. If you also want to match this
+          <code class="literal">SELECT</code> using the unqualified table name, it
+          is also necessary to add an explicit rule. Using
+          <code class="literal">?</code> as a value placeholder, the two
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements needed look
+          like this:
+        </p><pre class="programlisting">INSERT INTO query_rewrite.rewrite_rules
+    (pattern, replacement) VALUES(
+    'SELECT * FROM appdb.users WHERE id = ?',
+    'SELECT * FROM appdb.users WHERE user_id = ?'
+    );
+INSERT INTO query_rewrite.rewrite_rules
+    (pattern, replacement, pattern_database) VALUES(
+    'SELECT * FROM users WHERE id = ?',
+    'SELECT * FROM users WHERE user_id = ?',
+    'appdb'
+    );
+</pre><p>
+          After adding the two new rules, execute the following
+          statement to cause them to take effect:
+        </p><pre class="programlisting">CALL query_rewrite.flush_rewrite_rules();
+</pre><p>
+          <code class="literal">Rewriter</code> uses the first rule to match
+          statements that use the qualified table name, and the second
+          to match statements that use the unqualified name. The second
+          rule works only when <code class="literal">appdb</code> is the default
+          database.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="rewriter-query-rewrite-plugin-how-statement-matching-works"></a>How Statement Matching Works</h5></div></div></div><p>
+          The <code class="literal">Rewriter</code> plugin uses statement digests
+          and digest hash values to match incoming statements against
+          rewrite rules in stages. The
+          <code class="literal">max_digest_length</code> system variable
+          determines the size of the buffer used for computing statement
+          digests. Larger values enable computation of digests that
+          distinguish longer statements. Smaller values use less memory
+          but increase the likelihood of longer statements colliding
+          with the same digest value.
+        </p><p>
+          The plugin matches each statement to the rewrite rules as
+          follows:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              Compute the statement digest hash value and compare it to
+              the rule digest hash values. This is subject to false
+              positives, but serves as a quick rejection test.
+            </p></li><li class="listitem"><p>
+              If the statement digest hash value matches any pattern
+              digest hash values, match the normalized (statement
+              digest) form of the statement to the normalized form of
+              the matching rule patterns.
+            </p></li><li class="listitem"><p>
+              If the normalized statement matches a rule, compare the
+              literal values in the statement and the pattern. A
+              <code class="literal">?</code> character in the pattern matches any
+              literal value in the statement. If the statement prepares
+              a statement, <code class="literal">?</code> in the pattern also
+              matches <code class="literal">?</code> in the statement. Otherwise,
+              corresponding literals must be the same.
+            </p></li></ol></div><p>
+          If multiple rules match a statement, it is nondeterministic
+          which one the plugin uses to rewrite the statement.
+        </p><p>
+          If a pattern contains more markers than the replacement, the
+          plugin discards excess data values. If a pattern contains
+          fewer markers than the replacement, it is an error. The plugin
+          notices this when the rules table is loaded, writes an error
+          message to the <code class="literal">message</code> column of the rule
+          row to communicate the problem, and sets the
+          <a class="link" href="rewriter-query-rewrite-plugin-reference.html#statvar_Rewriter_reload_error"><code class="literal">Rewriter_reload_error</code></a> status
+          variable to <code class="literal">ON</code>.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="rewriter-query-rewrite-plugin-rewriting-prepared-statements"></a>Rewriting Prepared Statements</h5></div></div></div><p>
+          Prepared statements are rewritten at parse time (that is, when
+          they are prepared), not when they are executed later.
+        </p><p>
+          Prepared statements differ from nonprepared statements in that
+          they may contain <code class="literal">?</code> characters as parameter
+          markers. To match a <code class="literal">?</code> in a prepared
+          statement, a <code class="literal">Rewriter</code> pattern must contain
+          <code class="literal">?</code> in the same location. Suppose that a
+          rewrite rule has this pattern:
+        </p><pre class="programlisting">SELECT ?, 3
+</pre><p>
+          The following table shows several prepared
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements and whether
+          the rule pattern matches them.
+        </p><div class="informaltable"><table summary="How the Rewriter plugin matches prepared statements against the pattern SELECT ?,3."><col style="width: 50%" /><col style="width: 50%" /><thead><tr>
+              <th>Prepared Statement</th>
+              <th>Whether Pattern Matches Statement</th>
+            </tr></thead><tbody><tr>
+              <td><code class="literal">PREPARE s AS 'SELECT 3, 3'</code></td>
+              <td>Yes</td>
+            </tr><tr>
+              <td><code class="literal">PREPARE s AS 'SELECT ?, 3'</code></td>
+              <td>Yes</td>
+            </tr><tr>
+              <td><code class="literal">PREPARE s AS 'SELECT 3, ?'</code></td>
+              <td>No</td>
+            </tr><tr>
+              <td><code class="literal">PREPARE s AS 'SELECT ?, ?'</code></td>
+              <td>No</td>
+            </tr></tbody></table></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="rewriter-query-rewrite-plugin-operational-information"></a>Rewriter Plugin Operational Information</h5></div></div></div><p>
+          The <code class="literal">Rewriter</code> plugin makes information
+          available about its operation by means of several status
+          variables:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW GLOBAL STATUS LIKE 'Rewriter%';</code></strong>
++-----------------------------------+-------+
+| Variable_name                     | Value |
++-----------------------------------+-------+
+| Rewriter_number_loaded_rules      | 1     |
+| Rewriter_number_reloads           | 5     |
+| Rewriter_number_rewritten_queries | 1     |
+| Rewriter_reload_error             | ON    |
++-----------------------------------+-------+
+</pre><p>
+          For descriptions of these variables, see
+          <a class="xref" href="rewriter-query-rewrite-plugin-reference.html#rewriter-query-rewrite-plugin-status-variables" title="5.6.4.3.4 Rewriter Query Rewrite Plugin Status Variables">Section 5.6.4.3.4, “Rewriter Query Rewrite Plugin Status Variables”</a>.
+        </p><p>
+          When you load the rules table by calling the
+          <code class="literal">flush_rewrite_rules()</code> stored procedure, if
+          an error occurs for some rule, the <code class="literal">CALL</code>
+          statement produces an error, and the plugin sets the
+          <code class="literal">Rewriter_reload_error</code> status variable to
+          <code class="literal">ON</code>:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CALL query_rewrite.flush_rewrite_rules();</code></strong>
+ERROR 1644 (45000): Loading of some rule(s) failed.
+
+mysql&gt; <strong class="userinput"><code>SHOW GLOBAL STATUS LIKE 'Rewriter_reload_error';</code></strong>
++-----------------------+-------+
+| Variable_name         | Value |
++-----------------------+-------+
+| Rewriter_reload_error | ON    |
++-----------------------+-------+
+</pre><p>
+          In this case, check the <code class="literal">rewrite_rules</code> table
+          for rows with non-<code class="literal">NULL</code>
+          <code class="literal">message</code> column values to see what problems
+          exist.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="rewriter-query-rewrite-plugin-use-of-character-sets"></a>Rewriter Plugin Use of Character Sets</h5></div></div></div><p>
+          When the <code class="literal">rewrite_rules</code> table is loaded into
+          the <code class="literal">Rewriter</code> plugin, the plugin interprets
+          statements using the current global value of the
+          <a class="link" href="server-system-variables.html#sysvar_character_set_client"><code class="literal">character_set_client</code></a> system
+          variable. If the global
+          <a class="link" href="server-system-variables.html#sysvar_character_set_client"><code class="literal">character_set_client</code></a> value is
+          changed subsequently, the rules table must be reloaded.
+        </p><p>
+          A client must have a session
+          <a class="link" href="server-system-variables.html#sysvar_character_set_client"><code class="literal">character_set_client</code></a> value
+          identical to what the global value was when the rules table
+          was loaded or rule matching does not work for that client.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="rewriter-query-rewrite-plugin-installation.html">Previous <span class="navHint"> Installing or Uninstalling the Rewriter Query Rewrite Plugin </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="rewriter-query-rewrite-plugin.html">Up <span class="navHint"> The Rewriter Query Rewrite Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="rewriter-query-rewrite-plugin-reference.html">Next <span class="navHint"> Rewriter Query Rewrite Plugin Reference </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

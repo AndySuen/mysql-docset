@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>25.5.4 The View WITH CHECK OPTION Clause</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="views.html" title="25.5 Using Views" /><link rel="prev" href="view-updatability.html" title="25.5.3 Updatable and Insertable Views" /><link rel="next" href="view-metadata.html" title="25.5.5 View Metadata" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="view-check-option.html#view-check-option">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="view-updatability.html">Previous <span class="navHint"> Updatable and Insertable Views </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="views.html">Up <span class="navHint"> Using Views </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="view-metadata.html">Next <span class="navHint"> View Metadata </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="view-check-option"></a>25.5.4 The View WITH CHECK OPTION Clause</h3></div></div></div><p>
+      The <code class="literal">WITH CHECK OPTION</code> clause can be given for
+      an updatable view to prevent inserts to rows for which the
+      <code class="literal">WHERE</code> clause in the
+      <em class="replaceable"><code>select_statement</code></em> is not true. It also
+      prevents updates to rows for which the <code class="literal">WHERE</code>
+      clause is true but the update would cause it to be not true (in
+      other words, it prevents visible rows from being updated to
+      nonvisible rows).
+    </p><p>
+      In a <code class="literal">WITH CHECK OPTION</code> clause for an updatable
+      view, the <code class="literal">LOCAL</code> and <code class="literal">CASCADED</code>
+      keywords determine the scope of check testing when the view is
+      defined in terms of another view. When neither keyword is given,
+      the default is <code class="literal">CASCADED</code>.
+    </p><p>
+      <code class="literal">WITH CHECK OPTION</code> testing is
+      standard-compliant:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          With <code class="literal">LOCAL</code>, the view
+          <code class="literal">WHERE</code> clause is checked, then checking
+          recurses to underlying views and applies the same rules.
+        </p></li><li class="listitem"><p>
+          With <code class="literal">CASCADED</code>, the view
+          <code class="literal">WHERE</code> clause is checked, then checking
+          recurses to underlying views, adds <code class="literal">WITH CASCADED
+          CHECK OPTION</code> to them (for purposes of the check;
+          their definitions remain unchanged), and applies the same
+          rules.
+        </p></li><li class="listitem"><p>
+          With no check option, the view <code class="literal">WHERE</code> clause
+          is not checked, then checking recurses to underlying views,
+          and applies the same rules.
+        </p></li></ul></div><p>
+      Consider the definitions for the following table and set of views:
+    </p><pre class="programlisting">CREATE TABLE t1 (a INT);
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a &lt; 2
+WITH CHECK OPTION;
+CREATE VIEW v2 AS SELECT * FROM v1 WHERE a &gt; 0
+WITH LOCAL CHECK OPTION;
+CREATE VIEW v3 AS SELECT * FROM v1 WHERE a &gt; 0
+WITH CASCADED CHECK OPTION;
+</pre><p>
+      Here the <code class="literal">v2</code> and <code class="literal">v3</code> views are
+      defined in terms of another view, <code class="literal">v1</code>.
+    </p><p>
+      Inserts for <code class="literal">v2</code> are checked against its
+      <code class="literal">LOCAL</code> check option, then the check recurses to
+      <code class="literal">v1</code> and the rules are applied again. The rules
+      for <code class="literal">v1</code> cause a check failure. The check for
+      <code class="literal">v3</code> also fails:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO v2 VALUES (2);</code></strong>
+ERROR 1369 (HY000): CHECK OPTION failed 'test.v2'
+mysql&gt; <strong class="userinput"><code>INSERT INTO v3 VALUES (2);</code></strong>
+ERROR 1369 (HY000): CHECK OPTION failed 'test.v3'
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="view-updatability.html">Previous <span class="navHint"> Updatable and Insertable Views </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="views.html">Up <span class="navHint"> Using Views </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="view-metadata.html">Next <span class="navHint"> View Metadata </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

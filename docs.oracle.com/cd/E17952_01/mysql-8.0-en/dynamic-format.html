@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>16.2.3.2 Dynamic Table Characteristics</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="myisam-table-formats.html" title="16.2.3 MyISAM Table Storage Formats" /><link rel="prev" href="static-format.html" title="16.2.3.1 Static (Fixed-Length) Table Characteristics" /><link rel="next" href="compressed-format.html" title="16.2.3.3 Compressed Table Characteristics" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="dynamic-format.html#dynamic-format">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="static-format.html">Previous <span class="navHint"> Static (Fixed-Length) Table Characteristics </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="myisam-table-formats.html">Up <span class="navHint"> MyISAM Table Storage Formats </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="compressed-format.html">Next <span class="navHint"> Compressed Table Characteristics </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="dynamic-format"></a>16.2.3.2 Dynamic Table Characteristics</h4></div></div></div><a id="idm45828870739808" class="indexterm"></a><a id="idm45828870738752" class="indexterm"></a><p>
+        Dynamic storage format is used if a <code class="literal">MyISAM</code>
+        table contains any variable-length columns
+        (<a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>,
+        <a class="link" href="binary-varbinary.html" title="11.3.3 The BINARY and VARBINARY Types"><code class="literal">VARBINARY</code></a>,
+        <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a>, or
+        <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">TEXT</code></a>), or if the table was
+        created with the <code class="literal">ROW_FORMAT=DYNAMIC</code> table
+        option.
+      </p><p>
+        Dynamic format is a little more complex than static format
+        because each row has a header that indicates how long it is. A
+        row can become fragmented (stored in noncontiguous pieces) when
+        it is made longer as a result of an update.
+      </p><a id="idm45828870729680" class="indexterm"></a><p>
+        You can use <a class="link" href="optimize-table.html" title="13.7.3.4 OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> or
+        <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk -r</strong></span></a> to defragment a table. If you
+        have fixed-length columns that you access or change frequently
+        in a table that also contains some variable-length columns, it
+        might be a good idea to move the variable-length columns to
+        other tables just to avoid fragmentation.
+      </p><p>
+        Dynamic-format tables have these characteristics:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            All string columns are dynamic except those with a length
+            less than four.
+          </p></li><li class="listitem"><p>
+            Each row is preceded by a bitmap that indicates which
+            columns contain the empty string (for string columns) or
+            zero (for numeric columns). This does not include columns
+            that contain <code class="literal">NULL</code> values. If a string
+            column has a length of zero after trailing space removal, or
+            a numeric column has a value of zero, it is marked in the
+            bitmap and not saved to disk. Nonempty strings are saved as
+            a length byte plus the string contents.
+          </p></li><li class="listitem"><p>
+            <code class="literal">NULL</code> columns require additional space in
+            the row to record whether their values are
+            <code class="literal">NULL</code>. Each <code class="literal">NULL</code> column
+            takes one bit extra, rounded up to the nearest byte.
+          </p></li><li class="listitem"><p>
+            Much less disk space usually is required than for
+            fixed-length tables.
+          </p></li><li class="listitem"><p>
+            Each row uses only as much space as is required. However, if
+            a row becomes larger, it is split into as many pieces as are
+            required, resulting in row fragmentation. For example, if
+            you update a row with information that extends the row
+            length, the row becomes fragmented. In this case, you may
+            have to run <a class="link" href="optimize-table.html" title="13.7.3.4 OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> or
+            <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk -r</strong></span></a> from time to time to improve
+            performance. Use <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk -ei</strong></span></a> to obtain
+            table statistics.
+          </p></li><li class="listitem"><p>
+            More difficult than static-format tables to reconstruct
+            after a crash, because rows may be fragmented into many
+            pieces and links (fragments) may be missing.
+          </p></li><li class="listitem"><p>
+            The expected row length for dynamic-sized rows is calculated
+            using the following expression:
+          </p><pre class="programlisting">3
++ (<em class="replaceable"><code>number of columns</code></em> + 7) / 8
++ (<em class="replaceable"><code>number of char columns</code></em>)
++ (<em class="replaceable"><code>packed size of numeric columns</code></em>)
++ (<em class="replaceable"><code>length of strings</code></em>)
++ (<em class="replaceable"><code>number of NULL columns</code></em> + 7) / 8
+</pre><p>
+            There is a penalty of 6 bytes for each link. A dynamic row
+            is linked whenever an update causes an enlargement of the
+            row. Each new link is at least 20 bytes, so the next
+            enlargement probably goes in the same link. If not, another
+            link is created. You can find the number of links using
+            <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk -ed</strong></span></a>. All links may be removed
+            with <a class="link" href="optimize-table.html" title="13.7.3.4 OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> or
+            <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk -r</strong></span></a>.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="static-format.html">Previous <span class="navHint"> Static (Fixed-Length) Table Characteristics </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="myisam-table-formats.html">Up <span class="navHint"> MyISAM Table Storage Formats </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="compressed-format.html">Next <span class="navHint"> Compressed Table Characteristics </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

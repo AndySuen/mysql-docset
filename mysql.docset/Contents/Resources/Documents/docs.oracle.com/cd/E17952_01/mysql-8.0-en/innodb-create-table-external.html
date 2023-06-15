@@ -1,0 +1,152 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1441"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.6.1.2%C2%A0Creating%20Tables%20Externally"></a><title>15.6.1.2&nbsp;Creating Tables Externally</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-tables.html" title="15.6.1&nbsp;Tables"/><link rel="prev" href="using-innodb-tables.html" title="15.6.1.1&nbsp;Creating InnoDB Tables"/><link rel="next" href="innodb-table-import.html" title="15.6.1.3&nbsp;Importing InnoDB Tables"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-create-table-external.html#innodb-create-table-external">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="using-innodb-tables.html">Previous <span class="navHint"> Creating InnoDB Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-tables.html">Up <span class="navHint"> Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-table-import.html">Next <span class="navHint"> Importing InnoDB Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1440"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/15.6.1.2%C2%A0Creating%20Tables%20Externally"></a><h4 class="title"><a id="innodb-create-table-external"></a>15.6.1.2&nbsp;Creating Tables Externally</h4></div></div></div><p>
+      There are different reasons for creating <code class="literal">InnoDB</code>
+      tables externally; that is, creating tables outside of the data
+      directory. Those reasons might include space management, I/O
+      optimization, or placing tables on a storage device with
+      particular performance or capacity characteristics, for example.
+    </p><p>
+      <code class="literal">InnoDB</code> supports the following methods for
+      creating tables externally:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="innodb-create-table-external.html#innodb-create-table-external-data-directory" title="Using the DATA DIRECTORY Clause">Using the DATA DIRECTORY Clause</a></p></li><li class="listitem"><p><a class="xref" href="innodb-create-table-external.html#innodb-create-table-external-tablespace-syntax" title="Using CREATE TABLE ... TABLESPACE Syntax">Using CREATE TABLE ... TABLESPACE Syntax</a></p></li><li class="listitem"><p><a class="xref" href="innodb-create-table-external.html#innodb-create-table-external-tablespace" title="Creating a Table in an External General Tablespace">Creating a Table in an External General Tablespace</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-create-table-external-data-directory"></a>Using the DATA DIRECTORY Clause</h5></div></div></div><p>
+        You can create an <code class="literal">InnoDB</code> table in an external
+        directory by specifying a <code class="literal">DATA DIRECTORY</code>
+        clause in the <code class="literal">CREATE TABLE</code> statement.
+      </p><pre class="programlisting">CREATE TABLE t1 (c1 INT PRIMARY KEY) DATA DIRECTORY = &#39;<em class="replaceable"><code>/external/directory</code></em>&#39;;</pre><p>
+        The <code class="literal">DATA DIRECTORY</code> clause is supported for
+        tables created in file-per-table tablespaces. Tables are
+        implicitly created in file-per-table tablespaces when the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_file_per_table"><code class="literal">innodb_file_per_table</code></a> variable
+        is enabled, which it is by default.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT @@innodb_file_per_table;</code></strong>
++-------------------------+
+| @@innodb_file_per_table |
++-------------------------+
+|                       1 |
++-------------------------+
+</pre><p>
+        For more information about file-per-table tablespaces, see
+        <a class="xref" href="innodb-file-per-table-tablespaces.html" title="15.6.3.2&nbsp;File-Per-Table Tablespaces">Section&nbsp;15.6.3.2, &ldquo;File-Per-Table Tablespaces&rdquo;</a>.
+      </p><p>
+        When you specify a <code class="literal">DATA DIRECTORY</code> clause in a
+        <code class="literal">CREATE TABLE</code> statement, the table&#39;s data file
+        (<code class="filename"><em class="replaceable"><code>table_name</code></em>.ibd</code>)
+        is created in a schema directory under the specified directory.
+      </p><p>
+        As of MySQL 8.0.21, tables and table partitions created outside
+        of the data directory using the <code class="literal">DATA
+        DIRECTORY</code> clause are restricted to directories known
+        to <code class="literal">InnoDB</code>. This requirement permits database
+        administrators to control where tablespace data files are
+        created and ensures that data files can be found during recovery
+        (see <a class="xref" href="innodb-recovery.html#innodb-recovery-tablespace-discovery" title="Tablespace Discovery During Crash Recovery">Tablespace Discovery During Crash Recovery</a>).
+        Known directories are those defined by the
+        <a class="link" href="server-system-variables.html#sysvar_datadir"><code class="literal">datadir</code></a>,
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a>, and
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> variables.
+        You can use the following statement to check those settings:
+      </p><pre class="programlisting">mysql&gt; SELECT @@datadir,@@innodb_data_home_dir,@@innodb_directories;
+</pre><p>
+        If the directory you want to use is unknown, add it to the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> setting
+        before you create the table. The
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a> variable is
+        read-only. Configuring it requires restarting the server. For
+        general information about setting system variables, see
+        <a class="xref" href="using-system-variables.html" title="5.1.9&nbsp;Using System Variables">Section&nbsp;5.1.9, &ldquo;Using System Variables&rdquo;</a>.
+      </p><p>
+        The following example demonstrates creating a table in an
+        external directory using the <code class="literal">DATA DIRECTORY</code>
+        clause. It is assumed that the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_file_per_table"><code class="literal">innodb_file_per_table</code></a> variable
+        is enabled and that the directory is known to
+        <code class="literal">InnoDB</code>.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>USE test;</code></strong>
+Database changed
+
+mysql&gt; <strong class="userinput"><code>CREATE TABLE t1 (c1 INT PRIMARY KEY) DATA DIRECTORY = &#39;<em class="replaceable"><code>/external/directory</code></em>&#39;;</code></strong>
+
+# MySQL creates the table&#39;s data file in a schema directory
+# under the external directory
+
+$&gt; <strong class="userinput"><code>cd /external/directory/test</code></strong>
+$&gt; <strong class="userinput"><code>ls</code></strong>
+t1.ibd
+</pre><h6><a id="idm45828892135888"></a>Usage Notes:</h6><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            MySQL initially holds the tablespace data file open,
+            preventing you from dismounting the device, but might
+            eventually close the file if the server is busy. Be careful
+            not to accidentally dismount an external device while MySQL
+            is running, or start MySQL while the device is disconnected.
+            Attempting to access a table when the associated data file
+            is missing causes a serious error that requires a server
+            restart.
+          </p><p>
+            A server restart might fail if the data file is not found at
+            the expected path. In this case, you can restore the
+            tablespace data file from a backup or drop the table to
+            remove the information about it from the
+            <a class="link" href="glossary.html#glos_data_dictionary" title="data dictionary">data dictionary</a>.
+          </p></li><li class="listitem"><p>
+            Before placing a table on an NFS-mounted volume, review
+            potential issues outlined in
+            <a class="xref" href="disk-issues.html#disk-issues-nfs" title="Using NFS with MySQL">Using NFS with MySQL</a>.
+          </p></li><li class="listitem"><p>
+            If using an LVM snapshot, file copy, or other file-based
+            mechanism to back up the table&#39;s data file, always use the
+            <a class="link" href="flush.html#flush-tables-for-export-with-list"><code class="literal">FLUSH
+            TABLES ... FOR EXPORT</code></a> statement first to ensure
+            that all changes buffered in memory are
+            <a class="link" href="glossary.html#glos_flush" title="flush">flushed</a> to disk before the
+            backup occurs.
+          </p></li><li class="listitem"><p>
+            Using the <code class="literal">DATA DIRECTORY</code> clause to create
+            a table in an external directory is an alternative to using
+            <a class="link" href="symbolic-links.html" title="8.12.2&nbsp;Using Symbolic Links">symbolic links</a>, which
+            <code class="literal">InnoDB</code> does not support.
+          </p></li><li class="listitem"><p>
+            The <code class="literal">DATA DIRECTORY</code> clause is not
+            supported in a replication environment where the source and
+            replica reside on the same host. The <code class="literal">DATA
+            DIRECTORY</code> clause requires a full directory path.
+            Replicating the path in this case would cause the source and
+            replica to create the table in same location.
+          </p></li><li class="listitem"><p>
+            As of MySQL 8.0.21, tables created in file-per-table
+            tablespaces can no longer be created in the undo tablespace
+            directory
+            (<a class="link" href="innodb-parameters.html#sysvar_innodb_undo_directory"><code class="literal">innodb_undo_directory</code></a>)
+            unless that directly is known to <code class="literal">InnoDB</code>.
+            Known directories are those defined by the
+            <a class="link" href="server-system-variables.html#sysvar_datadir"><code class="literal">datadir</code></a>,
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a>, and
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_directories"><code class="literal">innodb_directories</code></a>
+            variables.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-create-table-external-tablespace-syntax"></a>Using CREATE TABLE ... TABLESPACE Syntax</h5></div></div></div><p>
+        <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE ...
+        TABLESPACE</code></a> syntax can be used in combination with the
+        <code class="literal">DATA DIRECTORY</code> clause to create a table in an
+        external directory. To do so, specify
+        <code class="literal">innodb_file_per_table</code> as the tablespace name.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t2 (c1 INT PRIMARY KEY) TABLESPACE = innodb_file_per_table</code></strong>
+       <strong class="userinput"><code>DATA DIRECTORY = &#39;/external/directory&#39;;</code></strong>
+</pre><p>
+        This method is supported only for tables created in
+        file-per-table tablespaces, but does not require the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_file_per_table"><code class="literal">innodb_file_per_table</code></a> variable
+        to be enabled. In all other respects, this method is equivalent
+        to the <code class="literal">CREATE TABLE ... DATA DIRECTORY</code> method
+        described above. The same usage notes apply.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-create-table-external-tablespace"></a>Creating a Table in an External General Tablespace</h5></div></div></div><p>
+        You can create a table in a general tablespace that resides in
+        an external directory.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For information about creating a general tablespace in an
+            external directory, see
+            <a class="xref" href="general-tablespaces.html#general-tablespaces-creating" title="Creating a General Tablespace">Creating a General Tablespace</a>.
+          </p></li><li class="listitem"><p>
+            For information about creating a table in a general
+            tablespace, see
+            <a class="xref" href="general-tablespaces.html#general-tablespaces-adding-tables" title="Adding Tables to a General Tablespace">Adding Tables to a General Tablespace</a>.
+          </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="using-innodb-tables.html">Previous <span class="navHint"> Creating InnoDB Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-tables.html">Up <span class="navHint"> Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-table-import.html">Next <span class="navHint"> Importing InnoDB Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,159 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1467"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.11.2%C2%A0File%20Space%20Management"></a><title>15.11.2&nbsp;File Space Management</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-disk-management.html" title="15.11&nbsp;InnoDB Disk I/O and File Space Management"/><link rel="prev" href="innodb-disk-io.html" title="15.11.1&nbsp;InnoDB Disk I/O"/><link rel="next" href="innodb-checkpoints.html" title="15.11.3&nbsp;InnoDB Checkpoints"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-file-space.html#innodb-file-space">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-disk-io.html">Previous <span class="navHint"> InnoDB Disk I/O </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-disk-management.html">Up <span class="navHint"> InnoDB Disk I/O and File Space Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-checkpoints.html">Next <span class="navHint"> InnoDB Checkpoints </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-file-space"></a>15.11.2&nbsp;File Space Management</h3></div></div></div><a id="idm45828885687072" class="indexterm"></a><p>
+      The data files that you define in the configuration file using the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_data_file_path"><code class="literal">innodb_data_file_path</code></a>
+      configuration option form the <code class="literal">InnoDB</code>
+      <a class="link" href="glossary.html#glos_system_tablespace" title="system tablespace">system tablespace</a>.
+      The files are logically concatenated to form the system
+      tablespace. There is no striping in use. You cannot define where
+      within the system tablespace your tables are allocated. In a newly
+      created system tablespace, <code class="literal">InnoDB</code> allocates
+      space starting from the first data file.
+    </p><p>
+      To avoid the issues that come with storing all tables and indexes
+      inside the system tablespace, you can enable the
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_file_per_table"><code class="literal">innodb_file_per_table</code></a>
+      configuration option (the default), which stores each newly
+      created table in a separate tablespace file (with extension
+      <code class="literal">.ibd</code>). For tables stored this way, there is
+      less fragmentation within the disk file, and when the table is
+      truncated, the space is returned to the operating system rather
+      than still being reserved by InnoDB within the system tablespace.
+      For more information, see
+      <a class="xref" href="innodb-file-per-table-tablespaces.html" title="15.6.3.2&nbsp;File-Per-Table Tablespaces">Section&nbsp;15.6.3.2, &ldquo;File-Per-Table Tablespaces&rdquo;</a>.
+    </p><p>
+      You can also store tables in
+      <a class="link" href="glossary.html#glos_general_tablespace" title="general tablespace">general
+      tablespaces</a>. General tablespaces are shared tablespaces
+      created using <a class="link" href="create-tablespace.html" title="13.1.21&nbsp;CREATE TABLESPACE Statement"><code class="literal">CREATE TABLESPACE</code></a>
+      syntax. They can be created outside of the MySQL data directory,
+      are capable of holding multiple tables, and support tables of all
+      row formats. For more information, see
+      <a class="xref" href="general-tablespaces.html" title="15.6.3.3&nbsp;General Tablespaces">Section&nbsp;15.6.3.3, &ldquo;General Tablespaces&rdquo;</a>.
+    </p><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1468"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Pages%2C%20Extents%2C%20Segments%2C%20and%20Tablespaces"></a><h4 class="title"><a id="innodb-pages-extents-segments-tablespaces"></a>Pages, Extents, Segments, and Tablespaces</h4></div></div></div><p>
+        Each tablespace consists of database
+        <a class="link" href="glossary.html#glos_page" title="page">pages</a>. Every tablespace in a
+        MySQL instance has the same <a class="link" href="glossary.html#glos_page_size" title="page size">page
+        size</a>. By default, all tablespaces have a page size of
+        16KB; you can reduce the page size to 8KB or 4KB by specifying
+        the <a class="link" href="innodb-parameters.html#sysvar_innodb_page_size"><code class="literal">innodb_page_size</code></a> option
+        when you create the MySQL instance. You can also increase the
+        page size to 32KB or 64KB. For more information, refer to the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_page_size"><code class="literal">innodb_page_size</code></a> documentation.
+      </p><p>
+        The pages are grouped into
+        <a class="link" href="glossary.html#glos_extent" title="extent">extents</a> of size 1MB for pages
+        up to 16KB in size (64 consecutive 16KB pages, or 128 8KB pages,
+        or 256 4KB pages). For a page size of 32KB, extent size is 2MB.
+        For page size of 64KB, extent size is 4MB. The
+        <span class="quote">&ldquo;<span class="quote">files</span>&rdquo;</span> inside a tablespace are called
+        <a class="link" href="glossary.html#glos_segment" title="segment">segments</a> in
+        <code class="literal">InnoDB</code>. (These segments are different from
+        the <a class="link" href="glossary.html#glos_rollback_segment" title="rollback segment">rollback
+        segment</a>, which actually contains many tablespace
+        segments.)
+      </p><p>
+        When a segment grows inside the tablespace,
+        <code class="literal">InnoDB</code> allocates the first 32 pages to it one
+        at a time. After that, <code class="literal">InnoDB</code> starts to
+        allocate whole extents to the segment. <code class="literal">InnoDB</code>
+        can add up to 4 extents at a time to a large segment to ensure
+        good sequentiality of data.
+      </p><p>
+        Two segments are allocated for each index in
+        <code class="literal">InnoDB</code>. One is for nonleaf nodes of the
+        <a class="link" href="glossary.html#glos_b_tree" title="B-tree">B-tree</a>, the other is for the
+        leaf nodes. Keeping the leaf nodes contiguous on disk enables
+        better sequential I/O operations, because these leaf nodes
+        contain the actual table data.
+      </p><p>
+        Some pages in the tablespace contain bitmaps of other pages, and
+        therefore a few extents in an <code class="literal">InnoDB</code>
+        tablespace cannot be allocated to segments as a whole, but only
+        as individual pages.
+      </p><p>
+        When you ask for available free space in the tablespace by
+        issuing a <a class="link" href="show-table-status.html" title="13.7.7.38&nbsp;SHOW TABLE STATUS Statement"><code class="literal">SHOW TABLE STATUS</code></a>
+        statement, <code class="literal">InnoDB</code> reports the extents that
+        are definitely free in the tablespace. <code class="literal">InnoDB</code>
+        always reserves some extents for cleanup and other internal
+        purposes; these reserved extents are not included in the free
+        space.
+      </p><p>
+        When you delete data from a table, <code class="literal">InnoDB</code>
+        contracts the corresponding B-tree indexes. Whether the freed
+        space becomes available for other users depends on whether the
+        pattern of deletes frees individual pages or extents to the
+        tablespace. Dropping a table or deleting all rows from it is
+        guaranteed to release the space to other users, but remember
+        that deleted rows are physically removed only by the
+        <a class="link" href="glossary.html#glos_purge" title="purge">purge</a> operation, which happens
+        automatically some time after they are no longer needed for
+        transaction rollbacks or consistent reads. (See
+        <a class="xref" href="innodb-multi-versioning.html" title="15.3&nbsp;InnoDB Multi-Versioning">Section&nbsp;15.3, &ldquo;InnoDB Multi-Versioning&rdquo;</a>.)
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1469"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Configuring%20the%20Percentage%20of%20Reserved%20File%20Segment%20Pages"></a><h4 class="title"><a id="innodb-config-reserved-file-segment-pages"></a>Configuring the Percentage of Reserved File Segment Pages</h4></div></div></div><p>
+        The
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_segment_reserve_factor"><code class="literal">innodb_segment_reserve_factor</code></a>
+        variable, introduced in MySQL 8.0.26, is an advanced feature
+        that permits defining the percentage of tablespace file segment
+        pages reserved as empty pages. A percentage of pages are
+        reserved for future growth so that pages in the B-tree can be
+        allocated contiguously. The ability to modify the percentage of
+        reserved pages permits fine-tuning <code class="literal">InnoDB</code> to
+        address issues of data fragmentation or inefficient use of
+        storage space.
+      </p><p>
+        The setting is applicable to file-per-table and general
+        tablespaces. The
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_segment_reserve_factor"><code class="literal">innodb_segment_reserve_factor</code></a>
+        default setting is 12.5 percent, which is the same percentage of
+        pages reserved in previous MySQL releases.
+      </p><p>
+        The
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_segment_reserve_factor"><code class="literal">innodb_segment_reserve_factor</code></a>
+        variable is dynamic and can be configured using a
+        <a class="link" href="set.html" title="11.3.6&nbsp;The SET Type"><code class="literal">SET</code></a> statement. For example:
+      </p><pre class="programlisting">mysql&gt; SET GLOBAL innodb_segment_reserve_factor=10;</pre></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1470"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/How%20Pages%20Relate%20to%20Table%20Rows"></a><h4 class="title"><a id="innodb-pages-rows"></a>How Pages Relate to Table Rows</h4></div></div></div><p>
+        For for 4KB, 8KB, 16KB, and 32KB
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_page_size"><code class="literal">innodb_page_size</code></a> settings, the
+        maximum row length is slightly less than half a database page
+        size. For example, the maximum row length is slightly less than
+        8KB for the default 16KB <code class="literal">InnoDB</code> page size.
+        For a 64KB <a class="link" href="innodb-parameters.html#sysvar_innodb_page_size"><code class="literal">innodb_page_size</code></a>
+        setting, the maximum row length is slightly less than 16KB.
+      </p><p>
+        If a row does not exceed the maximum row length, all of it is
+        stored locally within the page. If a row exceeds the maximum row
+        length,
+        <a class="link" href="glossary.html#glos_variable_length_type" title="variable-length type">variable-length
+        columns</a> are chosen for external off-page storage until
+        the row fits within the maximum row length limit. External
+        off-page storage for variable-length columns differs by row
+        format:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <span class="emphasis"><em>COMPACT and REDUNDANT Row Formats</em></span>
+          </p><p>
+            When a variable-length column is chosen for external
+            off-page storage, <code class="literal">InnoDB</code> stores the first
+            768 bytes locally in the row, and the rest externally into
+            overflow pages. Each such column has its own list of
+            overflow pages. The 768-byte prefix is accompanied by a
+            20-byte value that stores the true length of the column and
+            points into the overflow list where the rest of the value is
+            stored. See <a class="xref" href="innodb-row-format.html" title="15.10&nbsp;InnoDB Row Formats">Section&nbsp;15.10, &ldquo;InnoDB Row Formats&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>DYNAMIC and COMPRESSED Row Formats</em></span>
+          </p><p>
+            When a variable-length column is chosen for external
+            off-page storage, <code class="literal">InnoDB</code> stores a 20-byte
+            pointer locally in the row, and the rest externally into
+            overflow pages. See <a class="xref" href="innodb-row-format.html" title="15.10&nbsp;InnoDB Row Formats">Section&nbsp;15.10, &ldquo;InnoDB Row Formats&rdquo;</a>.
+          </p></li></ul></div><p>
+        <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">LONGBLOB</code></a> and
+        <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">LONGTEXT</code></a> columns
+        must be less than 4GB, and the total row length, including
+        <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">BLOB</code></a> and
+        <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">TEXT</code></a> columns, must be less than
+        4GB.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-disk-io.html">Previous <span class="navHint"> InnoDB Disk I/O </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-disk-management.html">Up <span class="navHint"> InnoDB Disk I/O and File Space Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-checkpoints.html">Next <span class="navHint"> InnoDB Checkpoints </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

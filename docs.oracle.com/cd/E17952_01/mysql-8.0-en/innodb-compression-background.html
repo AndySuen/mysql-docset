@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.9.1.1 Overview of Table Compression</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-table-compression.html" title="15.9.1 InnoDB Table Compression" /><link rel="prev" href="innodb-table-compression.html" title="15.9.1 InnoDB Table Compression" /><link rel="next" href="innodb-compression-usage.html" title="15.9.1.2 Creating Compressed Tables" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-compression-background.html#innodb-compression-background">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-table-compression.html">Previous <span class="navHint"> InnoDB Table Compression </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-table-compression.html">Up <span class="navHint"> InnoDB Table Compression </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-compression-usage.html">Next <span class="navHint"> Creating Compressed Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-compression-background"></a>15.9.1.1 Overview of Table Compression</h4></div></div></div><a id="idm45828886746128" class="indexterm"></a><p>
+        Because processors and cache memories have increased in speed
+        more than disk storage devices, many workloads are
+        <a class="link" href="glossary.html#glos_disk_bound" title="disk-bound">disk-bound</a>. Data
+        <a class="link" href="glossary.html#glos_compression" title="compression">compression</a> enables
+        smaller database size, reduced I/O, and improved throughput, at
+        the small cost of increased CPU utilization. Compression is
+        especially valuable for read-intensive applications, on systems
+        with enough RAM to keep frequently used data in memory.
+      </p><p>
+        An <code class="literal">InnoDB</code> table created with
+        <code class="literal">ROW_FORMAT=COMPRESSED</code> can use a smaller
+        <a class="link" href="glossary.html#glos_page_size" title="page size">page size</a> on disk than the
+        configured <a class="link" href="innodb-parameters.html#sysvar_innodb_page_size"><code class="literal">innodb_page_size</code></a>
+        value. Smaller pages require less I/O to read from and write to
+        disk, which is especially valuable for
+        <a class="link" href="glossary.html#glos_ssd" title="SSD">SSD</a> devices.
+      </p><p>
+        The compressed page size is specified through the
+        <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> or
+        <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+        <code class="literal">KEY_BLOCK_SIZE</code> parameter. The different page
+        size requires that the table be placed in a
+        <a class="link" href="glossary.html#glos_file_per_table" title="file-per-table">file-per-table</a>
+        tablespace or <a class="link" href="glossary.html#glos_general_tablespace" title="general tablespace">general
+        tablespace</a> rather than in the
+        <a class="link" href="glossary.html#glos_system_tablespace" title="system tablespace">system tablespace</a>,
+        as the system tablespace cannot store compressed tables. For
+        more information, see
+        <a class="xref" href="innodb-file-per-table-tablespaces.html" title="15.6.3.2 File-Per-Table Tablespaces">Section 15.6.3.2, “File-Per-Table Tablespaces”</a>, and
+        <a class="xref" href="general-tablespaces.html" title="15.6.3.3 General Tablespaces">Section 15.6.3.3, “General Tablespaces”</a>.
+      </p><p>
+        The level of compression is the same regardless of the
+        <code class="literal">KEY_BLOCK_SIZE</code> value. As you specify smaller
+        values for <code class="literal">KEY_BLOCK_SIZE</code>, you get the I/O
+        benefits of increasingly smaller pages. But if you specify a
+        value that is too small, there is additional overhead to
+        reorganize the pages when data values cannot be compressed
+        enough to fit multiple rows in each page. There is a hard limit
+        on how small <code class="literal">KEY_BLOCK_SIZE</code> can be for a
+        table, based on the lengths of the key columns for each of its
+        indexes. Specify a value that is too small, and the
+        <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> or
+        <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement fails.
+      </p><p>
+        In the buffer pool, the compressed data is held in small pages,
+        with a page size based on the <code class="literal">KEY_BLOCK_SIZE</code>
+        value. For extracting or updating the column values, MySQL also
+        creates an uncompressed page in the buffer pool with the
+        uncompressed data. Within the buffer pool, any updates to the
+        uncompressed page are also re-written back to the equivalent
+        compressed page. You might need to size your buffer pool to
+        accommodate the additional data of both compressed and
+        uncompressed pages, although the uncompressed pages are
+        <a class="link" href="glossary.html#glos_eviction" title="eviction">evicted</a> from the buffer
+        pool when space is needed, and then uncompressed again on the
+        next access.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-table-compression.html">Previous <span class="navHint"> InnoDB Table Compression </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-table-compression.html">Up <span class="navHint"> InnoDB Table Compression </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-compression-usage.html">Next <span class="navHint"> Creating Compressed Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

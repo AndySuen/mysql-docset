@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.11.1 Internal Locking Methods</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="locking-issues.html" title="8.11 Optimizing Locking Operations" /><link rel="prev" href="locking-issues.html" title="8.11 Optimizing Locking Operations" /><link rel="next" href="table-locking.html" title="8.11.2 Table Locking Issues" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="internal-locking.html#internal-locking">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="locking-issues.html">Previous <span class="navHint"> Optimizing Locking Operations </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="locking-issues.html">Up <span class="navHint"> Optimizing Locking Operations </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="table-locking.html">Next <span class="navHint"> Table Locking Issues </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="internal-locking"></a>8.11.1 Internal Locking Methods</h3></div></div></div><a id="idm45828949713328" class="indexterm"></a><a id="idm45828949712288" class="indexterm"></a><a id="idm45828949710800" class="indexterm"></a><a id="idm45828949709728" class="indexterm"></a><a id="idm45828949708240" class="indexterm"></a><a id="idm45828949707168" class="indexterm"></a><a id="idm45828949706096" class="indexterm"></a><a id="idm45828949704608" class="indexterm"></a><a id="idm45828949703120" class="indexterm"></a><p>
+        This section discusses internal locking; that is, locking
+        performed within the MySQL server itself to manage contention
+        for table contents by multiple sessions. This type of locking is
+        internal because it is performed entirely by the server and
+        involves no other programs. For locking performed on MySQL files
+        by other programs, see <a class="xref" href="external-locking.html" title="8.11.5 External Locking">Section 8.11.5, “External Locking”</a>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="internal-locking.html#internal-row-level-locking" title="Row-Level Locking">Row-Level Locking</a></p></li><li class="listitem"><p><a class="xref" href="internal-locking.html#internal-table-level-locking" title="Table-Level Locking">Table-Level Locking</a></p></li><li class="listitem"><p><a class="xref" href="internal-locking.html#internal-locking-choices" title="Choosing the Type of Locking">Choosing the Type of Locking</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="internal-row-level-locking"></a>Row-Level Locking</h4></div></div></div><p>
+          MySQL uses <a class="link" href="glossary.html#glos_row_lock" title="row lock">row-level
+          locking</a> for <code class="literal">InnoDB</code> tables to support
+          simultaneous write access by multiple sessions, making them
+          suitable for multi-user, highly concurrent, and OLTP
+          applications.
+        </p><p>
+          To avoid <a class="link" href="glossary.html#glos_deadlock" title="deadlock">deadlocks</a> when
+          performing multiple concurrent write operations on a single
+          <code class="literal">InnoDB</code> table, acquire necessary locks at
+          the start of the transaction by issuing a <code class="literal">SELECT ...
+          FOR UPDATE</code> statement for each group of rows expected
+          to be modified, even if the data change statements come later
+          in the transaction. If transactions modify or lock more than
+          one table, issue the applicable statements in the same order
+          within each transaction. Deadlocks affect performance rather
+          than representing a serious error, because
+          <code class="literal">InnoDB</code> automatically
+          <a class="link" href="glossary.html#glos_deadlock_detection" title="deadlock detection">detects</a>
+          deadlock conditions by default and rolls back one of the
+          affected transactions.
+        </p><p>
+          On high concurrency systems, deadlock detection can cause a
+          slowdown when numerous threads wait for the same lock. At
+          times, it may be more efficient to disable deadlock detection
+          and rely on the
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_lock_wait_timeout"><code class="literal">innodb_lock_wait_timeout</code></a>
+          setting for transaction rollback when a deadlock occurs.
+          Deadlock detection can be disabled using the
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_deadlock_detect"><code class="literal">innodb_deadlock_detect</code></a>
+          configuration option.
+        </p><p>
+          Advantages of row-level locking:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Fewer lock conflicts when different sessions access
+              different rows.
+            </p></li><li class="listitem"><p>
+              Fewer changes for rollbacks.
+            </p></li><li class="listitem"><p>
+              Possible to lock a single row for a long time.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="internal-table-level-locking"></a>Table-Level Locking</h4></div></div></div><p>
+          MySQL uses <a class="link" href="glossary.html#glos_table_lock" title="table lock">table-level
+          locking</a> for <code class="literal">MyISAM</code>,
+          <code class="literal">MEMORY</code>, and <code class="literal">MERGE</code>
+          tables, permitting only one session to update those tables at
+          a time. This locking level makes these storage engines more
+          suitable for read-only, read-mostly, or single-user
+          applications.
+        </p><p>
+          These storage engines avoid
+          <a class="link" href="glossary.html#glos_deadlock" title="deadlock">deadlocks</a> by always
+          requesting all needed locks at once at the beginning of a
+          query and always locking the tables in the same order. The
+          tradeoff is that this strategy reduces concurrency; other
+          sessions that want to modify the table must wait until the
+          current data change statement finishes.
+        </p><p>
+          Advantages of table-level locking:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Relatively little memory required (row locking requires
+              memory per row or group of rows locked)
+            </p></li><li class="listitem"><p>
+              Fast when used on a large part of the table because only a
+              single lock is involved.
+            </p></li><li class="listitem"><p>
+              Fast if you often do <code class="literal">GROUP BY</code>
+              operations on a large part of the data or must scan the
+              entire table frequently.
+            </p></li></ul></div><p>
+          MySQL grants table write locks as follows:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              If there are no locks on the table, put a write lock on
+              it.
+            </p></li><li class="listitem"><p>
+              Otherwise, put the lock request in the write lock queue.
+            </p></li></ol></div><p>
+          MySQL grants table read locks as follows:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              If there are no write locks on the table, put a read lock
+              on it.
+            </p></li><li class="listitem"><p>
+              Otherwise, put the lock request in the read lock queue.
+            </p></li></ol></div><p>
+          Table updates are given higher priority than table retrievals.
+          Therefore, when a lock is released, the lock is made available
+          to the requests in the write lock queue and then to the
+          requests in the read lock queue. This ensures that updates to
+          a table are not <span class="quote">“<span class="quote">starved</span>”</span> even when there is
+          heavy <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> activity for the
+          table. However, if there are many updates for a table,
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements wait until
+          there are no more updates.
+        </p><p>
+          For information on altering the priority of reads and writes,
+          see <a class="xref" href="table-locking.html" title="8.11.2 Table Locking Issues">Section 8.11.2, “Table Locking Issues”</a>.
+        </p><p>
+          You can analyze the table lock contention on your system by
+          checking the
+          <a class="link" href="server-status-variables.html#statvar_Table_locks_immediate"><code class="literal">Table_locks_immediate</code></a> and
+          <a class="link" href="server-status-variables.html#statvar_Table_locks_waited"><code class="literal">Table_locks_waited</code></a> status
+          variables, which indicate the number of times that requests
+          for table locks could be granted immediately and the number
+          that had to wait, respectively:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW STATUS LIKE 'Table%';</code></strong>
++-----------------------+---------+
+| Variable_name         | Value   |
++-----------------------+---------+
+| Table_locks_immediate | 1151552 |
+| Table_locks_waited    | 15324   |
++-----------------------+---------+
+</pre><p>
+          The Performance Schema lock tables also provide locking
+          information. See
+          <a class="xref" href="performance-schema-lock-tables.html" title="27.12.13 Performance Schema Lock Tables">Section 27.12.13, “Performance Schema Lock Tables”</a>.
+        </p><a id="idm45828949653312" class="indexterm"></a><a id="idm45828949652240" class="indexterm"></a><p>
+          The <code class="literal">MyISAM</code> storage engine supports
+          concurrent inserts to reduce contention between readers and
+          writers for a given table: If a <code class="literal">MyISAM</code>
+          table has no free blocks in the middle of the data file, rows
+          are always inserted at the end of the data file. In this case,
+          you can freely mix concurrent
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> and
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements for a
+          <code class="literal">MyISAM</code> table without locks. That is, you
+          can insert rows into a <code class="literal">MyISAM</code> table at the
+          same time other clients are reading from it. Holes can result
+          from rows having been deleted from or updated in the middle of
+          the table. If there are holes, concurrent inserts are disabled
+          but are enabled again automatically when all holes have been
+          filled with new data. To control this behavior, use the
+          <a class="link" href="server-system-variables.html#sysvar_concurrent_insert"><code class="literal">concurrent_insert</code></a> system
+          variable. See <a class="xref" href="concurrent-inserts.html" title="8.11.3 Concurrent Inserts">Section 8.11.3, “Concurrent Inserts”</a>.
+        </p><p>
+          If you acquire a table lock explicitly with
+          <a class="link" href="lock-tables.html" title="13.3.6 LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">LOCK TABLES</code></a>, you can request a
+          <code class="literal">READ LOCAL</code> lock rather than a
+          <code class="literal">READ</code> lock to enable other sessions to
+          perform concurrent inserts while you have the table locked.
+        </p><p>
+          To perform many <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> and
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> operations on a table
+          <code class="literal">t1</code> when concurrent inserts are not
+          possible, you can insert rows into a temporary table
+          <code class="literal">temp_t1</code> and update the real table with the
+          rows from the temporary table:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>LOCK TABLES t1 WRITE, temp_t1 WRITE;</code></strong>
+mysql&gt; <strong class="userinput"><code>INSERT INTO t1 SELECT * FROM temp_t1;</code></strong>
+mysql&gt; <strong class="userinput"><code>DELETE FROM temp_t1;</code></strong>
+mysql&gt; <strong class="userinput"><code>UNLOCK TABLES;</code></strong>
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="internal-locking-choices"></a>Choosing the Type of Locking</h4></div></div></div><p>
+          Generally, table locks are superior to row-level locks in the
+          following cases:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Most statements for the table are reads.
+            </p></li><li class="listitem"><p>
+              Statements for the table are a mix of reads and writes,
+              where writes are updates or deletes for a single row that
+              can be fetched with one key read:
+            </p><pre class="programlisting">UPDATE <em class="replaceable"><code>tbl_name</code></em> SET <em class="replaceable"><code>column</code></em>=<em class="replaceable"><code>value</code></em> WHERE <em class="replaceable"><code>unique_key_col</code></em>=<em class="replaceable"><code>key_value</code></em>;
+DELETE FROM <em class="replaceable"><code>tbl_name</code></em> WHERE <em class="replaceable"><code>unique_key_col</code></em>=<em class="replaceable"><code>key_value</code></em>;
+</pre></li><li class="listitem"><p>
+              <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> combined with
+              concurrent <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+              statements, and very few
+              <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> or
+              <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> statements.
+            </p></li><li class="listitem"><p>
+              Many scans or <code class="literal">GROUP BY</code> operations on
+              the entire table without any writers.
+            </p></li></ul></div><p>
+          With higher-level locks, you can more easily tune applications
+          by supporting locks of different types, because the lock
+          overhead is less than for row-level locks.
+        </p><p>
+          Options other than row-level locking:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Versioning (such as that used in MySQL for concurrent
+              inserts) where it is possible to have one writer at the
+              same time as many readers. This means that the database or
+              table supports different views for the data depending on
+              when access begins. Other common terms for this are
+              <span class="quote">“<span class="quote">time travel,</span>”</span> <span class="quote">“<span class="quote">copy on write,</span>”</span>
+              or <span class="quote">“<span class="quote">copy on demand.</span>”</span>
+            </p></li><li class="listitem"><p>
+              Copy on demand is in many cases superior to row-level
+              locking. However, in the worst case, it can use much more
+              memory than using normal locks.
+            </p></li><li class="listitem"><p>
+              Instead of using row-level locks, you can employ
+              application-level locks, such as those provided by
+              <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> and
+              <a class="link" href="locking-functions.html#function_release-lock"><code class="literal">RELEASE_LOCK()</code></a> in MySQL.
+              These are advisory locks, so they work only with
+              applications that cooperate with each other. See
+              <a class="xref" href="locking-functions.html" title="12.14 Locking Functions">Section 12.14, “Locking Functions”</a>.
+            </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="locking-issues.html">Previous <span class="navHint"> Optimizing Locking Operations </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="locking-issues.html">Up <span class="navHint"> Optimizing Locking Operations </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="table-locking.html">Next <span class="navHint"> Table Locking Issues </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

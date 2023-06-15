@@ -1,0 +1,70 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3632"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.1.2.2%C2%A0Setting%20the%20Replica%20Configuration"></a><title>17.1.2.2&nbsp;Setting the Replica Configuration</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-howto.html" title="17.1.2&nbsp;Setting Up Binary Log File Position Based Replication"/><link rel="prev" href="replication-howto-masterbaseconfig.html" title="17.1.2.1&nbsp;Setting the Replication Source Configuration"/><link rel="next" href="replication-howto-repuser.html" title="17.1.2.3&nbsp;Creating a User for Replication"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-howto-slavebaseconfig.html#replication-howto-slavebaseconfig">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-howto-masterbaseconfig.html">Previous <span class="navHint"> Setting the Replication Source Configuration </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-howto.html">Up <span class="navHint"> Setting Up Binary Log File Position Based Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-howto-repuser.html">Next <span class="navHint"> Creating a User for Replication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3631"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.1.2.2%C2%A0Setting%20the%20Replica%20Configuration"></a><h4 class="title"><a id="replication-howto-slavebaseconfig"></a>17.1.2.2&nbsp;Setting the Replica Configuration</h4></div></div></div><p>
+        Each replica must have a unique server ID, as specified by the
+        <a class="link" href="replication-options.html#sysvar_server_id"><code class="literal">server_id</code></a> system variable. If
+        you are setting up multiple replicas, each one must have a
+        unique <a class="link" href="replication-options.html#sysvar_server_id"><code class="literal">server_id</code></a> value that
+        differs from that of the source and from any of the other
+        replicas. If the replica&#39;s server ID is not already set, or the
+        current value conflicts with the value that you have chosen for
+        the source or another replica, you must change it.
+      </p><p>
+        The default <a class="link" href="replication-options.html#sysvar_server_id"><code class="literal">server_id</code></a> value is
+        1. You can change the <a class="link" href="replication-options.html#sysvar_server_id"><code class="literal">server_id</code></a>
+        value dynamically by issuing a statement like this:
+      </p><pre class="programlisting">SET GLOBAL server_id = 21;
+</pre><p>
+        Note that a value of 0 for the server ID prevents a replica from
+        connecting to a source. If that server ID value (which was the
+        default in earlier releases) was set previously, you must
+        restart the server to initialize the replica with your new
+        nonzero server ID. Otherwise, a server restart is not needed
+        when you change the server ID, unless you make other
+        configuration changes that require it. For example, if binary
+        logging was disabled on the server and you want it enabled for
+        your replica, a server restart is required to enable this.
+      </p><p>
+        If you are shutting down the replica server, you can edit the
+        <code class="literal">[mysqld]</code> section of the configuration file to
+        specify a unique server ID. For example:
+      </p><pre class="programlisting">[mysqld]
+server-id=21
+</pre><p>
+        Binary logging is enabled by default on all servers. A replica
+        is not required to have binary logging enabled for replication
+        to take place. However, binary logging on a replica means that
+        the replica&#39;s binary log can be used for data backups and crash
+        recovery. Replicas that have binary logging enabled can also be
+        used as part of a more complex replication topology. For
+        example, you might want to set up replication servers using this
+        chained arrangement:
+      </p><pre class="programlisting">A -&gt; B -&gt; C
+</pre><p>
+        Here, <code class="literal">A</code> serves as the source for the replica
+        <code class="literal">B</code>, and <code class="literal">B</code> serves as the
+        source for the replica <code class="literal">C</code>. For this to work,
+        <code class="literal">B</code> must be both a source
+        <span class="emphasis"><em>and</em></span> a replica. Updates received from
+        <code class="literal">A</code> must be logged by <code class="literal">B</code> to
+        its binary log, in order to be passed on to
+        <code class="literal">C</code>. In addition to binary logging, this
+        replication topology requires the system variable
+        <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="literal">log_replica_updates</code></a> (from MySQL
+        8.0.26) or <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="literal">log_slave_updates</code></a>
+        (before MySQL 8.0.26) to be enabled. With replica updates
+        enabled, the replica writes updates that are received from a
+        source and performed by the replica&#39;s SQL thread to the
+        replica&#39;s own binary log. The
+        <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="literal">log_replica_updates</code></a> or
+        <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="literal">log_slave_updates</code></a> system
+        variable is enabled by default.
+      </p><p>
+        If you need to disable binary logging or replica update logging
+        on a replica, you can do this by specifying the
+        <a class="link" href="replication-options-binary-log.html#option_mysqld_log-bin"><code class="option">--skip-log-bin</code></a>
+        and <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="option">--log-replica-updates=OFF</code></a> or
+        <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="option">--log-slave-updates=OFF</code></a> options
+        for the replica. If you decide to re-enable these features on
+        the replica, remove the relevant options and restart the server.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-howto-masterbaseconfig.html">Previous <span class="navHint"> Setting the Replication Source Configuration </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-howto.html">Up <span class="navHint"> Setting Up Binary Log File Position Based Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-howto-repuser.html">Next <span class="navHint"> Creating a User for Replication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

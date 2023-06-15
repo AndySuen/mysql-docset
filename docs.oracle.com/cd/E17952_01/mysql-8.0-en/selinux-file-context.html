@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>6.7.4 SELinux File Context</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="selinux.html" title="6.7 SELinux" /><link rel="prev" href="selinux-policies.html" title="6.7.3 MySQL Server SELinux Policies" /><link rel="next" href="selinux-context-tcp-port.html" title="6.7.5 SELinux TCP Port Context" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="selinux-file-context.html#selinux-file-context">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="selinux-policies.html">Previous <span class="navHint"> MySQL Server SELinux Policies </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="selinux.html">Up <span class="navHint"> SELinux </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="selinux-context-tcp-port.html">Next <span class="navHint"> SELinux TCP Port Context </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="selinux-file-context"></a>6.7.4 SELinux File Context</h3></div></div></div><a id="idm45828958486096" class="indexterm"></a><p>
+      The MySQL Server reads from and writes to many files. If the
+      SELinux context is not set correctly for these files, access to
+      the files could be denied.
+    </p><p>
+      The instructions that follow use the <code class="literal">semanage</code>
+      binary to manage file context; on RHEL, it's part of the
+      <code class="literal">policycoreutils-python-utils</code> package:
+    </p><pre class="programlisting">yum install -y policycoreutils-python-utils
+</pre><p>
+      After installing the <code class="literal">semanage</code> binary, you can
+      list MySQL file contexts using <code class="literal">semanage</code> with
+      the <code class="literal">fcontext</code> option.
+    </p><pre class="programlisting">semanage fcontext -l | grep -i mysql
+</pre><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="selinux-context-data-dir"></a>Setting the MySQL Data Directory Context</h4></div></div></div><a id="idm45828958476272" class="indexterm"></a><p>
+        The default data directory location is
+        <code class="filename">/var/lib/mysql/</code>; and the SELinux context
+        used is <code class="literal">mysqld_db_t</code>.
+      </p><p>
+        If you edit the configuration file to use a different location
+        for the data directory, or for any of the files normally in the
+        data directory (such as the binary logs), you may need to set
+        the context for the new location. For example:
+      </p><pre class="programlisting">semanage fcontext -a -t mysqld_db_t "/path/to/my/custom/datadir(/.*)?"
+restorecon -Rv /path/to/my/custom/datadir
+
+semanage fcontext -a -t mysqld_db_t "/path/to/my/custom/logdir(/.*)?"
+restorecon -Rv /path/to/my/custom/logdir
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="selinux-context-error-log"></a>Setting the MySQL Error Log File Context</h4></div></div></div><a id="idm45828958469648" class="indexterm"></a><p>
+        The default location for RedHat RPMs is
+        <code class="filename">/var/log/mysqld.log</code>; and the SELinux
+        context type used is <code class="literal">mysqld_log_t</code>.
+      </p><p>
+        If you edit the configuration file to use a different location,
+        you may need to set the context for the new location. For
+        example:
+      </p><pre class="programlisting">semanage fcontext -a -t mysqld_log_t "/path/to/my/custom/error.log"
+restorecon -Rv /path/to/my/custom/error.log
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="selinux-context-pid-file"></a>Setting the PID File Context</h4></div></div></div><a id="idm45828958463392" class="indexterm"></a><p>
+        The default location for the PID file is
+        <code class="filename">/var/run/mysqld/mysqld.pid</code>; and the SELinux
+        context type used is <code class="literal">mysqld_var_run_t</code>.
+      </p><p>
+        If you edit the configuration file to use a different location,
+        you may need to set the context for the new location. For
+        example:
+      </p><pre class="programlisting">semanage fcontext -a -t mysqld_var_run_t "/path/to/my/custom/pidfile/directory/.*?"
+restorecon -Rv /path/to/my/custom/pidfile/directory
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="selinux-context-unix-domain-socket"></a>Setting the Unix Domain Socket Context</h4></div></div></div><a id="idm45828958457040" class="indexterm"></a><p>
+        The default location for the Unix domain socket is
+        <code class="filename">/var/lib/mysql/mysql.sock</code>; and the SELinux
+        context type used is <code class="literal">mysqld_var_run_t</code>.
+      </p><p>
+        If you edit the configuration file to use a different location,
+        you may need to set the context for the new location. For
+        example:
+      </p><pre class="programlisting">semanage fcontext -a -t mysqld_var_run_t "/path/to/my/custom/mysql\.sock"
+restorecon -Rv /path/to/my/custom/mysql.sock
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="selinux-context-secure-file-priv"></a>Setting the secure_file_priv Directory Context</h4></div></div></div><a id="idm45828958450624" class="indexterm"></a><p>
+        For MySQL versions since 5.6.34, 5.7.16, and 8.0.11.
+      </p><p>
+        Installing the MySQL Server RPM creates a
+        <code class="filename">/var/lib/mysql-files/</code> directory but does
+        not set the SELinux context for it. The
+        <code class="filename">/var/lib/mysql-files/</code> directory is intended
+        to be used for operations such as <code class="literal">SELECT ... INTO
+        OUTFILE</code>.
+      </p><p>
+        If you enabled the use of this directory by setting
+        <code class="literal">secure_file_priv</code>, you may need to set the
+        context like so:
+      </p><pre class="programlisting">semanage fcontext -a -t mysqld_db_t "/var/lib/mysql-files/(/.*)?"
+restorecon -Rv /var/lib/mysql-files
+</pre><p>
+        Edit this path if you used a different location. For security
+        purposes, this directory should never be within the data
+        directory.
+      </p><p>
+        For more information about this variable, see the
+        <a class="link" href="server-system-variables.html#sysvar_secure_file_priv"><code class="literal">secure_file_priv</code></a> documentation.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="selinux-policies.html">Previous <span class="navHint"> MySQL Server SELinux Policies </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="selinux.html">Up <span class="navHint"> SELinux </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="selinux-context-tcp-port.html">Next <span class="navHint"> SELinux TCP Port Context </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

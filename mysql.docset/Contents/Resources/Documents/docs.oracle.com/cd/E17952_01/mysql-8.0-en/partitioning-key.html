@@ -1,0 +1,147 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3048"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/24.2.5%C2%A0KEY%20Partitioning"></a><title>24.2.5&nbsp;KEY Partitioning</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="partitioning-types.html" title="24.2&nbsp;Partitioning Types"/><link rel="prev" href="partitioning-linear-hash.html" title="24.2.4.1&nbsp;LINEAR HASH Partitioning"/><link rel="next" href="partitioning-subpartitions.html" title="24.2.6&nbsp;Subpartitioning"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partitioning-key.html#partitioning-key">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="partitioning-linear-hash.html">Previous <span class="navHint"> LINEAR HASH Partitioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="partitioning-types.html">Up <span class="navHint"> Partitioning Types </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="partitioning-subpartitions.html">Next <span class="navHint"> Subpartitioning </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="partitioning-key"></a>24.2.5&nbsp;KEY Partitioning</h3></div></div></div><a id="idm45828801934704" class="indexterm"></a><a id="idm45828801933216" class="indexterm"></a><p>
+        Partitioning by key is similar to partitioning by hash, except
+        that where hash partitioning employs a user-defined expression,
+        the hashing function for key partitioning is supplied by the
+        MySQL server. NDB Cluster uses
+        <a class="link" href="encryption-functions.html#function_md5"><code class="literal">MD5()</code></a> for this purpose; for
+        tables using other storage engines, the server employs its own
+        internal hashing function.
+      </p><p>
+        The syntax rules for <code class="literal">CREATE TABLE ... PARTITION BY
+        KEY</code> are similar to those for creating a table that is
+        partitioned by hash. The major differences are listed here:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">KEY</code> is used rather than
+            <code class="literal">HASH</code>.
+          </p></li><li class="listitem"><p>
+            <code class="literal">KEY</code> takes only a list of zero or more
+            column names. Any columns used as the partitioning key must
+            comprise part or all of the table&#39;s primary key, if the
+            table has one. Where no column name is specified as the
+            partitioning key, the table&#39;s primary key is used, if
+            there is one. For example, the following
+            <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement is
+            valid in MySQL 8.0:
+          </p><pre class="programlisting">CREATE TABLE k1 (
+    id INT NOT NULL PRIMARY KEY,
+    name VARCHAR(20)
+)
+PARTITION BY KEY()
+PARTITIONS 2;
+</pre><p>
+            If there is no primary key but there is a unique key, then
+            the unique key is used for the partitioning key:
+          </p><pre class="programlisting">CREATE TABLE k1 (
+    id INT NOT NULL,
+    name VARCHAR(20),
+    UNIQUE KEY (id)
+)
+PARTITION BY KEY()
+PARTITIONS 2;
+</pre><p>
+            However, if the unique key column were not defined as
+            <code class="literal">NOT NULL</code>, then the previous statement
+            would fail.
+          </p><p>
+            In both of these cases, the partitioning key is the
+            <code class="literal">id</code> column, even though it is not shown in
+            the output of <a class="link" href="show-create-table.html" title="13.7.7.10&nbsp;SHOW CREATE TABLE Statement"><code class="literal">SHOW CREATE
+            TABLE</code></a> or in the
+            <code class="literal">PARTITION_EXPRESSION</code> column of the
+            Information Schema <a class="link" href="information-schema-partitions-table.html" title="26.3.21&nbsp;The INFORMATION_SCHEMA PARTITIONS Table"><code class="literal">PARTITIONS</code></a>
+            table.
+          </p><p>
+            Unlike the case with other partitioning types, columns used
+            for partitioning by <code class="literal">KEY</code> are not
+            restricted to integer or <code class="literal">NULL</code> values. For
+            example, the following <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE
+            TABLE</code></a> statement is valid:
+          </p><pre class="programlisting">CREATE TABLE tm1 (
+    s1 CHAR(32) PRIMARY KEY
+)
+PARTITION BY KEY(s1)
+PARTITIONS 10;
+</pre><p>
+            The preceding statement would <span class="emphasis"><em>not</em></span> be
+            valid, were a different partitioning type to be specified.
+            (In this case, simply using <code class="literal">PARTITION BY
+            KEY()</code> would also be valid and have the same effect
+            as <code class="literal">PARTITION BY KEY(s1)</code>, since
+            <code class="literal">s1</code> is the table&#39;s primary key.)
+          </p><p>
+            For additional information about this issue, see
+            <a class="xref" href="partitioning-limitations.html" title="24.6&nbsp;Restrictions and Limitations on Partitioning">Section&nbsp;24.6, &ldquo;Restrictions and Limitations on Partitioning&rdquo;</a>.
+          </p><p>
+            Columns with index prefixes are not supported in
+            partitioning keys. This means that
+            <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a>,
+            <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>,
+            <a class="link" href="binary-varbinary.html" title="11.3.3&nbsp;The BINARY and VARBINARY Types"><code class="literal">BINARY</code></a>, and
+            <a class="link" href="binary-varbinary.html" title="11.3.3&nbsp;The BINARY and VARBINARY Types"><code class="literal">VARBINARY</code></a> columns can be used
+            in a partitioning key, as long as they do not employ
+            prefixes; because a prefix must be specified for
+            <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">BLOB</code></a> and
+            <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">TEXT</code></a> columns in index
+            definitions, it is not possible to use columns of these two
+            types in partitioning keys. Prior to MySQL 8.0.21, columns
+            using prefixes were permitted when creating, altering, or
+            upgrading a partitioned table, even though they were not
+            included in the table&#39;s partitioning key; in MySQL
+            8.0.21 and later, this permissive behavior is deprecated,
+            and the server displays appropriate warnings or errors when
+            one or more such columns are used. See
+            <a class="xref" href="partitioning-limitations.html#partitioning-limitations-prefixes" title="Column index prefixes not supported for key partitioning">Column index prefixes not supported for key partitioning</a>, for
+            more information and examples.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              Tables using the <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> storage
+              engine are implicitly partitioned by
+              <code class="literal">KEY</code>, using the table&#39;s primary key
+              as the partitioning key (as with other MySQL storage
+              engines). In the event that the NDB Cluster table has no
+              explicit primary key, the <span class="quote">&ldquo;<span class="quote">hidden</span>&rdquo;</span> primary
+              key generated by the <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a>
+              storage engine for each NDB Cluster table is used as the
+              partitioning key.
+            </p><p>
+              If you define an explicit partitioning scheme for an
+              <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> table, the table must
+              have an explicit primary key, and any columns used in the
+              partitioning expression must be part of this key. However,
+              if the table uses an <span class="quote">&ldquo;<span class="quote">empty</span>&rdquo;</span> partitioning
+              expression&mdash;that is, <code class="literal">PARTITION BY
+              KEY()</code> with no column references&mdash;then no
+              explicit primary key is required.
+            </p><p>
+              You can observe this partitioning using the
+              <a class="link" href="mysql-cluster-programs-ndb-desc.html" title="23.5.9&nbsp;ndb_desc &mdash; Describe NDB Tables"><span class="command"><strong>ndb_desc</strong></span></a> utility (with the
+              <code class="option">-p</code> option).
+            </p></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+              For a key-partitioned table, you cannot execute an
+              <code class="literal">ALTER TABLE DROP PRIMARY KEY</code>, as doing
+              so generates the error <span class="errortext">ERROR 1466 (HY000):
+              Field in list of fields for partition function not found
+              in table</span>. This is not an issue for NDB Cluster
+              tables which are partitioned by <code class="literal">KEY</code>; in
+              such cases, the table is reorganized using the
+              <span class="quote">&ldquo;<span class="quote">hidden</span>&rdquo;</span> primary key as the table&#39;s new
+              partitioning key. See <a class="xref" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0">Chapter&nbsp;23, <em>MySQL NDB Cluster 8.0</em></a>.
+            </p></div></li></ul></div><a id="idm45828801882480" class="indexterm"></a><a id="idm45828801880992" class="indexterm"></a><p>
+        It is also possible to partition a table by linear key. Here is
+        a simple example:
+      </p><pre class="programlisting">CREATE TABLE tk (
+    col1 INT NOT NULL,
+    col2 CHAR(5),
+    col3 DATE
+)
+PARTITION BY LINEAR KEY (col1)
+PARTITIONS 3;
+</pre><p>
+        The <code class="literal">LINEAR</code> keyword has the same effect on
+        <code class="literal">KEY</code> partitioning as it does on
+        <code class="literal">HASH</code> partitioning, with the partition number
+        being derived using a powers-of-two algorithm rather than modulo
+        arithmetic. See <a class="xref" href="partitioning-linear-hash.html" title="24.2.4.1&nbsp;LINEAR HASH Partitioning">Section&nbsp;24.2.4.1, &ldquo;LINEAR HASH Partitioning&rdquo;</a>, for
+        a description of this algorithm and its implications.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partitioning-linear-hash.html">Previous <span class="navHint"> LINEAR HASH Partitioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="partitioning-types.html">Up <span class="navHint"> Partitioning Types </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="partitioning-subpartitions.html">Next <span class="navHint"> Subpartitioning </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.5.1.9 Replication with Differing Table Definitions on Source and Replica</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-features.html" title="17.5.1 Replication Features and Issues" /><link rel="prev" href="replication-features-current-user.html" title="17.5.1.8 Replication of CURRENT_USER()" /><link rel="next" href="replication-features-directory.html" title="17.5.1.10 Replication and DIRECTORY Table Options" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-differing-tables.html#replication-features-differing-tables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-features-current-user.html">Previous <span class="navHint"> Replication of CURRENT_USER() </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-features-directory.html">Next <span class="navHint"> Replication and DIRECTORY Table Options </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-features-differing-tables"></a>17.5.1.9 Replication with Differing Table Definitions on Source and Replica</h4></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="replication-features-differing-tables.html#replication-features-more-columns">17.5.1.9.1 Replication with More Columns on Source or Replica</a></span></li><li><span class="section"><a href="replication-features-differing-tables.html#replication-features-different-data-types">17.5.1.9.2 Replication of Columns Having Different Data Types</a></span></li></ul></div><a id="idm45828856973488" class="indexterm"></a><p>
+        Source and target tables for replication do not have to be
+        identical. A table on the source can have more or fewer columns
+        than the replica's copy of the table. In addition, corresponding
+        table columns on the source and the replica can use different
+        data types, subject to certain conditions.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Replication between tables which are partitioned differently
+          from one another is not supported. See
+          <a class="xref" href="replication-features-partitioning.html" title="17.5.1.24 Replication and Partitioning">Section 17.5.1.24, “Replication and Partitioning”</a>.
+        </p></div><p>
+        In all cases where the source and target tables do not have
+        identical definitions, the database and table names must be the
+        same on both the source and the replica. Additional conditions
+        are discussed, with examples, in the following two sections.
+      </p><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="replication-features-more-columns"></a>17.5.1.9.1 Replication with More Columns on Source or Replica</h5></div></div></div><p>
+          You can replicate a table from the source to the replica such
+          that the source and replica copies of the table have differing
+          numbers of columns, subject to the following conditions:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Columns common to both versions of the table must be
+              defined in the same order on the source and the replica.
+              (This is true even if both tables have the same number of
+              columns.)
+            </p></li><li class="listitem"><p>
+              Columns common to both versions of the table must be
+              defined before any additional columns.
+            </p><p>
+              This means that executing an <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+              TABLE</code></a> statement on the replica where a new
+              column is inserted into the table within the range of
+              columns common to both tables causes replication to fail,
+              as shown in the following example:
+            </p><p>
+              Suppose that a table <code class="literal">t</code>, existing on the
+              source and the replica, is defined by the following
+              <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement:
+            </p><pre class="programlisting">CREATE TABLE t (
+    c1 INT,
+    c2 INT,
+    c3 INT
+);
+</pre><p>
+              Suppose that the <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+              TABLE</code></a> statement shown here is executed on the
+              replica:
+            </p><pre class="programlisting">ALTER TABLE t ADD COLUMN cnew1 INT AFTER c3;
+</pre><p>
+              The previous <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> is
+              permitted on the replica because the columns
+              <code class="literal">c1</code>, <code class="literal">c2</code>, and
+              <code class="literal">c3</code> that are common to both versions of
+              table <code class="literal">t</code> remain grouped together in both
+              versions of the table, before any columns that differ.
+            </p><p>
+              However, the following <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+              TABLE</code></a> statement cannot be executed on the
+              replica without causing replication to break:
+            </p><pre class="programlisting">ALTER TABLE t ADD COLUMN cnew2 INT AFTER c2;
+</pre><p>
+              Replication fails after execution on the replica of the
+              <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement just
+              shown, because the new column <code class="literal">cnew2</code>
+              comes between columns common to both versions of
+              <code class="literal">t</code>.
+            </p></li><li class="listitem"><p>
+              Each <span class="quote">“<span class="quote">extra</span>”</span> column in the version of the
+              table having more columns must have a default value.
+            </p><p>
+              A column's default value is determined by a number of
+              factors, including its type, whether it is defined with a
+              <code class="literal">DEFAULT</code> option, whether it is declared
+              as <code class="literal">NULL</code>, and the server SQL mode in
+              effect at the time of its creation; for more information,
+              see <a class="xref" href="data-type-defaults.html" title="11.6 Data Type Default Values">Section 11.6, “Data Type Default Values”</a>).
+            </p></li></ul></div><p>
+          In addition, when the replica's copy of the table has more
+          columns than the source's copy, each column common to the
+          tables must use the same data type in both tables.
+        </p><p><strong>Examples. </strong>
+            The following examples illustrate some valid and invalid
+            table definitions:
+          </p><p><strong>More columns on the source. </strong>
+            The following table definitions are valid and replicate
+            correctly:
+          </p><pre class="programlisting">source&gt; <strong class="userinput"><code>CREATE TABLE t1 (c1 INT, c2 INT, c3 INT);</code></strong>
+replica&gt;  <strong class="userinput"><code>CREATE TABLE t1 (c1 INT, c2 INT);</code></strong>
+</pre><p>
+          The following table definitions would raise an error because
+          the definitions of the columns common to both versions of the
+          table are in a different order on the replica than they are on
+          the source:
+        </p><pre class="programlisting">source&gt; <strong class="userinput"><code>CREATE TABLE t1 (c1 INT, c2 INT, c3 INT);</code></strong>
+replica&gt;  <strong class="userinput"><code>CREATE TABLE t1 (c2 INT, c1 INT);</code></strong>
+</pre><p>
+          The following table definitions would also raise an error
+          because the definition of the extra column on the source
+          appears before the definitions of the columns common to both
+          versions of the table:
+        </p><pre class="programlisting">source&gt; <strong class="userinput"><code>CREATE TABLE t1 (c3 INT, c1 INT, c2 INT);</code></strong>
+replica&gt;  <strong class="userinput"><code>CREATE TABLE t1 (c1 INT, c2 INT);</code></strong>
+</pre><p><strong>More columns on the replica. </strong>
+            The following table definitions are valid and replicate
+            correctly:
+          </p><pre class="programlisting">source&gt; <strong class="userinput"><code>CREATE TABLE t1 (c1 INT, c2 INT);</code></strong>
+replica&gt;  <strong class="userinput"><code>CREATE TABLE t1 (c1 INT, c2 INT, c3 INT);</code></strong>
+                  </pre><p>
+          The following definitions raise an error because the columns
+          common to both versions of the table are not defined in the
+          same order on both the source and the replica:
+        </p><pre class="programlisting">source&gt; <strong class="userinput"><code>CREATE TABLE t1 (c1 INT, c2 INT);</code></strong>
+replica&gt;  <strong class="userinput"><code>CREATE TABLE t1 (c2 INT, c1 INT, c3 INT);</code></strong>
+</pre><p>
+          The following table definitions also raise an error because
+          the definition for the extra column in the replica's version
+          of the table appears before the definitions for the columns
+          which are common to both versions of the table:
+        </p><pre class="programlisting">source&gt; <strong class="userinput"><code>CREATE TABLE t1 (c1 INT, c2 INT);</code></strong>
+replica&gt;  <strong class="userinput"><code>CREATE TABLE t1 (c3 INT, c1 INT, c2 INT);</code></strong>
+</pre><p>
+          The following table definitions fail because the replica's
+          version of the table has additional columns compared to the
+          source's version, and the two versions of the table use
+          different data types for the common column
+          <code class="literal">c2</code>:
+        </p><pre class="programlisting">source&gt; <strong class="userinput"><code>CREATE TABLE t1 (c1 INT, c2 BIGINT);</code></strong>
+replica&gt;  <strong class="userinput"><code>CREATE TABLE t1 (c1 INT, c2 INT, c3 INT);</code></strong>
+</pre></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="replication-features-different-data-types"></a>17.5.1.9.2 Replication of Columns Having Different Data Types</h5></div></div></div><a id="idm45828856915360" class="indexterm"></a><a id="idm45828856913872" class="indexterm"></a><a id="idm45828856912384" class="indexterm"></a><a id="idm45828856910896" class="indexterm"></a><p>
+          Corresponding columns on the source's and the
+          replica's copies of the same table ideally should have
+          the same data type. However, this is not always strictly
+          enforced, as long as certain conditions are met.
+        </p><p>
+          It is usually possible to replicate from a column of a given
+          data type to another column of the same type and same size or
+          width, where applicable, or larger. For example, you can
+          replicate from a <code class="literal">CHAR(10)</code> column to another
+          <code class="literal">CHAR(10)</code>, or from a
+          <code class="literal">CHAR(10)</code> column to a
+          <code class="literal">CHAR(25)</code> column without any problems. In
+          certain cases, it also possible to replicate from a column
+          having one data type (on the source) to a column having a
+          different data type (on the replica); when the data type of
+          the source's version of the column is promoted to a type
+          that is the same size or larger on the replica, this is known
+          as <span class="firstterm">attribute promotion</span>.
+        </p><p>
+          Attribute promotion can be used with both statement-based and
+          row-based replication, and is not dependent on the storage
+          engine used by either the source or the replica. However, the
+          choice of logging format does have an effect on the type
+          conversions that are permitted; the particulars are discussed
+          later in this section.
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            Whether you use statement-based or row-based replication,
+            the replica's copy of the table cannot contain more
+            columns than the source's copy if you wish to employ
+            attribute promotion.
+          </p></div><p><strong>Statement-based replication. </strong>
+            When using statement-based replication, a simple rule of
+            thumb to follow is, <span class="quote">“<span class="quote">If the statement run on the
+            source would also execute successfully on the replica, it
+            should also replicate successfully</span>”</span>. In other words,
+            if the statement uses a value that is compatible with the
+            type of a given column on the replica, the statement can be
+            replicated. For example, you can insert any value that fits
+            in a <code class="literal">TINYINT</code> column into a
+            <code class="literal">BIGINT</code> column as well; it follows that,
+            even if you change the type of a <code class="literal">TINYINT</code>
+            column in the replica's copy of a table to
+            <code class="literal">BIGINT</code>, any insert into that column on
+            the source that succeeds should also succeed on the replica,
+            since it is impossible to have a legal
+            <code class="literal">TINYINT</code> value that is large enough to
+            exceed a <code class="literal">BIGINT</code> column.
+          </p><p><a id="replication-features-attribute-promotion"></a><strong>Row-based replication: attribute promotion and demotion. </strong>
+            Row-based replication supports attribute promotion and
+            demotion between smaller data types and larger types. It is
+            also possible to specify whether or not to permit lossy
+            (truncated) or non-lossy conversions of demoted column
+            values, as explained later in this section.
+          </p><p><strong>Lossy and non-lossy conversions. </strong>
+            In the event that the target type cannot represent the value
+            being inserted, a decision must be made on how to handle the
+            conversion. If we permit the conversion but truncate (or
+            otherwise modify) the source value to achieve a
+            <span class="quote">“<span class="quote">fit</span>”</span> in the target column, we make what is
+            known as a <span class="firstterm">lossy
+            conversion</span>. A conversion which does not require
+            truncation or similar modifications to fit the source column
+            value in the target column is a
+            <span class="firstterm">non-lossy</span> conversion.
+          </p><p><strong>Type conversion modes. </strong>
+            The global value of the system variable
+            <code class="literal">replica_type_conversions</code> (from MySQL
+            8.0.26) or <code class="literal">slave_type_conversions</code> (before
+            MySQL 8.0.26) controls the type conversion mode used on the
+            replica. This variable takes a set of values from the
+            following list, which describes the effects of each mode on
+            the replica's type-conversion behavior:
+          </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">
+              ALL_LOSSY
+            </span></dt><dd><p>
+                In this mode, type conversions that would mean loss of
+                information are permitted.
+              </p><p>
+                This does not imply that non-lossy conversions are
+                permitted, merely that only cases requiring either lossy
+                conversions or no conversion at all are permitted; for
+                example, enabling <span class="emphasis"><em>only</em></span> this mode
+                permits an <code class="literal">INT</code> column to be converted
+                to <code class="literal">TINYINT</code> (a lossy conversion), but
+                not a <code class="literal">TINYINT</code> column to an
+                <code class="literal">INT</code> column (non-lossy). Attempting
+                the latter conversion in this case would cause
+                replication to stop with an error on the replica.
+              </p></dd><dt><span class="term">
+              ALL_NON_LOSSY
+            </span></dt><dd><p>
+                This mode permits conversions that do not require
+                truncation or other special handling of the source
+                value; that is, it permits conversions where the target
+                type has a wider range than the source type.
+              </p><p>
+                Setting this mode has no bearing on whether lossy
+                conversions are permitted; this is controlled with the
+                <code class="literal">ALL_LOSSY</code> mode. If only
+                <code class="literal">ALL_NON_LOSSY</code> is set, but not
+                <code class="literal">ALL_LOSSY</code>, then attempting a
+                conversion that would result in the loss of data (such
+                as <code class="literal">INT</code> to <code class="literal">TINYINT</code>,
+                or <code class="literal">CHAR(25)</code> to
+                <code class="literal">VARCHAR(20)</code>) causes the replica to
+                stop with an error.
+              </p></dd><dt><span class="term">
+              ALL_LOSSY,ALL_NON_LOSSY
+            </span></dt><dd><p>
+                When this mode is set, all supported type conversions
+                are permitted, whether or not they are lossy
+                conversions.
+              </p></dd><dt><span class="term">
+              ALL_SIGNED
+            </span></dt><dd><p>
+                Treat promoted integer types as signed values (the
+                default behavior).
+              </p></dd><dt><span class="term">
+              ALL_UNSIGNED
+            </span></dt><dd><p>
+                Treat promoted integer types as unsigned values.
+              </p></dd><dt><span class="term">
+              ALL_SIGNED,ALL_UNSIGNED
+            </span></dt><dd><p>
+                Treat promoted integer types as signed if possible,
+                otherwise as unsigned.
+              </p></dd><dt><span class="term">
+              [<span class="emphasis"><em>empty</em></span>]
+            </span></dt><dd><p>
+                When <code class="literal">replica_type_conversions</code> or
+                <code class="literal">slave_type_conversions</code> is not set, no
+                attribute promotion or demotion is permitted; this means
+                that all columns in the source and target tables must be
+                of the same types.
+              </p><p>
+                This mode is the default.
+              </p></dd></dl></div><p>
+          When an integer type is promoted, its signedness is not
+          preserved. By default, the replica treats all such values as
+          signed. You can control this behavior using
+          <code class="literal">ALL_SIGNED</code>,
+          <code class="literal">ALL_UNSIGNED</code>, or both.
+          <code class="literal">ALL_SIGNED</code> tells the replica to treat all
+          promoted integer types as signed;
+          <code class="literal">ALL_UNSIGNED</code> instructs it to treat these as
+          unsigned. Specifying both causes the replica to treat the
+          value as signed if possible, otherwise to treat it as
+          unsigned; the order in which they are listed is not
+          significant. Neither <code class="literal">ALL_SIGNED</code> nor
+          <code class="literal">ALL_UNSIGNED</code> has any effect if at least one
+          of <code class="literal">ALL_LOSSY</code> or
+          <code class="literal">ALL_NONLOSSY</code> is not also used.
+        </p><p>
+          Changing the type conversion mode requires restarting the
+          replica with the new
+          <code class="literal">replica_type_conversions</code> or
+          <code class="literal">slave_type_conversions</code> setting.
+        </p><p><strong>Supported conversions. </strong>
+            Supported conversions between different but similar data
+            types are shown in the following list:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Between any of the integer types
+              <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">TINYINT</code></a>,
+              <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">SMALLINT</code></a>,
+              <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">MEDIUMINT</code></a>,
+              <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INT</code></a>, and
+              <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">BIGINT</code></a>.
+            </p><p>
+              This includes conversions between the signed and unsigned
+              versions of these types.
+            </p><p>
+              Lossy conversions are made by truncating the source value
+              to the maximum (or minimum) permitted by the target
+              column. For ensuring non-lossy conversions when going from
+              unsigned to signed types, the target column must be large
+              enough to accommodate the range of values in the source
+              column. For example, you can demote <code class="literal">TINYINT
+              UNSIGNED</code> non-lossily to
+              <code class="literal">SMALLINT</code>, but not to
+              <code class="literal">TINYINT</code>.
+            </p></li><li class="listitem"><p>
+              Between any of the decimal types
+              <a class="link" href="fixed-point-types.html" title="11.1.3 Fixed-Point Types (Exact Value) - DECIMAL, NUMERIC"><code class="literal">DECIMAL</code></a>,
+              <a class="link" href="floating-point-types.html" title="11.1.4 Floating-Point Types (Approximate Value) - FLOAT, DOUBLE"><code class="literal">FLOAT</code></a>,
+              <a class="link" href="floating-point-types.html" title="11.1.4 Floating-Point Types (Approximate Value) - FLOAT, DOUBLE"><code class="literal">DOUBLE</code></a>, and
+              <a class="link" href="fixed-point-types.html" title="11.1.3 Fixed-Point Types (Exact Value) - DECIMAL, NUMERIC"><code class="literal">NUMERIC</code></a>.
+            </p><p>
+              <code class="literal">FLOAT</code> to <code class="literal">DOUBLE</code> is a
+              non-lossy conversion; <code class="literal">DOUBLE</code> to
+              <code class="literal">FLOAT</code> can only be handled lossily. A
+              conversion from
+              <code class="literal">DECIMAL(<em class="replaceable"><code>M</code></em>,<em class="replaceable"><code>D</code></em>)</code>
+              to
+              <code class="literal">DECIMAL(<em class="replaceable"><code>M'</code></em>,<em class="replaceable"><code>D'</code></em>)</code>
+              where <code class="literal"><em class="replaceable"><code>D'</code></em> &gt;=
+              <em class="replaceable"><code>D</code></em></code> and
+              <code class="literal">(<em class="replaceable"><code>M'</code></em>-<em class="replaceable"><code>D'</code></em>)
+              &gt;=
+              (<em class="replaceable"><code>M</code></em>-<em class="replaceable"><code>D</code></em></code>)
+              is non-lossy; for any case where
+              <code class="literal"><em class="replaceable"><code>M'</code></em> &lt;
+              <em class="replaceable"><code>M</code></em></code>,
+              <code class="literal"><em class="replaceable"><code>D'</code></em> &lt;
+              <em class="replaceable"><code>D</code></em></code>, or both, only a
+              lossy conversion can be made.
+            </p><p>
+              For any of the decimal types, if a value to be stored
+              cannot be fit in the target type, the value is rounded
+              down according to the rounding rules defined for the
+              server elsewhere in the documentation. See
+              <a class="xref" href="precision-math-rounding.html" title="12.24.4 Rounding Behavior">Section 12.24.4, “Rounding Behavior”</a>, for information
+              about how this is done for decimal types.
+            </p></li><li class="listitem"><p>
+              Between any of the string types
+              <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a>,
+              <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>, and
+              <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">TEXT</code></a>, including conversions
+              between different widths.
+            </p><p>
+              Conversion of a <code class="literal">CHAR</code>,
+              <code class="literal">VARCHAR</code>, or <code class="literal">TEXT</code> to
+              a <code class="literal">CHAR</code>, <code class="literal">VARCHAR</code>, or
+              <code class="literal">TEXT</code> column the same size or larger is
+              never lossy. Lossy conversion is handled by inserting only
+              the first <em class="replaceable"><code>N</code></em> characters of the
+              string on the replica, where <em class="replaceable"><code>N</code></em>
+              is the width of the target column.
+            </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+                Replication between columns using different character
+                sets is not supported.
+              </p></div></li><li class="listitem"><p>
+              Between any of the binary data types
+              <a class="link" href="binary-varbinary.html" title="11.3.3 The BINARY and VARBINARY Types"><code class="literal">BINARY</code></a>,
+              <a class="link" href="binary-varbinary.html" title="11.3.3 The BINARY and VARBINARY Types"><code class="literal">VARBINARY</code></a>, and
+              <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a>, including conversions
+              between different widths.
+            </p><p>
+              Conversion of a <code class="literal">BINARY</code>,
+              <code class="literal">VARBINARY</code>, or <code class="literal">BLOB</code>
+              to a <code class="literal">BINARY</code>,
+              <code class="literal">VARBINARY</code>, or <code class="literal">BLOB</code>
+              column the same size or larger is never lossy. Lossy
+              conversion is handled by inserting only the first
+              <em class="replaceable"><code>N</code></em> bytes of the string on the
+              replica, where <em class="replaceable"><code>N</code></em> is the width
+              of the target column.
+            </p></li><li class="listitem"><p>
+              Between any 2 <a class="link" href="bit-type.html" title="11.1.5 Bit-Value Type - BIT"><code class="literal">BIT</code></a> columns
+              of any 2 sizes.
+            </p><p>
+              When inserting a value from a
+              <code class="literal">BIT(<em class="replaceable"><code>M</code></em>)</code>
+              column into a
+              <code class="literal">BIT(<em class="replaceable"><code>M'</code></em>)</code>
+              column, where <code class="literal"><em class="replaceable"><code>M'</code></em> &gt;
+              <em class="replaceable"><code>M</code></em></code>, the most
+              significant bits of the
+              <code class="literal">BIT(<em class="replaceable"><code>M'</code></em>)</code>
+              columns are cleared (set to zero) and the
+              <em class="replaceable"><code>M</code></em> bits of the
+              <code class="literal">BIT(<em class="replaceable"><code>M</code></em>)</code> value
+              are set as the least significant bits of the
+              <code class="literal">BIT(<em class="replaceable"><code>M'</code></em>)</code>
+              column.
+            </p><p>
+              When inserting a value from a source
+              <code class="literal">BIT(<em class="replaceable"><code>M</code></em>)</code>
+              column into a target
+              <code class="literal">BIT(<em class="replaceable"><code>M'</code></em>)</code>
+              column, where <code class="literal"><em class="replaceable"><code>M'</code></em> &lt;
+              <em class="replaceable"><code>M</code></em></code>, the maximum
+              possible value for the
+              <code class="literal">BIT(<em class="replaceable"><code>M'</code></em>)</code>
+              column is assigned; in other words, an
+              <span class="quote">“<span class="quote">all-set</span>”</span> value is assigned to the target
+              column.
+            </p></li></ul></div><p>
+          Conversions between types not in the previous list are not
+          permitted.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-current-user.html">Previous <span class="navHint"> Replication of CURRENT_USER() </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-directory.html">Next <span class="navHint"> Replication and DIRECTORY Table Options </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

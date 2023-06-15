@@ -1,0 +1,106 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3565"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.5.1.21%C2%A0Replication%20and%20MEMORY%20Tables"></a><title>17.5.1.21&nbsp;Replication and MEMORY Tables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-features.html" title="17.5.1&nbsp;Replication Features and Issues"/><link rel="prev" href="replication-features-max-allowed-packet.html" title="17.5.1.20&nbsp;Replication and max_allowed_packet"/><link rel="next" href="replication-features-mysqldb.html" title="17.5.1.22&nbsp;Replication of the mysql System Schema"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-memory.html#replication-features-memory">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-features-max-allowed-packet.html">Previous <span class="navHint"> Replication and max_allowed_packet </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-features-mysqldb.html">Next <span class="navHint"> Replication of the mysql System Schema </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3564"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.5.1.21%C2%A0Replication%20and%20MEMORY%20Tables"></a><h4 class="title"><a id="replication-features-memory"></a>17.5.1.21&nbsp;Replication and MEMORY Tables</h4></div></div></div><a id="idm45828856442448" class="indexterm"></a><a id="idm45828856440960" class="indexterm"></a><p>
+        When a replication source server shuts down and restarts, its
+        <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> tables become empty. To
+        replicate this effect to replicas, the first time that the
+        source uses a given <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> table
+        after startup, it logs an event that notifies replicas that the
+        table must be emptied by writing a
+        <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> or (from MySQL 8.0.22)
+        <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a> statement for that
+        table to the binary log. This generated event is identifiable by
+        a comment in the binary log, and if GTIDs are in use on the
+        server, it has a GTID assigned. The statement is always logged
+        in statement format, even if the binary logging format is set to
+        <code class="literal">ROW</code>, and it is written even if
+        <code class="literal">read_only</code> or
+        <code class="literal">super_read_only</code> mode is set on the server.
+        Note that the replica still has outdated data in a
+        <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> table during the interval
+        between the source&#39;s restart and its first use of the table. To
+        avoid this interval when a direct query to the replica could
+        return stale data, you can set the
+        <a class="link" href="server-system-variables.html#sysvar_init_file"><code class="literal">init_file</code></a> system variable to
+        name a file containing statements that populate the
+        <code class="literal">MEMORY</code> table on the source at startup.
+      </p><p>
+        When a replica server shuts down and restarts, its
+        <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> tables become empty. This
+        causes the replica to be out of synchrony with the source and
+        may lead to other failures or cause the replica to stop:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Row-format updates and deletes received from the source may
+            fail with <code class="literal">Can&#39;t find record in
+            &#39;<em class="replaceable"><code>memory_table</code></em>&#39;</code>.
+          </p></li><li class="listitem"><p>
+            Statements such as
+            <a class="link" href="insert-select.html" title="13.2.7.1&nbsp;INSERT ... SELECT Statement"><code class="literal">INSERT INTO
+            ... SELECT FROM
+            <em class="replaceable"><code>memory_table</code></em></code></a> may insert
+            a different set of rows on the source and replica.
+          </p></li></ul></div><p>
+        The replica also writes a <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a>
+        or (from MySQL 8.0.22) <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE
+        TABLE</code></a> statement to its own binary log, which is passed
+        on to any downstream replicas, causing them to empty their own
+        <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> tables.
+      </p><p>
+        The safe way to restart a replica that is replicating
+        <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> tables is to first drop or
+        delete all rows from the <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a>
+        tables on the source and wait until those changes have
+        replicated to the replica. Then it is safe to restart the
+        replica.
+      </p><p>
+        An alternative restart method may apply in some cases. When
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a>, you can
+        prevent the replica from stopping if you set
+        <a class="link" href="replication-options-replica.html#sysvar_replica_exec_mode"><code class="literal">replica_exec_mode=IDEMPOTENT</code></a>
+        (from MySQL 8.0.26) or
+        <a class="link" href="replication-options-replica.html#sysvar_slave_exec_mode"><code class="literal">slave_exec_mode=IDEMPOTENT</code></a>
+        (before MySQL 8.0.26) before you start the replica again. This
+        allows the replica to continue to replicate, but its
+        <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> tables still differ from
+        those on the source. This is acceptable if the application logic
+        is such that the contents of <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a>
+        tables can be safely lost (for example, if the
+        <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> tables are used for
+        caching).
+        <a class="link" href="replication-options-replica.html#sysvar_replica_exec_mode"><code class="literal">replica_exec_mode=IDEMPOTENT</code></a> or
+        <a class="link" href="replication-options-replica.html#sysvar_slave_exec_mode"><code class="literal">slave_exec_mode=IDEMPOTENT</code></a>
+        applies globally to all tables, so it may hide other replication
+        errors in non-<a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> tables.
+      </p><p>
+        (The method just described is not applicable in NDB Cluster,
+        where <a class="link" href="replication-options-replica.html#sysvar_replica_exec_mode"><code class="literal">replica_exec_mode</code></a> or
+        <a class="link" href="replication-options-replica.html#sysvar_slave_exec_mode"><code class="literal">slave_exec_mode</code></a> is always
+        <code class="literal">IDEMPOTENT</code>, and cannot be changed.)
+      </p><p>
+        The size of <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> tables is
+        limited by the value of the
+        <a class="link" href="server-system-variables.html#sysvar_max_heap_table_size"><code class="literal">max_heap_table_size</code></a> system
+        variable, which is not replicated (see
+        <a class="xref" href="replication-features-variables.html" title="17.5.1.39&nbsp;Replication and Variables">Section&nbsp;17.5.1.39, &ldquo;Replication and Variables&rdquo;</a>). A change in
+        <code class="literal">max_heap_table_size</code> takes effect for
+        <code class="literal">MEMORY</code> tables that are created or updated
+        using <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE
+        ... ENGINE = MEMORY</code></a> or <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE
+        TABLE</code></a> following the change, or for all
+        <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> tables following a server
+        restart. If you increase the value of this variable on the
+        source without doing so on the replica, it becomes possible for
+        a table on the source to grow larger than its counterpart on the
+        replica, leading to inserts that succeed on the source but fail
+        on the replica with <span class="errortext">Table is full</span> errors.
+        This is a known issue (Bug #48666). In such cases, you must set
+        the global value of
+        <a class="link" href="server-system-variables.html#sysvar_max_heap_table_size"><code class="literal">max_heap_table_size</code></a> on the
+        replica as well as on the source, then restart replication. It
+        is also recommended that you restart both the source and replica
+        MySQL servers, to ensure that the new value takes complete
+        (global) effect on each of them.
+      </p><p>
+        See <a class="xref" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine">Section&nbsp;16.3, &ldquo;The MEMORY Storage Engine&rdquo;</a>, for more
+        information about <a class="link" href="memory-storage-engine.html" title="16.3&nbsp;The MEMORY Storage Engine"><code class="literal">MEMORY</code></a> tables.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-max-allowed-packet.html">Previous <span class="navHint"> Replication and max_allowed_packet </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-mysqldb.html">Next <span class="navHint"> Replication of the mysql System Schema </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

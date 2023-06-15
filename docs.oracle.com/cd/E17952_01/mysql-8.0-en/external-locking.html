@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.11.5 External Locking</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="locking-issues.html" title="8.11 Optimizing Locking Operations" /><link rel="prev" href="metadata-locking.html" title="8.11.4 Metadata Locking" /><link rel="next" href="optimizing-server.html" title="8.12 Optimizing the MySQL Server" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="external-locking.html#external-locking">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="metadata-locking.html">Previous <span class="navHint"> Metadata Locking </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="locking-issues.html">Up <span class="navHint"> Optimizing Locking Operations </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="optimizing-server.html">Next <span class="navHint"> Optimizing the MySQL Server </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="external-locking"></a>8.11.5 External Locking</h3></div></div></div><a id="idm45828949378352" class="indexterm"></a><a id="idm45828949377280" class="indexterm"></a><p>
+        External locking is the use of file system locking to manage
+        contention for <a class="link" href="myisam-storage-engine.html" title="16.2 The MyISAM Storage Engine"><code class="literal">MyISAM</code></a> database
+        tables by multiple processes. External locking is used in
+        situations where a single process such as the MySQL server
+        cannot be assumed to be the only process that requires access to
+        tables. Here are some examples:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If you run multiple servers that use the same database
+            directory (not recommended), each server must have external
+            locking enabled.
+          </p></li><li class="listitem"><p>
+            If you use <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> to perform table
+            maintenance operations on
+            <a class="link" href="myisam-storage-engine.html" title="16.2 The MyISAM Storage Engine"><code class="literal">MyISAM</code></a> tables, you must either
+            ensure that the server is not running, or that the server
+            has external locking enabled so that it locks table files as
+            necessary to coordinate with <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a>
+            for access to the tables. The same is true for use of
+            <a class="link" href="myisampack.html" title="4.6.6 myisampack — Generate Compressed, Read-Only MyISAM Tables"><span class="command"><strong>myisampack</strong></span></a> to pack
+            <a class="link" href="myisam-storage-engine.html" title="16.2 The MyISAM Storage Engine"><code class="literal">MyISAM</code></a> tables.
+          </p><p>
+            If the server is run with external locking enabled, you can
+            use <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> at any time for read
+            operations such a checking tables. In this case, if the
+            server tries to update a table that
+            <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> is using, the server waits for
+            <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> to finish before it continues.
+          </p><p>
+            If you use <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> for write operations
+            such as repairing or optimizing tables, or if you use
+            <a class="link" href="myisampack.html" title="4.6.6 myisampack — Generate Compressed, Read-Only MyISAM Tables"><span class="command"><strong>myisampack</strong></span></a> to pack tables, you
+            <span class="emphasis"><em>must</em></span> always ensure that the
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> server is not using the table. If
+            you do not stop <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, at least do a
+            <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin flush-tables</strong></span></a> before you run
+            <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a>. Your tables <span class="emphasis"><em>may
+            become corrupted</em></span> if the server and
+            <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> access the tables
+            simultaneously.
+          </p></li></ul></div><p>
+        With external locking in effect, each process that requires
+        access to a table acquires a file system lock for the table
+        files before proceeding to access the table. If all necessary
+        locks cannot be acquired, the process is blocked from accessing
+        the table until the locks can be obtained (after the process
+        that currently holds the locks releases them).
+      </p><p>
+        External locking affects server performance because the server
+        must sometimes wait for other processes before it can access
+        tables.
+      </p><p>
+        External locking is unnecessary if you run a single server to
+        access a given data directory (which is the usual case) and if
+        no other programs such as <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> need to
+        modify tables while the server is running. If you only
+        <span class="emphasis"><em>read</em></span> tables with other programs, external
+        locking is not required, although <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a>
+        might report warnings if the server changes tables while
+        <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> is reading them.
+      </p><p>
+        With external locking disabled, to use
+        <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a>, you must either stop the server
+        while <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> executes or else lock and
+        flush the tables before running <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a>. To
+        avoid this requirement, use the <a class="link" href="check-table.html" title="13.7.3.2 CHECK TABLE Statement"><code class="literal">CHECK
+        TABLE</code></a> and <a class="link" href="repair-table.html" title="13.7.3.5 REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a>
+        statements to check and repair
+        <a class="link" href="myisam-storage-engine.html" title="16.2 The MyISAM Storage Engine"><code class="literal">MyISAM</code></a> tables.
+      </p><p>
+        For <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, external locking is controlled by
+        the value of the
+        <a class="link" href="server-system-variables.html#sysvar_skip_external_locking"><code class="literal">skip_external_locking</code></a> system
+        variable. When this variable is enabled, external locking is
+        disabled, and vice versa. External locking is disabled by
+        default.
+      </p><p>
+        Use of external locking can be controlled at server startup by
+        using the <a class="link" href="server-options.html#option_mysqld_external-locking"><code class="option">--external-locking</code></a> or
+        <a class="link" href="server-options.html#option_mysqld_external-locking"><code class="option">--skip-external-locking</code></a>
+        option.
+      </p><p>
+        If you do use external locking option to enable updates to
+        <a class="link" href="myisam-storage-engine.html" title="16.2 The MyISAM Storage Engine"><code class="literal">MyISAM</code></a> tables from many MySQL
+        processes, do not start the server with the
+        <a class="link" href="server-system-variables.html#sysvar_delay_key_write"><code class="literal">delay_key_write</code></a> system variable
+        set to <code class="literal">ALL</code> or use the
+        <code class="literal">DELAY_KEY_WRITE=1</code> table option for any shared
+        tables. Otherwise, index corruption can occur.
+      </p><p>
+        The easiest way to satisfy this condition is to always use
+        <a class="link" href="server-options.html#option_mysqld_external-locking"><code class="option">--external-locking</code></a> together with
+        <a class="link" href="server-system-variables.html#sysvar_delay_key_write"><code class="option">--delay-key-write=OFF</code></a>. (This is
+        not done by default because in many setups it is useful to have
+        a mixture of the preceding options.)
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="metadata-locking.html">Previous <span class="navHint"> Metadata Locking </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="locking-issues.html">Up <span class="navHint"> Optimizing Locking Operations </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="optimizing-server.html">Next <span class="navHint"> Optimizing the MySQL Server </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

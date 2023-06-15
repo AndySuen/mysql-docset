@@ -1,0 +1,123 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1189"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.3.9%C2%A0Comparison%20of%20B-Tree%20and%20Hash%20Indexes"></a><title>8.3.9&nbsp;Comparison of B-Tree and Hash Indexes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimization-indexes.html" title="8.3&nbsp;Optimization and Indexes"/><link rel="prev" href="index-statistics.html" title="8.3.8&nbsp;InnoDB and MyISAM Index Statistics Collection"/><link rel="next" href="index-extensions.html" title="8.3.10&nbsp;Use of Index Extensions"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="index-btree-hash.html#index-btree-hash">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="index-statistics.html">Previous <span class="navHint"> InnoDB and MyISAM Index Statistics Collection </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="index-extensions.html">Next <span class="navHint"> Use of Index Extensions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="index-btree-hash"></a>8.3.9&nbsp;Comparison of B-Tree and Hash Indexes</h3></div></div></div><a id="idm45828954043824" class="indexterm"></a><a id="idm45828954042784" class="indexterm"></a><p>
+        Understanding the B-tree and hash data structures can help
+        predict how different queries perform on different storage
+        engines that use these data structures in their indexes,
+        particularly for the <code class="literal">MEMORY</code> storage engine
+        that lets you choose B-tree or hash indexes.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="index-btree-hash.html#btree-index-characteristics" title="B-Tree Index Characteristics">B-Tree Index Characteristics</a></p></li><li class="listitem"><p><a class="xref" href="index-btree-hash.html#hash-index-characteristics" title="Hash Index Characteristics">Hash Index Characteristics</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1187"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/B-Tree%20Index%20Characteristics"></a><h4 class="title"><a id="btree-index-characteristics"></a>B-Tree Index Characteristics</h4></div></div></div><a id="idm45828954036864" class="indexterm"></a><a id="idm45828954035376" class="indexterm"></a><a id="idm45828954033888" class="indexterm"></a><a id="idm45828954032400" class="indexterm"></a><p>
+          A B-tree index can be used for column comparisons in
+          expressions that use the
+          <a class="link" href="comparison-operators.html#operator_equal"><code class="literal">=</code></a>,
+          <a class="link" href="comparison-operators.html#operator_greater-than"><code class="literal">&gt;</code></a>,
+          <a class="link" href="comparison-operators.html#operator_greater-than-or-equal"><code class="literal">&gt;=</code></a>,
+          <a class="link" href="comparison-operators.html#operator_less-than"><code class="literal">&lt;</code></a>,
+          <a class="link" href="comparison-operators.html#operator_less-than-or-equal"><code class="literal">&lt;=</code></a>,
+          or <a class="link" href="comparison-operators.html#operator_between"><code class="literal">BETWEEN</code></a> operators. The index
+          also can be used for <a class="link" href="string-comparison-functions.html#operator_like"><code class="literal">LIKE</code></a>
+          comparisons if the argument to
+          <a class="link" href="string-comparison-functions.html#operator_like"><code class="literal">LIKE</code></a> is a constant string that
+          does not start with a wildcard character. For example, the
+          following <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statements use
+          indexes:
+        </p><pre class="programlisting">SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE <em class="replaceable"><code>key_col</code></em> LIKE &#39;Patrick%&#39;;
+SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE <em class="replaceable"><code>key_col</code></em> LIKE &#39;Pat%_ck%&#39;;
+</pre><p>
+          In the first statement, only rows with <code class="literal">&#39;Patrick&#39;
+          &lt;= <em class="replaceable"><code>key_col</code></em> &lt;
+          &#39;Patricl&#39;</code> are considered. In the second statement,
+          only rows with <code class="literal">&#39;Pat&#39; &lt;=
+          <em class="replaceable"><code>key_col</code></em> &lt; &#39;Pau&#39;</code> are
+          considered.
+        </p><p>
+          The following <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statements
+          do not use indexes:
+        </p><pre class="programlisting">SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE <em class="replaceable"><code>key_col</code></em> LIKE &#39;%Patrick%&#39;;
+SELECT * FROM <em class="replaceable"><code>tbl_name</code></em> WHERE <em class="replaceable"><code>key_col</code></em> LIKE <em class="replaceable"><code>other_col</code></em>;
+</pre><p>
+          In the first statement, the <a class="link" href="string-comparison-functions.html#operator_like"><code class="literal">LIKE</code></a>
+          value begins with a wildcard character. In the second
+          statement, the <a class="link" href="string-comparison-functions.html#operator_like"><code class="literal">LIKE</code></a> value is not
+          a constant.
+        </p><p>
+          If you use <code class="literal">... LIKE
+          &#39;%<em class="replaceable"><code>string</code></em>%&#39;</code> and
+          <em class="replaceable"><code>string</code></em> is longer than three
+          characters, MySQL uses the <span class="firstterm">Turbo
+          Boyer-Moore algorithm</span> to initialize the pattern for
+          the string and then uses this pattern to perform the search
+          more quickly.
+        </p><a id="idm45828954002608" class="indexterm"></a><a id="idm45828954001120" class="indexterm"></a><p>
+          A search using <code class="literal"><em class="replaceable"><code>col_name</code></em> IS
+          NULL</code> employs indexes if
+          <em class="replaceable"><code>col_name</code></em> is indexed.
+        </p><p>
+          Any index that does not span all
+          <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a> levels in the
+          <code class="literal">WHERE</code> clause is not used to optimize the
+          query. In other words, to be able to use an index, a prefix of
+          the index must be used in every
+          <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a> group.
+        </p><p>
+          The following <code class="literal">WHERE</code> clauses use indexes:
+        </p><pre class="programlisting">... WHERE <em class="replaceable"><code>index_part1</code></em>=1 AND <em class="replaceable"><code>index_part2</code></em>=2 AND <em class="replaceable"><code>other_column</code></em>=3
+
+    /* <em class="replaceable"><code>index</code></em> = 1 OR <em class="replaceable"><code>index</code></em> = 2 */
+... WHERE <em class="replaceable"><code>index</code></em>=1 OR A=10 AND <em class="replaceable"><code>index</code></em>=2
+
+    /* optimized like &#34;<em class="replaceable"><code>index_part1</code></em>=&#39;hello&#39;&#34; */
+... WHERE <em class="replaceable"><code>index_part1</code></em>=&#39;hello&#39; AND <em class="replaceable"><code>index_part3</code></em>=5
+
+    /* Can use index on <em class="replaceable"><code>index1</code></em> but not on <em class="replaceable"><code>index2</code></em> or <em class="replaceable"><code>index3</code></em> */
+... WHERE <em class="replaceable"><code>index1</code></em>=1 AND <em class="replaceable"><code>index2</code></em>=2 OR <em class="replaceable"><code>index1</code></em>=3 AND <em class="replaceable"><code>index3</code></em>=3;
+</pre><p>
+          These <code class="literal">WHERE</code> clauses do
+          <span class="emphasis"><em>not</em></span> use indexes:
+        </p><pre class="programlisting">    /* <em class="replaceable"><code>index_part1</code></em> is not used */
+... WHERE <em class="replaceable"><code>index_part2</code></em>=1 AND <em class="replaceable"><code>index_part3</code></em>=2
+
+    /*  Index is not used in both parts of the WHERE clause  */
+... WHERE <em class="replaceable"><code>index</code></em>=1 OR A=10
+
+    /* No index spans all rows  */
+... WHERE <em class="replaceable"><code>index_part1</code></em>=1 OR <em class="replaceable"><code>index_part2</code></em>=10
+</pre><p>
+          Sometimes MySQL does not use an index, even if one is
+          available. One circumstance under which this occurs is when
+          the optimizer estimates that using the index would require
+          MySQL to access a very large percentage of the rows in the
+          table. (In this case, a table scan is likely to be much faster
+          because it requires fewer seeks.) However, if such a query
+          uses <code class="literal">LIMIT</code> to retrieve only some of the
+          rows, MySQL uses an index anyway, because it can much more
+          quickly find the few rows to return in the result.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1188"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Hash%20Index%20Characteristics"></a><h4 class="title"><a id="hash-index-characteristics"></a>Hash Index Characteristics</h4></div></div></div><a id="idm45828953975968" class="indexterm"></a><p>
+          Hash indexes have somewhat different characteristics from
+          those just discussed:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              They are used only for equality comparisons that use the
+              <code class="literal">=</code> or <code class="literal">&lt;=&gt;</code>
+              operators (but are <span class="emphasis"><em>very</em></span> fast). They
+              are not used for comparison operators such as
+              <code class="literal">&lt;</code> that find a range of values.
+              Systems that rely on this type of single-value lookup are
+              known as <span class="quote">&ldquo;<span class="quote">key-value stores</span>&rdquo;</span>; to use MySQL for
+              such applications, use hash indexes wherever possible.
+            </p></li><li class="listitem"><p>
+              The optimizer cannot use a hash index to speed up
+              <code class="literal">ORDER BY</code> operations. (This type of
+              index cannot be used to search for the next entry in
+              order.)
+            </p></li><li class="listitem"><p>
+              MySQL cannot determine approximately how many rows there
+              are between two values (this is used by the range
+              optimizer to decide which index to use). This may affect
+              some queries if you change a <code class="literal">MyISAM</code> or
+              <code class="literal">InnoDB</code> table to a hash-indexed
+              <code class="literal">MEMORY</code> table.
+            </p></li><li class="listitem"><p>
+              Only whole keys can be used to search for a row. (With a
+              B-tree index, any leftmost prefix of the key can be used
+              to find rows.)
+            </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="index-statistics.html">Previous <span class="navHint"> InnoDB and MyISAM Index Statistics Collection </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="index-extensions.html">Next <span class="navHint"> Use of Index Extensions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

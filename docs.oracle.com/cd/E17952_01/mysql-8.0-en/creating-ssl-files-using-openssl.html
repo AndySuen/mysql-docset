@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>6.3.3.2 Creating SSL Certificates and Keys Using openssl</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="creating-ssl-rsa-files.html" title="6.3.3 Creating SSL and RSA Certificates and Keys" /><link rel="prev" href="creating-ssl-rsa-files-using-mysql.html" title="6.3.3.1 Creating SSL and RSA Certificates and Keys using MySQL" /><link rel="next" href="creating-rsa-files-using-openssl.html" title="6.3.3.3 Creating RSA Keys Using openssl" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="creating-ssl-files-using-openssl.html#creating-ssl-files-using-openssl">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="creating-ssl-rsa-files-using-mysql.html">Previous <span class="navHint"> Creating SSL and RSA Certificates and Keys using MySQL </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="creating-ssl-rsa-files.html">Up <span class="navHint"> Creating SSL and RSA Certificates and Keys </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="creating-rsa-files-using-openssl.html">Next <span class="navHint"> Creating RSA Keys Using openssl </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="creating-ssl-files-using-openssl"></a>6.3.3.2 Creating SSL Certificates and Keys Using openssl</h4></div></div></div><p>
+        This section describes how to use the <span class="command"><strong>openssl</strong></span>
+        command to set up SSL certificate and key files for use by MySQL
+        servers and clients. The first example shows a simplified
+        procedure such as you might use from the command line. The
+        second shows a script that contains more detail. The first two
+        examples are intended for use on Unix and both use the
+        <span class="command"><strong>openssl</strong></span> command that is part of OpenSSL. The
+        third example describes how to set up SSL files on Windows.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          There are easier alternatives to generating the files required
+          for SSL than the procedure described here: Let the server
+          autogenerate them or use the
+          <a class="link" href="mysql-ssl-rsa-setup.html" title="4.4.3 mysql_ssl_rsa_setup — Create SSL/RSA Files"><span class="command"><strong>mysql_ssl_rsa_setup</strong></span></a> program (deprecated as
+          of 8.0.34). See
+          <a class="xref" href="creating-ssl-rsa-files-using-mysql.html" title="6.3.3.1 Creating SSL and RSA Certificates and Keys using MySQL">Section 6.3.3.1, “Creating SSL and RSA Certificates and Keys using MySQL”</a>.
+        </p></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          Whatever method you use to generate the certificate and key
+          files, the Common Name value used for the server and client
+          certificates/keys must each differ from the Common Name value
+          used for the CA certificate. Otherwise, the certificate and
+          key files do not work for servers compiled using OpenSSL. A
+          typical error in this case is:
+        </p><pre class="programlisting">ERROR 2026 (HY000): SSL connection error:
+error:00000001:lib(0):func(0):reason(1)
+</pre></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          If a client connecting to a MySQL server instance uses an SSL
+          certificate with the <code class="literal">extendedKeyUsage</code>
+          extension (an X.509 v3 extension), the extended key usage must
+          include client authentication (<code class="literal">clientAuth</code>).
+          If the SSL certificate is only specified for server
+          authentication (<code class="literal">serverAuth</code>) and other
+          non-client certificate purposes, certificate verification
+          fails and the client connection to the MySQL server instance
+          fails. There is no <code class="literal">extendedKeyUsage</code>
+          extension in SSL certificates created using the
+          <span class="command"><strong>openssl</strong></span> command following the instructions
+          in this topic. If you use your own client certificate created
+          in another way, ensure any <code class="literal">extendedKeyUsage</code>
+          extension includes client authentication.
+        </p></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="creating-ssl-files-using-openssl.html#creating-ssl-files-using-openssl-unix-command-line" title="Example 1: Creating SSL Files from the Command Line on Unix">Example 1: Creating SSL Files from the Command Line on Unix</a></p></li><li class="listitem"><p><a class="xref" href="creating-ssl-files-using-openssl.html#creating-ssl-files-using-openssl-unix-script" title="Example 2: Creating SSL Files Using a Script on Unix">Example 2: Creating SSL Files Using a Script on Unix</a></p></li><li class="listitem"><p><a class="xref" href="creating-ssl-files-using-openssl.html#creating-ssl-files-using-openssl-windows" title="Example 3: Creating SSL Files on Windows">Example 3: Creating SSL Files on Windows</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="creating-ssl-files-using-openssl-unix-command-line"></a>Example 1: Creating SSL Files from the Command Line on Unix</h5></div></div></div><p>
+          The following example shows a set of commands to create MySQL
+          server and client certificate and key files. You must respond
+          to several prompts by the <span class="command"><strong>openssl</strong></span> commands.
+          To generate test files, you can press Enter to all prompts. To
+          generate files for production use, you should provide nonempty
+          responses.
+        </p><pre class="programlisting"># Create clean environment
+rm -rf newcerts
+mkdir newcerts &amp;&amp; cd newcerts
+
+# Create CA certificate
+openssl genrsa 2048 &gt; ca-key.pem
+openssl req -new -x509 -nodes -days 3600 \
+        -key ca-key.pem -out ca.pem
+
+# Create server certificate, remove passphrase, and sign it
+# server-cert.pem = public key, server-key.pem = private key
+openssl req -newkey rsa:2048 -days 3600 \
+        -nodes -keyout server-key.pem -out server-req.pem
+openssl rsa -in server-key.pem -out server-key.pem
+openssl x509 -req -in server-req.pem -days 3600 \
+        -CA ca.pem -CAkey ca-key.pem -set_serial 01 -out server-cert.pem
+
+# Create client certificate, remove passphrase, and sign it
+# client-cert.pem = public key, client-key.pem = private key
+openssl req -newkey rsa:2048 -days 3600 \
+        -nodes -keyout client-key.pem -out client-req.pem
+openssl rsa -in client-key.pem -out client-key.pem
+openssl x509 -req -in client-req.pem -days 3600 \
+        -CA ca.pem -CAkey ca-key.pem -set_serial 01 -out client-cert.pem
+</pre><p>
+          After generating the certificates, verify them:
+        </p><pre class="programlisting">openssl verify -CAfile ca.pem server-cert.pem client-cert.pem
+</pre><p>
+          You should see a response like this:
+        </p><pre class="programlisting">server-cert.pem: OK
+client-cert.pem: OK
+</pre><p>
+          To see the contents of a certificate (for example, to check
+          the range of dates over which a certificate is valid), invoke
+          <span class="command"><strong>openssl</strong></span> like this:
+        </p><pre class="programlisting">openssl x509 -text -in ca.pem
+openssl x509 -text -in server-cert.pem
+openssl x509 -text -in client-cert.pem
+</pre><p>
+          Now you have a set of files that can be used as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="filename">ca.pem</code>: Use this to set the
+              <a class="link" href="server-system-variables.html#sysvar_ssl_ca"><code class="literal">ssl_ca</code></a> system variable on
+              the server side and the
+              <a class="link" href="connection-options.html#option_general_ssl-ca"><code class="option">--ssl-ca</code></a> option on the
+              client side. (The CA certificate, if used, must be the
+              same on both sides.)
+            </p></li><li class="listitem"><p>
+              <code class="filename">server-cert.pem</code>,
+              <code class="filename">server-key.pem</code>: Use these to set the
+              <a class="link" href="server-system-variables.html#sysvar_ssl_cert"><code class="literal">ssl_cert</code></a> and
+              <a class="link" href="server-system-variables.html#sysvar_ssl_key"><code class="literal">ssl_key</code></a> system variables
+              on the server side.
+            </p></li><li class="listitem"><p>
+              <code class="filename">client-cert.pem</code>,
+              <code class="filename">client-key.pem</code>: Use these as the
+              arguments to the
+              <a class="link" href="connection-options.html#option_general_ssl-cert"><code class="option">--ssl-cert</code></a> and
+              <a class="link" href="connection-options.html#option_general_ssl-key"><code class="option">--ssl-key</code></a> options on the
+              client side.
+            </p></li></ul></div><p>
+          For additional usage instructions, see
+          <a class="xref" href="using-encrypted-connections.html" title="6.3.1 Configuring MySQL to Use Encrypted Connections">Section 6.3.1, “Configuring MySQL to Use Encrypted Connections”</a>.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="creating-ssl-files-using-openssl-unix-script"></a>Example 2: Creating SSL Files Using a Script on Unix</h5></div></div></div><p>
+          Here is an example script that shows how to set up SSL
+          certificate and key files for MySQL. After executing the
+          script, use the files for SSL connections as described in
+          <a class="xref" href="using-encrypted-connections.html" title="6.3.1 Configuring MySQL to Use Encrypted Connections">Section 6.3.1, “Configuring MySQL to Use Encrypted Connections”</a>.
+        </p><pre class="programlisting">DIR=`pwd`/openssl
+PRIV=$DIR/private
+
+mkdir $DIR $PRIV $DIR/newcerts
+cp /usr/share/ssl/openssl.cnf $DIR
+replace ./demoCA $DIR -- $DIR/openssl.cnf
+
+# Create necessary files: $database, $serial and $new_certs_dir
+# directory (optional)
+
+touch $DIR/index.txt
+echo "01" &gt; $DIR/serial
+
+#
+# Generation of Certificate Authority(CA)
+#
+
+openssl req -new -x509 -keyout $PRIV/cakey.pem -out $DIR/ca.pem \
+    -days 3600 -config $DIR/openssl.cnf
+
+# Sample output:
+# Using configuration from /home/jones/openssl/openssl.cnf
+# Generating a 1024 bit RSA private key
+# ................++++++
+# .........++++++
+# writing new private key to '/home/jones/openssl/private/cakey.pem'
+# Enter PEM pass phrase:
+# Verifying password - Enter PEM pass phrase:
+# -----
+# You are about to be asked to enter information to be
+# incorporated into your certificate request.
+# What you are about to enter is what is called a Distinguished Name
+# or a DN.
+# There are quite a few fields but you can leave some blank
+# For some fields there will be a default value,
+# If you enter '.', the field will be left blank.
+# -----
+# Country Name (2 letter code) [AU]:FI
+# State or Province Name (full name) [Some-State]:.
+# Locality Name (eg, city) []:
+# Organization Name (eg, company) [Internet Widgits Pty Ltd]:MySQL AB
+# Organizational Unit Name (eg, section) []:
+# Common Name (eg, YOUR name) []:MySQL admin
+# Email Address []:
+
+#
+# Create server request and key
+#
+openssl req -new -keyout $DIR/server-key.pem -out \
+    $DIR/server-req.pem -days 3600 -config $DIR/openssl.cnf
+
+# Sample output:
+# Using configuration from /home/jones/openssl/openssl.cnf
+# Generating a 1024 bit RSA private key
+# ..++++++
+# ..........++++++
+# writing new private key to '/home/jones/openssl/server-key.pem'
+# Enter PEM pass phrase:
+# Verifying password - Enter PEM pass phrase:
+# -----
+# You are about to be asked to enter information that will be
+# incorporated into your certificate request.
+# What you are about to enter is what is called a Distinguished Name
+# or a DN.
+# There are quite a few fields but you can leave some blank
+# For some fields there will be a default value,
+# If you enter '.', the field will be left blank.
+# -----
+# Country Name (2 letter code) [AU]:FI
+# State or Province Name (full name) [Some-State]:.
+# Locality Name (eg, city) []:
+# Organization Name (eg, company) [Internet Widgits Pty Ltd]:MySQL AB
+# Organizational Unit Name (eg, section) []:
+# Common Name (eg, YOUR name) []:MySQL server
+# Email Address []:
+#
+# Please enter the following 'extra' attributes
+# to be sent with your certificate request
+# A challenge password []:
+# An optional company name []:
+
+#
+# Remove the passphrase from the key
+#
+openssl rsa -in $DIR/server-key.pem -out $DIR/server-key.pem
+
+#
+# Sign server cert
+#
+openssl ca -cert $DIR/ca.pem -policy policy_anything \
+    -out $DIR/server-cert.pem -config $DIR/openssl.cnf \
+    -infiles $DIR/server-req.pem
+
+# Sample output:
+# Using configuration from /home/jones/openssl/openssl.cnf
+# Enter PEM pass phrase:
+# Check that the request matches the signature
+# Signature ok
+# The Subjects Distinguished Name is as follows
+# countryName           :PRINTABLE:'FI'
+# organizationName      :PRINTABLE:'MySQL AB'
+# commonName            :PRINTABLE:'MySQL admin'
+# Certificate is to be certified until Sep 13 14:22:46 2003 GMT
+# (365 days)
+# Sign the certificate? [y/n]:y
+#
+#
+# 1 out of 1 certificate requests certified, commit? [y/n]y
+# Write out database with 1 new entries
+# Data Base Updated
+
+#
+# Create client request and key
+#
+openssl req -new -keyout $DIR/client-key.pem -out \
+    $DIR/client-req.pem -days 3600 -config $DIR/openssl.cnf
+
+# Sample output:
+# Using configuration from /home/jones/openssl/openssl.cnf
+# Generating a 1024 bit RSA private key
+# .....................................++++++
+# .............................................++++++
+# writing new private key to '/home/jones/openssl/client-key.pem'
+# Enter PEM pass phrase:
+# Verifying password - Enter PEM pass phrase:
+# -----
+# You are about to be asked to enter information that will be
+# incorporated into your certificate request.
+# What you are about to enter is what is called a Distinguished Name
+# or a DN.
+# There are quite a few fields but you can leave some blank
+# For some fields there will be a default value,
+# If you enter '.', the field will be left blank.
+# -----
+# Country Name (2 letter code) [AU]:FI
+# State or Province Name (full name) [Some-State]:.
+# Locality Name (eg, city) []:
+# Organization Name (eg, company) [Internet Widgits Pty Ltd]:MySQL AB
+# Organizational Unit Name (eg, section) []:
+# Common Name (eg, YOUR name) []:MySQL user
+# Email Address []:
+#
+# Please enter the following 'extra' attributes
+# to be sent with your certificate request
+# A challenge password []:
+# An optional company name []:
+
+#
+# Remove the passphrase from the key
+#
+openssl rsa -in $DIR/client-key.pem -out $DIR/client-key.pem
+
+#
+# Sign client cert
+#
+
+openssl ca -cert $DIR/ca.pem -policy policy_anything \
+    -out $DIR/client-cert.pem -config $DIR/openssl.cnf \
+    -infiles $DIR/client-req.pem
+
+# Sample output:
+# Using configuration from /home/jones/openssl/openssl.cnf
+# Enter PEM pass phrase:
+# Check that the request matches the signature
+# Signature ok
+# The Subjects Distinguished Name is as follows
+# countryName           :PRINTABLE:'FI'
+# organizationName      :PRINTABLE:'MySQL AB'
+# commonName            :PRINTABLE:'MySQL user'
+# Certificate is to be certified until Sep 13 16:45:17 2003 GMT
+# (365 days)
+# Sign the certificate? [y/n]:y
+#
+#
+# 1 out of 1 certificate requests certified, commit? [y/n]y
+# Write out database with 1 new entries
+# Data Base Updated
+
+#
+# Create a my.cnf file that you can use to test the certificates
+#
+
+cat &lt;&lt;EOF &gt; $DIR/my.cnf
+[client]
+ssl-ca=$DIR/ca.pem
+ssl-cert=$DIR/client-cert.pem
+ssl-key=$DIR/client-key.pem
+[mysqld]
+ssl_ca=$DIR/ca.pem
+ssl_cert=$DIR/server-cert.pem
+ssl_key=$DIR/server-key.pem
+EOF
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="creating-ssl-files-using-openssl-windows"></a>Example 3: Creating SSL Files on Windows</h5></div></div></div><p>
+          Download OpenSSL for Windows if it is not installed on your
+          system. An overview of available packages can be seen here:
+        </p><pre class="programlisting"><a class="ulink" href="http://www.slproweb.com/products/Win32OpenSSL.html" target="_top">http://www.slproweb.com/products/Win32OpenSSL.html</a>
+</pre><p>
+          Choose the Win32 OpenSSL Light or Win64 OpenSSL Light package,
+          depending on your architecture (32-bit or 64-bit). The default
+          installation location is <code class="literal">C:\OpenSSL-Win32</code>
+          or <code class="literal">C:\OpenSSL-Win64</code>, depending on which
+          package you downloaded. The following instructions assume a
+          default location of <code class="literal">C:\OpenSSL-Win32</code>.
+          Modify this as necessary if you are using the 64-bit package.
+        </p><p>
+          If a message occurs during setup indicating
+          <code class="literal">'...critical component is missing: Microsoft Visual
+          C++ 2019 Redistributables'</code>, cancel the setup and
+          download one of the following packages as well, again
+          depending on your architecture (32-bit or 64-bit):
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Visual C++ 2008 Redistributables (x86), available at:
+            </p><pre class="programlisting"><a class="ulink" href="http://www.microsoft.com/downloads/details.aspx?familyid=9B2DA534-3E03-4391-8A4D-074B9F2BC1BF" target="_top">http://www.microsoft.com/downloads/details.aspx?familyid=9B2DA534-3E03-4391-8A4D-074B9F2BC1BF</a>
+</pre></li><li class="listitem"><p>
+              Visual C++ 2008 Redistributables (x64), available at:
+            </p><pre class="programlisting"><a class="ulink" href="http://www.microsoft.com/downloads/details.aspx?familyid=bd2a6171-e2d6-4230-b809-9a8d7548c1b6" target="_top">http://www.microsoft.com/downloads/details.aspx?familyid=bd2a6171-e2d6-4230-b809-9a8d7548c1b6</a>
+</pre></li></ul></div><p>
+          After installing the additional package, restart the OpenSSL
+          setup procedure.
+        </p><p>
+          During installation, leave the default
+          <code class="filename">C:\OpenSSL-Win32</code> as the install path, and
+          also leave the default option <code class="literal">'Copy OpenSSL DLL files
+          to the Windows system directory'</code> selected.
+        </p><p>
+          When the installation has finished, add
+          <code class="filename">C:\OpenSSL-Win32\bin</code> to the Windows
+          System Path variable of your server (depending on your version
+          of Windows, the following path-setting instructions might
+          differ slightly):
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              On the Windows desktop, right-click the <span class="guiicon">My
+              Computer</span> icon, and select
+              <span class="guimenuitem">Properties</span>.
+            </p></li><li class="listitem"><p>
+              Select the <span class="guimenuitem">Advanced</span> tab from
+              the <span class="guimenu">System Properties</span> menu that
+              appears, and click the <span class="guibutton">Environment
+              Variables</span> button.
+            </p></li><li class="listitem"><p>
+              Under <span class="guilabel">System Variables</span>, select
+              <span class="guimenuitem">Path</span>, then click the
+              <span class="guibutton">Edit</span> button. The <span class="guimenu">Edit
+              System Variable</span> dialogue should appear.
+            </p></li><li class="listitem"><p>
+              Add <code class="literal">';C:\OpenSSL-Win32\bin'</code> to the end
+              (notice the semicolon).
+            </p></li><li class="listitem"><p>
+              Press OK 3 times.
+            </p></li><li class="listitem"><p>
+              Check that OpenSSL was correctly integrated into the Path
+              variable by opening a new command console
+              (<span class="command"><strong>Start&gt;Run&gt;cmd.exe</strong></span>) and verifying
+              that OpenSSL is available:
+            </p><pre class="programlisting">Microsoft Windows [Version ...]
+Copyright (c) 2006 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32&gt;<strong class="userinput"><code>cd \</code></strong>
+
+C:\&gt;<strong class="userinput"><code>openssl</code></strong>
+OpenSSL&gt; <strong class="userinput"><code>exit</code></strong> &lt;&lt;&lt; If you see the OpenSSL prompt, installation was successful.
+
+C:\&gt;
+</pre></li></ol></div><p>
+          After OpenSSL has been installed, use instructions similar to
+          those from Example 1 (shown earlier in this section), with the
+          following changes:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Change the following Unix commands:
+            </p><pre class="programlisting"># Create clean environment
+rm -rf newcerts
+mkdir newcerts &amp;&amp; cd newcerts
+</pre><p>
+              On Windows, use these commands instead:
+            </p><pre class="programlisting"># Create clean environment
+md c:\newcerts
+cd c:\newcerts
+</pre></li><li class="listitem"><p>
+              When a <code class="literal">'\'</code> character is shown at the
+              end of a command line, this <code class="literal">'\'</code>
+              character must be removed and the command lines entered
+              all on a single line.
+            </p></li></ul></div><p>
+          After generating the certificate and key files, to use them
+          for SSL connections, see
+          <a class="xref" href="using-encrypted-connections.html" title="6.3.1 Configuring MySQL to Use Encrypted Connections">Section 6.3.1, “Configuring MySQL to Use Encrypted Connections”</a>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="creating-ssl-rsa-files-using-mysql.html">Previous <span class="navHint"> Creating SSL and RSA Certificates and Keys using MySQL </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="creating-ssl-rsa-files.html">Up <span class="navHint"> Creating SSL and RSA Certificates and Keys </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="creating-rsa-files-using-openssl.html">Next <span class="navHint"> Creating RSA Keys Using openssl </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

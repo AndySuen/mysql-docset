@@ -1,0 +1,141 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2464"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.7.8%C2%A0Implementing%20Failover%20with%20NDB%20Cluster%20Replication"></a><title>23.7.8&nbsp;Implementing Failover with NDB Cluster Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-replication.html" title="23.7&nbsp;NDB Cluster Replication"/><link rel="prev" href="mysql-cluster-replication-two-channels.html" title="23.7.7&nbsp;Using Two Replication Channels for NDB Cluster Replication"/><link rel="next" href="mysql-cluster-replication-backups.html" title="23.7.9&nbsp;NDB Cluster Backups With NDB Cluster Replication"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-replication-failover.html#mysql-cluster-replication-failover">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-replication-two-channels.html">Previous <span class="navHint"> Using Two Replication Channels for NDB Cluster Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-replication-backups.html">Next <span class="navHint"> NDB Cluster Backups With NDB Cluster Replication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-replication-failover"></a>23.7.8&nbsp;Implementing Failover with NDB Cluster Replication</h3></div></div></div><a id="idm45828803764304" class="indexterm"></a><a id="idm45828803762816" class="indexterm"></a><p>
+      In the event that the primary Cluster replication process fails,
+      it is possible to switch over to the secondary replication
+      channel. The following procedure describes the steps required to
+      accomplish this.
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          <a id="idm45828803759408" class="indexterm"></a>
+
+          <a id="idm45828803758304" class="indexterm"></a>
+
+          Obtain the time of the most recent global checkpoint (GCP).
+          That is, you need to determine the most recent epoch from the
+          <code class="literal">ndb_apply_status</code> table on the replica
+          cluster, which can be found using the following query:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R&#39;</code></em>&gt; <strong class="userinput"><code>SELECT @latest:=MAX(epoch)</code></strong>
+      -&gt;        <strong class="userinput"><code>FROM mysql.ndb_apply_status;</code></strong>
+</pre><p>
+          In a circular replication topology, with a source and a
+          replica running on each host, when you are using
+          <code class="literal">ndb_log_apply_status=1</code>, NDB
+          Cluster epochs are written in the replicas&#39; binary logs.
+          This means that the <code class="literal">ndb_apply_status</code> table
+          contains information for the replica on this host as well as
+          for any other host which acts as a replica of the replication
+          source server running on this host.
+        </p><p>
+          In this case, you need to determine the latest epoch on this
+          replica to the exclusion of any epochs from any other replicas
+          in this replica&#39;s binary log that were not listed in the
+          <code class="literal">IGNORE_SERVER_IDS</code> options of the
+          <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a> |
+          <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement used
+          to set up this replica. The reason for excluding such epochs
+          is that rows in the <code class="literal">mysql.ndb_apply_status</code>
+          table whose server IDs have a match in the
+          <code class="literal">IGNORE_SERVER_IDS</code> list from the
+          <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a> |
+          <code class="literal">CHANGE MASTER TO</code> statement used to prepare
+          this replicas&#39;s source are also considered to be from
+          local servers, in addition to those having the replica&#39;s
+          own server ID. You can retrieve this list as
+          <code class="literal">Replicate_Ignore_Server_Ids</code> from the output
+          of <a class="link" href="show-replica-status.html" title="13.7.7.35&nbsp;SHOW REPLICA STATUS Statement"><code class="literal">SHOW REPLICA STATUS</code></a>. We
+          assume that you have obtained this list and are substituting
+          it for <em class="replaceable"><code>ignore_server_ids</code></em> in the
+          query shown here, which like the previous version of the
+          query, selects the greatest epoch into a variable named
+          <code class="literal">@latest</code>:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R&#39;</code></em>&gt; <strong class="userinput"><code>SELECT @latest:=MAX(epoch)</code></strong>
+      -&gt;        <strong class="userinput"><code>FROM mysql.ndb_apply_status</code></strong>
+      -&gt;        <strong class="userinput"><code>WHERE server_id NOT IN (<em class="replaceable"><code>ignore_server_ids</code></em>);</code></strong>
+</pre><p>
+          In some cases, it may be simpler or more efficient (or both)
+          to use a list of the server IDs to be included and
+          <code class="literal">server_id IN
+          <em class="replaceable"><code>server_id_list</code></em></code> in the
+          <code class="literal">WHERE</code> condition of the preceding query.
+        </p></li><li class="listitem"><p>
+          <a id="idm45828803732864" class="indexterm"></a>
+
+          Using the information obtained from the query shown in Step 1,
+          obtain the corresponding records from the
+          <code class="literal">ndb_binlog_index</code> table on the source
+          cluster.
+        </p><p>
+          You can use the following query to obtain the needed records
+          from the <code class="literal">ndb_binlog_index</code> table on the
+          source:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>S&#39;</code></em>&gt; <strong class="userinput"><code>SELECT</code></strong>
+    -&gt;     <strong class="userinput"><code>@file:=SUBSTRING_INDEX(next_file, &#39;/&#39;, -1),</code></strong>
+    -&gt;     <strong class="userinput"><code>@pos:=next_position</code></strong>
+    -&gt; <strong class="userinput"><code>FROM mysql.ndb_binlog_index</code></strong>
+    -&gt; <strong class="userinput"><code>WHERE epoch = @latest;</code></strong>
+</pre><p>
+          These are the records saved on the source since the failure of
+          the primary replication channel. We have employed a user
+          variable <code class="literal">@latest</code> here to represent the
+          value obtained in Step 1. Of course, it is not possible for
+          one <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> instance to access user
+          variables set on another server instance directly. These
+          values must be <span class="quote">&ldquo;<span class="quote">plugged in</span>&rdquo;</span> to the second query
+          manually or by an application.
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            You must ensure that the replica <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+            is started with
+            <a class="link" href="replication-options-replica.html#option_mysqld_slave-skip-errors"><code class="option">--slave-skip-errors=ddl_exist_errors</code></a>
+            before executing <a class="link" href="start-replica.html" title="13.4.2.8&nbsp;START REPLICA Statement"><code class="literal">START
+            REPLICA</code></a>. Otherwise, replication may stop with
+            duplicate DDL errors.
+          </p></div></li><li class="listitem"><p>
+          Now it is possible to synchronize the secondary channel by
+          running the following query on the secondary replica server:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R&#39;</code></em>&gt; <strong class="userinput"><code>CHANGE MASTER TO</code></strong>
+      -&gt;     <strong class="userinput"><code>MASTER_LOG_FILE=&#39;@file&#39;,</code></strong>
+      -&gt;     <strong class="userinput"><code>MASTER_LOG_POS=@pos;</code></strong>
+</pre><p>
+          In NDB 8.0.23 and later, you can also use the statement shown
+          here:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R&#39;</code></em>&gt; <strong class="userinput"><code>CHANGE REPLICATION SOURCE TO</code></strong>
+      -&gt;     <strong class="userinput"><code>SOURCE_LOG_FILE=&#39;@file&#39;,</code></strong>
+      -&gt;     <strong class="userinput"><code>SOURCE_LOG_POS=@pos;</code></strong></pre><p>
+          Again we have employed user variables (in this case
+          <code class="literal">@file</code> and <code class="literal">@pos</code>) to
+          represent the values obtained in Step 2 and applied in Step 3;
+          in practice these values must be inserted manually or using an
+          application that can access both of the servers involved.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            <code class="literal">@file</code> is a string value such as
+            <code class="literal">&#39;/var/log/mysql/replication-source-bin.00001&#39;</code>,
+            and so must be quoted when used in SQL or application code.
+            However, the value represented by <code class="literal">@pos</code>
+            must <span class="emphasis"><em>not</em></span> be quoted. Although MySQL
+            normally attempts to convert strings to numbers, this case
+            is an exception.
+          </p></div></li><li class="listitem"><p>
+          You can now initiate replication on the secondary channel by
+          issuing the appropriate command on the secondary replica
+          <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R&#39;</code></em>&gt; <strong class="userinput"><code>START SLAVE;</code></strong>
+</pre><p>
+          In NDB 8.0.22 or later, you can also use the following
+          statement:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R&#39;</code></em>&gt; <strong class="userinput"><code>START REPLICA;</code></strong>
+</pre></li></ol></div><p>
+      Once the secondary replication channel is active, you can
+      investigate the failure of the primary and effect repairs. The
+      precise actions required to do this depend upon the reasons for
+      which the primary channel failed.
+    </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+        The secondary replication channel is to be started only if and
+        when the primary replication channel has failed. Running
+        multiple replication channels simultaneously can result in
+        unwanted duplicate records being created on the replicas.
+      </p></div><p>
+      If the failure is limited to a single server, it should in theory
+      be possible to replicate from <em class="replaceable"><code>S</code></em> to
+      <em class="replaceable"><code>R&#39;</code></em>, or from
+      <em class="replaceable"><code>S&#39;</code></em> to <em class="replaceable"><code>R</code></em>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-replication-two-channels.html">Previous <span class="navHint"> Using Two Replication Channels for NDB Cluster Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-replication-backups.html">Next <span class="navHint"> NDB Cluster Backups With NDB Cluster Replication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

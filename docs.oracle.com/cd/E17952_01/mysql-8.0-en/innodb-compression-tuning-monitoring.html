@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.9.1.4 Monitoring InnoDB Table Compression at Runtime</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-table-compression.html" title="15.9.1 InnoDB Table Compression" /><link rel="prev" href="innodb-compression-tuning.html" title="15.9.1.3 Tuning Compression for InnoDB Tables" /><link rel="next" href="innodb-compression-internals.html" title="15.9.1.5 How Compression Works for InnoDB Tables" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-compression-tuning-monitoring.html#innodb-compression-tuning-monitoring">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-compression-tuning.html">Previous <span class="navHint"> Tuning Compression for InnoDB Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-table-compression.html">Up <span class="navHint"> InnoDB Table Compression </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-compression-internals.html">Next <span class="navHint"> How Compression Works for InnoDB Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-compression-tuning-monitoring"></a>15.9.1.4 Monitoring InnoDB Table Compression at Runtime</h4></div></div></div><a id="idm45828886510144" class="indexterm"></a><a id="idm45828886508656" class="indexterm"></a><p>
+        Overall application performance, CPU and I/O utilization and the
+        size of disk files are good indicators of how effective
+        compression is for your application. This section builds on the
+        performance tuning advice from
+        <a class="xref" href="innodb-compression-tuning.html" title="15.9.1.3 Tuning Compression for InnoDB Tables">Section 15.9.1.3, “Tuning Compression for InnoDB Tables”</a>, and shows how to
+        find problems that might not turn up during initial testing.
+      </p><p>
+        To dig deeper into performance considerations for compressed
+        tables, you can monitor compression performance at runtime using
+        the <a class="link" href="glossary.html#glos_information_schema" title="INFORMATION_SCHEMA">Information
+        Schema</a> tables described in
+        <a class="xref" href="innodb-information-schema-examples-compression-sect.html#innodb-information-schema-examples-compression" title="Example 15.1 Using the Compression Information Schema Tables">Example 15.1, “Using the Compression Information Schema Tables”</a>.
+        These tables reflect the internal use of memory and the rates of
+        compression used overall.
+      </p><p>
+        The <a class="link" href="information-schema-innodb-cmp-table.html" title="26.4.6 The INFORMATION_SCHEMA INNODB_CMP and INNODB_CMP_RESET Tables"><code class="literal">INNODB_CMP</code></a> table reports
+        information about compression activity for each compressed page
+        size (<code class="literal">KEY_BLOCK_SIZE</code>) in use. The information
+        in these tables is system-wide: it summarizes the compression
+        statistics across all compressed tables in your database. You
+        can use this data to help decide whether or not to compress a
+        table by examining these tables when no other compressed tables
+        are being accessed. It involves relatively low overhead on the
+        server, so you might query it periodically on a production
+        server to check the overall efficiency of the compression
+        feature.
+      </p><p>
+        The <a class="link" href="information-schema-innodb-cmp-per-index-table.html" title="26.4.8 The INFORMATION_SCHEMA INNODB_CMP_PER_INDEX and INNODB_CMP_PER_INDEX_RESET Tables"><code class="literal">INNODB_CMP_PER_INDEX</code></a> table
+        reports information about compression activity for individual
+        tables and indexes. This information is more targeted and more
+        useful for evaluating compression efficiency and diagnosing
+        performance issues one table or index at a time. (Because that
+        each <code class="literal">InnoDB</code> table is represented as a
+        clustered index, MySQL does not make a big distinction between
+        tables and indexes in this context.) The
+        <a class="link" href="information-schema-innodb-cmp-per-index-table.html" title="26.4.8 The INFORMATION_SCHEMA INNODB_CMP_PER_INDEX and INNODB_CMP_PER_INDEX_RESET Tables"><code class="literal">INNODB_CMP_PER_INDEX</code></a> table does
+        involve substantial overhead, so it is more suitable for
+        development servers, where you can compare the effects of
+        different <a class="link" href="glossary.html#glos_workload" title="workload">workloads</a>, data,
+        and compression settings in isolation. To guard against imposing
+        this monitoring overhead by accident, you must enable the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_cmp_per_index_enabled"><code class="literal">innodb_cmp_per_index_enabled</code></a>
+        configuration option before you can query the
+        <a class="link" href="information-schema-innodb-cmp-per-index-table.html" title="26.4.8 The INFORMATION_SCHEMA INNODB_CMP_PER_INDEX and INNODB_CMP_PER_INDEX_RESET Tables"><code class="literal">INNODB_CMP_PER_INDEX</code></a> table.
+      </p><p>
+        The key statistics to consider are the number of, and amount of
+        time spent performing, compression and uncompression operations.
+        Since MySQL splits <a class="link" href="glossary.html#glos_b_tree" title="B-tree">B-tree</a>
+        nodes when they are too full to contain the compressed data
+        following a modification, compare the number of
+        <span class="quote">“<span class="quote">successful</span>”</span> compression operations with the number
+        of such operations overall. Based on the information in the
+        <a class="link" href="information-schema-innodb-cmp-table.html" title="26.4.6 The INFORMATION_SCHEMA INNODB_CMP and INNODB_CMP_RESET Tables"><code class="literal">INNODB_CMP</code></a> and
+        <a class="link" href="information-schema-innodb-cmp-per-index-table.html" title="26.4.8 The INFORMATION_SCHEMA INNODB_CMP_PER_INDEX and INNODB_CMP_PER_INDEX_RESET Tables"><code class="literal">INNODB_CMP_PER_INDEX</code></a> tables and
+        overall application performance and hardware resource
+        utilization, you might make changes in your hardware
+        configuration, adjust the size of the buffer pool, choose a
+        different page size, or select a different set of tables to
+        compress.
+      </p><p>
+        If the amount of CPU time required for compressing and
+        uncompressing is high, changing to faster or multi-core CPUs can
+        help improve performance with the same data, application
+        workload and set of compressed tables. Increasing the size of
+        the buffer pool might also help performance, so that more
+        uncompressed pages can stay in memory, reducing the need to
+        uncompress pages that exist in memory only in compressed form.
+      </p><p>
+        A large number of compression operations overall (compared to
+        the number of <code class="literal">INSERT</code>,
+        <code class="literal">UPDATE</code> and <code class="literal">DELETE</code>
+        operations in your application and the size of the database)
+        could indicate that some of your compressed tables are being
+        updated too heavily for effective compression. If so, choose a
+        larger page size, or be more selective about which tables you
+        compress.
+      </p><p>
+        If the number of <span class="quote">“<span class="quote">successful</span>”</span> compression
+        operations (<code class="literal">COMPRESS_OPS_OK</code>) is a high
+        percentage of the total number of compression operations
+        (<code class="literal">COMPRESS_OPS</code>), then the system is likely
+        performing well. If the ratio is low, then MySQL is
+        reorganizing, recompressing, and splitting B-tree nodes more
+        often than is desirable. In this case, avoid compressing some
+        tables, or increase <code class="literal">KEY_BLOCK_SIZE</code> for some
+        of the compressed tables. You might turn off compression for
+        tables that cause the number of <span class="quote">“<span class="quote">compression
+        failures</span>”</span> in your application to be more than 1% or 2% of
+        the total. (Such a failure ratio might be acceptable during a
+        temporary operation such as a data load).
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-compression-tuning.html">Previous <span class="navHint"> Tuning Compression for InnoDB Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-table-compression.html">Up <span class="navHint"> InnoDB Table Compression </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-compression-internals.html">Next <span class="navHint"> How Compression Works for InnoDB Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,208 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2453"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.7.9%C2%A0NDB%20Cluster%20Backups%20With%20NDB%20Cluster%20Replication"></a><title>23.7.9&nbsp;NDB Cluster Backups With NDB Cluster Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-replication.html" title="23.7&nbsp;NDB Cluster Replication"/><link rel="prev" href="mysql-cluster-replication-failover.html" title="23.7.8&nbsp;Implementing Failover with NDB Cluster Replication"/><link rel="next" href="mysql-cluster-replication-auto-sync.html" title="23.7.9.1&nbsp;NDB Cluster Replication: Automating Synchronization of the Replica to the Source Binary Log"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-replication-backups.html#mysql-cluster-replication-backups">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-replication-failover.html">Previous <span class="navHint"> Implementing Failover with NDB Cluster Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-replication-auto-sync.html">Next <span class="navHint"> NDB Cluster Replication: Automating Synchronization of the Replica to
+        the Source Binary Log </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-replication-backups"></a>23.7.9&nbsp;NDB Cluster Backups With NDB Cluster Replication</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="mysql-cluster-replication-auto-sync.html">23.7.9.1 NDB Cluster Replication: Automating Synchronization of the Replica to
+        the Source Binary Log</a></span></li><li><span class="section"><a href="mysql-cluster-replication-pitr.html">23.7.9.2 Point-In-Time Recovery Using NDB Cluster Replication</a></span></li></ul></div><a id="idm45828803690688" class="indexterm"></a><a id="idm45828803689200" class="indexterm"></a><a id="idm45828803687744" class="indexterm"></a><a id="idm45828803686256" class="indexterm"></a><p>
+      This section discusses making backups and restoring from them
+      using NDB Cluster replication. We assume that the replication
+      servers have already been configured as covered previously (see
+      <a class="xref" href="mysql-cluster-replication-preparation.html" title="23.7.5&nbsp;Preparing the NDB Cluster for Replication">Section&nbsp;23.7.5, &ldquo;Preparing the NDB Cluster for Replication&rdquo;</a>, and the
+      sections immediately following). This having been done, the
+      procedure for making a backup and then restoring from it is as
+      follows:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          There are two different methods by which the backup may be
+          started.
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2454"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Method%20A."></a><strong>Method A.&nbsp;</strong>
+                This method requires that the cluster backup process was
+                previously enabled on the source server, prior to
+                starting the replication process. This can be done by
+                including the following line in a
+                <code class="literal">[mysql_cluster]</code> section in the
+                <code class="filename">my.cnf file</code>, where
+                <em class="replaceable"><code>management_host</code></em> is the IP
+                address or host name of the
+                <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> management server for
+                the source cluster, and <em class="replaceable"><code>port</code></em>
+                is the management server&#39;s port number:
+              </p><pre class="programlisting">ndb-connectstring=<em class="replaceable"><code>management_host</code></em>[:<em class="replaceable"><code>port</code></em>]
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+                The port number needs to be specified only if the
+                default port (1186) is not being used. See
+                <a class="xref" href="mysql-cluster-install-configuration.html" title="23.3.3&nbsp;Initial Configuration of NDB Cluster">Section&nbsp;23.3.3, &ldquo;Initial Configuration of NDB Cluster&rdquo;</a>,
+                for more information about ports and port allocation in
+                NDB Cluster.
+              </p></div><p>
+              <a id="idm45828803672256" class="indexterm"></a>
+
+              In this case, the backup can be started by executing this
+              statement on the replication source:
+            </p><pre class="programlisting">shell<em class="replaceable"><code>S</code></em>&gt; <strong class="userinput"><code>ndb_mgm -e &#34;START BACKUP&#34;</code></strong>
+</pre></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2455"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Method%20B."></a><strong>Method B.&nbsp;</strong>
+                If the <code class="filename">my.cnf</code> file does not specify
+                where to find the management host, you can start the
+                backup process by passing this information to the
+                <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> management client as
+                part of the <a class="link" href="mysql-cluster-backup-using-management-client.html" title="23.6.8.2&nbsp;Using The NDB Cluster Management Client to Create a Backup"><code class="literal">START
+                BACKUP</code></a> command. This can be done as shown
+                here, where <em class="replaceable"><code>management_host</code></em>
+                and <em class="replaceable"><code>port</code></em> are the host name
+                and port number of the management server:
+              </p><pre class="programlisting">shell<em class="replaceable"><code>S</code></em>&gt; <strong class="userinput"><code>ndb_mgm <em class="replaceable"><code>management_host</code></em>:<em class="replaceable"><code>port</code></em> -e &#34;START BACKUP&#34;</code></strong>
+</pre><p>
+              In our scenario as outlined earlier (see
+              <a class="xref" href="mysql-cluster-replication-preparation.html" title="23.7.5&nbsp;Preparing the NDB Cluster for Replication">Section&nbsp;23.7.5, &ldquo;Preparing the NDB Cluster for Replication&rdquo;</a>),
+              this would be executed as follows:
+            </p><pre class="programlisting">shell<em class="replaceable"><code>S</code></em>&gt; <strong class="userinput"><code>ndb_mgm rep-source:1186 -e &#34;START BACKUP&#34;</code></strong>
+</pre></li></ul></div></li><li class="listitem"><p>
+          Copy the cluster backup files to the replica that is being
+          brought on line. Each system running an
+          <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1&nbsp;ndbd &mdash; The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> process for the source cluster has
+          cluster backup files located on it, and
+          <span class="emphasis"><em>all</em></span> of these files must be copied to the
+          replica to ensure a successful restore. The backup files can
+          be copied into any directory on the computer where the
+          replica&#39;s management host resides, as long as the MySQL
+          and NDB binaries have read permissions in that directory. In
+          this case, we assume that these files have been copied into
+          the directory <code class="filename">/var/BACKUPS/BACKUP-1</code>.
+        </p><p>
+          While it is not necessary that the replica cluster have the
+          same number of data nodes as the source, it is highly
+          recommended this number be the same. It
+          <span class="emphasis"><em>is</em></span> necessary that the replication process
+          is prevented from starting when the replica server starts. You
+          can do this by starting the replica with the
+          <a class="link" href="replication-options-replica.html#option_mysqld_skip-slave-start"><code class="option">--skip-slave-start</code></a> option on
+          the command line, by including
+          <code class="literal">skip-slave-start</code> in the replica&#39;s
+          <code class="filename">my.cnf</code> file, or in NDB 8.0.24 or later,
+          by setting the
+          <a class="link" href="replication-options-replica.html#sysvar_skip_slave_start"><code class="literal">skip_slave_start</code></a> system
+          variable.
+        </p></li><li class="listitem"><p>
+          Create any databases on the replica cluster that are present
+          on the source cluster and that are to be replicated.
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            A <a class="link" href="create-database.html" title="13.1.12&nbsp;CREATE DATABASE Statement"><code class="literal">CREATE DATABASE</code></a> (or
+            <a class="link" href="create-database.html" title="13.1.12&nbsp;CREATE DATABASE Statement"><code class="literal">CREATE
+            SCHEMA</code></a>) statement corresponding to each database
+            to be replicated must be executed on each SQL node in the
+            replica cluster.
+          </p></div></li><li class="listitem"><p>
+          Reset the replica cluster using this statement in the
+          <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>RESET SLAVE;</code></strong>
+</pre><p>
+          In NDB 8.0.22 or later, you can also use this statement:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>RESET REPLICA;</code></strong>
+</pre></li><li class="listitem"><p>
+          You can now start the cluster restoration process on the
+          replica using the <a class="link" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23&nbsp;ndb_restore &mdash; Restore an NDB Cluster Backup"><span class="command"><strong>ndb_restore</strong></span></a> command for
+          each backup file in turn. For the first of these, it is
+          necessary to include the <code class="option">-m</code> option to restore
+          the cluster metadata, as shown here:
+        </p><pre class="programlisting">shell<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>ndb_restore -c <em class="replaceable"><code>replica_host</code></em>:<em class="replaceable"><code>port</code></em> -n <em class="replaceable"><code>node-id</code></em> \</code></strong>
+        <strong class="userinput"><code>-b <em class="replaceable"><code>backup-id</code></em> -m -r <em class="replaceable"><code>dir</code></em></code></strong>
+</pre><p>
+          <em class="replaceable"><code>dir</code></em> is the path to the directory
+          where the backup files have been placed on the replica. For
+          the <a class="link" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23&nbsp;ndb_restore &mdash; Restore an NDB Cluster Backup"><span class="command"><strong>ndb_restore</strong></span></a> commands corresponding to
+          the remaining backup files, the <code class="option">-m</code> option
+          should <span class="emphasis"><em>not</em></span> be used.
+        </p><p>
+          For restoring from a source cluster with four data nodes (as
+          shown in the figure in
+          <a class="xref" href="mysql-cluster-replication.html" title="23.7&nbsp;NDB Cluster Replication">Section&nbsp;23.7, &ldquo;NDB Cluster Replication&rdquo;</a>) where the backup
+          files have been copied to the directory
+          <code class="filename">/var/BACKUPS/BACKUP-1</code>, the proper
+          sequence of commands to be executed on the replica might look
+          like this:
+        </p><pre class="programlisting">shell<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>ndb_restore -c replica-host:1186 -n 2 -b 1 -m \</code></strong>
+        <strong class="userinput"><code>-r ./var/BACKUPS/BACKUP-1</code></strong>
+shell<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>ndb_restore -c replica-host:1186 -n 3 -b 1 \</code></strong>
+        <strong class="userinput"><code>-r ./var/BACKUPS/BACKUP-1</code></strong>
+shell<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>ndb_restore -c replica-host:1186 -n 4 -b 1 \</code></strong>
+        <strong class="userinput"><code>-r ./var/BACKUPS/BACKUP-1</code></strong>
+shell<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>ndb_restore -c replica-host:1186 -n 5 -b 1 -e \</code></strong>
+        <strong class="userinput"><code>-r ./var/BACKUPS/BACKUP-1</code></strong>
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            The <code class="option">-e</code> (or
+            <a class="link" href="mysql-cluster-programs-ndb-restore.html#option_ndb_restore_restore-epoch"><code class="option">--restore-epoch</code></a>) option
+            in the final invocation of <a class="link" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23&nbsp;ndb_restore &mdash; Restore an NDB Cluster Backup"><span class="command"><strong>ndb_restore</strong></span></a> in
+            this example is required to make sure that the epoch is
+            written to the replica&#39;s
+            <code class="literal">mysql.ndb_apply_status</code> table. Without
+            this information, the replica cannot synchronize properly
+            with the source. (See
+            <a class="xref" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23&nbsp;ndb_restore &mdash; Restore an NDB Cluster Backup">Section&nbsp;23.5.23, &ldquo;ndb_restore &mdash; Restore an NDB Cluster Backup&rdquo;</a>.)
+          </p></div></li><li class="listitem"><p>
+          Now you need to obtain the most recent epoch from the
+          <code class="literal">ndb_apply_status</code> table on the replica (as
+          discussed in
+          <a class="xref" href="mysql-cluster-replication-failover.html" title="23.7.8&nbsp;Implementing Failover with NDB Cluster Replication">Section&nbsp;23.7.8, &ldquo;Implementing Failover with NDB Cluster Replication&rdquo;</a>):
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>SELECT @latest:=MAX(epoch)</code></strong>
+        <strong class="userinput"><code>FROM mysql.ndb_apply_status;</code></strong>
+</pre></li><li class="listitem"><p>
+          Using <code class="literal">@latest</code> as the epoch value obtained
+          in the previous step, you can obtain the correct starting
+          position <code class="literal">@pos</code> in the correct binary log
+          file <code class="literal">@file</code> from the
+          <code class="literal">mysql.ndb_binlog_index</code> table on the source.
+          The query shown here gets these from the
+          <code class="literal">Position</code> and <code class="literal">File</code>
+          columns from the last epoch applied before the logical restore
+          position:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>S</code></em>&gt; <strong class="userinput"><code>SELECT</code></strong>
+     -&gt;     <strong class="userinput"><code>@file:=SUBSTRING_INDEX(File, &#39;/&#39;, -1),</code></strong>
+     -&gt;     <strong class="userinput"><code>@pos:=Position</code></strong>
+     -&gt; <strong class="userinput"><code>FROM mysql.ndb_binlog_index</code></strong>
+     -&gt; <strong class="userinput"><code>WHERE epoch &gt; @latest</code></strong>
+     -&gt; <strong class="userinput"><code>ORDER BY epoch ASC LIMIT 1;</code></strong>
+</pre><p>
+          In the event that there is currently no replication traffic,
+          you can get similar information by running
+          <a class="link" href="show-master-status.html" title="13.7.7.23&nbsp;SHOW MASTER STATUS Statement"><code class="literal">SHOW MASTER STATUS</code></a> on the
+          source and using the value shown in the
+          <code class="literal">Position</code> column of the output for the file
+          whose name has the suffix with the greatest value for all
+          files shown in the <code class="literal">File</code> column. In this
+          case, you must determine which file this is and supply the
+          name in the next step manually or by parsing the output with a
+          script.
+        </p></li><li class="listitem"><p>
+          Using the values obtained in the previous step, you can now
+          issue the appropriate in the replica&#39;s
+          <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client. In NDB 8.0.23 and later, use
+          the following <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+          TO</code></a> statement:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>CHANGE REPLICATION SOURCE TO</code></strong>
+     -&gt;     <strong class="userinput"><code>SOURCE_LOG_FILE=&#39;@file&#39;,</code></strong>
+     -&gt;     <strong class="userinput"><code>SOURCE_LOG_POS=@pos;</code></strong>
+</pre><p>
+          Prior to NDB 8.0.23, you can must use the
+          <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement
+          shown here:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>CHANGE MASTER TO</code></strong>
+     -&gt;     <strong class="userinput"><code>MASTER_LOG_FILE=&#39;@file&#39;,</code></strong>
+     -&gt;     <strong class="userinput"><code>MASTER_LOG_POS=@pos;</code></strong>
+</pre></li><li class="listitem"><p>
+          Now that the replica knows from what point in which binary log
+          file to start reading data from the source, you can cause the
+          replica to begin replicating with this statement:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>START SLAVE;</code></strong>
+</pre><p>
+          Beginning with NDB 8.0.22, you can also use the following
+          statement:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>START REPLICA;</code></strong></pre></li></ol></div><p>
+      To perform a backup and restore on a second replication channel,
+      it is necessary only to repeat these steps, substituting the host
+      names and IDs of the secondary source and replica for those of the
+      primary source and replica servers where appropriate, and running
+      the preceding statements on them.
+    </p><p>
+      For additional information on performing Cluster backups and
+      restoring Cluster from backups, see
+      <a class="xref" href="mysql-cluster-backup.html" title="23.6.8&nbsp;Online Backup of NDB Cluster">Section&nbsp;23.6.8, &ldquo;Online Backup of NDB Cluster&rdquo;</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-replication-failover.html">Previous <span class="navHint"> Implementing Failover with NDB Cluster Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-replication-auto-sync.html">Next <span class="navHint"> NDB Cluster Replication: Automating Synchronization of the Replica to
+        the Source Binary Log </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

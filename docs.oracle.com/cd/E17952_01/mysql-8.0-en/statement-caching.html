@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.10.3 Caching of Prepared Statements and Stored Programs</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="buffering-caching.html" title="8.10 Buffering and Caching" /><link rel="prev" href="key-cache-restructuring.html" title="8.10.2.6 Restructuring a Key Cache" /><link rel="next" href="locking-issues.html" title="8.11 Optimizing Locking Operations" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="statement-caching.html#statement-caching">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="key-cache-restructuring.html">Previous <span class="navHint"> Restructuring a Key Cache </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="buffering-caching.html">Up <span class="navHint"> Buffering and Caching </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="locking-issues.html">Next <span class="navHint"> Optimizing Locking Operations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="statement-caching"></a>8.10.3 Caching of Prepared Statements and Stored Programs</h3></div></div></div><a id="idm45828949765744" class="indexterm"></a><a id="idm45828949764288" class="indexterm"></a><p>
+        For certain statements that a client might execute multiple
+        times during a session, the server converts the statement to an
+        internal structure and caches that structure to be used during
+        execution. Caching enables the server to perform more
+        efficiently because it avoids the overhead of reconverting the
+        statement should it be needed again during the session.
+        Conversion and caching occurs for these statements:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Prepared statements, both those processed at the SQL level
+            (using the <a class="link" href="prepare.html" title="13.5.1 PREPARE Statement"><code class="literal">PREPARE</code></a> statement)
+            and those processed using the binary client/server protocol
+            (using the
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-stmt-prepare.html" target="_top"><code class="literal">mysql_stmt_prepare()</code></a> C API
+            function). The
+            <a class="link" href="server-system-variables.html#sysvar_max_prepared_stmt_count"><code class="literal">max_prepared_stmt_count</code></a>
+            system variable controls the total number of statements the
+            server caches. (The sum of the number of prepared statements
+            across all sessions.)
+          </p></li><li class="listitem"><p>
+            Stored programs (stored procedures and functions, triggers,
+            and events). In this case, the server converts and caches
+            the entire program body. The
+            <a class="link" href="server-system-variables.html#sysvar_stored_program_cache"><code class="literal">stored_program_cache</code></a> system
+            variable indicates the approximate number of stored programs
+            the server caches per session.
+          </p></li></ul></div><p>
+        The server maintains caches for prepared statements and stored
+        programs on a per-session basis. Statements cached for one
+        session are not accessible to other sessions. When a session
+        ends, the server discards any statements cached for it.
+      </p><p>
+        When the server uses a cached internal statement structure, it
+        must take care that the structure does not go out of date.
+        Metadata changes can occur for an object used by the statement,
+        causing a mismatch between the current object definition and the
+        definition as represented in the internal statement structure.
+        Metadata changes occur for DDL statements such as those that
+        create, drop, alter, rename, or truncate tables, or that
+        analyze, optimize, or repair tables. Table content changes (for
+        example, with <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> or
+        <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>) do not change metadata,
+        nor do <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements.
+      </p><p>
+        Here is an illustration of the problem. Suppose that a client
+        prepares this statement:
+      </p><pre class="programlisting">PREPARE s1 FROM 'SELECT * FROM t1';
+</pre><p>
+        The <code class="literal">SELECT *</code> expands in the internal
+        structure to the list of columns in the table. If the set of
+        columns in the table is modified with <code class="literal">ALTER
+        TABLE</code>, the prepared statement goes out of date. If the
+        server does not detect this change the next time the client
+        executes <code class="literal">s1</code>, the prepared statement returns
+        incorrect results.
+      </p><p>
+        To avoid problems caused by metadata changes to tables or views
+        referred to by the prepared statement, the server detects these
+        changes and automatically reprepares the statement when it is
+        next executed. That is, the server reparses the statement and
+        rebuilds the internal structure. Reparsing also occurs after
+        referenced tables or views are flushed from the table definition
+        cache, either implicitly to make room for new entries in the
+        cache, or explicitly due to <a class="link" href="flush.html#flush-tables"><code class="literal">FLUSH
+        TABLES</code></a>.
+      </p><p>
+        Similarly, if changes occur to objects used by a stored program,
+        the server reparses affected statements within the program.
+      </p><p>
+        The server also detects metadata changes for objects in
+        expressions. These might be used in statements specific to
+        stored programs, such as <code class="literal">DECLARE CURSOR</code> or
+        flow-control statements such as
+        <a class="link" href="if.html" title="13.6.5.2 IF Statement"><code class="literal">IF</code></a>,
+        <a class="link" href="case.html" title="13.6.5.1 CASE Statement"><code class="literal">CASE</code></a>, and
+        <a class="link" href="return.html" title="13.6.5.7 RETURN Statement"><code class="literal">RETURN</code></a>.
+      </p><p>
+        To avoid reparsing entire stored programs, the server reparses
+        affected statements or expressions within a program only as
+        needed. Examples:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Suppose that metadata for a table or view is changed.
+            Reparsing occurs for a <code class="literal">SELECT *</code> within
+            the program that accesses the table or view, but not for a
+            <code class="literal">SELECT *</code> that does not access the table
+            or view.
+          </p></li><li class="listitem"><p>
+            When a statement is affected, the server reparses it only
+            partially if possible. Consider this
+            <a class="link" href="case.html" title="13.6.5.1 CASE Statement"><code class="literal">CASE</code></a> statement:
+          </p><pre class="programlisting">CASE <em class="replaceable"><code>case_expr</code></em>
+  WHEN <em class="replaceable"><code>when_expr1</code></em> ...
+  WHEN <em class="replaceable"><code>when_expr2</code></em> ...
+  WHEN <em class="replaceable"><code>when_expr3</code></em> ...
+  ...
+END CASE
+</pre><p>
+            If a metadata change affects only <code class="literal">WHEN
+            <em class="replaceable"><code>when_expr3</code></em></code>, that
+            expression is reparsed. <em class="replaceable"><code>case_expr</code></em>
+            and the other <code class="literal">WHEN</code> expressions are not
+            reparsed.
+          </p></li></ul></div><p>
+        Reparsing uses the default database and SQL mode that were in
+        effect for the original conversion to internal form.
+      </p><p>
+        The server attempts reparsing up to three times. An error occurs
+        if all attempts fail.
+      </p><p>
+        Reparsing is automatic, but to the extent that it occurs,
+        diminishes prepared statement and stored program performance.
+      </p><p>
+        For prepared statements, the
+        <a class="link" href="server-status-variables.html#statvar_Com_xxx"><code class="literal">Com_stmt_reprepare</code></a>
+        status variable tracks the number of repreparations.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="key-cache-restructuring.html">Previous <span class="navHint"> Restructuring a Key Cache </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="buffering-caching.html">Up <span class="navHint"> Buffering and Caching </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="locking-issues.html">Next <span class="navHint"> Optimizing Locking Operations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

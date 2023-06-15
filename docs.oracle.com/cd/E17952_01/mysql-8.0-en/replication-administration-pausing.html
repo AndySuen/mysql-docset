@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.1.7.2 Pausing Replication on the Replica</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-administration.html" title="17.1.7 Common Replication Administration Tasks" /><link rel="prev" href="replication-administration-status.html" title="17.1.7.1 Checking Replication Status" /><link rel="next" href="replication-administration-skip.html" title="17.1.7.3 Skipping Transactions" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-administration-pausing.html#replication-administration-pausing">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-administration-status.html">Previous <span class="navHint"> Checking Replication Status </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-administration.html">Up <span class="navHint"> Common Replication Administration Tasks </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-administration-skip.html">Next <span class="navHint"> Skipping Transactions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-administration-pausing"></a>17.1.7.2 Pausing Replication on the Replica</h4></div></div></div><p>
+        You can stop and start replication on the replica using the
+        <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+        REPLICA</code></a> and
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+        REPLICA</code></a> statements. From MySQL 8.0.22,
+        <a class="link" href="stop-slave.html" title="13.4.2.11 STOP SLAVE Statement"><code class="literal">STOP SLAVE</code></a> and
+        <a class="link" href="start-slave.html" title="13.4.2.9 START SLAVE Statement"><code class="literal">START SLAVE</code></a> are deprecated, and
+        <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP REPLICA</code></a> and
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START REPLICA</code></a> are available to
+        use instead.
+      </p><p>
+        To stop processing of the binary log from the source, use
+        <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+        REPLICA</code></a>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>STOP SLAVE;</code></strong>
+Or from MySQL 8.0.22:
+mysql&gt; <strong class="userinput"><code>STOP REPLICA;</code></strong>
+</pre><p>
+        When replication is stopped, the replication I/O (receiver)
+        thread stops reading events from the source binary log and
+        writing them to the relay log, and the SQL thread stops reading
+        events from the relay log and executing them. You can pause the
+        I/O (receiver) or SQL (applier) thread individually by
+        specifying the thread type:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>STOP SLAVE IO_THREAD;</code></strong>
+mysql&gt; <strong class="userinput"><code>STOP SLAVE SQL_THREAD;</code></strong>
+Or from MySQL 8.0.22:
+mysql&gt; <strong class="userinput"><code>STOP REPLICA IO_THREAD;</code></strong>
+mysql&gt; <strong class="userinput"><code>STOP REPLICA SQL_THREAD;</code></strong>
+</pre><p>
+        To start execution again, use the
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+        REPLICA</code></a> statement:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>START SLAVE;</code></strong>
+Or from MySQL 8.0.22:
+mysql&gt; <strong class="userinput"><code>START REPLICA;</code></strong>
+</pre><p>
+        To start a particular thread, specify the thread type:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>START SLAVE IO_THREAD;</code></strong>
+mysql&gt; <strong class="userinput"><code>START SLAVE SQL_THREAD;</code></strong>
+Or from MySQL 8.0.22:
+mysql&gt; <strong class="userinput"><code>START REPLICA IO_THREAD;</code></strong>
+mysql&gt; <strong class="userinput"><code>START REPLICA SQL_THREAD;</code></strong>
+</pre><p>
+        For a replica that performs updates only by processing events
+        from the source, stopping only the SQL thread can be useful if
+        you want to perform a backup or other task. The I/O (receiver)
+        thread continues to read events from the source but they are not
+        executed. This makes it easier for the replica to catch up when
+        you restart the SQL (applier) thread.
+      </p><p>
+        Stopping only the receiver thread enables the events in the
+        relay log to be executed by the applier thread up to the point
+        where the relay log ends. This can be useful when you want to
+        pause execution to catch up with events already received from
+        the source, when you want to perform administration on the
+        replica but also ensure that it has processed all updates to a
+        specific point. This method can also be used to pause event
+        receipt on the replica while you conduct administration on the
+        source. Stopping the receiver thread but permitting the applier
+        thread to run helps ensure that there is not a massive backlog
+        of events to be executed when replication is started again.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-administration-status.html">Previous <span class="navHint"> Checking Replication Status </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-administration.html">Up <span class="navHint"> Common Replication Administration Tasks </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-administration-skip.html">Next <span class="navHint"> Skipping Transactions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

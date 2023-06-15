@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.7.2 General Requirements for NDB Cluster Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-replication.html" title="23.7 NDB Cluster Replication" /><link rel="prev" href="mysql-cluster-replication-abbreviations.html" title="23.7.1 NDB Cluster Replication: Abbreviations and Symbols" /><link rel="next" href="mysql-cluster-replication-issues.html" title="23.7.3 Known Issues in NDB Cluster Replication" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-replication-general.html#mysql-cluster-replication-general">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-replication-abbreviations.html">Previous <span class="navHint"> NDB Cluster Replication: Abbreviations and Symbols </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-replication-issues.html">Next <span class="navHint"> Known Issues in NDB Cluster Replication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-replication-general"></a>23.7.2 General Requirements for NDB Cluster Replication</h3></div></div></div><a id="idm45828804601584" class="indexterm"></a><a id="idm45828804600096" class="indexterm"></a><p>
+      A replication channel requires two MySQL servers acting as
+      replication servers (one each for the source and replica). For
+      example, this means that in the case of a replication setup with
+      two replication channels (to provide an extra channel for
+      redundancy), there should be a total of four replication nodes,
+      two per cluster.
+    </p><p>
+      Replication of an NDB Cluster as described in this section and
+      those following is dependent on row-based replication. This means
+      that the replication source MySQL server must be running with
+      <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="option">--binlog-format=ROW</code></a> or
+      <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="option">--binlog-format=MIXED</code></a>, as described
+      in <a class="xref" href="mysql-cluster-replication-starting.html" title="23.7.6 Starting NDB Cluster Replication (Single Replication Channel)">Section 23.7.6, “Starting NDB Cluster Replication (Single Replication Channel)”</a>. For
+      general information about row-based replication, see
+      <a class="xref" href="replication-formats.html" title="17.2.1 Replication Formats">Section 17.2.1, “Replication Formats”</a>.
+    </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        If you attempt to use NDB Cluster Replication with
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="option">--binlog-format=STATEMENT</code></a>,
+        replication fails to work properly because the
+        <code class="literal">ndb_binlog_index</code> table on the source cluster
+        and the <code class="literal">epoch</code> column of the
+        <code class="literal">ndb_apply_status</code> table on the replica cluster
+        are not updated (see
+        <a class="xref" href="mysql-cluster-replication-schema.html" title="23.7.4 NDB Cluster Replication Schema and Tables">Section 23.7.4, “NDB Cluster Replication Schema and Tables”</a>). Instead,
+        only updates on the MySQL server acting as the replication
+        source propagate to the replica, and no updates from any other
+        SQL nodes in the source cluster are replicated.
+      </p><p>
+        The default value for the
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="option">--binlog-format</code></a> option is
+        <code class="literal">MIXED</code>.
+      </p></div><p>
+      Each MySQL server used for replication in either cluster must be
+      uniquely identified among all the MySQL replication servers
+      participating in either cluster (you cannot have replication
+      servers on both the source and replica clusters sharing the same
+      ID). This can be done by starting each SQL node using the
+      <code class="option">--server-id=<em class="replaceable"><code>id</code></em></code> option,
+      where <em class="replaceable"><code>id</code></em> is a unique integer. Although
+      it is not strictly necessary, we assume for purposes of this
+      discussion that all NDB Cluster binaries are of the same release
+      version.
+    </p><p>
+      It is generally true in MySQL Replication that both MySQL servers
+      (<a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> processes) involved must be compatible
+      with one another with respect to both the version of the
+      replication protocol used and the SQL feature sets which they
+      support (see <a class="xref" href="replication-compatibility.html" title="17.5.2 Replication Compatibility Between MySQL Versions">Section 17.5.2, “Replication Compatibility Between MySQL Versions”</a>). It is
+      due to such differences between the binaries in the NDB Cluster
+      and MySQL Server 8.0 distributions that NDB Cluster
+      Replication has the additional requirement that both
+      <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> binaries come from an NDB Cluster
+      distribution. The simplest and easiest way to assure that the
+      <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> servers are compatible is to use the
+      same NDB Cluster distribution for all source and replica
+      <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> binaries.
+    </p><p>
+      We assume that the replica server or cluster is dedicated to
+      replication of the source cluster, and that no other data is being
+      stored on it.
+    </p><a id="idm45828804577488" class="indexterm"></a><a id="idm45828804575984" class="indexterm"></a><p>
+      All <code class="literal">NDB</code> tables being replicated must be created
+      using a MySQL server and client. Tables and other database objects
+      created using the NDB API (with, for example,
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-dictionary.html#ndb-dictionary-createtable" target="_top"><code class="literal">Dictionary::createTable()</code></a>) are
+      not visible to a MySQL server and so are not replicated. Updates
+      by NDB API applications to existing tables that were created using
+      a MySQL server can be replicated.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        It is possible to replicate an NDB Cluster using statement-based
+        replication. However, in this case, the following restrictions
+        apply:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            All updates to data rows on the cluster acting as the source
+            must be directed to a single MySQL server.
+          </p></li><li class="listitem"><p>
+            It is not possible to replicate a cluster using multiple
+            simultaneous MySQL replication processes.
+          </p></li><li class="listitem"><p>
+            Only changes made at the SQL level are replicated.
+          </p></li></ul></div><p>
+        These are in addition to the other limitations of
+        statement-based replication as opposed to row-based replication;
+        see <a class="xref" href="replication-sbr-rbr.html" title="17.2.1.1 Advantages and Disadvantages of Statement-Based and Row-Based Replication">Section 17.2.1.1, “Advantages and Disadvantages of Statement-Based and Row-Based
+        Replication”</a>, for more specific
+        information concerning the differences between the two
+        replication formats.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-replication-abbreviations.html">Previous <span class="navHint"> NDB Cluster Replication: Abbreviations and Symbols </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-replication-issues.html">Next <span class="navHint"> Known Issues in NDB Cluster Replication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

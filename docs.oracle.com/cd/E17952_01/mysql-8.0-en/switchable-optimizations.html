@@ -1,0 +1,825 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.9.2 Switchable Optimizations</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="controlling-optimizer.html" title="8.9 Controlling the Query Optimizer" /><link rel="prev" href="controlling-query-plan-evaluation.html" title="8.9.1 Controlling Query Plan Evaluation" /><link rel="next" href="optimizer-hints.html" title="8.9.3 Optimizer Hints" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="switchable-optimizations.html#switchable-optimizations">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="controlling-query-plan-evaluation.html">Previous <span class="navHint"> Controlling Query Plan Evaluation </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="controlling-optimizer.html">Up <span class="navHint"> Controlling the Query Optimizer </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="optimizer-hints.html">Next <span class="navHint"> Optimizer Hints </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="switchable-optimizations"></a>8.9.2 Switchable Optimizations</h3></div></div></div><a id="idm45828951308944" class="indexterm"></a><a id="idm45828951307856" class="indexterm"></a><p>
+        The <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> system
+        variable enables control over optimizer behavior. Its value is a
+        set of flags, each of which has a value of <code class="literal">on</code>
+        or <code class="literal">off</code> to indicate whether the corresponding
+        optimizer behavior is enabled or disabled. This variable has
+        global and session values and can be changed at runtime. The
+        global default can be set at server startup.
+      </p><p>
+        To see the current set of optimizer flags, select the variable
+        value:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT @@optimizer_switch\G</code></strong>
+*************************** 1. row ***************************
+@@optimizer_switch: index_merge=on,index_merge_union=on,
+                    index_merge_sort_union=on,index_merge_intersection=on,
+                    engine_condition_pushdown=on,index_condition_pushdown=on,
+                    mrr=on,mrr_cost_based=on,block_nested_loop=on,
+                    batched_key_access=off,materialization=on,semijoin=on,
+                    loosescan=on,firstmatch=on,duplicateweedout=on,
+                    subquery_materialization_cost_based=on,
+                    use_index_extensions=on,condition_fanout_filter=on,
+                    derived_merge=on,use_invisible_indexes=off,skip_scan=on,
+                    hash_join=on,subquery_to_derived=off,
+                    prefer_ordering_index=on,hypergraph_optimizer=off,
+                    derived_condition_pushdown=on
+1 row in set (0.00 sec)
+</pre><p>
+        To change the value of
+        <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a>, assign a
+        value consisting of a comma-separated list of one or more
+        commands:
+      </p><pre class="programlisting">SET [GLOBAL|SESSION] optimizer_switch='<em class="replaceable"><code>command</code></em>[,<em class="replaceable"><code>command</code></em>]...';
+</pre><p>
+        Each <em class="replaceable"><code>command</code></em> value should have one of
+        the forms shown in the following table.
+      </p><div class="informaltable"><table summary="The syntax of the command value for SET optimizer_switch commands."><col style="width: 25%" /><col style="width: 75%" /><thead><tr>
+            <th>Command Syntax</th>
+            <th>Meaning</th>
+          </tr></thead><tbody><tr>
+            <td><code class="literal">default</code></td>
+            <td>Reset every optimization to its default value</td>
+          </tr><tr>
+            <td><code class="literal"><em class="replaceable"><code>opt_name</code></em>=default</code></td>
+            <td>Set the named optimization to its default value</td>
+          </tr><tr>
+            <td><code class="literal"><em class="replaceable"><code>opt_name</code></em>=off</code></td>
+            <td>Disable the named optimization</td>
+          </tr><tr>
+            <td><code class="literal"><em class="replaceable"><code>opt_name</code></em>=on</code></td>
+            <td>Enable the named optimization</td>
+          </tr></tbody></table></div><p>
+        The order of the commands in the value does not matter, although
+        the <code class="literal">default</code> command is executed first if
+        present. Setting an <em class="replaceable"><code>opt_name</code></em> flag to
+        <code class="literal">default</code> sets it to whichever of
+        <code class="literal">on</code> or <code class="literal">off</code> is its default
+        value. Specifying any given <em class="replaceable"><code>opt_name</code></em>
+        more than once in the value is not permitted and causes an
+        error. Any errors in the value cause the assignment to fail with
+        an error, leaving the value of
+        <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> unchanged.
+      </p><p>
+        The following list describes the permissible
+        <em class="replaceable"><code>opt_name</code></em> flag names, grouped by
+        optimization strategy:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Batched Key Access Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_batched-key-access"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_batched-key-access"><code class="literal">batched_key_access</code></a>
+                (default <code class="literal">off</code>)
+              </p><p>
+                Controls use of BKA join algorithm.
+              </p></li></ul></div><p>
+            For <a class="link" href="switchable-optimizations.html#optflag_batched-key-access"><code class="literal">batched_key_access</code></a> to
+            have any effect when set to <code class="literal">on</code>, the
+            <a class="link" href="switchable-optimizations.html#optflag_mrr"><code class="literal">mrr</code></a> flag must also be
+            <code class="literal">on</code>. Currently, the cost estimation for
+            MRR is too pessimistic. Hence, it is also necessary for
+            <a class="link" href="switchable-optimizations.html#optflag_mrr-cost-based"><code class="literal">mrr_cost_based</code></a> to be
+            <code class="literal">off</code> for BKA to be used.
+          </p><p>
+            For more information, see
+            <a class="xref" href="bnl-bka-optimization.html" title="8.2.1.12 Block Nested-Loop and Batched Key Access Joins">Section 8.2.1.12, “Block Nested-Loop and Batched Key Access Joins”</a>.
+          </p></li><li class="listitem"><p>
+            Block Nested-Loop Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_block-nested-loop"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_block-nested-loop"><code class="literal">block_nested_loop</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls use of BNL join algorithm. In MySQL 8.0.18 and
+                later, this also controls use of hash joins, as do the
+                <a class="link" href="optimizer-hints.html#optimizer-hints-table-level" title="Table-Level Optimizer Hints"><code class="literal">BNL</code></a> and
+                <a class="link" href="optimizer-hints.html#optimizer-hints-table-level" title="Table-Level Optimizer Hints"><code class="literal">NO_BNL</code></a> optimizer
+                hints. In MySQL 8.0.20 and later, block nested loop
+                support is removed from the MySQL server, and this flag
+                controls the use of hash joins only, as do the
+                referenced optimizer hints.
+              </p></li></ul></div><p>
+            For more information, see
+            <a class="xref" href="bnl-bka-optimization.html" title="8.2.1.12 Block Nested-Loop and Batched Key Access Joins">Section 8.2.1.12, “Block Nested-Loop and Batched Key Access Joins”</a>.
+          </p></li><li class="listitem"><p>
+            Condition Filtering Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_condition-fanout-filter"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_condition-fanout-filter"><code class="literal">condition_fanout_filter</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls use of condition filtering.
+              </p></li></ul></div><p>
+            For more information, see
+            <a class="xref" href="condition-filtering.html" title="8.2.1.13 Condition Filtering">Section 8.2.1.13, “Condition Filtering”</a>.
+          </p></li><li class="listitem"><p>
+            Derived Condition Pushdown Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_derived-condition-pushdown"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_derived-condition-pushdown"><code class="literal">derived_condition_pushdown</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls derived condition pushdown.
+              </p></li></ul></div><p>
+            For more information, see
+            <a class="xref" href="derived-condition-pushdown-optimization.html" title="8.2.2.5 Derived Condition Pushdown Optimization">Section 8.2.2.5, “Derived Condition Pushdown Optimization”</a>
+          </p></li><li class="listitem"><p>
+            Derived Table Merging Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_derived-merge"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_derived-merge"><code class="literal">derived_merge</code></a> (default
+                <code class="literal">on</code>)
+              </p><p>
+                Controls merging of derived tables and views into outer
+                query block.
+              </p></li></ul></div><p>
+            The <a class="link" href="switchable-optimizations.html#optflag_derived-merge"><code class="literal">derived_merge</code></a> flag
+            controls whether the optimizer attempts to merge derived
+            tables, view references, and common table expressions into
+            the outer query block, assuming that no other rule prevents
+            merging; for example, an <code class="literal">ALGORITHM</code>
+            directive for a view takes precedence over the
+            <a class="link" href="switchable-optimizations.html#optflag_derived-merge"><code class="literal">derived_merge</code></a> setting. By
+            default, the flag is <code class="literal">on</code> to enable
+            merging.
+          </p><p>
+            For more information, see
+            <a class="xref" href="derived-table-optimization.html" title="8.2.2.4 Optimizing Derived Tables, View References, and Common Table Expressions with Merging or Materialization">Section 8.2.2.4, “Optimizing Derived Tables, View References, and Common Table Expressions
+          with Merging or Materialization”</a>.
+          </p></li><li class="listitem"><p>
+            Engine Condition Pushdown Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_engine-condition-pushdown"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_engine-condition-pushdown"><code class="literal">engine_condition_pushdown</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls engine condition pushdown.
+              </p></li></ul></div><p>
+            For more information, see
+            <a class="xref" href="engine-condition-pushdown-optimization.html" title="8.2.1.5 Engine Condition Pushdown Optimization">Section 8.2.1.5, “Engine Condition Pushdown Optimization”</a>.
+          </p></li><li class="listitem"><p>
+            Hash Join Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_hash-join"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_hash-join"><code class="literal">hash_join</code></a> (default
+                <code class="literal">on</code>)
+              </p><p>
+                Controls hash joins in MySQL 8.0.18 only, and has no
+                effect in any subsequent version. In MySQL 8.0.19 and
+                later, to control hash join usage, use the
+                <a class="link" href="switchable-optimizations.html#optflag_block-nested-loop"><code class="literal">block_nested_loop</code></a>
+                flag, instead.
+              </p></li></ul></div><p>
+            For more information, see <a class="xref" href="hash-joins.html" title="8.2.1.4 Hash Join Optimization">Section 8.2.1.4, “Hash Join Optimization”</a>.
+          </p></li><li class="listitem"><p>
+            Index Condition Pushdown Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_index-condition-pushdown"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_index-condition-pushdown"><code class="literal">index_condition_pushdown</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls index condition pushdown.
+              </p></li></ul></div><p>
+            For more information, see
+            <a class="xref" href="index-condition-pushdown-optimization.html" title="8.2.1.6 Index Condition Pushdown Optimization">Section 8.2.1.6, “Index Condition Pushdown Optimization”</a>.
+          </p></li><li class="listitem"><p>
+            Index Extensions Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_use-index-extensions"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_use-index-extensions"><code class="literal">use_index_extensions</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls use of index extensions.
+              </p></li></ul></div><p>
+            For more information, see
+            <a class="xref" href="index-extensions.html" title="8.3.10 Use of Index Extensions">Section 8.3.10, “Use of Index Extensions”</a>.
+          </p></li><li class="listitem"><p>
+            Index Merge Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_index-merge"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_index-merge"><code class="literal">index_merge</code></a> (default
+                <code class="literal">on</code>)
+              </p><p>
+                Controls all Index Merge optimizations.
+              </p></li><li class="listitem"><p><a id="optflag_index-merge-intersection"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_index-merge-intersection"><code class="literal">index_merge_intersection</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls the Index Merge Intersection Access
+                optimization.
+              </p></li><li class="listitem"><p><a id="optflag_index-merge-sort-union"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_index-merge-sort-union"><code class="literal">index_merge_sort_union</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls the Index Merge Sort-Union Access optimization.
+              </p></li><li class="listitem"><p><a id="optflag_index-merge-union"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_index-merge-union"><code class="literal">index_merge_union</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls the Index Merge Union Access optimization.
+              </p></li></ul></div><p>
+            For more information, see
+            <a class="xref" href="index-merge-optimization.html" title="8.2.1.3 Index Merge Optimization">Section 8.2.1.3, “Index Merge Optimization”</a>.
+          </p></li><li class="listitem"><p>
+            Index Visibility Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_use-invisible-indexes"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_use-invisible-indexes"><code class="literal">use_invisible_indexes</code></a>
+                (default <code class="literal">off</code>)
+              </p><p>
+                Controls use of invisible indexes.
+              </p></li></ul></div><p>
+            For more information, see
+            <a class="xref" href="invisible-indexes.html" title="8.3.12 Invisible Indexes">Section 8.3.12, “Invisible Indexes”</a>.
+          </p></li><li class="listitem"><p>
+            Limit Optimization Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_prefer-ordering-index"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_prefer-ordering-index"><code class="literal">prefer_ordering_index</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls whether, in the case of a query having an
+                <code class="literal">ORDER BY</code> or <code class="literal">GROUP
+                BY</code> with a <code class="literal">LIMIT</code> clause, the
+                optimizer tries to use an ordered index instead of an
+                unordered index, a filesort, or some other optimization.
+                This optimization is performed by default whenever the
+                optimizer determines that using it would allow for
+                faster execution of the query.
+              </p><p>
+                Because the algorithm that makes this determination
+                cannot handle every conceivable case (due in part to the
+                assumption that the distribution of data is always more
+                or less uniform), there are cases in which this
+                optimization may not be desirable. Prior to MySQL
+                8.0.21, it was not possible to disable this
+                optimization, but in MySQL 8.0.21 and later, while it
+                remains the default behavior, it can be disabled by
+                setting the
+                <a class="link" href="switchable-optimizations.html#optflag_prefer-ordering-index"><code class="literal">prefer_ordering_index</code></a>
+                flag to <code class="literal">off</code>.
+              </p></li></ul></div><p>
+            For more information and examples, see
+            <a class="xref" href="limit-optimization.html" title="8.2.1.19 LIMIT Query Optimization">Section 8.2.1.19, “LIMIT Query Optimization”</a>.
+          </p></li><li class="listitem"><p>
+            Multi-Range Read Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_mrr"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_mrr"><code class="literal">mrr</code></a> (default
+                <code class="literal">on</code>)
+              </p><p>
+                Controls the Multi-Range Read strategy.
+              </p></li><li class="listitem"><p><a id="optflag_mrr-cost-based"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_mrr-cost-based"><code class="literal">mrr_cost_based</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls use of cost-based MRR if
+                <a class="link" href="switchable-optimizations.html#optflag_mrr"><code class="literal">mrr=on</code></a>.
+              </p></li></ul></div><p>
+            For more information, see
+            <a class="xref" href="mrr-optimization.html" title="8.2.1.11 Multi-Range Read Optimization">Section 8.2.1.11, “Multi-Range Read Optimization”</a>.
+          </p></li><li class="listitem"><p>
+            Semijoin Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_duplicateweedout"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_duplicateweedout"><code class="literal">duplicateweedout</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls the semijoin Duplicate Weedout strategy.
+              </p></li><li class="listitem"><p><a id="optflag_firstmatch"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_firstmatch"><code class="literal">firstmatch</code></a> (default
+                <code class="literal">on</code>)
+              </p><p>
+                Controls the semijoin FirstMatch strategy.
+              </p></li><li class="listitem"><p><a id="optflag_loosescan"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_loosescan"><code class="literal">loosescan</code></a> (default
+                <code class="literal">on</code>)
+              </p><p>
+                Controls the semijoin LooseScan strategy (not to be
+                confused with Loose Index Scan for <code class="literal">GROUP
+                BY</code>).
+              </p></li><li class="listitem"><p><a id="optflag_semijoin"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_semijoin"><code class="literal">semijoin</code></a> (default
+                <code class="literal">on</code>)
+              </p><p>
+                Controls all semijoin strategies.
+              </p><p>
+                In MySQL 8.0.17 and later, this also applies to the
+                antijoin optimization.
+              </p></li></ul></div><p>
+            The <a class="link" href="switchable-optimizations.html#optflag_semijoin"><code class="literal">semijoin</code></a>,
+            <a class="link" href="switchable-optimizations.html#optflag_firstmatch"><code class="literal">firstmatch</code></a>,
+            <a class="link" href="switchable-optimizations.html#optflag_loosescan"><code class="literal">loosescan</code></a>, and
+            <a class="link" href="switchable-optimizations.html#optflag_duplicateweedout"><code class="literal">duplicateweedout</code></a> flags
+            enable control over semijoin strategies. The
+            <a class="link" href="switchable-optimizations.html#optflag_semijoin"><code class="literal">semijoin</code></a> flag controls
+            whether semijoins are used. If it is set to
+            <code class="literal">on</code>, the
+            <a class="link" href="switchable-optimizations.html#optflag_firstmatch"><code class="literal">firstmatch</code></a> and
+            <a class="link" href="switchable-optimizations.html#optflag_loosescan"><code class="literal">loosescan</code></a> flags enable
+            finer control over the permitted semijoin strategies.
+          </p><p>
+            If the <a class="link" href="switchable-optimizations.html#optflag_duplicateweedout"><code class="literal">duplicateweedout</code></a>
+            semijoin strategy is disabled, it is not used unless all
+            other applicable strategies are also disabled.
+          </p><p>
+            If <a class="link" href="switchable-optimizations.html#optflag_semijoin"><code class="literal">semijoin</code></a> and
+            <a class="link" href="switchable-optimizations.html#optflag_materialization"><code class="literal">materialization</code></a> are both
+            <code class="literal">on</code>, semijoins also use materialization
+            where applicable. These flags are <code class="literal">on</code> by
+            default.
+          </p><p>
+            For more information, see <a class="xref" href="semijoins.html" title="8.2.2.1 Optimizing IN and EXISTS Subquery Predicates with Semijoin Transformations">Section 8.2.2.1, “Optimizing IN and EXISTS Subquery Predicates with Semijoin
+          Transformations”</a>.
+          </p></li><li class="listitem"><p>
+            Skip Scan Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_skip-scan"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_skip-scan"><code class="literal">skip_scan</code></a> (default
+                <code class="literal">on</code>)
+              </p><p>
+                Controls use of Skip Scan access method.
+              </p></li></ul></div><p>
+            For more information, see
+            <a class="xref" href="range-optimization.html#range-access-skip-scan" title="Skip Scan Range Access Method">Skip Scan Range Access Method</a>.
+          </p></li><li class="listitem"><p>
+            Subquery Materialization Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_materialization"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_materialization"><code class="literal">materialization</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Controls materialization (including semijoin
+                materialization).
+              </p></li><li class="listitem"><p><a id="optflag_subquery-materialization-cost-based"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_subquery-materialization-cost-based"><code class="literal">subquery_materialization_cost_based</code></a>
+                (default <code class="literal">on</code>)
+              </p><p>
+                Use cost-based materialization choice.
+              </p></li></ul></div><p>
+            The <a class="link" href="switchable-optimizations.html#optflag_materialization"><code class="literal">materialization</code></a> flag
+            controls whether subquery materialization is used. If
+            <a class="link" href="switchable-optimizations.html#optflag_semijoin"><code class="literal">semijoin</code></a> and
+            <a class="link" href="switchable-optimizations.html#optflag_materialization"><code class="literal">materialization</code></a> are both
+            <code class="literal">on</code>, semijoins also use materialization
+            where applicable. These flags are <code class="literal">on</code> by
+            default.
+          </p><p>
+            The
+            <a class="link" href="switchable-optimizations.html#optflag_subquery-materialization-cost-based"><code class="literal">subquery_materialization_cost_based</code></a>
+            flag enables control over the choice between subquery
+            materialization and
+            <code class="literal">IN</code>-to-<code class="literal">EXISTS</code> subquery
+            transformation. If the flag is <code class="literal">on</code> (the
+            default), the optimizer performs a cost-based choice between
+            subquery materialization and
+            <code class="literal">IN</code>-to-<code class="literal">EXISTS</code> subquery
+            transformation if either method could be used. If the flag
+            is <code class="literal">off</code>, the optimizer chooses subquery
+            materialization over
+            <code class="literal">IN</code>-to-<code class="literal">EXISTS</code> subquery
+            transformation.
+          </p><p>
+            For more information, see
+            <a class="xref" href="subquery-optimization.html" title="8.2.2 Optimizing Subqueries, Derived Tables, View References, and Common Table Expressions">Section 8.2.2, “Optimizing Subqueries, Derived Tables, View References, and Common Table
+        Expressions”</a>.
+          </p></li><li class="listitem"><p>
+            Subquery Transformation Flags
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a id="optflag_subquery-to-derived"></a>
+                <a class="link" href="switchable-optimizations.html#optflag_subquery-to-derived"><code class="literal">subquery_to_derived</code></a>
+                (default <code class="literal">off</code>)
+              </p><p>
+                Beginning with MySQL 8.0.21, the optimizer is able in
+                many cases to transform a scalar subquery in a
+                <code class="literal">SELECT</code>, <code class="literal">WHERE</code>,
+                <code class="literal">JOIN</code>, or <code class="literal">HAVING</code>
+                clause into a left outer joins on a derived table.
+                (Depending on the nullability of the derived table, this
+                can sometimes be simplified further to an inner join.)
+                This can be done for a subquery which meets the
+                following conditions:
+              </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: square; "><li class="listitem"><p>
+                    The subquery does not make use of any
+                    nondeterministic functions, such as
+                    <a class="link" href="mathematical-functions.html#function_rand"><code class="literal">RAND()</code></a>.
+                  </p></li><li class="listitem"><p>
+                    The subquery is not an <code class="literal">ANY</code> or
+                    <code class="literal">ALL</code> subquery which can be
+                    rewritten to use
+                    <a class="link" href="aggregate-functions.html#function_min"><code class="literal">MIN()</code></a> or
+                    <a class="link" href="aggregate-functions.html#function_max"><code class="literal">MAX()</code></a>.
+                  </p></li><li class="listitem"><p>
+                    The parent query does not set a user variable, since
+                    rewriting it may affect the order of execution,
+                    which could lead to unexpected results if the
+                    variable is accessed more than once in the same
+                    query.
+                  </p></li><li class="listitem"><p>
+                    The subquery should not be correlated, that is, it
+                    should not reference a column from a table in the
+                    outer query, or contain an aggregate that is
+                    evaluated in the outer query.
+                  </p></li></ul></div><p>
+                Prior to MySQL 8.0.22, the subquery could not contain a
+                <code class="literal">GROUP BY</code> clause.
+              </p><p>
+                This optimization can also be applied to a table
+                subquery which is the argument to <code class="literal">IN</code>,
+                <code class="literal">NOT IN</code>, <code class="literal">EXISTS</code>, or
+                <code class="literal">NOT EXISTS</code>, that does not contain a
+                <code class="literal">GROUP BY</code>.
+              </p><p>
+                The default value for this flag is
+                <code class="literal">off</code>, since, in most cases, enabling
+                this optimization does not produce any noticeable
+                improvement in performance (and in many cases can even
+                make queries run more slowly), but you can enable the
+                optimization by setting the
+                <a class="link" href="switchable-optimizations.html#optflag_subquery-to-derived"><code class="literal">subquery_to_derived</code></a>
+                flag to <code class="literal">on</code>. It is primarily intended
+                for use in testing.
+              </p><p>
+                Example, using a scalar subquery:
+              </p><pre class="programlisting">d
+mysql&gt; <strong class="userinput"><code>CREATE TABLE t1(a INT);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>CREATE TABLE t2(a INT);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES ROW(1), ROW(2), ROW(3), ROW(4);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO t2 VALUES ROW(1), ROW(2);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM t1</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE t1.a &gt; (SELECT COUNT(a) FROM t2);</code></strong>
++------+
+| a    |
++------+
+|    3 |
+|    4 |
++------+
+
+mysql&gt; <strong class="userinput"><code>SELECT @@optimizer_switch LIKE '%subquery_to_derived=off%';</code></strong>
++-----------------------------------------------------+
+| @@optimizer_switch LIKE '%subquery_to_derived=off%' |
++-----------------------------------------------------+
+|                                                   1 |
++-----------------------------------------------------+
+
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t1 WHERE t1.a &gt; (SELECT COUNT(a) FROM t2)\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: t1
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 4
+     filtered: 33.33
+        Extra: Using where
+*************************** 2. row ***************************
+           id: 2
+  select_type: SUBQUERY
+        table: t2
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 2
+     filtered: 100.00
+        Extra: NULL
+
+mysql&gt; <strong class="userinput"><code>SET @@optimizer_switch='subquery_to_derived=on';</code></strong>
+
+
+mysql&gt; <strong class="userinput"><code>SELECT @@optimizer_switch LIKE '%subquery_to_derived=off%';</code></strong>
++-----------------------------------------------------+
+| @@optimizer_switch LIKE '%subquery_to_derived=off%' |
++-----------------------------------------------------+
+|                                                   0 |
++-----------------------------------------------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT @@optimizer_switch LIKE '%subquery_to_derived=on%';</code></strong>
++----------------------------------------------------+
+| @@optimizer_switch LIKE '%subquery_to_derived=on%' |
++----------------------------------------------------+
+|                                                  1 |
++----------------------------------------------------+
+
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t1 WHERE t1.a &gt; (SELECT COUNT(a) FROM t2)\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: &lt;derived2&gt;
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 1
+     filtered: 100.00
+        Extra: NULL
+*************************** 2. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: t1
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 4
+     filtered: 33.33
+        Extra: Using where; Using join buffer (hash join)
+*************************** 3. row ***************************
+           id: 2
+  select_type: DERIVED
+        table: t2
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 2
+     filtered: 100.00
+        Extra: NULL
+</pre><p>
+                As can be seen from executing <a class="link" href="show-warnings.html" title="13.7.7.42 SHOW WARNINGS Statement"><code class="literal">SHOW
+                WARNINGS</code></a> immediately following the second
+                <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> statement, with
+                the optimization enabled, the query <code class="literal">SELECT *
+                FROM t1 WHERE t1.a &gt; (SELECT COUNT(a) FROM
+                t2)</code> is rewritten in a form similar to what is
+                shown here:
+              </p><pre class="programlisting">SELECT t1.a FROM t1
+    JOIN  ( SELECT COUNT(t2.a) AS c FROM t2 ) AS d
+            WHERE t1.a &gt; d.c;
+</pre><p>
+                Example, using a query with <code class="literal">IN
+                (<em class="replaceable"><code>subquery</code></em>)</code>:
+              </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>DROP TABLE IF EXISTS t1, t2;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>CREATE TABLE t1 (a INT, b INT);</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE TABLE t2 (a INT, b INT);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES ROW(1,10), ROW(2,20), ROW(3,30);</code></strong>
+mysql&gt; <strong class="userinput"><code>INSERT INTO t2</code></strong>
+    -&gt;    <strong class="userinput"><code>VALUES ROW(1,10), ROW(2,20), ROW(3,30), ROW(1,110), ROW(2,120), ROW(3,130);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM t1</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE   t1.b &lt; 0</code></strong>
+    -&gt;             <strong class="userinput"><code>OR</code></strong>
+    -&gt;             <strong class="userinput"><code>t1.a IN (SELECT t2.a + 1 FROM t2);</code></strong>
++------+------+
+| a    | b    |
++------+------+
+|    2 |   20 |
+|    3 |   30 |
++------+------+
+
+mysql&gt; <strong class="userinput"><code>SET @@optimizer_switch="subquery_to_derived=off";</code></strong>
+
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t1</code></strong>
+    -&gt;             <strong class="userinput"><code>WHERE   t1.b &lt; 0</code></strong>
+    -&gt;                     <strong class="userinput"><code>OR</code></strong>
+    -&gt;                     <strong class="userinput"><code>t1.a IN (SELECT t2.a + 1 FROM t2)\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: t1
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 3
+     filtered: 100.00
+        Extra: Using where
+*************************** 2. row ***************************
+           id: 2
+  select_type: DEPENDENT SUBQUERY
+        table: t2
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 6
+     filtered: 100.00
+        Extra: Using where
+
+mysql&gt; <strong class="userinput"><code>SET @@optimizer_switch="subquery_to_derived=on";</code></strong>
+
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t1</code></strong>
+    -&gt;             <strong class="userinput"><code>WHERE   t1.b &lt; 0</code></strong>
+    -&gt;                     <strong class="userinput"><code>OR</code></strong>
+    -&gt;                     <strong class="userinput"><code>t1.a IN (SELECT t2.a + 1 FROM t2)\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: t1
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 3
+     filtered: 100.00
+        Extra: NULL
+*************************** 2. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: &lt;derived2&gt;
+   partitions: NULL
+         type: ref
+possible_keys: &lt;auto_key0&gt;
+          key: &lt;auto_key0&gt;
+      key_len: 9
+          ref: std2.t1.a
+         rows: 2
+     filtered: 100.00
+        Extra: Using where; Using index
+*************************** 3. row ***************************
+           id: 2
+  select_type: DERIVED
+        table: t2
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 6
+     filtered: 100.00
+        Extra: Using temporary
+</pre><p>
+                Checking and simplifying the result of
+                <a class="link" href="show-warnings.html" title="13.7.7.42 SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a> after
+                executing <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> on this
+                query shows that, when the
+                <a class="link" href="switchable-optimizations.html#optflag_subquery-to-derived"><code class="literal">subquery_to_derived</code></a>
+                flag enabled, <code class="literal">SELECT * FROM t1 WHERE t1.b &lt;
+                0 OR t1.a IN (SELECT t2.a + 1 FROM t2)</code> is
+                rewritten in a form similar to what is shown here:
+              </p><pre class="programlisting">SELECT a, b FROM t1
+    LEFT JOIN (SELECT DISTINCT a + 1 AS e FROM t2) d
+    ON t1.a = d.e
+    WHERE   t1.b &lt; 0
+            OR
+            d.e IS NOT NULL;
+</pre><p>
+                Example, using a query with <code class="literal">EXISTS
+                (<em class="replaceable"><code>subquery</code></em>)</code> and the
+                same tables and data as in the previous example:
+              </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM t1</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE   t1.b &lt; 0</code></strong>
+    -&gt;             <strong class="userinput"><code>OR</code></strong>
+    -&gt;             <strong class="userinput"><code>EXISTS(SELECT * FROM t2 WHERE t2.a = t1.a + 1);</code></strong>
++------+------+
+| a    | b    |
++------+------+
+|    1 |   10 |
+|    2 |   20 |
++------+------+
+
+mysql&gt; <strong class="userinput"><code>SET @@optimizer_switch="subquery_to_derived=off";</code></strong>
+
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t1</code></strong>
+    -&gt;             <strong class="userinput"><code>WHERE   t1.b &lt; 0</code></strong>
+    -&gt;                     <strong class="userinput"><code>OR</code></strong>
+    -&gt;                     <strong class="userinput"><code>EXISTS(SELECT * FROM t2 WHERE t2.a = t1.a + 1)\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: t1
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 3
+     filtered: 100.00
+        Extra: Using where
+*************************** 2. row ***************************
+           id: 2
+  select_type: DEPENDENT SUBQUERY
+        table: t2
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 6
+     filtered: 16.67
+        Extra: Using where
+
+mysql&gt; <strong class="userinput"><code>SET @@optimizer_switch="subquery_to_derived=on";</code></strong>
+
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t1</code></strong>
+    -&gt;             <strong class="userinput"><code>WHERE   t1.b &lt; 0</code></strong>
+    -&gt;                     <strong class="userinput"><code>OR</code></strong>
+    -&gt;                     <strong class="userinput"><code>EXISTS(SELECT * FROM t2 WHERE t2.a = t1.a + 1)\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: t1
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 3
+     filtered: 100.00
+        Extra: NULL
+*************************** 2. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: &lt;derived2&gt;
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 6
+     filtered: 100.00
+        Extra: Using where; Using join buffer (hash join)
+*************************** 3. row ***************************
+           id: 2
+  select_type: DERIVED
+        table: t2
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 6
+     filtered: 100.00
+        Extra: Using temporary
+</pre><p>
+                If we execute <a class="link" href="show-warnings.html" title="13.7.7.42 SHOW WARNINGS Statement"><code class="literal">SHOW
+                WARNINGS</code></a> after running
+                <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> on the query
+                <code class="literal">SELECT * FROM t1 WHERE t1.b &lt; 0 OR
+                EXISTS(SELECT * FROM t2 WHERE t2.a = t1.a + 1)</code>
+                when
+                <a class="link" href="switchable-optimizations.html#optflag_subquery-to-derived"><code class="literal">subquery_to_derived</code></a>
+                has been enabled, and simplify the second row of the
+                result, we see that it has been rewritten in a form
+                which resembles this:
+              </p><pre class="programlisting">SELECT a, b FROM t1
+LEFT JOIN (SELECT DISTINCT 1 AS e1, t2.a AS e2 FROM t2) d
+ON t1.a + 1 = d.e2
+WHERE   t1.b &lt; 0
+        OR
+        d.e1 IS NOT NULL;
+</pre><p>
+                For more information, see
+                <a class="xref" href="derived-table-optimization.html" title="8.2.2.4 Optimizing Derived Tables, View References, and Common Table Expressions with Merging or Materialization">Section 8.2.2.4, “Optimizing Derived Tables, View References, and Common Table Expressions
+          with Merging or Materialization”</a>, as well as
+                <a class="xref" href="limit-optimization.html" title="8.2.1.19 LIMIT Query Optimization">Section 8.2.1.19, “LIMIT Query Optimization”</a>, and
+                <a class="xref" href="semijoins.html" title="8.2.2.1 Optimizing IN and EXISTS Subquery Predicates with Semijoin Transformations">Section 8.2.2.1, “Optimizing IN and EXISTS Subquery Predicates with Semijoin
+          Transformations”</a>.
+              </p></li></ul></div></li></ul></div><p>
+        When you assign a value to
+        <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a>, flags that
+        are not mentioned keep their current values. This makes it
+        possible to enable or disable specific optimizer behaviors in a
+        single statement without affecting other behaviors. The
+        statement does not depend on what other optimizer flags exist
+        and what their values are. Suppose that all Index Merge
+        optimizations are enabled:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT @@optimizer_switch\G</code></strong>
+*************************** 1. row ***************************
+@@optimizer_switch: index_merge=on,index_merge_union=on,
+                    index_merge_sort_union=on,index_merge_intersection=on,
+                    engine_condition_pushdown=on,index_condition_pushdown=on,
+                    mrr=on,mrr_cost_based=on,block_nested_loop=on,
+                    batched_key_access=off,materialization=on,semijoin=on,
+                    loosescan=on, firstmatch=on,
+                    subquery_materialization_cost_based=on,
+                    use_index_extensions=on,condition_fanout_filter=on,
+                    derived_merge=on,use_invisible_indexes=off,skip_scan=on,
+                    hash_join=on,subquery_to_derived=off,
+                    prefer_ordering_index=on
+</pre><p>
+        If the server is using the Index Merge Union or Index Merge
+        Sort-Union access methods for certain queries and you want to
+        check whether the optimizer can perform better without them, set
+        the variable value like this:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET optimizer_switch='index_merge_union=off,index_merge_sort_union=off';</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT @@optimizer_switch\G</code></strong>
+*************************** 1. row ***************************
+@@optimizer_switch: index_merge=on,index_merge_union=off,
+                    index_merge_sort_union=off,index_merge_intersection=on,
+                    engine_condition_pushdown=on,index_condition_pushdown=on,
+                    mrr=on,mrr_cost_based=on,block_nested_loop=on,
+                    batched_key_access=off,materialization=on,semijoin=on,
+                    loosescan=on, firstmatch=on,
+                    subquery_materialization_cost_based=on,
+                    use_index_extensions=on,condition_fanout_filter=on,
+                    derived_merge=on,use_invisible_indexes=off,skip_scan=on,
+                    hash_join=on,subquery_to_derived=off,
+                    prefer_ordering_index=on
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="controlling-query-plan-evaluation.html">Previous <span class="navHint"> Controlling Query Plan Evaluation </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="controlling-optimizer.html">Up <span class="navHint"> Controlling the Query Optimizer </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="optimizer-hints.html">Next <span class="navHint"> Optimizer Hints </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

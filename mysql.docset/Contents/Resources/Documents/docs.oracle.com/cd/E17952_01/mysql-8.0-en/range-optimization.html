@@ -1,0 +1,656 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3463"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.2%C2%A0Range%20Optimization"></a><title>8.2.1.2&nbsp;Range Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="where-optimization.html" title="8.2.1.1&nbsp;WHERE Clause Optimization"/><link rel="next" href="index-merge-optimization.html" title="8.2.1.3&nbsp;Index Merge Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="range-optimization.html#range-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="where-optimization.html">Previous <span class="navHint"> WHERE Clause Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="index-merge-optimization.html">Next <span class="navHint"> Index Merge Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3462"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.2%C2%A0Range%20Optimization"></a><h4 class="title"><a id="range-optimization"></a>8.2.1.2&nbsp;Range Optimization</h4></div></div></div><p>
+          The <a class="link" href="explain-output.html#jointype_range"><code class="literal">range</code></a> access method
+          uses a single index to retrieve a subset of table rows that
+          are contained within one or several index value intervals. It
+          can be used for a single-part or multiple-part index. The
+          following sections describe conditions under which the
+          optimizer uses range access.
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="range-optimization.html#range-access-single-part" title="Range Access Method for Single-Part Indexes">Range Access Method for Single-Part Indexes</a></p></li><li class="listitem"><p><a class="xref" href="range-optimization.html#range-access-multi-part" title="Range Access Method for Multiple-Part Indexes">Range Access Method for Multiple-Part Indexes</a></p></li><li class="listitem"><p><a class="xref" href="range-optimization.html#equality-range-optimization" title="Equality Range Optimization of Many-Valued Comparisons">Equality Range Optimization of Many-Valued Comparisons</a></p></li><li class="listitem"><p><a class="xref" href="range-optimization.html#range-access-skip-scan" title="Skip Scan Range Access Method">Skip Scan Range Access Method</a></p></li><li class="listitem"><p><a class="xref" href="range-optimization.html#row-constructor-range-optimization" title="Range Optimization of Row Constructor Expressions">Range Optimization of Row Constructor Expressions</a></p></li><li class="listitem"><p><a class="xref" href="range-optimization.html#range-optimization-memory-use" title="Limiting Memory Use for Range Optimization">Limiting Memory Use for Range Optimization</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="range-access-single-part"></a>Range Access Method for Single-Part Indexes</h5></div></div></div><p>
+            For a single-part index, index value intervals can be
+            conveniently represented by corresponding conditions in the
+            <code class="literal">WHERE</code> clause, denoted as
+            <span class="firstterm">range conditions</span>
+            rather than <span class="quote">&ldquo;<span class="quote">intervals.</span>&rdquo;</span>
+          </p><p>
+            The definition of a range condition for a single-part index
+            is as follows:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                For both <code class="literal">BTREE</code> and
+                <code class="literal">HASH</code> indexes, comparison of a key
+                part with a constant value is a range condition when
+                using the
+                <a class="link" href="comparison-operators.html#operator_equal"><code class="literal">=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_equal-to"><code class="literal">&lt;=&gt;</code></a>,
+                <a class="link" href="comparison-operators.html#operator_in"><code class="literal">IN()</code></a>, <a class="link" href="comparison-operators.html#operator_is-null"><code class="literal">IS
+                NULL</code></a>, or <a class="link" href="comparison-operators.html#operator_is-not-null"><code class="literal">IS NOT
+                NULL</code></a> operators.
+              </p></li><li class="listitem"><p>
+                Additionally, for <code class="literal">BTREE</code> indexes,
+                comparison of a key part with a constant value is a
+                range condition when using the
+                <a class="link" href="comparison-operators.html#operator_greater-than"><code class="literal">&gt;</code></a>,
+                <a class="link" href="comparison-operators.html#operator_less-than"><code class="literal">&lt;</code></a>,
+                <a class="link" href="comparison-operators.html#operator_greater-than-or-equal"><code class="literal">&gt;=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_less-than-or-equal"><code class="literal">&lt;=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_between"><code class="literal">BETWEEN</code></a>,
+                <a class="link" href="comparison-operators.html#operator_not-equal"><code class="literal">!=</code></a>,
+                or
+                <a class="link" href="comparison-operators.html#operator_not-equal"><code class="literal">&lt;&gt;</code></a>
+                operators, or <a class="link" href="string-comparison-functions.html#operator_like"><code class="literal">LIKE</code></a>
+                comparisons if the argument to
+                <a class="link" href="string-comparison-functions.html#operator_like"><code class="literal">LIKE</code></a> is a constant string
+                that does not start with a wildcard character.
+              </p></li><li class="listitem"><p>
+                For all index types, multiple range conditions combined
+                with <a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a> or
+                <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a> form a range condition.
+              </p></li></ul></div><p>
+            <span class="quote">&ldquo;<span class="quote">Constant value</span>&rdquo;</span> in the preceding descriptions
+            means one of the following:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                A constant from the query string
+              </p></li><li class="listitem"><p>
+                A column of a <a class="link" href="explain-output.html#jointype_const"><code class="literal">const</code></a>
+                or <a class="link" href="explain-output.html#jointype_system"><code class="literal">system</code></a> table from
+                the same join
+              </p></li><li class="listitem"><p>
+                The result of an uncorrelated subquery
+              </p></li><li class="listitem"><p>
+                Any expression composed entirely from subexpressions of
+                the preceding types
+              </p></li></ul></div><p>
+            Here are some examples of queries with range conditions in
+            the <code class="literal">WHERE</code> clause:
+          </p><pre class="programlisting">SELECT * FROM t1
+  WHERE <em class="replaceable"><code>key_col</code></em> &gt; 1
+  AND <em class="replaceable"><code>key_col</code></em> &lt; 10;
+
+SELECT * FROM t1
+  WHERE <em class="replaceable"><code>key_col</code></em> = 1
+  OR <em class="replaceable"><code>key_col</code></em> IN (15,18,20);
+
+SELECT * FROM t1
+  WHERE <em class="replaceable"><code>key_col</code></em> LIKE &#39;ab%&#39;
+  OR <em class="replaceable"><code>key_col</code></em> BETWEEN &#39;bar&#39; AND &#39;foo&#39;;
+</pre><p>
+            Some nonconstant values may be converted to constants during
+            the optimizer constant propagation phase.
+          </p><p>
+            MySQL tries to extract range conditions from the
+            <code class="literal">WHERE</code> clause for each of the possible
+            indexes. During the extraction process, conditions that
+            cannot be used for constructing the range condition are
+            dropped, conditions that produce overlapping ranges are
+            combined, and conditions that produce empty ranges are
+            removed.
+          </p><p>
+            Consider the following statement, where
+            <code class="literal">key1</code> is an indexed column and
+            <code class="literal">nonkey</code> is not indexed:
+          </p><pre class="programlisting">SELECT * FROM t1 WHERE
+  (key1 &lt; &#39;abc&#39; AND (key1 LIKE &#39;abcde%&#39; OR key1 LIKE &#39;%b&#39;)) OR
+  (key1 &lt; &#39;bar&#39; AND nonkey = 4) OR
+  (key1 &lt; &#39;uux&#39; AND key1 &gt; &#39;z&#39;);
+</pre><p>
+            The extraction process for key <code class="literal">key1</code> is as
+            follows:
+          </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                Start with original <code class="literal">WHERE</code> clause:
+              </p><pre class="programlisting">(key1 &lt; &#39;abc&#39; AND (key1 LIKE &#39;abcde%&#39; OR key1 LIKE &#39;%b&#39;)) OR
+(key1 &lt; &#39;bar&#39; AND nonkey = 4) OR
+(key1 &lt; &#39;uux&#39; AND key1 &gt; &#39;z&#39;)
+</pre></li><li class="listitem"><p>
+                Remove <code class="literal">nonkey = 4</code> and <code class="literal">key1
+                LIKE &#39;%b&#39;</code> because they cannot be used for a
+                range scan. The correct way to remove them is to replace
+                them with <code class="literal">TRUE</code>, so that we do not
+                miss any matching rows when doing the range scan.
+                Replacing them with <code class="literal">TRUE</code> yields:
+              </p><pre class="programlisting">(key1 &lt; &#39;abc&#39; AND (key1 LIKE &#39;abcde%&#39; OR TRUE)) OR
+(key1 &lt; &#39;bar&#39; AND TRUE) OR
+(key1 &lt; &#39;uux&#39; AND key1 &gt; &#39;z&#39;)
+</pre></li><li class="listitem"><p>
+                Collapse conditions that are always true or false:
+              </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                    <code class="literal">(key1 LIKE &#39;abcde%&#39; OR TRUE)</code> is
+                    always true
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">(key1 &lt; &#39;uux&#39; AND key1 &gt;
+                    &#39;z&#39;)</code> is always false
+                  </p></li></ul></div><p>
+                Replacing these conditions with constants yields:
+              </p><pre class="programlisting">(key1 &lt; &#39;abc&#39; AND TRUE) OR (key1 &lt; &#39;bar&#39; AND TRUE) OR (FALSE)
+</pre><p>
+                Removing unnecessary <code class="literal">TRUE</code> and
+                <code class="literal">FALSE</code> constants yields:
+              </p><pre class="programlisting">(key1 &lt; &#39;abc&#39;) OR (key1 &lt; &#39;bar&#39;)
+</pre></li><li class="listitem"><p>
+                Combining overlapping intervals into one yields the
+                final condition to be used for the range scan:
+              </p><pre class="programlisting">(key1 &lt; &#39;bar&#39;)
+</pre></li></ol></div><p>
+            In general (and as demonstrated by the preceding example),
+            the condition used for a range scan is less restrictive than
+            the <code class="literal">WHERE</code> clause. MySQL performs an
+            additional check to filter out rows that satisfy the range
+            condition but not the full <code class="literal">WHERE</code> clause.
+          </p><p>
+            The range condition extraction algorithm can handle nested
+            <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a>/<a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a>
+            constructs of arbitrary depth, and its output does not
+            depend on the order in which conditions appear in
+            <code class="literal">WHERE</code> clause.
+          </p><p>
+            MySQL does not support merging multiple ranges for the
+            <a class="link" href="explain-output.html#jointype_range"><code class="literal">range</code></a> access method for
+            spatial indexes. To work around this limitation, you can use
+            a <a class="link" href="union.html" title="13.2.18&nbsp;UNION Clause"><code class="literal">UNION</code></a> with identical
+            <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statements, except
+            that you put each spatial predicate in a different
+            <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>.
+          </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="range-access-multi-part"></a>Range Access Method for Multiple-Part Indexes</h5></div></div></div><p>
+            Range conditions on a multiple-part index are an extension
+            of range conditions for a single-part index. A range
+            condition on a multiple-part index restricts index rows to
+            lie within one or several key tuple intervals. Key tuple
+            intervals are defined over a set of key tuples, using
+            ordering from the index.
+          </p><p>
+            For example, consider a multiple-part index defined as
+            <code class="literal">key1(<em class="replaceable"><code>key_part1</code></em>,
+            <em class="replaceable"><code>key_part2</code></em>,
+            <em class="replaceable"><code>key_part3</code></em>)</code>, and the
+            following set of key tuples listed in key order:
+          </p><pre class="programlisting"><em class="replaceable"><code>key_part1</code></em>  <em class="replaceable"><code>key_part2</code></em>  <em class="replaceable"><code>key_part3</code></em>
+  NULL       1          &#39;abc&#39;
+  NULL       1          &#39;xyz&#39;
+  NULL       2          &#39;foo&#39;
+   1         1          &#39;abc&#39;
+   1         1          &#39;xyz&#39;
+   1         2          &#39;abc&#39;
+   2         1          &#39;aaa&#39;
+</pre><p>
+            The condition <code class="literal"><em class="replaceable"><code>key_part1</code></em>
+            = 1</code> defines this interval:
+          </p><pre class="programlisting">(1,-inf,-inf) &lt;= (<em class="replaceable"><code>key_part1</code></em>,<em class="replaceable"><code>key_part2</code></em>,<em class="replaceable"><code>key_part3</code></em>) &lt; (1,+inf,+inf)
+</pre><p>
+            The interval covers the 4th, 5th, and 6th tuples in the
+            preceding data set and can be used by the range access
+            method.
+          </p><p>
+            By contrast, the condition
+            <code class="literal"><em class="replaceable"><code>key_part3</code></em> =
+            &#39;abc&#39;</code> does not define a single interval and cannot
+            be used by the range access method.
+          </p><p>
+            The following descriptions indicate how range conditions
+            work for multiple-part indexes in greater detail.
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                For <code class="literal">HASH</code> indexes, each interval
+                containing identical values can be used. This means that
+                the interval can be produced only for conditions in the
+                following form:
+              </p><pre class="programlisting">    <em class="replaceable"><code>key_part1</code></em> <em class="replaceable"><code>cmp</code></em> <em class="replaceable"><code>const1</code></em>
+AND <em class="replaceable"><code>key_part2</code></em> <em class="replaceable"><code>cmp</code></em> <em class="replaceable"><code>const2</code></em>
+AND ...
+AND <em class="replaceable"><code>key_partN</code></em> <em class="replaceable"><code>cmp</code></em> <em class="replaceable"><code>constN</code></em>;
+</pre><p>
+                Here, <em class="replaceable"><code>const1</code></em>,
+                <em class="replaceable"><code>const2</code></em>, &hellip; are
+                constants, <em class="replaceable"><code>cmp</code></em> is one of the
+                <a class="link" href="comparison-operators.html#operator_equal"><code class="literal">=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_equal-to"><code class="literal">&lt;=&gt;</code></a>,
+                or <a class="link" href="comparison-operators.html#operator_is-null"><code class="literal">IS NULL</code></a> comparison
+                operators, and the conditions cover all index parts.
+                (That is, there are <em class="replaceable"><code>N</code></em>
+                conditions, one for each part of an
+                <em class="replaceable"><code>N</code></em>-part index.) For example,
+                the following is a range condition for a three-part
+                <code class="literal">HASH</code> index:
+              </p><pre class="programlisting"><em class="replaceable"><code>key_part1</code></em> = 1 AND <em class="replaceable"><code>key_part2</code></em> IS NULL AND <em class="replaceable"><code>key_part3</code></em> = &#39;foo&#39;
+</pre><p>
+                For the definition of what is considered to be a
+                constant, see
+                <a class="xref" href="range-optimization.html#range-access-single-part" title="Range Access Method for Single-Part Indexes">Range Access Method for Single-Part Indexes</a>.
+              </p></li><li class="listitem"><p>
+                For a <code class="literal">BTREE</code> index, an interval might
+                be usable for conditions combined with
+                <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a>, where each condition
+                compares a key part with a constant value using
+                <a class="link" href="comparison-operators.html#operator_equal"><code class="literal">=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_equal-to"><code class="literal">&lt;=&gt;</code></a>,
+                <a class="link" href="comparison-operators.html#operator_is-null"><code class="literal">IS NULL</code></a>,
+                <a class="link" href="comparison-operators.html#operator_greater-than"><code class="literal">&gt;</code></a>,
+                <a class="link" href="comparison-operators.html#operator_less-than"><code class="literal">&lt;</code></a>,
+                <a class="link" href="comparison-operators.html#operator_greater-than-or-equal"><code class="literal">&gt;=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_less-than-or-equal"><code class="literal">&lt;=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_not-equal"><code class="literal">!=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_not-equal"><code class="literal">&lt;&gt;</code></a>,
+                <a class="link" href="comparison-operators.html#operator_between"><code class="literal">BETWEEN</code></a>, or
+                <a class="link" href="string-comparison-functions.html#operator_like"><code class="literal">LIKE
+                &#39;<em class="replaceable"><code>pattern</code></em>&#39;</code></a> (where
+                <code class="literal">&#39;<em class="replaceable"><code>pattern</code></em>&#39;</code>
+                does not start with a wildcard). An interval can be used
+                as long as it is possible to determine a single key
+                tuple containing all rows that match the condition (or
+                two intervals if
+                <a class="link" href="comparison-operators.html#operator_not-equal"><code class="literal">&lt;&gt;</code></a>
+                or <a class="link" href="comparison-operators.html#operator_not-equal"><code class="literal">!=</code></a>
+                is used).
+              </p><p>
+                The optimizer attempts to use additional key parts to
+                determine the interval as long as the comparison
+                operator is
+                <a class="link" href="comparison-operators.html#operator_equal"><code class="literal">=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_equal-to"><code class="literal">&lt;=&gt;</code></a>,
+                or <a class="link" href="comparison-operators.html#operator_is-null"><code class="literal">IS NULL</code></a>. If the operator
+                is
+                <a class="link" href="comparison-operators.html#operator_greater-than"><code class="literal">&gt;</code></a>,
+                <a class="link" href="comparison-operators.html#operator_less-than"><code class="literal">&lt;</code></a>,
+                <a class="link" href="comparison-operators.html#operator_greater-than-or-equal"><code class="literal">&gt;=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_less-than-or-equal"><code class="literal">&lt;=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_not-equal"><code class="literal">!=</code></a>,
+                <a class="link" href="comparison-operators.html#operator_not-equal"><code class="literal">&lt;&gt;</code></a>,
+                <a class="link" href="comparison-operators.html#operator_between"><code class="literal">BETWEEN</code></a>, or
+                <a class="link" href="string-comparison-functions.html#operator_like"><code class="literal">LIKE</code></a>, the
+                optimizer uses it but considers no more key parts. For
+                the following expression, the optimizer uses
+                <a class="link" href="comparison-operators.html#operator_equal"><code class="literal">=</code></a> from
+                the first comparison. It also uses
+                <a class="link" href="comparison-operators.html#operator_greater-than-or-equal"><code class="literal">&gt;=</code></a>
+                from the second comparison but considers no further key
+                parts and does not use the third comparison for interval
+                construction:
+              </p><pre class="programlisting"><em class="replaceable"><code>key_part1</code></em> = &#39;foo&#39; AND <em class="replaceable"><code>key_part2</code></em> &gt;= 10 AND <em class="replaceable"><code>key_part3</code></em> &gt; 10
+</pre><p>
+                The single interval is:
+              </p><pre class="programlisting">(&#39;foo&#39;,10,-inf) &lt; (<em class="replaceable"><code>key_part1</code></em>,<em class="replaceable"><code>key_part2</code></em>,<em class="replaceable"><code>key_part3</code></em>) &lt; (&#39;foo&#39;,+inf,+inf)
+</pre><p>
+                It is possible that the created interval contains more
+                rows than the initial condition. For example, the
+                preceding interval includes the value <code class="literal">(&#39;foo&#39;,
+                11, 0)</code>, which does not satisfy the original
+                condition.
+              </p></li><li class="listitem"><p>
+                If conditions that cover sets of rows contained within
+                intervals are combined with
+                <a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a>, they form a condition
+                that covers a set of rows contained within the union of
+                their intervals. If the conditions are combined with
+                <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a>, they form a condition
+                that covers a set of rows contained within the
+                intersection of their intervals. For example, for this
+                condition on a two-part index:
+              </p><pre class="programlisting">(<em class="replaceable"><code>key_part1</code></em> = 1 AND <em class="replaceable"><code>key_part2</code></em> &lt; 2) OR (<em class="replaceable"><code>key_part1</code></em> &gt; 5)
+</pre><p>
+                The intervals are:
+              </p><pre class="programlisting">(1,-inf) &lt; (<em class="replaceable"><code>key_part1</code></em>,<em class="replaceable"><code>key_part2</code></em>) &lt; (1,2)
+(5,-inf) &lt; (<em class="replaceable"><code>key_part1</code></em>,<em class="replaceable"><code>key_part2</code></em>)
+</pre><p>
+                In this example, the interval on the first line uses one
+                key part for the left bound and two key parts for the
+                right bound. The interval on the second line uses only
+                one key part. The <code class="literal">key_len</code> column in
+                the <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output
+                indicates the maximum length of the key prefix used.
+              </p><p>
+                In some cases, <code class="literal">key_len</code> may indicate
+                that a key part was used, but that might be not what you
+                would expect. Suppose that
+                <em class="replaceable"><code>key_part1</code></em> and
+                <em class="replaceable"><code>key_part2</code></em> can be
+                <code class="literal">NULL</code>. Then the
+                <code class="literal">key_len</code> column displays two key part
+                lengths for the following condition:
+              </p><pre class="programlisting"><em class="replaceable"><code>key_part1</code></em> &gt;= 1 AND <em class="replaceable"><code>key_part2</code></em> &lt; 2
+</pre><p>
+                But, in fact, the condition is converted to this:
+              </p><pre class="programlisting"><em class="replaceable"><code>key_part1</code></em> &gt;= 1 AND <em class="replaceable"><code>key_part2</code></em> IS NOT NULL
+</pre></li></ul></div><p>
+            For a description of how optimizations are performed to
+            combine or eliminate intervals for range conditions on a
+            single-part index, see
+            <a class="xref" href="range-optimization.html#range-access-single-part" title="Range Access Method for Single-Part Indexes">Range Access Method for Single-Part Indexes</a>. Analogous steps
+            are performed for range conditions on multiple-part indexes.
+          </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="equality-range-optimization"></a>Equality Range Optimization of Many-Valued Comparisons</h5></div></div></div><p>
+            Consider these expressions, where
+            <em class="replaceable"><code>col_name</code></em> is an indexed column:
+          </p><pre class="programlisting"><em class="replaceable"><code>col_name</code></em> IN(<em class="replaceable"><code>val1</code></em>, ..., <em class="replaceable"><code>valN</code></em>)
+<em class="replaceable"><code>col_name</code></em> = <em class="replaceable"><code>val1</code></em> OR ... OR <em class="replaceable"><code>col_name</code></em> = <em class="replaceable"><code>valN</code></em>
+</pre><p>
+            Each expression is true if
+            <em class="replaceable"><code>col_name</code></em> is equal to any of
+            several values. These comparisons are equality range
+            comparisons (where the <span class="quote">&ldquo;<span class="quote">range</span>&rdquo;</span> is a single
+            value). The optimizer estimates the cost of reading
+            qualifying rows for equality range comparisons as follows:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                If there is a unique index on
+                <em class="replaceable"><code>col_name</code></em>, the row estimate
+                for each range is 1 because at most one row can have the
+                given value.
+              </p></li><li class="listitem"><p>
+                Otherwise, any index on
+                <em class="replaceable"><code>col_name</code></em> is nonunique and the
+                optimizer can estimate the row count for each range
+                using dives into the index or index statistics.
+              </p></li></ul></div><a id="idm45828956926528" class="indexterm"></a><p>
+            With index dives, the optimizer makes a dive at each end of
+            a range and uses the number of rows in the range as the
+            estimate. For example, the expression
+            <code class="literal"><em class="replaceable"><code>col_name</code></em> IN (10, 20,
+            30)</code> has three equality ranges and the optimizer
+            makes two dives per range to generate a row estimate. Each
+            pair of dives yields an estimate of the number of rows that
+            have the given value.
+          </p><p>
+            Index dives provide accurate row estimates, but as the
+            number of comparison values in the expression increases, the
+            optimizer takes longer to generate a row estimate. Use of
+            index statistics is less accurate than index dives but
+            permits faster row estimation for large value lists.
+          </p><p>
+            The
+            <a class="link" href="server-system-variables.html#sysvar_eq_range_index_dive_limit"><code class="literal">eq_range_index_dive_limit</code></a>
+            system variable enables you to configure the number of
+            values at which the optimizer switches from one row
+            estimation strategy to the other. To permit use of index
+            dives for comparisons of up to <em class="replaceable"><code>N</code></em>
+            equality ranges, set
+            <a class="link" href="server-system-variables.html#sysvar_eq_range_index_dive_limit"><code class="literal">eq_range_index_dive_limit</code></a>
+            to <em class="replaceable"><code>N</code></em> + 1. To disable use of
+            statistics and always use index dives regardless of
+            <em class="replaceable"><code>N</code></em>, set
+            <a class="link" href="server-system-variables.html#sysvar_eq_range_index_dive_limit"><code class="literal">eq_range_index_dive_limit</code></a>
+            to 0.
+          </p><p>
+            To update table index statistics for best estimates, use
+            <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a>.
+          </p><p>
+            Prior to MySQL 8.0, there is no way of skipping
+            the use of index dives to estimate index usefulness, except
+            by using the
+            <a class="link" href="server-system-variables.html#sysvar_eq_range_index_dive_limit"><code class="literal">eq_range_index_dive_limit</code></a>
+            system variable. In MySQL 8.0, index dive
+            skipping is possible for queries that satisfy all these
+            conditions:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                The query is for a single table, not a join on multiple
+                tables.
+              </p></li><li class="listitem"><p>
+                A single-index <code class="literal">FORCE INDEX</code> index hint
+                is present. The idea is that if index use is forced,
+                there is nothing to be gained from the additional
+                overhead of performing dives into the index.
+              </p></li><li class="listitem"><p>
+                The index is nonunique and not a
+                <code class="literal">FULLTEXT</code> index.
+              </p></li><li class="listitem"><p>
+                No subquery is present.
+              </p></li><li class="listitem"><p>
+                No <code class="literal">DISTINCT</code>, <code class="literal">GROUP
+                BY</code>, or <code class="literal">ORDER BY</code> clause is
+                present.
+              </p></li></ul></div><p>
+            For <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN FOR
+            CONNECTION</code></a>, the output changes as follows if index
+            dives are skipped:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                For traditional output, the <code class="literal">rows</code> and
+                <code class="literal">filtered</code> values are
+                <code class="literal">NULL</code>.
+              </p></li><li class="listitem"><p>
+                For JSON output,
+                <code class="literal">rows_examined_per_scan</code> and
+                <code class="literal">rows_produced_per_join</code> do not appear,
+                <code class="literal">skip_index_dive_due_to_force</code> is
+                <code class="literal">true</code>, and cost calculations are not
+                accurate.
+              </p></li></ul></div><p>
+            Without <code class="literal">FOR CONNECTION</code>,
+            <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output does not
+            change when index dives are skipped.
+          </p><p>
+            After execution of a query for which index dives are
+            skipped, the corresponding row in the Information Schema
+            <a class="link" href="information-schema-optimizer-trace-table.html" title="26.3.19&nbsp;The INFORMATION_SCHEMA OPTIMIZER_TRACE Table"><code class="literal">OPTIMIZER_TRACE</code></a> table contains
+            an <code class="literal">index_dives_for_range_access</code> value of
+            <code class="literal">skipped_due_to_force_index</code>.
+          </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="range-access-skip-scan"></a>Skip Scan Range Access Method</h5></div></div></div><p>
+            Consider the following scenario:
+          </p><pre class="programlisting">CREATE TABLE t1 (f1 INT NOT NULL, f2 INT NOT NULL, PRIMARY KEY(f1, f2));
+INSERT INTO t1 VALUES
+  (1,1), (1,2), (1,3), (1,4), (1,5),
+  (2,1), (2,2), (2,3), (2,4), (2,5);
+INSERT INTO t1 SELECT f1, f2 + 5 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 10 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 20 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 40 FROM t1;
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT f1, f2 FROM t1 WHERE f2 &gt; 40;
+</pre><p>
+            To execute this query, MySQL can choose an index scan to
+            fetch all rows (the index includes all columns to be
+            selected), then apply the <code class="literal">f2 &gt; 40</code>
+            condition from the <code class="literal">WHERE</code> clause to
+            produce the final result set.
+          </p><p>
+            A range scan is more efficient than a full index scan, but
+            cannot be used in this case because there is no condition on
+            <code class="literal">f1</code>, the first index column. However, as
+            of MySQL 8.0.13, the optimizer can perform multiple range
+            scans, one for each value of <code class="literal">f1</code>, using a
+            method called Skip Scan that is similar to Loose Index Scan
+            (see <a class="xref" href="group-by-optimization.html" title="8.2.1.17&nbsp;GROUP BY Optimization">Section&nbsp;8.2.1.17, &ldquo;GROUP BY Optimization&rdquo;</a>):
+          </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                Skip between distinct values of the first index part,
+                <code class="literal">f1</code> (the index prefix).
+              </p></li><li class="listitem"><p>
+                Perform a subrange scan on each distinct prefix value
+                for the <code class="literal">f2 &gt; 40</code> condition on the
+                remaining index part.
+              </p></li></ol></div><p>
+            For the data set shown earlier, the algorithm operates like
+            this:
+          </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                Get the first distinct value of the first key part
+                (<code class="literal">f1 = 1</code>).
+              </p></li><li class="listitem"><p>
+                Construct the range based on the first and second key
+                parts (<code class="literal">f1 = 1 AND f2 &gt; 40</code>).
+              </p></li><li class="listitem"><p>
+                Perform a range scan.
+              </p></li><li class="listitem"><p>
+                Get the next distinct value of the first key part
+                (<code class="literal">f1 = 2</code>).
+              </p></li><li class="listitem"><p>
+                Construct the range based on the first and second key
+                parts (<code class="literal">f1 = 2 AND f2 &gt; 40</code>).
+              </p></li><li class="listitem"><p>
+                Perform a range scan.
+              </p></li></ol></div><p>
+            Using this strategy decreases the number of accessed rows
+            because MySQL skips the rows that do not qualify for each
+            constructed range. This Skip Scan access method is
+            applicable under the following conditions:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                Table T has at least one compound index with key parts
+                of the form ([A_1, ..., A_<em class="replaceable"><code>k</code></em>,]
+                B_1, ..., B_<em class="replaceable"><code>m</code></em>, C [, D_1, ...,
+                D_<em class="replaceable"><code>n</code></em>]). Key parts A and D may
+                be empty, but B and C must be nonempty.
+              </p></li><li class="listitem"><p>
+                The query references only one table.
+              </p></li><li class="listitem"><p>
+                The query does not use <code class="literal">GROUP BY</code> or
+                <code class="literal">DISTINCT</code>.
+              </p></li><li class="listitem"><p>
+                The query references only columns in the index.
+              </p></li><li class="listitem"><p>
+                The predicates on A_1, ...,
+                A_<em class="replaceable"><code>k</code></em> must be equality
+                predicates and they must be constants. This includes the
+                <a class="link" href="comparison-operators.html#operator_in"><code class="literal">IN()</code></a> operator.
+              </p></li><li class="listitem"><p>
+                The query must be a conjunctive query; that is, an
+                <code class="literal">AND</code> of <code class="literal">OR</code>
+                conditions:
+                <code class="literal">(<em class="replaceable"><code>cond1</code></em>(<em class="replaceable"><code>key_part1</code></em>)
+                OR
+                <em class="replaceable"><code>cond2</code></em>(<em class="replaceable"><code>key_part1</code></em>))
+                AND
+                (<em class="replaceable"><code>cond1</code></em>(<em class="replaceable"><code>key_part2</code></em>)
+                OR ...) AND ...</code>
+              </p></li><li class="listitem"><p>
+                There must be a range condition on C.
+              </p></li><li class="listitem"><p>
+                Conditions on D columns are permitted. Conditions on D
+                must be in conjunction with the range condition on C.
+              </p></li></ul></div><p>
+            Use of Skip Scan is indicated in <code class="literal">EXPLAIN</code>
+            output as follows:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                <code class="literal">Using index for skip scan</code> in the
+                <code class="literal">Extra</code> column indicates that the loose
+                index Skip Scan access method is used.
+              </p></li><li class="listitem"><p>
+                If the index can be used for Skip Scan, the index should
+                be visible in the <code class="literal">possible_keys</code>
+                column.
+              </p></li></ul></div><p>
+            Use of Skip Scan is indicated in optimizer trace output by a
+            <code class="literal">&#34;skip scan&#34;</code> element of this form:
+          </p><pre class="programlisting">&#34;skip_scan_range&#34;: {
+  &#34;type&#34;: &#34;skip_scan&#34;,
+  &#34;index&#34;: <em class="replaceable"><code>index_used_for_skip_scan</code></em>,
+  &#34;key_parts_used_for_access&#34;: [<em class="replaceable"><code>key_parts_used_for_access</code></em>],
+  &#34;range&#34;: [<em class="replaceable"><code>range</code></em>]
+}
+</pre><p>
+            You may also see a
+            <code class="literal">&#34;best_skip_scan_summary&#34;</code> element. If Skip
+            Scan is chosen as the best range access variant, a
+            <code class="literal">&#34;chosen_range_access_summary&#34;</code> is written.
+            If Skip Scan is chosen as the overall best access method, a
+            <code class="literal">&#34;best_access_path&#34;</code> element is present.
+          </p><p>
+            Use of Skip Scan is subject to the value of the
+            <a class="link" href="switchable-optimizations.html#optflag_skip-scan"><code class="literal">skip_scan</code></a> flag of the
+            <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> system
+            variable. See <a class="xref" href="switchable-optimizations.html" title="8.9.2&nbsp;Switchable Optimizations">Section&nbsp;8.9.2, &ldquo;Switchable Optimizations&rdquo;</a>. By
+            default, this flag is <code class="literal">on</code>. To disable it,
+            set <a class="link" href="switchable-optimizations.html#optflag_skip-scan"><code class="literal">skip_scan</code></a> to
+            <code class="literal">off</code>.
+          </p><p>
+            In addition to using the
+            <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> system
+            variable to control optimizer use of Skip Scan session-wide,
+            MySQL supports optimizer hints to influence the optimizer on
+            a per-statement basis. See
+            <a class="xref" href="optimizer-hints.html" title="8.9.3&nbsp;Optimizer Hints">Section&nbsp;8.9.3, &ldquo;Optimizer Hints&rdquo;</a>.
+          </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="row-constructor-range-optimization"></a>Range Optimization of Row Constructor Expressions</h5></div></div></div><p>
+            The optimizer is able to apply the range scan access method
+            to queries of this form:
+          </p><pre class="programlisting">SELECT ... FROM t1 WHERE ( col_1, col_2 ) IN (( &#39;a&#39;, &#39;b&#39; ), ( &#39;c&#39;, &#39;d&#39; ));
+</pre><p>
+            Previously, for range scans to be used, it was necessary to
+            write the query as:
+          </p><pre class="programlisting">SELECT ... FROM t1 WHERE ( col_1 = &#39;a&#39; AND col_2 = &#39;b&#39; )
+OR ( col_1 = &#39;c&#39; AND col_2 = &#39;d&#39; );
+</pre><p>
+            For the optimizer to use a range scan, queries must satisfy
+            these conditions:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                Only <a class="link" href="comparison-operators.html#operator_in"><code class="literal">IN()</code></a> predicates are
+                used, not <a class="link" href="comparison-operators.html#operator_not-in"><code class="literal">NOT IN()</code></a>.
+              </p></li><li class="listitem"><p>
+                On the left side of the
+                <a class="link" href="comparison-operators.html#operator_in"><code class="literal">IN()</code></a> predicate, the row
+                constructor contains only column references.
+              </p></li><li class="listitem"><p>
+                On the right side of the
+                <a class="link" href="comparison-operators.html#operator_in"><code class="literal">IN()</code></a> predicate, row
+                constructors contain only runtime constants, which are
+                either literals or local column references that are
+                bound to constants during execution.
+              </p></li><li class="listitem"><p>
+                On the right side of the
+                <a class="link" href="comparison-operators.html#operator_in"><code class="literal">IN()</code></a> predicate, there is
+                more than one row constructor.
+              </p></li></ul></div><p>
+            For more information about the optimizer and row
+            constructors, see
+            <a class="xref" href="row-constructor-optimization.html" title="8.2.1.22&nbsp;Row Constructor Expression Optimization">Section&nbsp;8.2.1.22, &ldquo;Row Constructor Expression Optimization&rdquo;</a>
+          </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="range-optimization-memory-use"></a>Limiting Memory Use for Range Optimization</h5></div></div></div><p>
+            To control the memory available to the range optimizer, use
+            the
+            <a class="link" href="server-system-variables.html#sysvar_range_optimizer_max_mem_size"><code class="literal">range_optimizer_max_mem_size</code></a>
+            system variable:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                A value of 0 means <span class="quote">&ldquo;<span class="quote">no limit.</span>&rdquo;</span>
+              </p></li><li class="listitem"><p>
+                With a value greater than 0, the optimizer tracks the
+                memory consumed when considering the range access
+                method. If the specified limit is about to be exceeded,
+                the range access method is abandoned and other methods,
+                including a full table scan, are considered instead.
+                This could be less optimal. If this happens, the
+                following warning occurs (where
+                <em class="replaceable"><code>N</code></em> is the current
+                <a class="link" href="server-system-variables.html#sysvar_range_optimizer_max_mem_size"><code class="literal">range_optimizer_max_mem_size</code></a>
+                value):
+              </p><pre class="programlisting">Warning    3170    Memory capacity of <em class="replaceable"><code>N</code></em> bytes for
+                   &#39;range_optimizer_max_mem_size&#39; exceeded. Range
+                   optimization was not done for this query.
+</pre></li><li class="listitem"><p>
+                For <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> and
+                <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> statements, if the
+                optimizer falls back to a full table scan and the
+                <a class="link" href="server-system-variables.html#sysvar_sql_safe_updates"><code class="literal">sql_safe_updates</code></a> system
+                variable is enabled, an error occurs rather than a
+                warning because, in effect, no key is used to determine
+                which rows to modify. For more information, see
+                <a class="xref" href="mysql-tips.html#safe-updates" title="Using Safe-Updates Mode (--safe-updates)">Using Safe-Updates Mode (--safe-updates)</a>.
+              </p></li></ul></div><p>
+            For individual queries that exceed the available range
+            optimization memory and for which the optimizer falls back
+            to less optimal plans, increasing the
+            <a class="link" href="server-system-variables.html#sysvar_range_optimizer_max_mem_size"><code class="literal">range_optimizer_max_mem_size</code></a>
+            value may improve performance.
+          </p><p>
+            To estimate the amount of memory needed to process a range
+            expression, use these guidelines:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                For a simple query such as the following, where there is
+                one candidate key for the range access method, each
+                predicate combined with <a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a>
+                uses approximately 230 bytes:
+              </p><pre class="programlisting">SELECT COUNT(*) FROM t
+WHERE a=1 OR a=2 OR a=3 OR .. . a=<em class="replaceable"><code>N</code></em>;
+</pre></li><li class="listitem"><p>
+                Similarly for a query such as the following, each
+                predicate combined with <a class="link" href="logical-operators.html#operator_and"><code class="literal">AND</code></a>
+                uses approximately 125 bytes:
+              </p><pre class="programlisting">SELECT COUNT(*) FROM t
+WHERE a=1 AND b=1 AND c=1 ... <em class="replaceable"><code>N</code></em>;
+</pre></li><li class="listitem"><p>
+                For a query with <a class="link" href="comparison-operators.html#operator_in"><code class="literal">IN()</code></a>
+                predicates:
+              </p><pre class="programlisting">SELECT COUNT(*) FROM t
+WHERE a IN (1,2, ..., <em class="replaceable"><code>M</code></em>) AND b IN (1,2, ..., <em class="replaceable"><code>N</code></em>);
+</pre><p>
+                Each literal value in an
+                <a class="link" href="comparison-operators.html#operator_in"><code class="literal">IN()</code></a> list counts as a
+                predicate combined with <a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a>.
+                If there are two <a class="link" href="comparison-operators.html#operator_in"><code class="literal">IN()</code></a>
+                lists, the number of predicates combined with
+                <a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a> is the product of the
+                number of literal values in each list. Thus, the number
+                of predicates combined with
+                <a class="link" href="logical-operators.html#operator_or"><code class="literal">OR</code></a> in the preceding case is
+                <em class="replaceable"><code>M</code></em> &times;
+                <em class="replaceable"><code>N</code></em>.
+              </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="where-optimization.html">Previous <span class="navHint"> WHERE Clause Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="index-merge-optimization.html">Next <span class="navHint"> Index Merge Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

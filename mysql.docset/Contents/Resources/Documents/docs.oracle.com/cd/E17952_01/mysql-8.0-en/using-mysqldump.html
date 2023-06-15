@@ -1,0 +1,47 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4512"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/7.4%C2%A0Using%20mysqldump%20for%20Backups"></a><title>7.4&nbsp;Using mysqldump for Backups</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="backup-and-recovery.html" title="Chapter&nbsp;7&nbsp;Backup and Recovery"/><link rel="prev" href="backup-strategy-summary.html" title="7.3.3&nbsp;Backup Strategy Summary"/><link rel="next" href="mysqldump-sql-format.html" title="7.4.1&nbsp;Dumping Data in SQL Format with mysqldump"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="using-mysqldump.html#using-mysqldump">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="backup-strategy-summary.html">Previous <span class="navHint"> Backup Strategy Summary </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="backup-and-recovery.html">Up <span class="navHint"> Backup and Recovery </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysqldump-sql-format.html">Next <span class="navHint"> Dumping Data in SQL Format with mysqldump </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="using-mysqldump"></a>7.4&nbsp;Using mysqldump for Backups</h2></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="mysqldump-sql-format.html">7.4.1 Dumping Data in SQL Format with mysqldump</a></span></li><li><span class="section"><a href="reloading-sql-format-dumps.html">7.4.2 Reloading SQL-Format Backups</a></span></li><li><span class="section"><a href="mysqldump-delimited-text.html">7.4.3 Dumping Data in Delimited-Text Format with mysqldump</a></span></li><li><span class="section"><a href="reloading-delimited-text-dumps.html">7.4.4 Reloading Delimited-Text Format Backups</a></span></li><li><span class="section"><a href="mysqldump-tips.html">7.4.5 mysqldump Tips</a></span></li></ul></div><a id="idm45828957991072" class="indexterm"></a><a id="idm45828957989616" class="indexterm"></a><div class="tip" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Tip</div><p>
+        Consider using the <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-shell-utilities-dump-instance-schema.html" target="_top">MySQL Shell dump utilities</a>, which provide parallel dumping with multiple threads, file compression, and progress information display, as well as cloud features such as Oracle Cloud Infrastructure Object Storage streaming, and MySQL Database Service compatibility checks and modifications. Dumps can be easily imported into a MySQL Server instance or a MySQL Database Service DB System using the <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-shell-utilities-load-dump.html" target="_top">MySQL Shell load dump utilities</a>. Installation instructions for MySQL Shell can be found <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-shell-install.html" target="_top">here</a>.
+      </p></div><p>
+      This section describes how to use <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> to
+      produce dump files, and how to reload dump files. A dump file can
+      be used in several ways:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          As a backup to enable data recovery in case of data loss.
+        </p></li><li class="listitem"><p>
+          As a source of data for setting up replicas.
+        </p></li><li class="listitem"><p>
+          As a source of data for experimentation:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              To make a copy of a database that you can use without
+              changing the original data.
+            </p></li><li class="listitem"><p>
+              To test potential upgrade incompatibilities.
+            </p></li></ul></div></li></ul></div><p>
+      <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> produces two types of output,
+      depending on whether the <a class="link" href="mysqldump.html#option_mysqldump_tab"><code class="option">--tab</code></a>
+      option is given:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Without <a class="link" href="mysqldump.html#option_mysqldump_tab"><code class="option">--tab</code></a>,
+          <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> writes SQL statements to the
+          standard output. This output consists of
+          <code class="literal">CREATE</code> statements to create dumped objects
+          (databases, tables, stored routines, and so forth), and
+          <code class="literal">INSERT</code> statements to load data into tables.
+          The output can be saved in a file and reloaded later using
+          <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> to recreate the dumped objects.
+          Options are available to modify the format of the SQL
+          statements, and to control which objects are dumped.
+        </p></li><li class="listitem"><p>
+          With <a class="link" href="mysqldump.html#option_mysqldump_tab"><code class="option">--tab</code></a>,
+          <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> produces two output files for
+          each dumped table. The server writes one file as tab-delimited
+          text, one line per table row. This file is named
+          <code class="filename"><em class="replaceable"><code>tbl_name</code></em>.txt</code>
+          in the output directory. The server also sends a
+          <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement for the
+          table to <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>, which writes it as a
+          file named
+          <code class="filename"><em class="replaceable"><code>tbl_name</code></em>.sql</code>
+          in the output directory.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="backup-strategy-summary.html">Previous <span class="navHint"> Backup Strategy Summary </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="backup-and-recovery.html">Up <span class="navHint"> Backup and Recovery </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysqldump-sql-format.html">Next <span class="navHint"> Dumping Data in SQL Format with mysqldump </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

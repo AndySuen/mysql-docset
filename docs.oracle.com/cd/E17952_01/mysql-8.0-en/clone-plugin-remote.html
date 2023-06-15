@@ -1,0 +1,467 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.6.7.3 Cloning Remote Data</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="clone-plugin.html" title="5.6.7 The Clone Plugin" /><link rel="prev" href="clone-plugin-local.html" title="5.6.7.2 Cloning Data Locally" /><link rel="next" href="clone-plugin-concurrent-ddl.html" title="5.6.7.4 Cloning and Concurrent DDL" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="clone-plugin-remote.html#clone-plugin-remote">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="clone-plugin-local.html">Previous <span class="navHint"> Cloning Data Locally </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="clone-plugin.html">Up <span class="navHint"> The Clone Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="clone-plugin-concurrent-ddl.html">Next <span class="navHint"> Cloning and Concurrent DDL </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="clone-plugin-remote"></a>5.6.7.3 Cloning Remote Data</h4></div></div></div><a id="idm45828983342112" class="indexterm"></a><p>
+        The clone plugin supports the following syntax for cloning
+        remote data; that is, cloning data from a remote MySQL server
+        instance (the donor) and transferring it to the MySQL instance
+        where the cloning operation was initiated (the recipient).
+      </p><pre class="programlisting">CLONE INSTANCE FROM '<em class="replaceable"><code>user</code></em>'@'<em class="replaceable"><code>host</code></em>':<em class="replaceable"><code>port</code></em>
+IDENTIFIED BY '<em class="replaceable"><code>password</code></em>'
+[DATA DIRECTORY [=] '<em class="replaceable"><code>clone_dir</code></em>']
+[REQUIRE [NO] SSL];
+</pre><p>
+        where:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal"><em class="replaceable"><code>user</code></em></code> is the
+            clone user on the donor MySQL server instance.
+          </p></li><li class="listitem"><p>
+            <code class="literal"><em class="replaceable"><code>password</code></em></code> is
+            the <code class="literal"><em class="replaceable"><code>user</code></em></code>
+            password.
+          </p></li><li class="listitem"><p>
+            <code class="literal"><em class="replaceable"><code>host</code></em></code> is the
+            <a class="link" href="server-system-variables.html#sysvar_hostname"><code class="literal">hostname</code></a> address of the
+            donor MySQL server instance. Internet Protocol version 6
+            (IPv6) address format is not supported. An alias to the IPv6
+            address can be used instead. An IPv4 address can be used as
+            is.
+          </p></li><li class="listitem"><p>
+            <code class="literal"><em class="replaceable"><code>port</code></em></code> is the
+            <a class="link" href="server-system-variables.html#sysvar_port"><code class="literal">port</code></a> number of the donor
+            MySQL server instance. (The X Protocol port specified by
+            <a class="link" href="x-plugin-options-system-variables.html#sysvar_mysqlx_port"><code class="literal">mysqlx_port</code></a> is not
+            supported. Connecting to the donor MySQL server instance
+            through MySQL Router is also not supported.)
+          </p></li><li class="listitem"><p>
+            <code class="literal">DATA DIRECTORY [=]
+            '<em class="replaceable"><code>clone_dir</code></em>'</code> is an
+            optional clause used to specify a directory on the recipient
+            for the data you are cloning. Use this option if you do not
+            want to remove existing user-created data (schemas, tables,
+            tablespaces) and binary logs from the recipient data
+            directory. An absolute path is required, and the directory
+            must not exist. The MySQL server must have the necessary
+            write access to create the directory.
+          </p><p>
+            When the optional <code class="literal">DATA DIRECTORY [=]
+            '<em class="replaceable"><code>clone_dir</code></em>'</code> clause is
+            not used, a cloning operation removes user-created data
+            (schemas, tables, tablespaces) and binary logs from the
+            recipient data directory, clones the new data to the
+            recipient data directory, and automatically restarts the
+            server afterward.
+          </p></li><li class="listitem"><p>
+            <code class="literal">[REQUIRE [NO] SSL]</code> explicitly specifies
+            whether an encrypted connection is to be used or not when
+            transferring cloned data over the network. An error is
+            returned if the explicit specification cannot be satisfied.
+            If an SSL clause is not specified, clone attempts to
+            establish an encrypted connection by default, falling back
+            to an insecure connection if the secure connection attempt
+            fails. A secure connection is required when cloning
+            encrypted data regardless of whether this clause is
+            specified. For more information, see
+            <a class="xref" href="clone-plugin-remote.html#clone-plugin-remote-ssl" title="Configuring an Encrypted Connection for Cloning">Configuring an Encrypted Connection for Cloning</a>.
+          </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          By default, user-created <code class="literal">InnoDB</code> tables and
+          tablespaces that reside in the data directory on the donor
+          MySQL server instance are cloned to the data directory on the
+          recipient MySQL server instance. If the <code class="literal">DATA
+          DIRECTORY [=] '<em class="replaceable"><code>clone_dir</code></em>'</code>
+          clause is specified, they are cloned to the specified
+          directory.
+        </p><p>
+          User-created <code class="literal">InnoDB</code> tables and tablespaces
+          that reside outside of the data directory on the donor MySQL
+          server instance are cloned to the same path on the recipient
+          MySQL server instance. An error is reported if a table or
+          tablespace already exists.
+        </p><p>
+          By default, the <code class="literal">InnoDB</code> system tablespace,
+          redo logs, and undo tablespaces are cloned to the same
+          locations that are configured on the donor (as defined by
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a> and
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_data_file_path"><code class="literal">innodb_data_file_path</code></a>,
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_log_group_home_dir"><code class="literal">innodb_log_group_home_dir</code></a>,
+          and <a class="link" href="innodb-parameters.html#sysvar_innodb_undo_directory"><code class="literal">innodb_undo_directory</code></a>,
+          respectively). If the <code class="literal">DATA DIRECTORY [=]
+          '<em class="replaceable"><code>clone_dir</code></em>'</code> clause is
+          specified, those tablespaces and logs are cloned to the
+          specified directory.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="clone-remote-prerequisites"></a>Remote Cloning Prerequisites</h5></div></div></div><a id="idm45828983303600" class="indexterm"></a><p>
+          To perform a cloning operation, the clone plugin must be
+          active on both the donor and recipient MySQL server instances.
+          For installation instructions, see
+          <a class="xref" href="clone-plugin-installation.html" title="5.6.7.1 Installing the Clone Plugin">Section 5.6.7.1, “Installing the Clone Plugin”</a>.
+        </p><p>
+          A MySQL user on the donor and recipient is required for
+          executing the cloning operation (the <span class="quote">“<span class="quote">clone
+          user</span>”</span>).
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              On the donor, the clone user requires the
+              <a class="link" href="privileges-provided.html#priv_backup-admin"><code class="literal">BACKUP_ADMIN</code></a> privilege for
+              accessing and transferring data from the donor and
+              blocking concurrent DDL during the cloning operation.
+              Concurrent DDL during the cloning operation is blocked on
+              the donor prior to MySQL 8.0.27. From MySQL 8.0.27,
+              concurrent DDL is permitted on the donor by default. See
+              <a class="xref" href="clone-plugin-concurrent-ddl.html" title="5.6.7.4 Cloning and Concurrent DDL">Section 5.6.7.4, “Cloning and Concurrent DDL”</a>.
+            </p></li><li class="listitem"><p>
+              On the recipient, the clone user requires the
+              <a class="link" href="privileges-provided.html#priv_clone-admin"><code class="literal">CLONE_ADMIN</code></a> privilege for
+              replacing recipient data, blocking DDL on the recipient
+              during the cloning operation, and automatically restarting
+              the server. The <a class="link" href="privileges-provided.html#priv_clone-admin"><code class="literal">CLONE_ADMIN</code></a>
+              privilege includes
+              <a class="link" href="privileges-provided.html#priv_backup-admin"><code class="literal">BACKUP_ADMIN</code></a> and
+              <a class="link" href="privileges-provided.html#priv_shutdown"><code class="literal">SHUTDOWN</code></a> privileges
+              implicitly.
+            </p></li></ul></div><p>
+          Instructions for creating the clone user and granting the
+          required privileges are included in the remote cloning example
+          that follows this prerequisite information.
+        </p><p>
+          The following prerequisites are checked when the
+          <a class="link" href="clone.html" title="13.7.5 CLONE Statement"><code class="literal">CLONE
+          INSTANCE</code></a> statement is executed:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The clone plugin is supported in MYSQL 8.0.17 and higher.
+              The donor and recipient must be the same MySQL server
+              version and release. To determine the MySQL server version
+              and release, issue the following query:
+            </p><pre class="programlisting">mysql&gt; SHOW VARIABLES LIKE 'version';
+ +---------------+--------+
+| Variable_name | Value  |
++---------------+--------+
+| version       | 8.0.17 |
++---------------+--------+
+</pre><p>
+              Cloning from a donor MySQL server instance to a hotfix
+              MySQL server instance of the same version and release is
+              supported as of MySQL 8.0.26.
+            </p></li><li class="listitem"><p>
+              The donor and recipient MySQL server instances must run on
+              the same operating system and platform. For example, if
+              the donor instance runs on a Linux 64-bit platform, the
+              recipient instance must also run on that platform. Refer
+              to your operating system documentation for information
+              about how to determine your operating system platform.
+            </p></li><li class="listitem"><p>
+              The recipient must have enough disk space for the cloned
+              data. By default, user-created data (schemas, tables,
+              tablespaces) and binary logs are removed on the recipient
+              prior to cloning the donor data, so you only require
+              enough space for the donor data. If you clone to a named
+              directory using the <code class="literal">DATA DIRECTORY</code>
+              clause, you must have enough disk space for the existing
+              recipient data and the cloned data. You can estimate the
+              size of your data by checking the data directory size on
+              your file system and the size of any tablespaces that
+              reside outside of the data directory. When estimating data
+              size on the donor, remember that only
+              <code class="literal">InnoDB</code> data is cloned. If you store
+              data in other storage engines, adjust your data size
+              estimate accordingly.
+            </p></li><li class="listitem"><p>
+              <code class="literal">InnoDB</code> permits creating some tablespace
+              types outside of the data directory. If the donor MySQL
+              server instance has tablespaces that reside outside of the
+              data directory, the cloning operation must be able access
+              those tablespaces. You can query the Information Schema
+              <a class="link" href="information-schema-files-table.html" title="26.3.15 The INFORMATION_SCHEMA FILES Table"><code class="literal">FILES</code></a> table to identify
+              tablespaces that reside outside of the data directory.
+              Files that reside outside of the data directory have a
+              fully qualified path to a directory other than the data
+              directory.
+            </p><pre class="programlisting">mysql&gt; SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES;</pre></li><li class="listitem"><p>
+              Plugins that are active on the donor, including any
+              keyring plugin, must also be active on the recipient. You
+              can identify active plugins by issuing a
+              <a class="link" href="show-plugins.html" title="13.7.7.25 SHOW PLUGINS Statement"><code class="literal">SHOW PLUGINS</code></a> statement or
+              by querying the Information Schema
+              <a class="link" href="information-schema-plugins-table.html" title="26.3.22 The INFORMATION_SCHEMA PLUGINS Table"><code class="literal">PLUGINS</code></a> table.
+            </p></li><li class="listitem"><p>
+              The donor and recipient must have the same MySQL server
+              character set and collation. For information about MySQL
+              server character set and collation configuration, see
+              <a class="xref" href="charset-configuration.html" title="10.15 Character Set Configuration">Section 10.15, “Character Set Configuration”</a>.
+            </p></li><li class="listitem"><p>
+              The same <a class="link" href="innodb-parameters.html#sysvar_innodb_page_size"><code class="literal">innodb_page_size</code></a>
+              and <a class="link" href="innodb-parameters.html#sysvar_innodb_data_file_path"><code class="literal">innodb_data_file_path</code></a>
+              settings are required on the donor and recipient. The
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_data_file_path"><code class="literal">innodb_data_file_path</code></a>
+              setting on the donor and recipient must specify the same
+              number of data files of an equivalent size. You can check
+              variable settings using <a class="link" href="show-variables.html" title="13.7.7.41 SHOW VARIABLES Statement"><code class="literal">SHOW
+              VARIABLES</code></a> syntax.
+            </p><pre class="programlisting">mysql&gt; SHOW VARIABLES LIKE 'innodb_page_size';
+mysql&gt; SHOW VARIABLES LIKE 'innodb_data_file_path';
+</pre></li><li class="listitem"><p>
+              If cloning encrypted or page-compressed data, the donor
+              and recipient must have the same file system block size.
+              For page-compressed data, the recipient file system must
+              support sparse files and hole punching for hole punching
+              to occur on the recipient. For information about these
+              features and how to identify tables and tablespaces that
+              use them, see
+              <a class="xref" href="clone-plugin-encrypted-data.html" title="5.6.7.5 Cloning Encrypted Data">Section 5.6.7.5, “Cloning Encrypted Data”</a>, and
+              <a class="xref" href="clone-plugin-compressed-data.html" title="5.6.7.6 Cloning Compressed Data">Section 5.6.7.6, “Cloning Compressed Data”</a>. To
+              determine your file system block size, refer to your
+              operating system documentation.
+            </p></li><li class="listitem"><p>
+              A secure connection is required if you are cloning
+              encrypted data. See
+              <a class="xref" href="clone-plugin-remote.html#clone-plugin-remote-ssl" title="Configuring an Encrypted Connection for Cloning">Configuring an Encrypted Connection for Cloning</a>.
+            </p></li><li class="listitem"><p>
+              The
+              <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_valid_donor_list"><code class="literal">clone_valid_donor_list</code></a>
+              setting on the recipient must include the host address of
+              the donor MySQL server instance. You can only clone data
+              from a host on the valid donor list. A MySQL user with the
+              <a class="link" href="privileges-provided.html#priv_system-variables-admin"><code class="literal">SYSTEM_VARIABLES_ADMIN</code></a>
+              privilege is required to configure this variable.
+              Instructions for setting the
+              <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_valid_donor_list"><code class="literal">clone_valid_donor_list</code></a>
+              variable are provided in the remote cloning example that
+              follows this section. You can check the
+              <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_valid_donor_list"><code class="literal">clone_valid_donor_list</code></a>
+              setting using <a class="link" href="show-variables.html" title="13.7.7.41 SHOW VARIABLES Statement"><code class="literal">SHOW
+              VARIABLES</code></a> syntax.
+            </p><pre class="programlisting">mysql&gt; SHOW VARIABLES LIKE 'clone_valid_donor_list';
+</pre></li><li class="listitem"><p>
+              There must be no other cloning operation running. Only a
+              single cloning operation is permitted at a time. To
+              determine if a clone operation is running, query the
+              <a class="link" href="performance-schema-clone-status-table.html" title="27.12.19.1 The clone_status Table"><code class="literal">clone_status</code></a> table. See
+              <a class="xref" href="clone-plugin-monitoring.html#clone-plugin-monitoring-performance-schema-clone-tables" title="Monitoring Cloning Operations using Performance Schema Clone Tables">Monitoring Cloning Operations using Performance Schema Clone Tables</a>.
+            </p></li><li class="listitem"><p>
+              The clone plugin transfers data in 1MB packets plus
+              metadata. The minimum required
+              <a class="link" href="server-system-variables.html#sysvar_max_allowed_packet"><code class="literal">max_allowed_packet</code></a> value
+              is therefore 2MB on the donor and the recipient MySQL
+              server instances. A
+              <a class="link" href="server-system-variables.html#sysvar_max_allowed_packet"><code class="literal">max_allowed_packet</code></a> value
+              less than 2MB results in an error. Use the following query
+              to check your
+              <a class="link" href="server-system-variables.html#sysvar_max_allowed_packet"><code class="literal">max_allowed_packet</code></a>
+              setting:
+            </p><pre class="programlisting">mysql&gt; SHOW VARIABLES LIKE 'max_allowed_packet';
+</pre></li></ul></div><p>
+          The following prerequisites also apply:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Undo tablespace file names on the donor must be unique.
+              When data is cloned to the recipient, undo tablespaces,
+              regardless of their location on the donor, are cloned to
+              the <a class="link" href="innodb-parameters.html#sysvar_innodb_undo_directory"><code class="literal">innodb_undo_directory</code></a>
+              location on the recipient or to the directory specified by
+              the <code class="literal">DATA DIRECTORY [=]
+              '<em class="replaceable"><code>clone_dir</code></em>'</code> clause,
+              if used. Duplicate undo tablespace file names on the donor
+              are not permitted for this reason. As of MySQL 8.0.18, an
+              error is reported if duplicate undo tablespace file names
+              are encountered during a cloning operation. Prior to MySQL
+              8.0.18, cloning undo tablespaces with the same file name
+              could result in undo tablespace files being overwritten on
+              the recipient.
+            </p><p>
+              To view undo tablespace file names on the donor to ensure
+              that they are unique, query
+              <a class="link" href="information-schema-files-table.html" title="26.3.15 The INFORMATION_SCHEMA FILES Table"><code class="literal">INFORMATION_SCHEMA.FILES</code></a>:
+            </p><pre class="programlisting">mysql&gt; SELECT TABLESPACE_NAME, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_TYPE LIKE 'UNDO LOG';
+</pre><p>
+              For information about dropping and adding undo tablespace
+              files, see <a class="xref" href="innodb-undo-tablespaces.html" title="15.6.3.4 Undo Tablespaces">Section 15.6.3.4, “Undo Tablespaces”</a>.
+            </p></li><li class="listitem"><p>
+              By default, the recipient MySQL server instance is
+              restarted (stopped and started) automatically after the
+              data is cloned. For an automatic restart to occur, a
+              monitoring process must be available on the recipient to
+              detect server shutdowns. Otherwise, the cloning operation
+              halts with the following error after the data is cloned,
+              and the recipient MySQL server instance is shut down:
+            </p><pre class="programlisting">ERROR 3707 (HY000): Restart server failed (mysqld is not managed by supervisor process).</pre><p>
+              This error does not indicate a cloning failure. It means
+              that the recipient MySQL server instance must be started
+              again manually after the data is cloned. After starting
+              the server manually, you can connect to the recipient
+              MySQL server instance and check the Performance Schema
+              clone tables to verify that the cloning operation
+              completed successfully (see
+              <a class="xref" href="clone-plugin-monitoring.html#clone-plugin-monitoring-performance-schema-clone-tables" title="Monitoring Cloning Operations using Performance Schema Clone Tables">Monitoring Cloning Operations using Performance Schema Clone Tables</a>.)
+              The <a class="link" href="restart.html" title="13.7.8.8 RESTART Statement"><code class="literal">RESTART</code></a> statement has
+              the same monitoring process requirement. For more
+              information, see <a class="xref" href="restart.html" title="13.7.8.8 RESTART Statement">Section 13.7.8.8, “RESTART Statement”</a>. This
+              requirement is not applicable if cloning to a named
+              directory using the <code class="literal">DATA DIRECTORY</code>
+              clause, as an automatic restart is not performed in this
+              case.
+            </p></li><li class="listitem"><p>
+              Several variables control various aspects of a remote
+              cloning operation. Before performing a remote cloning
+              operation, review the variables and adjust settings as
+              necessary to suit your computing environment. Clone
+              variables are set on recipient MySQL server instance where
+              the cloning operation is executed. See
+              <a class="xref" href="clone-plugin-options-variables.html" title="5.6.7.13 Clone System Variables">Section 5.6.7.13, “Clone System Variables”</a>.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="clone-plugin-remote-example"></a>Cloning Remote Data</h5></div></div></div><a id="idm45828983222192" class="indexterm"></a><p>
+          The following example demonstrates cloning remote data. By
+          default, a remote cloning operation removes user-created data
+          (schemas, tables, tablespaces) and binary logs on the
+          recipient, clones the new data to the recipient data
+          directory, and restarts the MySQL server afterward.
+        </p><p>
+          The example assumes that remote cloning prerequisites are met.
+          See <a class="xref" href="clone-plugin-remote.html#clone-remote-prerequisites" title="Remote Cloning Prerequisites">Remote Cloning Prerequisites</a>.
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              Login to the donor MySQL server instance with an
+              administrative user account.
+            </p><div class="orderedlist"><ol class="orderedlist" type="a"><li class="listitem"><p>
+                  Create a clone user with the
+                  <a class="link" href="privileges-provided.html#priv_backup-admin"><code class="literal">BACKUP_ADMIN</code></a> privilege.
+                </p><pre class="programlisting">mysql&gt; CREATE USER 'donor_clone_user'@'example.donor.host.com' IDENTIFIED BY '<em class="replaceable"><code>password</code></em>';
+mysql&gt; GRANT BACKUP_ADMIN on *.* to 'donor_clone_user'@'example.donor.host.com';
+</pre></li><li class="listitem"><p>
+                  Install the clone plugin:
+                </p><pre class="programlisting">mysql&gt; INSTALL PLUGIN clone SONAME 'mysql_clone.so';
+</pre></li></ol></div></li><li class="listitem"><p>
+              Login to the recipient MySQL server instance with an
+              administrative user account.
+            </p><div class="orderedlist"><ol class="orderedlist" type="a"><li class="listitem"><p>
+                  Create a clone user with the
+                  <a class="link" href="privileges-provided.html#priv_clone-admin"><code class="literal">CLONE_ADMIN</code></a> privilege.
+                </p><pre class="programlisting">mysql&gt; CREATE USER 'recipient_clone_user'@'example.recipient.host.com' IDENTIFIED BY '<em class="replaceable"><code>password</code></em>';
+mysql&gt; GRANT CLONE_ADMIN on *.* to 'recipient_clone_user'@'example.recipient.host.com';
+</pre></li><li class="listitem"><p>
+                  Install the clone plugin:
+                </p><pre class="programlisting">mysql&gt; INSTALL PLUGIN clone SONAME 'mysql_clone.so';
+</pre></li><li class="listitem"><p>
+                  Add the host address of the donor MySQL server
+                  instance to the
+                  <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_valid_donor_list"><code class="literal">clone_valid_donor_list</code></a>
+                  variable setting.
+                </p><pre class="programlisting">mysql&gt; SET GLOBAL clone_valid_donor_list = '<em class="replaceable"><code>example.donor.host.com</code></em>:<em class="replaceable"><code>3306</code></em>';</pre></li></ol></div></li><li class="listitem"><p>
+              Log on to the recipient MySQL server instance as the clone
+              user you created previously
+              (<code class="literal">recipient_clone_user'@'example.recipient.host.com</code>)
+              and execute the
+              <a class="link" href="clone.html" title="13.7.5 CLONE Statement"><code class="literal">CLONE
+              INSTANCE</code></a> statement.
+            </p><pre class="programlisting">mysql&gt; CLONE INSTANCE FROM 'donor_clone_user'@'example.donor.host.com':3306
+       IDENTIFIED BY '<em class="replaceable"><code>password</code></em>';
+</pre><p>
+              After the data is cloned, the MySQL server instance on the
+              recipient is restarted automatically.
+            </p><p>
+              For information about monitoring cloning operation status
+              and progress, see
+              <a class="xref" href="clone-plugin-monitoring.html" title="5.6.7.10 Monitoring Cloning Operations">Section 5.6.7.10, “Monitoring Cloning Operations”</a>.
+            </p></li></ol></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="clone-plugin-remote-named-directory"></a>Cloning to a Named Directory</h5></div></div></div><a id="idm45828983191152" class="indexterm"></a><p>
+          By default, a remote cloning operation removes user-creates
+          data (schemas, tables, tablespaces) and binary logs from the
+          recipient data directory before cloning data from the donor
+          MySQL Server instance. By cloning to a named directory, you
+          can avoid removing data from the current recipient data
+          directory.
+        </p><p>
+          The procedure for cloning to a named directory is the same
+          procedure described in
+          <a class="xref" href="clone-plugin-remote.html#clone-plugin-remote-example" title="Cloning Remote Data">Cloning Remote Data</a> with one
+          exception: The <a class="link" href="clone.html" title="13.7.5 CLONE Statement"><code class="literal">CLONE
+          INSTANCE</code></a> statement must include the <code class="literal">DATA
+          DIRECTORY</code> clause. For example:
+        </p><pre class="programlisting">mysql&gt; CLONE INSTANCE FROM '<em class="replaceable"><code>user</code></em>'@'<em class="replaceable"><code>example.donor.host.com</code></em>':<em class="replaceable"><code>3306</code></em>
+       IDENTIFIED BY '<em class="replaceable"><code>password</code></em>'
+       DATA DIRECTORY = '<em class="replaceable"><code>/path/to/clone_dir</code></em>';
+</pre><p>
+          An absolute path is required, and the directory must not
+          exist. The MySQL server must have the necessary write access
+          to create the directory.
+        </p><p>
+          When cloning to a named directory, the recipient MySQL server
+          instance is not restarted automatically after the data is
+          cloned. If you want to restart the MySQL server on the named
+          directory, you must do so manually:
+        </p><pre class="programlisting">$&gt; mysqld_safe --datadir=<em class="replaceable"><code>/path/to/clone_dir</code></em>
+</pre><p>
+          where <em class="replaceable"><code>/path/to/clone_dir</code></em> is the
+          path to the named directory on the recipient.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="clone-plugin-remote-ssl"></a>Configuring an Encrypted Connection for Cloning</h5></div></div></div><a id="idm45828983177520" class="indexterm"></a><p>
+          You can configure an encrypted connection for remote cloning
+          operations to protect data as it is cloned over the network.
+          An encrypted connection is required by default when cloning
+          encrypted data. (see
+          <a class="xref" href="clone-plugin-encrypted-data.html" title="5.6.7.5 Cloning Encrypted Data">Section 5.6.7.5, “Cloning Encrypted Data”</a>.)
+        </p><p>
+          The instructions that follow describe how to configure the
+          recipient MySQL server instance to use an encrypted
+          connection. It is assumed that the donor MySQL server instance
+          is already configured to use encrypted connections. If not,
+          refer to <a class="xref" href="using-encrypted-connections.html" title="6.3.1 Configuring MySQL to Use Encrypted Connections">Section 6.3.1, “Configuring MySQL to Use Encrypted Connections”</a> for
+          server-side configuration instructions.
+        </p><p>
+          To configure the recipient MySQL server instance to use an
+          encrypted connection:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              Make the client certificate and key files of the donor
+              MySQL server instance available to the recipient host.
+              Either distribute the files to the recipient host using a
+              secure channel or place them on a mounted partition that
+              is accessible to the recipient host. The client
+              certificate and key files to make available include:
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <code class="filename">ca.pem</code>
+                </p><p>
+                  The self-signed certificate authority (CA) file.
+                </p></li><li class="listitem"><p>
+                  <code class="filename">client-cert.pem</code>
+                </p><p>
+                  The client public key certificate file.
+                </p></li><li class="listitem"><p>
+                  <code class="filename">client-key.pem</code>
+                </p><p>
+                  The client private key file.
+                </p></li></ul></div></li><li class="listitem"><p>
+              Configure the following SSL options on the recipient MySQL
+              server instance.
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_ca"><code class="literal">clone_ssl_ca</code></a>
+                </p><p>
+                  Specifies the path to the self-signed certificate
+                  authority (CA) file.
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_cert"><code class="literal">clone_ssl_cert</code></a>
+                </p><p>
+                  Specifies the path to the client public key
+                  certificate file.
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="clone-plugin-options-variables.html#sysvar_clone_ssl_key"><code class="literal">clone_ssl_key</code></a>
+                </p><p>
+                  Specifies the path to the client private key file.
+                </p></li></ul></div><p>
+              For example:
+            </p><pre class="programlisting">clone_ssl_ca=/<em class="replaceable"><code>path</code></em>/<em class="replaceable"><code>to</code></em>/ca.pem
+clone_ssl_cert=/<em class="replaceable"><code>path</code></em>/<em class="replaceable"><code>to</code></em>/client-cert.pem
+clone_ssl_key=/<em class="replaceable"><code>path</code></em>/<em class="replaceable"><code>to</code></em>/client-key.pem
+</pre></li><li class="listitem"><p>
+              To require that an encrypted connection is used, include
+              the <code class="literal">REQUIRE SSL</code> clause when issuing the
+              <a class="link" href="clone.html" title="13.7.5 CLONE Statement"><code class="literal">CLONE</code></a> statement on the
+              recipient.
+            </p><pre class="programlisting">mysql&gt; CLONE INSTANCE FROM '<em class="replaceable"><code>user</code></em>'@'<em class="replaceable"><code>example.donor.host.com</code></em>':<em class="replaceable"><code>3306</code></em>
+       IDENTIFIED BY '<em class="replaceable"><code>password</code></em>'
+       DATA DIRECTORY = '<em class="replaceable"><code>/path/to/clone_dir</code></em>'
+       REQUIRE SSL;
+</pre><p>
+              If an SSL clause is not specified, the clone plugin
+              attempts to establish an encrypted connection by default,
+              falling back to an unencrypted connection if the encrypted
+              connection attempt fails.
+            </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+                If you are cloning encrypted data, an encrypted
+                connection is required by default regardless of whether
+                the <code class="literal">REQUIRE SSL</code> clause is specified.
+                Using <code class="literal">REQUIRE NO SSL</code> causes an error
+                if you attempt to clone encrypted data.
+              </p></div></li></ol></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="clone-plugin-local.html">Previous <span class="navHint"> Cloning Data Locally </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="clone-plugin.html">Up <span class="navHint"> The Clone Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="clone-plugin-concurrent-ddl.html">Next <span class="navHint"> Cloning and Concurrent DDL </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

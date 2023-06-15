@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.1.9 Outer Join Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="select-optimization.html" title="8.2.1 Optimizing SELECT Statements" /><link rel="prev" href="nested-join-optimization.html" title="8.2.1.8 Nested Join Optimization" /><link rel="next" href="outer-join-simplification.html" title="8.2.1.10 Outer Join Simplification" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="outer-join-optimization.html#outer-join-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="nested-join-optimization.html">Previous <span class="navHint"> Nested Join Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="outer-join-simplification.html">Next <span class="navHint"> Outer Join Simplification </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="outer-join-optimization"></a>8.2.1.9 Outer Join Optimization</h4></div></div></div><a id="idm45828956283136" class="indexterm"></a><a id="idm45828956281648" class="indexterm"></a><a id="idm45828956280160" class="indexterm"></a><a id="idm45828956279088" class="indexterm"></a><a id="idm45828956277600" class="indexterm"></a><a id="idm45828956276528" class="indexterm"></a><p>
+          Outer joins include <code class="literal">LEFT JOIN</code> and
+          <code class="literal">RIGHT JOIN</code>.
+        </p><p>
+          MySQL implements an <code class="literal"><em class="replaceable"><code>A</code></em> LEFT
+          JOIN <em class="replaceable"><code>B</code></em>
+          <em class="replaceable"><code>join_specification</code></em></code> as
+          follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Table <em class="replaceable"><code>B</code></em> is set to depend on
+              table <em class="replaceable"><code>A</code></em> and all tables on which
+              <em class="replaceable"><code>A</code></em> depends.
+            </p></li><li class="listitem"><p>
+              Table <em class="replaceable"><code>A</code></em> is set to depend on all
+              tables (except <em class="replaceable"><code>B</code></em>) that are used
+              in the <code class="literal">LEFT JOIN</code> condition.
+            </p></li><li class="listitem"><p>
+              The <code class="literal">LEFT JOIN</code> condition is used to
+              decide how to retrieve rows from table
+              <em class="replaceable"><code>B</code></em>. (In other words, any
+              condition in the <code class="literal">WHERE</code> clause is not
+              used.)
+            </p></li><li class="listitem"><p>
+              All standard join optimizations are performed, with the
+              exception that a table is always read after all tables on
+              which it depends. If there is a circular dependency, an
+              error occurs.
+            </p></li><li class="listitem"><p>
+              All standard <code class="literal">WHERE</code> optimizations are
+              performed.
+            </p></li><li class="listitem"><p>
+              If there is a row in <em class="replaceable"><code>A</code></em> that
+              matches the <code class="literal">WHERE</code> clause, but there is
+              no row in <em class="replaceable"><code>B</code></em> that matches the
+              <code class="literal">ON</code> condition, an extra
+              <em class="replaceable"><code>B</code></em> row is generated with all
+              columns set to <code class="literal">NULL</code>.
+            </p></li><li class="listitem"><p>
+              If you use <code class="literal">LEFT JOIN</code> to find rows that
+              do not exist in some table and you have the following
+              test: <code class="literal"><em class="replaceable"><code>col_name</code></em> IS
+              NULL</code> in the <code class="literal">WHERE</code> part, where
+              <em class="replaceable"><code>col_name</code></em> is a column that is
+              declared as <code class="literal">NOT NULL</code>, MySQL stops
+              searching for more rows (for a particular key combination)
+              after it has found one row that matches the <code class="literal">LEFT
+              JOIN</code> condition.
+            </p></li></ul></div><p>
+          The <code class="literal">RIGHT JOIN</code> implementation is analogous
+          to that of <code class="literal">LEFT JOIN</code> with the table roles
+          reversed. Right joins are converted to equivalent left joins,
+          as described in <a class="xref" href="outer-join-simplification.html" title="8.2.1.10 Outer Join Simplification">Section 8.2.1.10, “Outer Join Simplification”</a>.
+        </p><p>
+          For a <code class="literal">LEFT JOIN</code>, if the
+          <code class="literal">WHERE</code> condition is always false for the
+          generated <code class="literal">NULL</code> row, the <code class="literal">LEFT
+          JOIN</code> is changed to an inner join. For example, the
+          <code class="literal">WHERE</code> clause would be false in the
+          following query if <code class="literal">t2.column1</code> were
+          <code class="literal">NULL</code>:
+        </p><pre class="programlisting">SELECT * FROM t1 LEFT JOIN t2 ON (column1) WHERE t2.column2=5;
+</pre><p>
+          Therefore, it is safe to convert the query to an inner join:
+        </p><pre class="programlisting">SELECT * FROM t1, t2 WHERE t2.column2=5 AND t1.column1=t2.column1;
+</pre><p>
+          In MySQL 8.0.14 and later, trivial <code class="literal">WHERE</code>
+          conditions arising from constant literal expressions are
+          removed during preparation, rather than at a later stage in
+          optimization, by which time joins have already been
+          simplified. Earlier removal of trivial conditions allows the
+          optimizer to convert outer joins to inner joins; this can
+          result in improved plans for queries with outer joins
+          containing trivial conditions in the <code class="literal">WHERE</code>
+          clause, such as this one:
+        </p><pre class="programlisting">SELECT * FROM t1 LEFT JOIN t2 ON <em class="replaceable"><code>condition_1</code></em> WHERE <em class="replaceable"><code>condition_2</code></em> OR 0 = 1
+</pre><p>
+          The optimizer now sees during preparation that 0 = 1 is always
+          false, making <code class="literal">OR 0 = 1</code> redundant, and
+          removes it, leaving this:
+        </p><pre class="programlisting">SELECT * FROM t1 LEFT JOIN t2 ON <em class="replaceable"><code>condition_1</code></em> where <em class="replaceable"><code>condition_2</code></em>
+</pre><p>
+          Now the optimizer can rewrite the query as an inner join, like
+          this:
+        </p><pre class="programlisting">SELECT * FROM t1 JOIN t2 WHERE <em class="replaceable"><code>condition_1</code></em> AND <em class="replaceable"><code>condition_2</code></em>
+</pre><a id="idm45828956231264" class="indexterm"></a><p>
+          Now the optimizer can use table <code class="literal">t2</code> before
+          table <code class="literal">t1</code> if doing so would result in a
+          better query plan. To provide a hint about the table join
+          order, use optimizer hints; see
+          <a class="xref" href="optimizer-hints.html" title="8.9.3 Optimizer Hints">Section 8.9.3, “Optimizer Hints”</a>. Alternatively, use
+          <code class="literal">STRAIGHT_JOIN</code>; see
+          <a class="xref" href="select.html" title="13.2.13 SELECT Statement">Section 13.2.13, “SELECT Statement”</a>. However,
+          <code class="literal">STRAIGHT_JOIN</code> may prevent indexes from
+          being used because it disables semijoin transformations; see
+          <a class="xref" href="semijoins.html" title="8.2.2.1 Optimizing IN and EXISTS Subquery Predicates with Semijoin Transformations">Section 8.2.2.1, “Optimizing IN and EXISTS Subquery Predicates with Semijoin
+          Transformations”</a>.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="nested-join-optimization.html">Previous <span class="navHint"> Nested Join Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="outer-join-simplification.html">Next <span class="navHint"> Outer Join Simplification </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

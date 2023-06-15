@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>18.5.1 Configuring an Online Group</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="group-replication-operations.html" title="18.5 Group Replication Operations" /><link rel="prev" href="group-replication-operations.html" title="18.5 Group Replication Operations" /><link rel="next" href="group-replication-changing-primary-member.html" title="18.5.1.1 Changing a Group's Primary Member" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-configuring-online-group.html#group-replication-configuring-online-group">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-replication-operations.html">Previous <span class="navHint"> Group Replication Operations </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="group-replication-operations.html">Up <span class="navHint"> Group Replication Operations </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-changing-primary-member.html">Next <span class="navHint"> Changing a Group's Primary Member </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-replication-configuring-online-group"></a>18.5.1 Configuring an Online Group</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="group-replication-changing-primary-member.html">18.5.1.1 Changing a Group's Primary Member</a></span></li><li><span class="section"><a href="group-replication-changing-group-mode.html">18.5.1.2 Changing a Group's Mode</a></span></li><li><span class="section"><a href="group-replication-group-write-consensus.html">18.5.1.3 Using Group Replication Group Write Consensus</a></span></li><li><span class="section"><a href="group-replication-communication-protocol.html">18.5.1.4 Setting a Group's Communication Protocol Version</a></span></li><li><span class="section"><a href="group-replication-member-actions.html">18.5.1.5 Configuring Member Actions</a></span></li></ul></div><a id="idm45828854575056" class="indexterm"></a><a id="idm45828854573552" class="indexterm"></a><p>
+      You can configure an online group while Group Replication is
+      running by using a set of functions, which rely on a group action
+      coordinator. These functions are installed by the Group
+      Replication plugin in version 8.0.13 and higher. This section
+      describes how changes are made to a running group, and the
+      available functions.
+    </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        For the coordinator to be able to configure group wide actions
+        on a running group, all members must be running MySQL 8.0.13 or
+        higher and have the functions installed.
+      </p></div><p>
+      To use the functions, connect to a member of the running group and
+      invoke the function with the <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>
+      statement. The Group Replication plugin processes the action and
+      its parameters and the coordinator sends it to all members which
+      are visible to the member where you invoked the function. If the
+      action is accepted, all members execute the action and send a
+      termination message when completed. Once all members declare the
+      action as finished, the invoking member returns the result to the
+      client.
+    </p><p>
+      When configuring a whole group, the distributed nature of the
+      operations means that they interact with many processes of the
+      Group Replication plugin, and therefore you should observe the
+      following:
+    </p><p><strong>You can issue configuration operations everywhere. </strong>
+        If you want to make member A the new primary you do not need to
+        invoke the operation on member A. All operations are sent and
+        executed in a coordinated way on all group members. Also, this
+        distributed execution of an operation has a different
+        ramification: if the invoking member dies, any already running
+        configuration process continues to run on other members. In the
+        unlikely event that the invoking member dies, you can still use
+        the monitoring features to ensure other members complete the
+        operation successfully.
+      </p><p><strong>All members must be online. </strong>
+        To simplify the migration or election processes and guarantee
+        they are as fast as possible, the group must not contain any
+        member currently in the distributed recovery process, otherwise
+        the configuration action is rejected by the member where you
+        issue the statement.
+      </p><p><strong>No members can join a group during a configuration change. </strong>
+        Any member that attempts to join the group during a coordinated
+        configuration change leaves the group and cancels its join
+        process.
+      </p><p><strong>Only one configuration at once. </strong>
+        A group which is executing a configuration change cannot accept
+        any other group configuration change, because concurrent
+        configuration operations could lead to member divergence.
+      </p><p><strong>All members must be running MySQL 8.0.13 or higher. </strong>
+        Due to the distributed nature of the configuration actions, all
+        members must recognize them in order to execute them. The
+        operation is therefore rejected if any server running MySQL
+        Server version 8.0.12 or lower is present in the group.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-operations.html">Previous <span class="navHint"> Group Replication Operations </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-operations.html">Up <span class="navHint"> Group Replication Operations </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-changing-primary-member.html">Next <span class="navHint"> Changing a Group's Primary Member </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

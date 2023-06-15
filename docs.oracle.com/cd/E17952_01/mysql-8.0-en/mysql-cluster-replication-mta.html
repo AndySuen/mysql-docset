@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.7.11 NDB Cluster Replication Using the Multithreaded Applier</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-replication.html" title="23.7 NDB Cluster Replication" /><link rel="prev" href="mysql-cluster-replication-multi-source.html" title="23.7.10 NDB Cluster Replication: Bidirectional and Circular Replication" /><link rel="next" href="mysql-cluster-replication-conflict-resolution.html" title="23.7.12 NDB Cluster Replication Conflict Resolution" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-replication-mta.html#mysql-cluster-replication-mta">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-replication-multi-source.html">Previous <span class="navHint"> NDB Cluster Replication: Bidirectional and Circular Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-replication-conflict-resolution.html">Next <span class="navHint"> NDB Cluster Replication Conflict Resolution </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-replication-mta"></a>23.7.11 NDB Cluster Replication Using the Multithreaded Applier</h3></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-mta.html#cluster-replication-mta-reqs" title="Requirements">Requirements</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-mta.html#cluster-replication-mta-config-source" title="MTA Configuration: Source">MTA Configuration: Source</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-mta.html#cluster-replication-mta-config-replica" title="MTA Configuration: Replica">MTA Configuration: Replica</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-mta.html#cluster-replication-mta-transaction-deps" title="Transaction Dependency and Writeset Handling">Transaction Dependency and Writeset Handling</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-mta.html#cluster-replication-mta-writeset-tracking" title="Writeset Tracking Memory Usage">Writeset Tracking Memory Usage</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-mta.html#cluster-replication-mta-limitations" title="Known Limitations">Known Limitations</a></p></li></ul></div><p>
+      Beginning with NDB 8.0.33, NDB replication supports the use of the
+      generic MySQL Server Multithreaded Applier mechanism (MTA), which
+      allows independent binary log transactions to be applied in
+      parallel on a replica, increasing peak replication throughput.
+    </p><h4><a id="cluster-replication-mta-reqs"></a>Requirements</h4><p>
+      The MySQL Server MTA implementation delegates the processing of
+      separate binary log transactions to a pool of worker threads
+      (whose size is configurable), and coordinates the worker threads
+      to ensure that transaction dependencies encoded in the binary log
+      are respected, and that commit ordering is maintained if required
+      (see <a class="xref" href="replication-threads.html" title="17.2.3 Replication Threads">Section 17.2.3, “Replication Threads”</a>). To use this
+      functionality with NDB Cluster, it is necessary that the following
+      three conditions be met:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          <span class="emphasis"><em>Binary log transaction dependencies are determined
+          at the source</em></span>.
+        </p><p>
+          For this to be true, the
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_dependency_tracking"><code class="literal">binlog_transaction_dependency_tracking</code></a>
+          server system variable must be set to
+          <code class="literal">WRITESET</code> on the source. This is supported
+          by NDB 8.0.33 and later. (The default is
+          <code class="literal">COMMIT_ORDER</code>.)
+        </p><p>
+          Writeset maintenance work in <code class="literal">NDB</code> is
+          performed by the MySQL binary log injector thread as part of
+          preparing and committing each epoch transaction to the binary
+          log. This requires extra resources, and may reduce peak
+          throughput.
+        </p></li><li class="listitem"><p>
+          <span class="emphasis"><em>Transaction dependencies are encoded into the binary
+          log</em></span>.
+        </p><p>
+          NDB 8.0.33 and later supports the
+          <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-log-transaction-dependency"><code class="option">--ndb-log-transaction-dependency</code></a>
+          startup option for <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>; set this option
+          to <code class="literal">ON</code> to enable writing of
+          <code class="literal">NDB</code> transaction dependencies into the
+          binary log.
+        </p></li><li class="listitem"><p>
+          <span class="emphasis"><em>The replica is configured to use multiple worker
+          threads</em></span>.
+        </p><p>
+          NDB 8.0.33 and later supports setting
+          <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_workers"><code class="literal">replica_parallel_workers</code></a> to
+          nonzero values to control the number of worker threads on the
+          replica. The default is 4.
+        </p></li></ol></div><h4><a id="cluster-replication-mta-config-source"></a>MTA Configuration: Source</h4><p>
+      Source <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> configuration for the
+      <code class="literal">NDB</code> MTA must include the following explicit
+      settings:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_dependency_tracking"><code class="literal">binlog_transaction_dependency_tracking</code></a>
+          must be set to <code class="literal">WRITESET</code>.
+        </p></li><li class="listitem"><p>
+          The replication source mysqld must be started with
+          <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-log-transaction-dependency"><code class="option">--ndb-log-transaction-dependency=ON</code></a>.
+        </p></li></ul></div><p>
+      If set, <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_type"><code class="literal">replica_parallel_type</code></a>
+      must be <code class="literal">LOGICAL_CLOCK</code> (the default value;
+      <code class="literal">DATABASE</code> is not supported).
+    </p><p>
+      In addition, it is recommended that you set the amount of memory
+      used to track binary log transaction writesets on the source
+      (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_dependency_history_size"><code class="literal">binlog_transaction_dependency_history_size</code></a>)
+      to <code class="literal"><em class="replaceable"><code>E</code></em> *
+      <em class="replaceable"><code>P</code></em></code>, where
+      <em class="replaceable"><code>E</code></em> is the average epoch size (as the
+      number of operations per epoch) and <em class="replaceable"><code>P</code></em>
+      is the maximum expected parallelism. See
+      <a class="xref" href="mysql-cluster-replication-mta.html#cluster-replication-mta-writeset-tracking" title="Writeset Tracking Memory Usage">Writeset Tracking Memory Usage</a>, for
+      more information.
+    </p><h4><a id="cluster-replication-mta-config-replica"></a>MTA Configuration: Replica</h4><p>
+      Replica <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> configuration for the
+      <code class="literal">NDB</code> MTA requires that
+      <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_workers"><code class="literal">replica_parallel_workers</code></a> is
+      greater than 1. The recommended starting value when first enabling
+      MTA is 4, which is the default.
+    </p><p>
+      In addition,
+      <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order</code></a>
+      must be <code class="literal">ON</code>. This is also the default value.
+    </p><h4><a id="cluster-replication-mta-transaction-deps"></a>Transaction Dependency and Writeset Handling</h4><p>
+      Transaction dependencies are detected using analysis of each
+      transaction's writeset, that is, the set of rows (table, key
+      values) written by the transaction. Where two transactions modify
+      the same row they are considered to be dependent, and must be
+      applied in order (in other words, serially) to avoid deadlocks or
+      incorrect results. Where a table has secondary unique keys, these
+      values are also added to the transaction's writeset to detect
+      the case where there are transaction dependencies implied by
+      different transactions affecting the same unique key value, and so
+      requiring ordering. Where dependencies cannot be efficiently
+      determined, <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> falls back to considering
+      transactions dependent for reasons of safety.
+    </p><p>
+      Transaction dependencies are encoded in the binary log by the
+      source <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>. Dependencies are encoded in an
+      <code class="literal">ANONYMOUS_GTID</code> event using a scheme called
+      'Logical clock'. (See
+      <a class="xref" href="replication-mode-change-online-concepts.html" title="17.1.4.1 Replication Mode Concepts">Section 17.1.4.1, “Replication Mode Concepts”</a>.)
+    </p><p>
+      The writeset implementation employed by MySQL (and NDB Cluster)
+      uses hash-based conflict detection based on matching 64-bit row
+      hashes of relevant table and index values. This detects reliably
+      when the same key is seen twice, but can also produce false
+      positives if different table and index values hash to the same
+      64-bit value; this may result in artificial dependencies which can
+      reduce the available parallelism.
+    </p><p>
+      Transaction dependencies are forced by any of the following:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          DDL statements
+        </p></li><li class="listitem"><p>
+          Binary log rotation or encountering binary log file boundaries
+        </p></li><li class="listitem"><p>
+          Writeset history size limitations
+        </p></li><li class="listitem"><p>
+          Writes which reference parent foreign keys in the target table
+        </p><p>
+          More specifically, transactions which perform inserts,
+          updates, and deletes on foreign key
+          <span class="emphasis"><em>parent</em></span> tables are serialized relative to
+          all preceding and following transactions, and not just to
+          those transactions affecting tables involved in a constraint
+          relationship. Conversely, transactions performing inserts,
+          updates and deletes on foreign key <span class="emphasis"><em>child</em></span>
+          tables (referencing) are not especially serialized with regard
+          to one another.
+        </p></li></ul></div><p>
+      The MySQL MTA implementation attempts to apply independent binary
+      log transactions in parallel. <code class="literal">NDB</code> records all
+      changes occurring in all user transactions committing in an epoch
+      (<a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-timebetweenepochs"><code class="literal">TimeBetweenEpochs</code></a>,
+      default 100 milliseconds), in one binary log transaction, referred
+      to as an epoch transaction. Therefore, for two consecutive epoch
+      transactions to be independent, and possible to apply in parallel,
+      it is required that no row is modified in both epochs. If any
+      single row is modified in both epochs, then they are dependent,
+      and are applied serially, which can limit the expolitable
+      parallelism available.
+    </p><p>
+      Epoch transactions are considered independent based on the set of
+      rows modified on the source cluster in the epoch, but not
+      including the generated <code class="literal">mysql.ndb_apply_status</code>
+      <code class="literal">WRITE_ROW</code> events that convey epoch metadata.
+      This avoids every epoch transaction being trivially dependent on
+      the preceding epoch, but does require that the binlog is applied
+      at the replica with the commit order preserved. This also implies
+      that an NDB binary log with writeset dependencies is not suitable
+      for use by a replica database using a different MySQL storage
+      engine.
+    </p><p>
+      It may be possible or desirable to modify application transaction
+      behavior to avoid patterns of repeated modifications to the same
+      rows, in separate transactions over a short time period, to
+      increase exploitable apply parallelism.
+    </p><h4><a id="cluster-replication-mta-writeset-tracking"></a>Writeset Tracking Memory Usage</h4><p>
+      The amount of memory used to track binary log transaction
+      writesets can be set using the
+      <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_dependency_history_size"><code class="literal">binlog_transaction_dependency_history_size</code></a>
+      server system variable, which defaults to 25000 row hashes.
+    </p><p>
+      If an average binary log transaction modifies
+      <em class="replaceable"><code>N</code></em> rows, then to be able to identify
+      independent (parallelizable) transactions up to a parallelism
+      level of <em class="replaceable"><code>P</code></em>, we need
+      <code class="literal">binlog_transaction_dependency_history_size</code> to
+      be at least <code class="literal"><em class="replaceable"><code>N</code></em> *
+      <em class="replaceable"><code>P</code></em></code>. (The maximum is 1000000.)
+    </p><p>
+      The finite size of the history results in a finite maximum
+      dependency length that can be reliably determined, giving a finite
+      parallelism that can be expressed. Any row not found in the
+      history may be dependent on the last transaction purged from the
+      history.
+    </p><p>
+      Writeset history does not act like a sliding window over the last
+      <em class="replaceable"><code>N</code></em> transactions; rather, it is a finite
+      buffer which is allowed to fill up completely, then its contents
+      entirely discarded when it becomes full. This means that the
+      history size follows a sawtooth pattern over time, and therefore
+      the maximum detectable dependency length also follows a sawtooth
+      pattern over time, such that independent transactions may still be
+      marked as dependent if the writeset history buffer has been reset
+      between their being processed.
+    </p><p>
+      In this scheme, each transaction in a binary log file is annotated
+      with a <code class="literal">sequence_number</code> (1, 2, 3, ...), and as
+      well as the sequence number of the most recent binary log
+      transaction that it depends on, to which we refer as
+      <code class="literal">last_committed</code>.
+    </p><p>
+      Within a given binary log file, the first transaction has
+      <code class="literal">sequence_number</code> 1 and
+      <code class="literal">last_committed</code> 0.
+    </p><p>
+      Where a binary log transaction depends on its immediate
+      predecessor, its application is serialized. If the dependency is
+      on an earlier transaction then it may be possible to apply the
+      transaction in parallel with the preceding independent
+      transactions.
+    </p><p>
+      The content of <code class="literal">ANONYMOUS_GTID</code> events, including
+      <code class="literal">sequence_number</code> and
+      <code class="literal">last_committed</code> (and thus the transaction
+      dependencies), can be seen using <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>.
+    </p><p>
+      The <code class="literal">ANONYMOUS_GTID</code> events generated on the
+      source are handled separately from the compressed transaction
+      payload with bulk <code class="literal">BEGIN</code>,
+      <code class="literal">TABLE_MAP*</code>, <code class="literal">WRITE_ROW*</code>,
+      <code class="literal">UPDATE_ROW*</code>, <code class="literal">DELETE_ROW*</code>,
+      and <code class="literal">COMMIT</code> events, allowing dependencies to be
+      determined prior to decompression. This means that the replica
+      coordinator thread can delegate transaction payload decompression
+      to a worker thread, providing automatic parallel decompression of
+      independent transactions on the replica.
+    </p><h4><a id="cluster-replication-mta-limitations"></a>Known Limitations</h4><p><strong>Secondary unique columns. </strong>
+        Tables with secondary unique columns (that is, unique keys other
+        than the primary key) have all columns sent to the source so
+        that unique-key related conflicts can be detected.
+      </p><p>
+      Where the current binary logging mode does not include all
+      columns, but only changed columns
+      (<a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-log-updated-only"><code class="option">--ndb-log-updated-only=OFF</code></a>,
+      <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-log-update-minimal"><code class="option">--ndb-log-update-minimal=ON</code></a>,
+      <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-log-update-as-write"><code class="option">--ndb-log-update-as-write=OFF</code></a>),
+      this can increase the volume of data sent from data nodes to SQL
+      nodes.
+    </p><p>
+      The impact depends on both the rate of modification (update or
+      delete) of rows in such tables and the volume of data in columns
+      which are not actually modified.
+    </p><p><strong>Replicating NDB to InnoDB. </strong>
+        <code class="literal">NDB</code> binary log injector transaction
+        dependency tracking intentionally ignores the inter-transaction
+        dependencies created by generated
+        <code class="literal">mysql.ndb_apply_status</code> metadata events, which
+        are handled separately as part of the commit of the epoch
+        transaction on the replica applier. For replication to
+        <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a>, there is no special
+        handling; this may result in reduced performance or other issues
+        when using an <code class="literal">InnoDB</code> multithreaded applier to
+        consume an <code class="literal">NDB</code> MTA binary log.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-replication-multi-source.html">Previous <span class="navHint"> NDB Cluster Replication: Bidirectional and Circular Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-replication-conflict-resolution.html">Next <span class="navHint"> NDB Cluster Replication Conflict Resolution </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

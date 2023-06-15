@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.1.3.7 Restrictions on Replication with GTIDs</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-gtids.html" title="17.1.3 Replication with Global Transaction Identifiers" /><link rel="prev" href="replication-gtids-assign-anon.html" title="17.1.3.6 Replication From a Source Without GTIDs to a Replica With GTIDs" /><link rel="next" href="replication-gtids-functions.html" title="17.1.3.8 Stored Function Examples to Manipulate GTIDs" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-gtids-restrictions.html#replication-gtids-restrictions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-gtids-assign-anon.html">Previous <span class="navHint"> Replication From a Source Without GTIDs to a Replica With GTIDs </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-gtids-functions.html">Next <span class="navHint"> Stored Function Examples to Manipulate GTIDs </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-gtids-restrictions"></a>17.1.3.7 Restrictions on Replication with GTIDs</h4></div></div></div><a id="idm45828868405440" class="indexterm"></a><p>
+      Because GTID-based replication is dependent on transactions, some
+      features otherwise available in MySQL are not supported when using
+      it. This section provides information about restrictions on and
+      limitations of replication with GTIDs.
+    </p><p><strong>Updates involving nontransactional storage engines. </strong>
+        When using GTIDs, updates to tables using nontransactional
+        storage engines such as <a class="link" href="myisam-storage-engine.html" title="16.2 The MyISAM Storage Engine"><code class="literal">MyISAM</code></a>
+        cannot be made in the same statement or transaction as updates
+        to tables using transactional storage engines such as
+        <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a>.
+      </p><p>
+      This restriction is due to the fact that updates to tables that
+      use a nontransactional storage engine mixed with updates to tables
+      that use a transactional storage engine within the same
+      transaction can result in multiple GTIDs being assigned to the
+      same transaction.
+    </p><p>
+      Such problems can also occur when the source and the replica use
+      different storage engines for their respective versions of the
+      same table, where one storage engine is transactional and the
+      other is not. Also be aware that triggers that are defined to
+      operate on nontransactional tables can be the cause of these
+      problems.
+    </p><p>
+      In any of the cases just mentioned, the one-to-one correspondence
+      between transactions and GTIDs is broken, with the result that
+      GTID-based replication cannot function correctly.
+    </p><p><strong>CREATE TABLE ... SELECT statements. </strong>
+        Prior to MySQL 8.0.21,
+        <a class="link" href="create-table-select.html" title="13.1.20.4 CREATE TABLE ... SELECT Statement"><code class="literal">CREATE
+        TABLE ... SELECT</code></a> statements are not allowed when using
+        GTID-based replication. When
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> is set to
+        <code class="literal">STATEMENT</code>, a
+        <a class="link" href="create-table-select.html" title="13.1.20.4 CREATE TABLE ... SELECT Statement"><code class="literal">CREATE
+        TABLE ... SELECT</code></a> statement is recorded in the binary
+        log as one transaction with one GTID, but if
+        <code class="literal">ROW</code> format is used, the statement is recorded
+        as two transactions with two GTIDs. If a source used
+        <code class="literal">STATEMENT</code> format and a replica used
+        <code class="literal">ROW</code> format, the replica would be unable to
+        handle the transaction correctly, therefore the
+        <a class="link" href="create-table-select.html" title="13.1.20.4 CREATE TABLE ... SELECT Statement"><code class="literal">CREATE
+        TABLE ... SELECT</code></a> statement is disallowed with GTIDs to
+        prevent this scenario. This restriction is lifted in MySQL
+        8.0.21 on storage engines that support atomic DDL. In this case,
+        <a class="link" href="create-table-select.html" title="13.1.20.4 CREATE TABLE ... SELECT Statement"><code class="literal">CREATE
+        TABLE ... SELECT</code></a> is recorded in the binary log as one
+        transaction. For more information, see
+        <a class="xref" href="atomic-ddl.html" title="13.1.1 Atomic Data Definition Statement Support">Section 13.1.1, “Atomic Data Definition Statement Support”</a>.
+      </p><p><strong>Temporary tables. </strong>
+        When <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> is set to
+        <code class="literal">STATEMENT</code>,
+        <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TEMPORARY
+        TABLE</code></a> and
+        <a class="link" href="drop-table.html" title="13.1.32 DROP TABLE Statement"><code class="literal">DROP TEMPORARY
+        TABLE</code></a> statements cannot be used inside transactions,
+        procedures, functions, and triggers when GTIDs are in use on the
+        server (that is, when the
+        <a class="link" href="replication-options-gtids.html#sysvar_enforce_gtid_consistency"><code class="literal">enforce_gtid_consistency</code></a> system
+        variable is set to <code class="literal">ON</code>). They can be used
+        outside these contexts when GTIDs are in use, provided that
+        <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">autocommit=1</code></a> is set. From MySQL
+        8.0.13, when <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> is
+        set to <code class="literal">ROW</code> or <code class="literal">MIXED</code>,
+        <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TEMPORARY
+        TABLE</code></a> and
+        <a class="link" href="drop-table.html" title="13.1.32 DROP TABLE Statement"><code class="literal">DROP TEMPORARY
+        TABLE</code></a> statements are allowed inside a transaction,
+        procedure, function, or trigger when GTIDs are in use. The
+        statements are not written to the binary log and are therefore
+        not replicated to replicas. The use of row-based replication
+        means that the replicas remain in sync without the need to
+        replicate temporary tables. If the removal of these statements
+        from a transaction results in an empty transaction, the
+        transaction is not written to the binary log.
+
+      </p><p><strong>Preventing execution of unsupported statements. </strong>
+        To prevent execution of statements that would cause GTID-based
+        replication to fail, all servers must be started with the
+        <a class="link" href="replication-options-gtids.html#sysvar_enforce_gtid_consistency"><code class="option">--enforce-gtid-consistency</code></a> option
+        when enabling GTIDs. This causes statements of any of the types
+        discussed previously in this section to fail with an error.
+      </p><p>
+      Note that
+      <a class="link" href="replication-options-gtids.html#sysvar_enforce_gtid_consistency"><code class="option">--enforce-gtid-consistency</code></a> only
+      takes effect if binary logging takes place for a statement. If
+      binary logging is disabled on the server, or if statements are not
+      written to the binary log because they are removed by a filter,
+      GTID consistency is not checked or enforced for the statements
+      that are not logged.
+    </p><p>
+      For information about other required startup options when enabling
+      GTIDs, see <a class="xref" href="replication-gtids-howto.html" title="17.1.3.4 Setting Up Replication Using GTIDs">Section 17.1.3.4, “Setting Up Replication Using GTIDs”</a>.
+    </p><p><strong>Skipping transactions. </strong>
+        <a class="link" href="replication-options-replica.html#sysvar_sql_replica_skip_counter"><code class="literal">sql_replica_skip_counter</code></a> or
+        <a class="link" href="replication-options-replica.html#sysvar_sql_slave_skip_counter"><code class="literal">sql_slave_skip_counter</code></a> is not
+        available when using GTID-based replication. If you need to skip
+        transactions, use the value of the source's
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> variable instead.
+        If you have enabled GTID assignment on a replication channel
+        using the
+        <code class="literal">ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS</code> option
+        of the <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+        TO</code></a> statement,
+        <a class="link" href="replication-options-replica.html#sysvar_sql_replica_skip_counter"><code class="literal">sql_replica_skip_counter</code></a> or
+        <a class="link" href="replication-options-replica.html#sysvar_sql_slave_skip_counter"><code class="literal">sql_slave_skip_counter</code></a> is
+        available. For more information, see
+        <a class="xref" href="replication-administration-skip.html" title="17.1.7.3 Skipping Transactions">Section 17.1.7.3, “Skipping Transactions”</a>.
+      </p><p><strong>Ignoring servers. </strong>
+        The IGNORE_SERVER_IDS option of the <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE
+        REPLICATION SOURCE TO</code></a> | <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE
+        MASTER TO</code></a> statement is deprecated when using GTIDs,
+        because transactions that have already been applied are
+        automatically ignored. Before starting GTID-based replication,
+        check for and clear all ignored server ID lists that have
+        previously been set on the servers involved. The
+        <a class="link" href="show-replica-status.html" title="13.7.7.35 SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+        REPLICA STATUS</code></a> statement, which can be issued for
+        individual channels, displays the list of ignored server IDs if
+        there is one. If there is no list, the
+        <code class="literal">Replicate_Ignore_Server_Ids</code> field is blank.
+      </p><p><a id="replication-gtids-restrictions-mysql_upgrade"></a><strong>GTID mode and mysql_upgrade. </strong>
+        Prior to MySQL 8.0.16, when the server is running with global
+        transaction identifiers (GTIDs) enabled
+        (<a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">gtid_mode=ON</code></a>), do not enable
+        binary logging by <a class="link" href="mysql-upgrade.html" title="4.4.5 mysql_upgrade — Check and Upgrade MySQL Tables"><span class="command"><strong>mysql_upgrade</strong></span></a> (the
+        <a class="link" href="mysql-upgrade.html#option_mysql_upgrade_write-binlog"><code class="option">--write-binlog</code></a> option). As
+        of MySQL 8.0.16, the server performs the entire MySQL upgrade
+        procedure, but disables binary logging during the upgrade, so
+        there is no issue.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-gtids-assign-anon.html">Previous <span class="navHint"> Replication From a Source Without GTIDs to a Replica With GTIDs </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-gtids-functions.html">Next <span class="navHint"> Stored Function Examples to Manipulate GTIDs </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

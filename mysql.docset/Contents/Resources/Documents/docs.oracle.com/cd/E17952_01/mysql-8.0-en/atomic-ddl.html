@@ -1,0 +1,467 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-87"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/13.1.1%C2%A0Atomic%20Data%20Definition%20Statement%20Support"></a><title>13.1.1&nbsp;Atomic Data Definition Statement Support</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="sql-data-definition-statements.html" title="13.1&nbsp;Data Definition Statements"/><link rel="prev" href="sql-data-definition-statements.html" title="13.1&nbsp;Data Definition Statements"/><link rel="next" href="alter-database.html" title="13.1.2&nbsp;ALTER DATABASE Statement"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="atomic-ddl.html#atomic-ddl">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="sql-data-definition-statements.html">Previous <span class="navHint"> Data Definition Statements </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="sql-data-definition-statements.html">Up <span class="navHint"> Data Definition Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="alter-database.html">Next <span class="navHint"> ALTER DATABASE Statement </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="atomic-ddl"></a>13.1.1&nbsp;Atomic Data Definition Statement Support</h3></div></div></div><a id="idm45828916780496" class="indexterm"></a><a id="idm45828916779488" class="indexterm"></a><p>
+      MySQL 8.0 supports atomic Data Definition Language
+      (DDL) statements. This feature is referred to as <span class="emphasis"><em>atomic
+      DDL</em></span>. An atomic DDL statement combines the data
+      dictionary updates, storage engine operations, and binary log
+      writes associated with a DDL operation into a single, atomic
+      operation. The operation is either committed, with applicable
+      changes persisted to the data dictionary, storage engine, and
+      binary log, or is rolled back, even if the server halts during the
+      operation.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        <span class="emphasis"><em>Atomic DDL</em></span> is not <span class="emphasis"><em>transactional
+        DDL</em></span>. DDL statements, atomic or otherwise, implicitly
+        end any transaction that is active in the current session, as if
+        you had done a <a class="link" href="commit.html" title="13.3.1&nbsp;START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">COMMIT</code></a> before
+        executing the statement. This means that DDL statements cannot
+        be performed within another transaction, within transaction
+        control statements such as
+        <a class="link" href="commit.html" title="13.3.1&nbsp;START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">START TRANSACTION ...
+        COMMIT</code></a>, or combined with other statements within the
+        same transaction.
+      </p></div><p>
+      Atomic DDL is made possible by the introduction of the MySQL data
+      dictionary in MySQL 8.0. In earlier MySQL versions,
+      metadata was stored in metadata files, nontransactional tables,
+      and storage engine-specific dictionaries, which necessitated
+      intermediate commits. Centralized, transactional metadata storage
+      provided by the MySQL data dictionary removed this barrier, making
+      it possible to restructure DDL statement operations to be atomic.
+    </p><p>
+      The atomic DDL feature is described under the following topics in
+      this section:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="atomic-ddl.html#atomic-ddl-supported-statements" title="Supported DDL Statements">Supported DDL Statements</a></p></li><li class="listitem"><p><a class="xref" href="atomic-ddl.html#atomic-ddl-characteristics" title="Atomic DDL Characteristics">Atomic DDL Characteristics</a></p></li><li class="listitem"><p><a class="xref" href="atomic-ddl.html#atomic-ddl-statement-behavior" title="Changes in DDL Statement Behavior">Changes in DDL Statement Behavior</a></p></li><li class="listitem"><p><a class="xref" href="atomic-ddl.html#atomic-ddl-storage-engine-support" title="Storage Engine Support">Storage Engine Support</a></p></li><li class="listitem"><p><a class="xref" href="atomic-ddl.html#atomic-ddl-view-logs" title="Viewing DDL Logs">Viewing DDL Logs</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-88"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Supported%20DDL%20Statements"></a><h4 class="title"><a id="atomic-ddl-supported-statements"></a>Supported DDL Statements</h4></div></div></div><p>
+        The atomic DDL feature supports both table and non-table DDL
+        statements. Table-related DDL operations require storage engine
+        support, whereas non-table DDL operations do not. Currently,
+        only the <code class="literal">InnoDB</code> storage engine supports
+        atomic DDL.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Supported table DDL statements include
+            <code class="literal">CREATE</code>, <code class="literal">ALTER</code>, and
+            <code class="literal">DROP</code> statements for databases,
+            tablespaces, tables, and indexes, and the
+            <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a> statement.
+          </p></li><li class="listitem"><p>
+            Supported non-table DDL statements include:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <code class="literal">CREATE</code> and <code class="literal">DROP</code>
+                statements, and, if applicable, <code class="literal">ALTER</code>
+                statements for stored programs, triggers, views, and
+                loadable functions.
+              </p></li><li class="listitem"><p>
+                Account management statements:
+                <code class="literal">CREATE</code>, <code class="literal">ALTER</code>,
+                <code class="literal">DROP</code>, and, if applicable,
+                <code class="literal">RENAME</code> statements for users and
+                roles, as well as <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a>
+                and <a class="link" href="revoke.html" title="13.7.1.8&nbsp;REVOKE Statement"><code class="literal">REVOKE</code></a> statements.
+              </p></li></ul></div></li></ul></div><p>
+        The following statements are not supported by the atomic DDL
+        feature:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Table-related DDL statements that involve a storage engine
+            other than <code class="literal">InnoDB</code>.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="install-plugin.html" title="13.7.4.4&nbsp;INSTALL PLUGIN Statement"><code class="literal">INSTALL PLUGIN</code></a> and
+            <a class="link" href="uninstall-plugin.html" title="13.7.4.6&nbsp;UNINSTALL PLUGIN Statement"><code class="literal">UNINSTALL PLUGIN</code></a>
+            statements.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="install-component.html" title="13.7.4.3&nbsp;INSTALL COMPONENT Statement"><code class="literal">INSTALL COMPONENT</code></a> and
+            <a class="link" href="uninstall-component.html" title="13.7.4.5&nbsp;UNINSTALL COMPONENT Statement"><code class="literal">UNINSTALL COMPONENT</code></a>
+            statements.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="create-server.html" title="13.1.18&nbsp;CREATE SERVER Statement"><code class="literal">CREATE SERVER</code></a>,
+            <a class="link" href="alter-server.html" title="13.1.8&nbsp;ALTER SERVER Statement"><code class="literal">ALTER SERVER</code></a>, and
+            <a class="link" href="drop-server.html" title="13.1.30&nbsp;DROP SERVER Statement"><code class="literal">DROP SERVER</code></a> statements.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-89"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Atomic%20DDL%20Characteristics"></a><h4 class="title"><a id="atomic-ddl-characteristics"></a>Atomic DDL Characteristics</h4></div></div></div><p>
+        The characteristics of atomic DDL statements include the
+        following:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Metadata updates, binary log writes, and storage engine
+            operations, where applicable, are combined into a single
+            atomic operation.
+          </p></li><li class="listitem"><p>
+            There are no intermediate commits at the SQL layer during
+            the DDL operation.
+          </p></li><li class="listitem"><p>
+            Where applicable:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                The state of data dictionary, routine, event, and
+                loadable function caches is consistent with the status
+                of the DDL operation, meaning that caches are updated to
+                reflect whether or not the DDL operation was completed
+                successfully or rolled back.
+              </p></li><li class="listitem"><p>
+                The storage engine methods involved in a DDL operation
+                do not perform intermediate commits, and the storage
+                engine registers itself as part of the DDL operation.
+              </p></li><li class="listitem"><p>
+                The storage engine supports redo and rollback of DDL
+                operations, which is performed in the
+                <span class="emphasis"><em>Post-DDL</em></span> phase of the DDL
+                operation.
+              </p></li></ul></div></li><li class="listitem"><p>
+            The visible behaviour of DDL operations is atomic, which
+            changes the behavior of some DDL statements. See
+            <a class="xref" href="atomic-ddl.html#atomic-ddl-statement-behavior" title="Changes in DDL Statement Behavior">Changes in DDL Statement Behavior</a>.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-90"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Changes%20in%20DDL%20Statement%20Behavior"></a><h4 class="title"><a id="atomic-ddl-statement-behavior"></a>Changes in DDL Statement Behavior</h4></div></div></div><p>
+        This section describes changes in DDL statement behavior due to
+        the introduction of atomic DDL support.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="drop-table.html" title="13.1.32&nbsp;DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> operations are
+            fully atomic if all named tables use an atomic DDL-supported
+            storage engine. The statement either drops all tables
+            successfully or is rolled back.
+          </p><p>
+            <a class="link" href="drop-table.html" title="13.1.32&nbsp;DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> fails with an
+            error if a named table does not exist, and no changes are
+            made, regardless of the storage engine. This change in
+            behavior is demonstrated in the following example, where the
+            <a class="link" href="drop-table.html" title="13.1.32&nbsp;DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> statement fails
+            because a named table does not exist:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t1 (c1 INT);</code></strong>
+mysql&gt; <strong class="userinput"><code>DROP TABLE t1, t2;</code></strong>
+ERROR 1051 (42S02): Unknown table &#39;test.t2&#39;
+mysql&gt; <strong class="userinput"><code>SHOW TABLES;</code></strong>
++----------------+
+| Tables_in_test |
++----------------+
+| t1             |
++----------------+
+</pre><p>
+            Prior to the introduction of atomic DDL,
+            <a class="link" href="drop-table.html" title="13.1.32&nbsp;DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> reports an error
+            for the named table that does not exist but succeeds for the
+            named table that does exist:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t1 (c1 INT);</code></strong>
+mysql&gt; <strong class="userinput"><code>DROP TABLE t1, t2;</code></strong>
+ERROR 1051 (42S02): Unknown table &#39;test.t2&#39;
+mysql&gt; <strong class="userinput"><code>SHOW TABLES;</code></strong>
+Empty set (0.00 sec)
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              Due to this change in behavior, a partially completed
+              <a class="link" href="drop-table.html" title="13.1.32&nbsp;DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> statement on a
+              MySQL 5.7 replication source server fails when replicated
+              on a MySQL 8.0 replica. To avoid this failure scenario,
+              use <code class="literal">IF EXISTS</code> syntax in
+              <a class="link" href="drop-table.html" title="13.1.32&nbsp;DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> statements to
+              prevent errors from occurring for tables that do not
+              exist.
+            </p></div></li><li class="listitem"><p>
+            <a class="link" href="drop-database.html" title="13.1.24&nbsp;DROP DATABASE Statement"><code class="literal">DROP DATABASE</code></a> is atomic if
+            all tables use an atomic DDL-supported storage engine. The
+            statement either drops all objects successfully or is rolled
+            back. However, removal of the database directory from the
+            file system occurs last and is not part of the atomic
+            operation. If removal of the database directory fails due to
+            a file system error or server halt, the
+            <a class="link" href="drop-database.html" title="13.1.24&nbsp;DROP DATABASE Statement"><code class="literal">DROP DATABASE</code></a> transaction is
+            not rolled back.
+          </p></li><li class="listitem"><p>
+            For tables that do not use an atomic DDL-supported storage
+            engine, table deletion occurs outside of the atomic
+            <a class="link" href="drop-table.html" title="13.1.32&nbsp;DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> or
+            <a class="link" href="drop-database.html" title="13.1.24&nbsp;DROP DATABASE Statement"><code class="literal">DROP DATABASE</code></a> transaction.
+            Such table deletions are written to the binary log
+            individually, which limits the discrepancy between the
+            storage engine, data dictionary, and binary log to one table
+            at most in the case of an interrupted
+            <a class="link" href="drop-table.html" title="13.1.32&nbsp;DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> or
+            <a class="link" href="drop-database.html" title="13.1.24&nbsp;DROP DATABASE Statement"><code class="literal">DROP DATABASE</code></a> operation. For
+            operations that drop multiple tables, the tables that do not
+            use an atomic DDL-supported storage engine are dropped
+            before tables that do.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>,
+            <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>,
+            <a class="link" href="rename-table.html" title="13.1.36&nbsp;RENAME TABLE Statement"><code class="literal">RENAME TABLE</code></a>,
+            <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a>,
+            <a class="link" href="create-tablespace.html" title="13.1.21&nbsp;CREATE TABLESPACE Statement"><code class="literal">CREATE TABLESPACE</code></a>, and
+            <a class="link" href="drop-tablespace.html" title="13.1.33&nbsp;DROP TABLESPACE Statement"><code class="literal">DROP TABLESPACE</code></a> operations
+            for tables that use an atomic DDL-supported storage engine
+            are either fully committed or rolled back if the server
+            halts during their operation. In earlier MySQL releases,
+            interruption of these operations could cause discrepancies
+            between the storage engine, data dictionary, and binary log,
+            or leave behind orphan files. <a class="link" href="rename-table.html" title="13.1.36&nbsp;RENAME TABLE Statement"><code class="literal">RENAME
+            TABLE</code></a> operations are only atomic if all named
+            tables use an atomic DDL-supported storage engine.
+          </p></li><li class="listitem"><p>
+            As of MySQL 8.0.21, on storage engines that support atomic
+            DDL, the
+            <a class="link" href="create-table-select.html" title="13.1.20.4&nbsp;CREATE TABLE ... SELECT Statement"><code class="literal">CREATE
+            TABLE ... SELECT</code></a> statement is logged as one
+            transaction in the binary log when row-based replication is
+            in use. Previously, it was logged as two transactions, one
+            to create the table, and the other to insert data. A server
+            failure between the two transactions or while inserting data
+            could result in replication of an empty table. With the
+            introduction of atomic DDL support,
+            <a class="link" href="create-table-select.html" title="13.1.20.4&nbsp;CREATE TABLE ... SELECT Statement"><code class="literal">CREATE
+            TABLE ... SELECT</code></a> statements are now safe for
+            row-based replication and permitted for use with GTID-based
+            replication.
+          </p><p>
+            On storage engines that support both atomic DDL and foreign
+            key constraints, creation of foreign keys is not permitted
+            in
+            <a class="link" href="create-table-select.html" title="13.1.20.4&nbsp;CREATE TABLE ... SELECT Statement"><code class="literal">CREATE
+            TABLE ... SELECT</code></a> statements when row-based
+            replication is in use. Foreign key constraints can be added
+            later using <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>.
+          </p><p>
+            When
+            <a class="link" href="create-table-select.html" title="13.1.20.4&nbsp;CREATE TABLE ... SELECT Statement"><code class="literal">CREATE
+            TABLE ... SELECT</code></a> is applied as an atomic
+            operation, a metadata lock is held on the table while data
+            is inserted, which prevents concurrent access to the table
+            for the duration of the operation.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="drop-view.html" title="13.1.35&nbsp;DROP VIEW Statement"><code class="literal">DROP VIEW</code></a> fails if a named
+            view does not exist, and no changes are made. The change in
+            behavior is demonstrated in this example, where the
+            <a class="link" href="drop-view.html" title="13.1.35&nbsp;DROP VIEW Statement"><code class="literal">DROP VIEW</code></a> statement fails
+            because a named view does not exist:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE VIEW test.viewA AS SELECT * FROM t;</code></strong>
+mysql&gt; <strong class="userinput"><code>DROP VIEW test.viewA, test.viewB;</code></strong>
+ERROR 1051 (42S02): Unknown table &#39;test.viewB&#39;
+mysql&gt; <strong class="userinput"><code>SHOW FULL TABLES IN test WHERE TABLE_TYPE LIKE &#39;VIEW&#39;;</code></strong>
++----------------+------------+
+| Tables_in_test | Table_type |
++----------------+------------+
+| viewA          | VIEW       |
++----------------+------------+
+</pre><p>
+            Prior to the introduction of atomic DDL,
+            <a class="link" href="drop-view.html" title="13.1.35&nbsp;DROP VIEW Statement"><code class="literal">DROP VIEW</code></a> returns an error
+            for the named view that does not exist but succeeds for the
+            named view that does exist:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE VIEW test.viewA AS SELECT * FROM t;</code></strong>
+mysql&gt; <strong class="userinput"><code>DROP VIEW test.viewA, test.viewB;</code></strong>
+ERROR 1051 (42S02): Unknown table &#39;test.viewB&#39;
+mysql&gt; <strong class="userinput"><code>SHOW FULL TABLES IN test WHERE TABLE_TYPE LIKE &#39;VIEW&#39;;</code></strong>
+Empty set (0.00 sec)
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              Due to this change in behavior, a partially completed
+              <a class="link" href="drop-view.html" title="13.1.35&nbsp;DROP VIEW Statement"><code class="literal">DROP VIEW</code></a> operation on a
+              MySQL 5.7 replication source server fails when replicated
+              on a MySQL 8.0 replica. To avoid this failure scenario,
+              use <code class="literal">IF EXISTS</code> syntax in
+              <a class="link" href="drop-view.html" title="13.1.35&nbsp;DROP VIEW Statement"><code class="literal">DROP VIEW</code></a> statements to
+              prevent an error from occurring for views that do not
+              exist.
+            </p></div></li><li class="listitem"><p>
+            Partial execution of account management statements is no
+            longer permitted. Account management statements either
+            succeed for all named users or roll back and have no effect
+            if an error occurs. In earlier MySQL versions, account
+            management statements that name multiple users could succeed
+            for some users and fail for others.
+          </p><p>
+            The change in behavior is demonstrated in this example,
+            where the second <a class="link" href="create-user.html" title="13.7.1.3&nbsp;CREATE USER Statement"><code class="literal">CREATE USER</code></a>
+            statement returns an error but fails because it cannot
+            succeed for all named users.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER userA;</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE USER userA, userB;</code></strong>
+ERROR 1396 (HY000): Operation CREATE USER failed for &#39;userA&#39;@&#39;%&#39;
+mysql&gt; <strong class="userinput"><code>SELECT User FROM mysql.user WHERE User LIKE &#39;user%&#39;;</code></strong>
++-------+
+| User  |
++-------+
+| userA |
++-------+
+</pre><p>
+            Prior to the introduction of atomic DDL, the second
+            <code class="literal">CREATE USER</code> statement returns an error
+            for the named user that does not exist but succeeds for the
+            named user that does exist:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER userA;</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE USER userA, userB;</code></strong>
+ERROR 1396 (HY000): Operation CREATE USER failed for &#39;userA&#39;@&#39;%&#39;
+mysql&gt; <strong class="userinput"><code>SELECT User FROM mysql.user WHERE User LIKE &#39;user%&#39;;</code></strong>
++-------+
+| User  |
++-------+
+| userA |
+| userB |
++-------+
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              Due to this change in behavior, partially completed
+              account management statements on a MySQL 5.7 replication
+              source server fail when replicated on a MySQL 8.0 replica.
+              To avoid this failure scenario, use <code class="literal">IF
+              EXISTS</code> or <code class="literal">IF NOT EXISTS</code>
+              syntax, as appropriate, in account management statements
+              to prevent errors related to named users.
+            </p></div></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-91"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Storage%20Engine%20Support"></a><h4 class="title"><a id="atomic-ddl-storage-engine-support"></a>Storage Engine Support</h4></div></div></div><p>
+        Currently, only the <code class="literal">InnoDB</code> storage engine
+        supports atomic DDL. Storage engines that do not support atomic
+        DDL are exempted from DDL atomicity. DDL operations involving
+        exempted storage engines remain capable of introducing
+        inconsistencies that can occur when operations are interrupted
+        or only partially completed.
+      </p><p>
+        To support redo and rollback of DDL operations,
+        <code class="literal">InnoDB</code> writes DDL logs to the
+        <code class="literal">mysql.innodb_ddl_log</code> table, which is a hidden
+        data dictionary table that resides in the
+        <code class="filename">mysql.ibd</code> data dictionary tablespace.
+      </p><p>
+        To view DDL logs that are written to the
+        <code class="literal">mysql.innodb_ddl_log</code> table during a DDL
+        operation, enable the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_print_ddl_logs"><code class="literal">innodb_print_ddl_logs</code></a>
+        configuration option. For more information, see
+        <a class="xref" href="atomic-ddl.html#atomic-ddl-view-logs" title="Viewing DDL Logs">Viewing DDL Logs</a>.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          The redo logs for changes to the
+          <code class="literal">mysql.innodb_ddl_log</code> table are flushed to
+          disk immediately regardless of the
+          <a class="link" href="innodb-parameters.html#sysvar_innodb_flush_log_at_trx_commit"><code class="literal">innodb_flush_log_at_trx_commit</code></a>
+          setting. Flushing the redo logs immediately avoids situations
+          where data files are modified by DDL operations but the redo
+          logs for changes to the
+          <code class="literal">mysql.innodb_ddl_log</code> table resulting from
+          those operations are not persisted to disk. Such a situation
+          could cause errors during rollback or recovery.
+        </p></div><p>
+        The <code class="literal">InnoDB</code> storage engine executes DDL
+        operations in phases. DDL operations such as
+        <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> may perform the
+        <span class="emphasis"><em>Prepare</em></span> and <span class="emphasis"><em>Perform</em></span>
+        phases multiple times prior to the <span class="emphasis"><em>Commit</em></span>
+        phase.
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            <span class="emphasis"><em>Prepare</em></span>: Create the required objects
+            and write the DDL logs to the
+            <code class="literal">mysql.innodb_ddl_log</code> table. The DDL logs
+            define how to roll forward and roll back the DDL operation.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Perform</em></span>: Perform the DDL operation. For
+            example, perform a create routine for a <code class="literal">CREATE
+            TABLE</code> operation.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Commit</em></span>: Update the data dictionary and
+            commit the data dictionary transaction.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Post-DDL</em></span>: Replay and remove DDL logs
+            from the <code class="literal">mysql.innodb_ddl_log</code> table. To
+            ensure that rollback can be performed safely without
+            introducing inconsistencies, file operations such as
+            renaming or removing data files are performed in this final
+            phase. This phase also removes dynamic metadata from the
+            <code class="literal">mysql.innodb_dynamic_metadata</code> data
+            dictionary table for <a class="link" href="drop-table.html" title="13.1.32&nbsp;DROP TABLE Statement"><code class="literal">DROP
+            TABLE</code></a>, <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE
+            TABLE</code></a>, and other DDL operations that rebuild the
+            table.
+          </p></li></ol></div><p>
+        DDL logs are replayed and removed from the
+        <code class="literal">mysql.innodb_ddl_log</code> table during the
+        <span class="emphasis"><em>Post-DDL</em></span> phase, regardless of whether the
+        DDL operation is committed or rolled back. DDL logs should only
+        remain in the <code class="literal">mysql.innodb_ddl_log</code> table if
+        the server is halted during a DDL operation. In this case, the
+        DDL logs are replayed and removed after recovery.
+      </p><p>
+        In a recovery situation, a DDL operation may be committed or
+        rolled back when the server is restarted. If the data dictionary
+        transaction that was performed during the
+        <span class="emphasis"><em>Commit</em></span> phase of a DDL operation is present
+        in the redo log and binary log, the operation is considered
+        successful and is rolled forward. Otherwise, the incomplete data
+        dictionary transaction is rolled back when
+        <code class="literal">InnoDB</code> replays data dictionary redo logs, and
+        the DDL operation is rolled back.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-92"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Viewing%20DDL%20Logs"></a><h4 class="title"><a id="atomic-ddl-view-logs"></a>Viewing DDL Logs</h4></div></div></div><p>
+        To view DDL logs that are written to the
+        <code class="literal">mysql.innodb_ddl_log</code> data dictionary table
+        during atomic DDL operations that involve the
+        <code class="literal">InnoDB</code> storage engine, enable
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_print_ddl_logs"><code class="literal">innodb_print_ddl_logs</code></a> to have
+        MySQL write the DDL logs to <code class="literal">stderr</code>. Depending
+        on the host operating system and MySQL configuration,
+        <code class="literal">stderr</code> may be the error log, terminal, or
+        console window. See
+        <a class="xref" href="error-log-destination-configuration.html" title="5.4.2.2&nbsp;Default Error Log Destination Configuration">Section&nbsp;5.4.2.2, &ldquo;Default Error Log Destination Configuration&rdquo;</a>.
+      </p><p>
+        <code class="literal">InnoDB</code> writes DDL logs to the
+        <code class="literal">mysql.innodb_ddl_log</code> table to support redo
+        and rollback of DDL operations. The
+        <code class="literal">mysql.innodb_ddl_log</code> table is a hidden data
+        dictionary table that resides in the
+        <code class="filename">mysql.ibd</code> data dictionary tablespace. Like
+        other hidden data dictionary tables, the
+        <code class="literal">mysql.innodb_ddl_log</code> table cannot be accessed
+        directly in non-debug versions of MySQL. (See
+        <a class="xref" href="data-dictionary-schema.html" title="14.1&nbsp;Data Dictionary Schema">Section&nbsp;14.1, &ldquo;Data Dictionary Schema&rdquo;</a>.) The structure of the
+        <code class="literal">mysql.innodb_ddl_log</code> table corresponds to
+        this definition:
+      </p><pre class="programlisting">CREATE TABLE mysql.innodb_ddl_log (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  thread_id BIGINT UNSIGNED NOT NULL,
+  type INT UNSIGNED NOT NULL,
+  space_id INT UNSIGNED,
+  page_no INT UNSIGNED,
+  index_id BIGINT UNSIGNED,
+  table_id BIGINT UNSIGNED,
+  old_file_path VARCHAR(512) COLLATE utf8mb4_bin,
+  new_file_path VARCHAR(512) COLLATE utf8mb4_bin,
+  KEY(thread_id)
+);
+</pre><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">id</code>: A unique identifier for a DDL log
+            record.
+          </p></li><li class="listitem"><p>
+            <code class="literal">thread_id</code>: Each DDL log record is
+            assigned a <code class="literal">thread_id</code>, which is used to
+            replay and remove DDL logs that belong to a particular DDL
+            operation. DDL operations that involve multiple data file
+            operations generate multiple DDL log records.
+          </p></li><li class="listitem"><p>
+            <code class="literal">type</code>: The DDL operation type. Types
+            include <code class="literal">FREE</code> (drop an index tree),
+            <code class="literal">DELETE</code> (delete a file),
+            <code class="literal">RENAME</code> (rename a file), or
+            <code class="literal">DROP</code> (drop metadata from the
+            <code class="literal">mysql.innodb_dynamic_metadata</code> data
+            dictionary table).
+          </p></li><li class="listitem"><p>
+            <code class="literal">space_id</code>: The tablespace ID.
+          </p></li><li class="listitem"><p>
+            <code class="literal">page_no</code>: A page that contains allocation
+            information; an index tree root page, for example.
+          </p></li><li class="listitem"><p>
+            <code class="literal">index_id</code>: The index ID.
+          </p></li><li class="listitem"><p>
+            <code class="literal">table_id</code>: The table ID.
+          </p></li><li class="listitem"><p>
+            <code class="literal">old_file_path</code>: The old tablespace file
+            path. Used by DDL operations that create or drop tablespace
+            files; also used by DDL operations that rename a tablespace.
+          </p></li><li class="listitem"><p>
+            <code class="literal">new_file_path</code>: The new tablespace file
+            path. Used by DDL operations that rename tablespace files.
+          </p></li></ul></div><p>
+        This example demonstrates enabling
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_print_ddl_logs"><code class="literal">innodb_print_ddl_logs</code></a> to view
+        DDL logs written to <code class="literal">strderr</code> for a
+        <code class="literal">CREATE TABLE</code> operation.
+      </p><pre class="programlisting">mysql&gt; SET GLOBAL innodb_print_ddl_logs=1;
+mysql&gt; CREATE TABLE t1 (c1 INT) ENGINE = InnoDB;
+</pre><pre class="programlisting">[Note] [000000] InnoDB: DDL log insert : [DDL record: DELETE SPACE, id=18, thread_id=7,
+space_id=5, old_file_path=./test/t1.ibd]
+[Note] [000000] InnoDB: DDL log delete : by id 18
+[Note] [000000] InnoDB: DDL log insert : [DDL record: REMOVE CACHE, id=19, thread_id=7,
+table_id=1058, new_file_path=test/t1]
+[Note] [000000] InnoDB: DDL log delete : by id 19
+[Note] [000000] InnoDB: DDL log insert : [DDL record: FREE, id=20, thread_id=7,
+space_id=5, index_id=132, page_no=4]
+[Note] [000000] InnoDB: DDL log delete : by id 20
+[Note] [000000] InnoDB: DDL log post ddl : begin for thread id : 7
+[Note] [000000] InnoDB: DDL log post ddl : end for thread id : 7
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="sql-data-definition-statements.html">Previous <span class="navHint"> Data Definition Statements </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sql-data-definition-statements.html">Up <span class="navHint"> Data Definition Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="alter-database.html">Next <span class="navHint"> ALTER DATABASE Statement </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

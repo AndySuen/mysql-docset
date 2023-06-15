@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.20.8 InnoDB memcached Plugin Internals</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-memcached.html" title="15.20 InnoDB memcached Plugin" /><link rel="prev" href="innodb-memcached-replication.html" title="15.20.7 The InnoDB memcached Plugin and Replication" /><link rel="next" href="innodb-memcached-troubleshoot.html" title="15.20.9 Troubleshooting the InnoDB memcached Plugin" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-memcached-internals.html#innodb-memcached-internals">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-memcached-replication.html">Previous <span class="navHint"> The InnoDB memcached Plugin and Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-memcached.html">Up <span class="navHint"> InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-memcached-troubleshoot.html">Next <span class="navHint"> Troubleshooting the InnoDB memcached Plugin </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-memcached-internals"></a>15.20.8 InnoDB memcached Plugin Internals</h3></div></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-api"></a>InnoDB API for the InnoDB memcached Plugin</h4></div></div></div><p>
+        The <code class="literal">InnoDB</code> <span class="command"><strong>memcached</strong></span>
+        engine accesses <code class="literal">InnoDB</code> through
+        <code class="literal">InnoDB</code> APIs, most of which are directly
+        adopted from embedded <code class="literal">InnoDB</code>.
+        <code class="literal">InnoDB</code> API functions are passed to the
+        <code class="literal">InnoDB</code> <span class="command"><strong>memcached</strong></span> engine as
+        callback functions. <code class="literal">InnoDB</code> API functions
+        access the <code class="literal">InnoDB</code> tables directly, and are
+        mostly DML operations with the exception of
+        <a class="link" href="truncate-table.html" title="13.1.37 TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a>.
+      </p><p>
+        <span class="command"><strong>memcached</strong></span> commands are implemented through
+        the <code class="literal">InnoDB</code> <span class="command"><strong>memcached</strong></span> API.
+        The following table outlines how <span class="command"><strong>memcached</strong></span>
+        commands are mapped to DML or DDL operations.
+      </p><div class="table"><a id="idm45828872096112"></a><p class="title"><strong>Table 15.27 memcached Commands and Associated DML or DDL Operations</strong></p><div class="table-contents"><table frame="all" summary="memcached commands and associated DML or DDL operations."><col style="width: 25%" /><col style="width: 75%" /><thead><tr>
+            <th>memcached Command</th>
+            <th>DML or DDL Operations</th>
+          </tr></thead><tbody><tr>
+            <td><code class="literal">get</code></td>
+            <td>a read/fetch command</td>
+          </tr><tr>
+            <td><code class="literal">set</code></td>
+            <td>a search followed by an <code class="literal">INSERT</code> or
+              <code class="literal">UPDATE</code> (depending on whether or not a
+              key exists)</td>
+          </tr><tr>
+            <td><code class="literal">add</code></td>
+            <td>a search followed by an <code class="literal">INSERT</code> or
+              <code class="literal">UPDATE</code></td>
+          </tr><tr>
+            <td><code class="literal">replace</code></td>
+            <td>a search followed by an <code class="literal">UPDATE</code></td>
+          </tr><tr>
+            <td><code class="literal">append</code></td>
+            <td>a search followed by an <code class="literal">UPDATE</code> (appends data to the
+              result before <code class="literal">UPDATE</code>)</td>
+          </tr><tr>
+            <td><code class="literal">prepend</code></td>
+            <td>a search followed by an <code class="literal">UPDATE</code> (prepends data to the
+              result before <code class="literal">UPDATE</code>)</td>
+          </tr><tr>
+            <td><code class="literal">incr</code></td>
+            <td>a search followed by an <code class="literal">UPDATE</code></td>
+          </tr><tr>
+            <td><code class="literal">decr</code></td>
+            <td>a search followed by an <code class="literal">UPDATE</code></td>
+          </tr><tr>
+            <td><code class="literal">delete</code></td>
+            <td>a search followed by a <code class="literal">DELETE</code></td>
+          </tr><tr>
+            <td><code class="literal">flush_all</code></td>
+            <td><code class="literal">TRUNCATE TABLE</code> (DDL)</td>
+          </tr></tbody></table></div></div><br class="table-break" /></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-config-tables"></a>InnoDB memcached Plugin Configuration Tables</h4></div></div></div><a id="idm45828872054624" class="indexterm"></a><a id="idm45828872053584" class="indexterm"></a><a id="idm45828872052512" class="indexterm"></a><a id="idm45828872051440" class="indexterm"></a><p>
+        This section describes configuration tables used by the
+        <code class="literal">daemon_memcached</code> plugin. The
+        <code class="literal">cache_policies</code> table,
+        <code class="literal">config_options</code> table, and
+        <code class="literal">containers</code> table are created by the
+        <code class="filename">innodb_memcached_config.sql</code> configuration
+        script in the <code class="literal">innodb_memcache</code> database.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>USE innodb_memcache;</code></strong>
+Database changed
+mysql&gt; <strong class="userinput"><code>SHOW TABLES;</code></strong>
++---------------------------+
+| Tables_in_innodb_memcache |
++---------------------------+
+| cache_policies            |
+| config_options            |
+| containers                |
++---------------------------+
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-cache-policies-table"></a>cache_policies Table</h4></div></div></div><p>
+        The <code class="literal">cache_policies</code> table defines a cache
+        policy for the <code class="literal">InnoDB</code>
+        <code class="literal">memcached</code> installation. You can specify
+        individual policies for <code class="literal">get</code>,
+        <code class="literal">set</code>, <code class="literal">delete</code>, and
+        <code class="literal">flush</code> operations, within a single cache
+        policy. The default setting for all operations is
+        <code class="literal">innodb_only</code>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">innodb_only</code>: Use
+            <code class="literal">InnoDB</code> as the data store.
+          </p></li><li class="listitem"><p>
+            <code class="literal">cache_only</code>: Use the
+            <span class="command"><strong>memcached</strong></span> engine as the data store.
+          </p></li><li class="listitem"><p>
+            <code class="literal">caching</code>: Use both
+            <code class="literal">InnoDB</code> and the
+            <span class="command"><strong>memcached</strong></span> engine as data stores. In this
+            case, if <span class="command"><strong>memcached</strong></span> cannot find a key in
+            memory, it searches for the value in an
+            <code class="literal">InnoDB</code> table.
+          </p></li><li class="listitem"><p>
+            <code class="literal">disable</code>: Disable caching.
+          </p></li></ul></div><div class="table"><a id="idm45828872024608"></a><p class="title"><strong>Table 15.28 cache_policies Columns</strong></p><div class="table-contents"><table frame="all" summary="Columns of the cache_policies table."><col style="width: 50%" /><col style="width: 50%" /><thead><tr>
+            <th>Column</th>
+            <th>Description</th>
+          </tr></thead><tbody><tr>
+            <td><code class="literal">policy_name</code></td>
+            <td>Name of the cache policy. The default cache policy name is
+              <code class="literal">cache_policy</code>.</td>
+          </tr><tr>
+            <td><code class="literal">get_policy</code></td>
+            <td>The cache policy for get operations. Valid values are
+              <code class="literal">innodb_only</code>,
+              <code class="literal">cache_only</code>, <code class="literal">caching</code>,
+              or <code class="literal">disabled</code>. The default setting is
+              <code class="literal">innodb_only</code>.</td>
+          </tr><tr>
+            <td><code class="literal">set_policy</code></td>
+            <td>The cache policy for set operations. Valid values are
+              <code class="literal">innodb_only</code>,
+              <code class="literal">cache_only</code>, <code class="literal">caching</code>,
+              or <code class="literal">disabled</code>. The default setting is
+              <code class="literal">innodb_only</code>.</td>
+          </tr><tr>
+            <td><code class="literal">delete_policy</code></td>
+            <td>The cache policy for delete operations. Valid values are
+              <code class="literal">innodb_only</code>,
+              <code class="literal">cache_only</code>, <code class="literal">caching</code>,
+              or <code class="literal">disabled</code>. The default setting is
+              <code class="literal">innodb_only</code>.</td>
+          </tr><tr>
+            <td><code class="literal">flush_policy</code></td>
+            <td>The cache policy for flush operations. Valid values are
+              <code class="literal">innodb_only</code>,
+              <code class="literal">cache_only</code>, <code class="literal">caching</code>,
+              or <code class="literal">disabled</code>. The default setting is
+              <code class="literal">innodb_only</code>.</td>
+          </tr></tbody></table></div></div><br class="table-break" /></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-config-options-table"></a>config_options Table</h4></div></div></div><p>
+        The <code class="literal">config_options</code> table stores
+        <span class="command"><strong>memcached</strong></span>-related settings that can be
+        changed at runtime using SQL. Supported configuration options
+        are <code class="literal">separator</code> and
+        <code class="literal">table_map_delimiter</code>.
+      </p><div class="table"><a id="idm45828871986016"></a><p class="title"><strong>Table 15.29 config_options Columns</strong></p><div class="table-contents"><table frame="all" summary="Columns of the config_options table."><col style="width: 20%" /><col style="width: 80%" /><thead><tr>
+            <th>Column</th>
+            <th>Description</th>
+          </tr></thead><tbody><tr>
+            <td><code class="literal">Name</code></td>
+            <td>Name of the <span class="command"><strong>memcached</strong></span>-related configuration option.
+              The following configuration options are supported by the
+              <code class="literal">config_options</code> table:<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                    <code class="literal">separator</code>: Used to separate
+                    values of a long string into separate values when
+                    there are multiple <code class="literal">value_columns</code>
+                    defined. By default, the
+                    <code class="literal">separator</code> is a
+                    <code class="literal">|</code> character. For example, if you
+                    define <code class="literal">col1, col2</code> as value
+                    columns, and you define <code class="literal">|</code> as the
+                    separator, you can issue the following
+                    <span class="command"><strong>memcached</strong></span> command to insert
+                    values into <code class="literal">col1</code> and
+                    <code class="literal">col2</code>, respectively:
+                  </p><pre class="programlisting">set keyx 10 0 19
+valuecolx|valuecoly
+</pre><p>
+                    <code class="literal">valuecol1x</code> is stored in
+                    <code class="literal">col1</code> and
+                    <code class="literal">valuecoly</code> is stored in
+                    <code class="literal">col2</code>.
+                  </p></li><li class="listitem"><p>
+                    <code class="literal">table_map_delimiter</code>: The
+                    character separating the schema name and the table
+                    name when you use the <code class="literal">@@</code> notation
+                    in a key name to access a key in a specific table.
+                    For example, <code class="literal">@@t1.some_key</code> and
+                    <code class="literal">@@t2.some_key</code> have the same key
+                    value, but are stored in different tables.
+                  </p></li></ul></div></td>
+          </tr><tr>
+            <td><code class="literal">Value</code></td>
+            <td>The value assigned to the <span class="command"><strong>memcached</strong></span>-related
+              configuration option.</td>
+          </tr></tbody></table></div></div><br class="table-break" /></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-containers-table"></a>containers Table</h4></div></div></div><p>
+        The <code class="literal">containers</code> table is the most important of
+        the three configuration tables. Each <code class="literal">InnoDB</code>
+        table that is used to store <span class="command"><strong>memcached</strong></span> values
+        must have an entry in the <code class="literal">containers</code> table.
+        The entry provides a mapping between <code class="literal">InnoDB</code>
+        table columns and container table columns, which is required for
+        <code class="literal">memcached</code> to work with
+        <code class="literal">InnoDB</code> tables.
+      </p><p>
+        The <code class="literal">containers</code> table contains a default entry
+        for the <code class="literal">test.demo_test</code> table, which is
+        created by the <code class="filename">innodb_memcached_config.sql</code>
+        configuration script. To use the
+        <code class="literal">daemon_memcached</code> plugin with your own
+        <code class="literal">InnoDB</code> table, you must create an entry in the
+        <code class="literal">containers</code> table.
+      </p><div class="table"><a id="idm45828871944912"></a><p class="title"><strong>Table 15.30 containers Columns</strong></p><div class="table-contents"><table frame="all" summary="Columns of the containers table."><col style="width: 30%" /><col style="width: 70%" /><thead><tr>
+            <th>Column</th>
+            <th>Description</th>
+          </tr></thead><tbody><tr>
+            <td><code class="literal">name</code></td>
+            <td>The name given to the container. If an <code class="literal">InnoDB</code> table
+              is not requested by name using <code class="literal">@@</code>
+              notation, the <code class="literal">daemon_memcached</code> plugin
+              uses the <code class="literal">InnoDB</code> table with a
+              <code class="literal">containers.name</code> value of
+              <code class="literal">default</code>. If there is no such entry, the
+              first entry in the <code class="literal">containers</code> table,
+              ordered alphabetically by <code class="literal">name</code>
+              (ascending), determines the default
+              <code class="literal">InnoDB</code> table.</td>
+          </tr><tr>
+            <td><code class="literal">db_schema</code></td>
+            <td>The name of the database where the <code class="literal">InnoDB</code> table
+              resides. This is a required value.</td>
+          </tr><tr>
+            <td><code class="literal">db_table</code></td>
+            <td>The name of the <code class="literal">InnoDB</code> table that stores
+              <span class="command"><strong>memcached</strong></span> values. This is a required
+              value.</td>
+          </tr><tr>
+            <td><code class="literal">key_columns</code></td>
+            <td>The column in the <code class="literal">InnoDB</code> table that contains lookup
+              key values for <span class="command"><strong>memcached</strong></span> operations.
+              This is a required value.</td>
+          </tr><tr>
+            <td><code class="literal">value_columns</code></td>
+            <td>The <code class="literal">InnoDB</code> table columns (one or more) that store
+              <code class="literal">memcached</code> data. Multiple columns can be
+              specified using the separator character specified in the
+              <code class="literal">innodb_memcached.config_options</code> table.
+              By default, the separator is a pipe character
+              (<span class="quote">“<span class="quote">|</span>”</span>). To specify multiple columns, separate
+              them with the defined separator character. For example:
+              <code class="literal">col1|col2|col3</code>. This is a required
+              value.</td>
+          </tr><tr>
+            <td><code class="literal">flags</code></td>
+            <td>The <code class="literal">InnoDB</code> table columns that are used as flags (a
+              user-defined numeric value that is stored and retrieved
+              along with the main value) for
+              <span class="command"><strong>memcached</strong></span>. A flag value can be used as
+              a column specifier for some operations (such as
+              <code class="literal">incr</code>, <code class="literal">prepend</code>) if a
+              <span class="command"><strong>memcached</strong></span> value is mapped to multiple
+              columns, so that an operation is performed on a specified
+              column. For example, if you have mapped a
+              <code class="literal">value_columns</code> to three
+              <code class="literal">InnoDB</code> table columns, and only want the
+              increment operation performed on one columns, use the
+              <code class="literal">flags</code> column to specify the column. If
+              you do not use the <code class="literal">flags</code> column, set a
+              value of <code class="literal">0</code> to indicate that it is
+              unused.</td>
+          </tr><tr>
+            <td><code class="literal">cas_column</code></td>
+            <td>The <code class="literal">InnoDB</code> table column that stores compare-and-swap
+              (cas) values. The <code class="literal">cas_column</code> value is
+              related to the way <span class="command"><strong>memcached</strong></span> hashes
+              requests to different servers and caches data in memory.
+              Because the <code class="literal">InnoDB</code>
+              <span class="command"><strong>memcached</strong></span> plugin is tightly integrated
+              with a single <span class="command"><strong>memcached</strong></span> daemon, and the
+              in-memory caching mechanism is handled by MySQL and the
+              <a class="link" href="glossary.html#glos_buffer_pool" title="buffer pool">InnoDB buffer
+              pool</a>, this column is rarely needed. If you do not
+              use this column, set a value of <code class="literal">0</code> to
+              indicate that it is unused.</td>
+          </tr><tr>
+            <td><code class="literal">expire_time_column</code></td>
+            <td>The <code class="literal">InnoDB</code> table column that stores expiration
+              values. The <code class="literal">expire_time_column</code> value is
+              related to the way <span class="command"><strong>memcached</strong></span> hashes
+              requests to different servers and caches data in memory.
+              Because the <code class="literal">InnoDB</code>
+              <span class="command"><strong>memcached</strong></span> plugin is tightly integrated
+              with a single <span class="command"><strong>memcached</strong></span> daemon, and the
+              in-memory caching mechanism is handled by MySQL and the
+              <a class="link" href="glossary.html#glos_buffer_pool" title="buffer pool">InnoDB buffer
+              pool</a>, this column is rarely needed. If you do not
+              use this column, set a value of <code class="literal">0</code> to
+              indicate that the column is unused. The maximum expire
+              time is defined as <code class="literal">INT_MAX32</code> or
+              2147483647 seconds (approximately 68 years).</td>
+          </tr><tr>
+            <td><code class="literal">unique_idx_name_on_key</code></td>
+            <td>The name of the index on the key column. It must be a unique index. It
+              can be the <a class="link" href="glossary.html#glos_primary_key" title="primary key">primary
+              key</a> or a
+              <a class="link" href="glossary.html#glos_secondary_index" title="secondary index">secondary
+              index</a>. Preferably, use the primary key of the
+              <code class="literal">InnoDB</code> table. Using the primary key
+              avoids a lookup that is performed when using a secondary
+              index. You cannot make a
+              <a class="link" href="glossary.html#glos_covering_index" title="covering index">covering index</a>
+              for <span class="command"><strong>memcached</strong></span> lookups;
+              <code class="literal">InnoDB</code> returns an error if you try to
+              define a composite secondary index over both the key and
+              value columns.</td>
+          </tr></tbody></table></div></div><br class="table-break" /><h5><a id="idm45828871875648"></a>containers Table Column Constraints</h5><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            You must supply a value for <code class="literal">db_schema</code>,
+            <code class="literal">db_name</code>, <code class="literal">key_columns</code>,
+            <code class="literal">value_columns</code> and
+            <code class="literal">unique_idx_name_on_key</code>. Specify
+            <code class="literal">0</code> for <code class="literal">flags</code>,
+            <code class="literal">cas_column</code>, and
+            <code class="literal">expire_time_column</code> if they are unused.
+            Failing to do so could cause your setup to fail.
+          </p></li><li class="listitem"><p>
+            <code class="literal">key_columns</code>: The maximum limit for a
+            <span class="command"><strong>memcached</strong></span> key is 250 characters, which is
+            enforced by <span class="command"><strong>memcached</strong></span>. The mapped key
+            must be a non-Null <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a> or
+            <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a> type.
+          </p></li><li class="listitem"><p>
+            <code class="literal">value_columns</code>: Must be mapped to a
+            <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a>,
+            <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>, or
+            <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a> column. There is no
+            length restriction and the value can be NULL.
+          </p></li><li class="listitem"><p>
+            <code class="literal">cas_column</code>: The <code class="literal">cas</code>
+            value is a 64 bit integer. It must be mapped to a
+            <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">BIGINT</code></a> of at least 8 bytes.
+            If you do not use this column, set a value of
+            <code class="literal">0</code> to indicate that it is unused.
+          </p></li><li class="listitem"><p>
+            <code class="literal">expiration_time_column</code>: Must mapped to an
+            <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INTEGER</code></a> of at least 4 bytes.
+            Expiration time is defined as a 32-bit integer for Unix time
+            (the number of seconds since January 1, 1970, as a 32-bit
+            value), or the number of seconds starting from the current
+            time. For the latter, the number of seconds may not exceed
+            60*60*24*30 (the number of seconds in 30 days). If the
+            number sent by a client is larger, the server considers it
+            to be a real Unix time value rather than an offset from the
+            current time. If you do not use this column, set a value of
+            <code class="literal">0</code> to indicate that it is unused.
+          </p></li><li class="listitem"><p>
+            <code class="literal">flags</code>: Must be mapped to an
+            <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INTEGER</code></a> of at least 32-bits
+            and can be NULL. If you do not use this column, set a value
+            of <code class="literal">0</code> to indicate that it is unused.
+          </p></li></ul></div><p>
+        A pre-check is performed at plugin load time to enforce column
+        constraints. If mismatches are found, the plugin is not loaded.
+      </p><h5><a id="idm45828871844032"></a>Multiple Value Column Mapping</h5><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            During plugin initialization, when <code class="literal">InnoDB</code>
+            <span class="command"><strong>memcached</strong></span> is configured with information
+            defined in the <code class="literal">containers</code> table, each
+            mapped column defined in
+            <code class="literal">containers.value_columns</code> is verified
+            against the mapped <code class="literal">InnoDB</code> table. If
+            multiple <code class="literal">InnoDB</code> table columns are mapped,
+            there is a check to ensure that each column exists and is
+            the right type.
+          </p></li><li class="listitem"><p>
+            At run-time, for <code class="literal">memcached</code> insert
+            operations, if there are more delimited values than the
+            number of mapped columns, only the number of mapped values
+            are taken. For example, if there are six mapped columns, and
+            seven delimited values are provided, only the first six
+            delimited values are taken. The seventh delimited value is
+            ignored.
+          </p></li><li class="listitem"><p>
+            If there are fewer delimited values than mapped columns,
+            unfilled columns are set to NULL. If an unfilled column
+            cannot be set to NULL, insert operations fail.
+          </p></li><li class="listitem"><p>
+            If a table has more columns than mapped values, the extra
+            columns do not affect results.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-demo-test-table"></a>The demo_test Example Table</h4></div></div></div><p>
+        The <code class="filename">innodb_memcached_config.sql</code>
+        configuration script creates a <code class="literal">demo_test</code>
+        table in the <code class="literal">test</code> database, which can be used
+        to verify <code class="literal">InnoDB</code> <span class="command"><strong>memcached</strong></span>
+        plugin installation immediately after setup.
+      </p><p>
+        The <code class="filename">innodb_memcached_config.sql</code>
+        configuration script also creates an entry for the
+        <code class="literal">demo_test</code> table in the
+        <code class="literal">innodb_memcache.containers</code> table.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM innodb_memcache.containers\G</code></strong>
+*************************** 1. row ***************************
+                  name: aaa
+             db_schema: test
+              db_table: demo_test
+           key_columns: c1
+         value_columns: c2
+                 flags: c3
+            cas_column: c4
+    expire_time_column: c5
+unique_idx_name_on_key: PRIMARY
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM test.demo_test;</code></strong>
++----+------------------+------+------+------+
+| c1 | c2               | c3   | c4   | c5   |
++----+------------------+------+------+------+
+| AA | HELLO, HELLO     |    8 |    0 |    0 |
++----+------------------+------+------+------+
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-memcached-replication.html">Previous <span class="navHint"> The InnoDB memcached Plugin and Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-memcached.html">Up <span class="navHint"> InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-memcached-troubleshoot.html">Next <span class="navHint"> Troubleshooting the InnoDB memcached Plugin </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

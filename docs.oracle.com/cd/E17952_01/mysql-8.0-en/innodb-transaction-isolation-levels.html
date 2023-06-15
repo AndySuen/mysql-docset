@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.7.2.1 Transaction Isolation Levels</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-transaction-model.html" title="15.7.2 InnoDB Transaction Model" /><link rel="prev" href="innodb-transaction-model.html" title="15.7.2 InnoDB Transaction Model" /><link rel="next" href="innodb-autocommit-commit-rollback.html" title="15.7.2.2 autocommit, Commit, and Rollback" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-transaction-isolation-levels.html#innodb-transaction-isolation-levels">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-transaction-model.html">Previous <span class="navHint"> InnoDB Transaction Model </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-transaction-model.html">Up <span class="navHint"> InnoDB Transaction Model </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-autocommit-commit-rollback.html">Next <span class="navHint"> autocommit, Commit, and Rollback </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-transaction-isolation-levels"></a>15.7.2.1 Transaction Isolation Levels</h4></div></div></div><a id="idm45828889462288" class="indexterm"></a><a id="idm45828889460800" class="indexterm"></a><p>
+        Transaction isolation is one of the foundations of database
+        processing. Isolation is the I in the acronym
+        <a class="link" href="glossary.html#glos_acid" title="ACID">ACID</a>; the isolation level is
+        the setting that fine-tunes the balance between performance and
+        reliability, consistency, and reproducibility of results when
+        multiple transactions are making changes and performing queries
+        at the same time.
+      </p><p>
+        <code class="literal">InnoDB</code> offers all four transaction isolation
+        levels described by the SQL:1992 standard:
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-uncommitted"><code class="literal">READ UNCOMMITTED</code></a>,
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-committed"><code class="literal">READ COMMITTED</code></a>,
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_repeatable-read"><code class="literal">REPEATABLE READ</code></a>, and
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_serializable"><code class="literal">SERIALIZABLE</code></a>. The default
+        isolation level for <code class="literal">InnoDB</code> is
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_repeatable-read"><code class="literal">REPEATABLE READ</code></a>.
+      </p><p>
+        A user can change the isolation level for a single session or
+        for all subsequent connections with the <a class="link" href="set-transaction.html" title="13.3.7 SET TRANSACTION Statement"><code class="literal">SET
+        TRANSACTION</code></a> statement. To set the server's default
+        isolation level for all connections, use the
+        <a class="link" href="server-options.html#option_mysqld_transaction-isolation"><code class="option">--transaction-isolation</code></a> option on
+        the command line or in an option file. For detailed information
+        about isolation levels and level-setting syntax, see
+        <a class="xref" href="set-transaction.html" title="13.3.7 SET TRANSACTION Statement">Section 13.3.7, “SET TRANSACTION Statement”</a>.
+      </p><p>
+        <code class="literal">InnoDB</code> supports each of the transaction
+        isolation levels described here using different
+        <a class="link" href="glossary.html#glos_locking" title="locking">locking</a> strategies. You can
+        enforce a high degree of consistency with the default
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_repeatable-read"><code class="literal">REPEATABLE READ</code></a> level, for
+        operations on crucial data where
+        <a class="link" href="glossary.html#glos_acid" title="ACID">ACID</a> compliance is important.
+        Or you can relax the consistency rules with
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-committed"><code class="literal">READ COMMITTED</code></a> or even
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-uncommitted"><code class="literal">READ UNCOMMITTED</code></a>, in
+        situations such as bulk reporting where precise consistency and
+        repeatable results are less important than minimizing the amount
+        of overhead for locking.
+        <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_serializable"><code class="literal">SERIALIZABLE</code></a> enforces even
+        stricter rules than <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_repeatable-read"><code class="literal">REPEATABLE
+        READ</code></a>, and is used mainly in specialized situations,
+        such as with <a class="link" href="glossary.html#glos_xa" title="XA">XA</a> transactions and
+        for troubleshooting issues with concurrency and
+        <a class="link" href="glossary.html#glos_deadlock" title="deadlock">deadlocks</a>.
+      </p><p>
+        The following list describes how MySQL supports the different
+        transaction levels. The list goes from the most commonly used
+        level to the least used.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="isolevel_repeatable-read"></a>
+            <code class="literal">REPEATABLE READ</code>
+          </p><a id="idm45828889432368" class="indexterm"></a><a id="idm45828889430912" class="indexterm"></a><p>
+            This is the default isolation level for
+            <code class="literal">InnoDB</code>.
+            <a class="link" href="glossary.html#glos_consistent_read" title="consistent read">Consistent reads</a>
+            within the same transaction read the
+            <a class="link" href="glossary.html#glos_snapshot" title="snapshot">snapshot</a> established by
+            the first read. This means that if you issue several plain
+            (nonlocking) <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>
+            statements within the same transaction, these
+            <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements are
+            consistent also with respect to each other. See
+            <a class="xref" href="innodb-consistent-read.html" title="15.7.2.3 Consistent Nonlocking Reads">Section 15.7.2.3, “Consistent Nonlocking Reads”</a>.
+          </p><p>
+            For <a class="link" href="glossary.html#glos_locking_read" title="locking read">locking reads</a>
+            (<a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> with <code class="literal">FOR
+            UPDATE</code> or <code class="literal">FOR SHARE</code>),
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>, and
+            <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> statements, locking
+            depends on whether the statement uses a unique index with a
+            unique search condition, or a range-type search condition.
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                For a unique index with a unique search condition,
+                <code class="literal">InnoDB</code> locks only the index record
+                found, not the <a class="link" href="glossary.html#glos_gap" title="gap">gap</a>
+                before it.
+              </p></li><li class="listitem"><p>
+                For other search conditions, <code class="literal">InnoDB</code>
+                locks the index range scanned, using
+                <a class="link" href="glossary.html#glos_gap_lock" title="gap lock">gap locks</a> or
+                <a class="link" href="glossary.html#glos_next_key_lock" title="next-key lock">next-key locks</a>
+                to block insertions by other sessions into the gaps
+                covered by the range. For information about gap locks
+                and next-key locks, see
+                <a class="xref" href="innodb-locking.html" title="15.7.1 InnoDB Locking">Section 15.7.1, “InnoDB Locking”</a>.
+              </p></li></ul></div></li><li class="listitem"><p><a id="isolevel_read-committed"></a>
+            <code class="literal">READ COMMITTED</code>
+          </p><a id="idm45828889407312" class="indexterm"></a><a id="idm45828889405808" class="indexterm"></a><p>
+            Each consistent read, even within the same transaction, sets
+            and reads its own fresh snapshot. For information about
+            consistent reads, see
+            <a class="xref" href="innodb-consistent-read.html" title="15.7.2.3 Consistent Nonlocking Reads">Section 15.7.2.3, “Consistent Nonlocking Reads”</a>.
+          </p><p>
+            For locking reads (<a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>
+            with <code class="literal">FOR UPDATE</code> or <code class="literal">FOR
+            SHARE</code>), <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>
+            statements, and <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a>
+            statements, <code class="literal">InnoDB</code> locks only index
+            records, not the gaps before them, and thus permits the free
+            insertion of new records next to locked records. Gap locking
+            is only used for foreign-key constraint checking and
+            duplicate-key checking.
+          </p><p>
+            Because gap locking is disabled, phantom row problems may
+            occur, as other sessions can insert new rows into the gaps.
+            For information about phantom rows, see
+            <a class="xref" href="innodb-next-key-locking.html" title="15.7.4 Phantom Rows">Section 15.7.4, “Phantom Rows”</a>.
+          </p><p>
+            Only row-based binary logging is supported with the
+            <code class="literal">READ COMMITTED</code> isolation level. If you
+            use <code class="literal">READ COMMITTED</code> with
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=MIXED</code></a>, the
+            server automatically uses row-based logging.
+          </p><p>
+            Using <code class="literal">READ COMMITTED</code> has additional
+            effects:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                For <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> or
+                <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> statements,
+                <code class="literal">InnoDB</code> holds locks only for rows that
+                it updates or deletes. Record locks for nonmatching rows
+                are released after MySQL has evaluated the
+                <code class="literal">WHERE</code> condition. This greatly reduces
+                the probability of deadlocks, but they can still happen.
+              </p></li><li class="listitem"><p>
+                For <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> statements, if
+                a row is already locked, <code class="literal">InnoDB</code>
+                performs a <span class="quote">“<span class="quote">semi-consistent</span>”</span> read,
+                returning the latest committed version to MySQL so that
+                MySQL can determine whether the row matches the
+                <code class="literal">WHERE</code> condition of the
+                <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>. If the row
+                matches (must be updated), MySQL reads the row again and
+                this time <code class="literal">InnoDB</code> either locks it or
+                waits for a lock on it.
+              </p></li></ul></div><p>
+            Consider the following example, beginning with this table:
+          </p><pre class="programlisting">CREATE TABLE t (a INT NOT NULL, b INT) ENGINE = InnoDB;
+INSERT INTO t VALUES (1,2),(2,3),(3,2),(4,3),(5,2);
+COMMIT;
+</pre><p>
+            In this case, the table has no indexes, so searches and
+            index scans use the hidden clustered index for record
+            locking (see <a class="xref" href="innodb-index-types.html" title="15.6.2.1 Clustered and Secondary Indexes">Section 15.6.2.1, “Clustered and Secondary Indexes”</a>) rather
+            than indexed columns.
+          </p><p>
+            Suppose that one session performs an
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> using these
+            statements:
+          </p><pre class="programlisting"># Session A
+START TRANSACTION;
+UPDATE t SET b = 5 WHERE b = 3;
+</pre><p>
+            Suppose also that a second session performs an
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> by executing these
+            statements following those of the first session:
+          </p><pre class="programlisting"># Session B
+UPDATE t SET b = 4 WHERE b = 2;
+</pre><p>
+            As <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> executes each
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>, it first acquires an
+            exclusive lock for each row, and then determines whether to
+            modify it. If <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> does not
+            modify the row, it releases the lock. Otherwise,
+            <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> retains the lock until
+            the end of the transaction. This affects transaction
+            processing as follows.
+          </p><p>
+            When using the default <code class="literal">REPEATABLE READ</code>
+            isolation level, the first
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> acquires an x-lock on
+            each row that it reads and does not release any of them:
+          </p><pre class="programlisting">x-lock(1,2); retain x-lock
+x-lock(2,3); update(2,3) to (2,5); retain x-lock
+x-lock(3,2); retain x-lock
+x-lock(4,3); update(4,3) to (4,5); retain x-lock
+x-lock(5,2); retain x-lock
+</pre><p>
+            The second <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> blocks as
+            soon as it tries to acquire any locks (because first update
+            has retained locks on all rows), and does not proceed until
+            the first <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> commits or
+            rolls back:
+          </p><pre class="programlisting">x-lock(1,2); block and wait for first UPDATE to commit or roll back
+</pre><p>
+            If <code class="literal">READ COMMITTED</code> is used instead, the
+            first <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> acquires an
+            x-lock on each row that it reads and releases those for rows
+            that it does not modify:
+          </p><pre class="programlisting">x-lock(1,2); unlock(1,2)
+x-lock(2,3); update(2,3) to (2,5); retain x-lock
+x-lock(3,2); unlock(3,2)
+x-lock(4,3); update(4,3) to (4,5); retain x-lock
+x-lock(5,2); unlock(5,2)
+</pre><p>
+            For the second <code class="literal">UPDATE</code>,
+            <code class="literal">InnoDB</code> does a
+            <span class="quote">“<span class="quote">semi-consistent</span>”</span> read, returning the latest
+            committed version of each row that it reads to MySQL so that
+            MySQL can determine whether the row matches the
+            <code class="literal">WHERE</code> condition of the
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>:
+          </p><pre class="programlisting">x-lock(1,2); update(1,2) to (1,4); retain x-lock
+x-lock(2,3); unlock(2,3)
+x-lock(3,2); update(3,2) to (3,4); retain x-lock
+x-lock(4,3); unlock(4,3)
+x-lock(5,2); update(5,2) to (5,4); retain x-lock
+</pre><p>
+            However, if the <code class="literal">WHERE</code> condition includes
+            an indexed column, and <code class="literal">InnoDB</code> uses the
+            index, only the indexed column is considered when taking and
+            retaining record locks. In the following example, the first
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> takes and retains an
+            x-lock on each row where b = 2. The second
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> blocks when it tries
+            to acquire x-locks on the same records, as it also uses the
+            index defined on column b.
+          </p><pre class="programlisting">CREATE TABLE t (a INT NOT NULL, b INT, c INT, INDEX (b)) ENGINE = InnoDB;
+INSERT INTO t VALUES (1,2,3),(2,2,4);
+COMMIT;
+
+# Session A
+START TRANSACTION;
+UPDATE t SET b = 3 WHERE b = 2 AND c = 3;
+
+# Session B
+UPDATE t SET b = 4 WHERE b = 2 AND c = 4;
+</pre><p>
+            The <code class="literal">READ COMMITTED</code> isolation level can be
+            set at startup or changed at runtime. At runtime, it can be
+            set globally for all sessions, or individually per session.
+          </p></li><li class="listitem"><p><a id="isolevel_read-uncommitted"></a>
+            <code class="literal">READ UNCOMMITTED</code>
+          </p><a id="idm45828889339216" class="indexterm"></a><a id="idm45828889337760" class="indexterm"></a><p>
+            <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements are
+            performed in a nonlocking fashion, but a possible earlier
+            version of a row might be used. Thus, using this isolation
+            level, such reads are not consistent. This is also called a
+            <a class="link" href="glossary.html#glos_dirty_read" title="dirty read">dirty read</a>.
+            Otherwise, this isolation level works like
+            <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-committed"><code class="literal">READ COMMITTED</code></a>.
+          </p></li><li class="listitem"><p><a id="isolevel_serializable"></a>
+            <code class="literal">SERIALIZABLE</code>
+          </p><a id="idm45828889330416" class="indexterm"></a><a id="idm45828889328912" class="indexterm"></a><p>
+            This level is like <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_repeatable-read"><code class="literal">REPEATABLE
+            READ</code></a>, but <code class="literal">InnoDB</code> implicitly
+            converts all plain <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>
+            statements to <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT
+            ... FOR SHARE</code></a> if
+            <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">autocommit</code></a> is disabled. If
+            <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">autocommit</code></a> is enabled, the
+            <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> is its own
+            transaction. It therefore is known to be read only and can
+            be serialized if performed as a consistent (nonlocking) read
+            and need not block for other transactions. (To force a plain
+            <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> to block if other
+            transactions have modified the selected rows, disable
+            <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">autocommit</code></a>.)
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              As of MySQL 8.0.22, DML operations that read data from
+              MySQL grant tables (through a join list or subquery) but
+              do not modify them do not acquire read locks on the MySQL
+              grant tables, regardless of the isolation level. For more
+              information, see
+              <a class="xref" href="grant-tables.html#grant-tables-concurrency" title="Grant Table Concurrency">Grant Table Concurrency</a>.
+            </p></div></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-transaction-model.html">Previous <span class="navHint"> InnoDB Transaction Model </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-transaction-model.html">Up <span class="navHint"> InnoDB Transaction Model </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-autocommit-commit-rollback.html">Next <span class="navHint"> autocommit, Commit, and Rollback </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

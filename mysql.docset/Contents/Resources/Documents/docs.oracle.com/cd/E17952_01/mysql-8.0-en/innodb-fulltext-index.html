@@ -1,0 +1,382 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1471"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.6.2.4%C2%A0InnoDB%20Full-Text%20Indexes"></a><title>15.6.2.4&nbsp;InnoDB Full-Text Indexes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-indexes.html" title="15.6.2&nbsp;Indexes"/><link rel="prev" href="sorted-index-builds.html" title="15.6.2.3&nbsp;Sorted Index Builds"/><link rel="next" href="innodb-tablespace.html" title="15.6.3&nbsp;Tablespaces"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-fulltext-index.html#innodb-fulltext-index">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="sorted-index-builds.html">Previous <span class="navHint"> Sorted Index Builds </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-indexes.html">Up <span class="navHint"> Indexes </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-tablespace.html">Next <span class="navHint"> Tablespaces </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1472"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/15.6.2.4%C2%A0InnoDB%20Full-Text%20Indexes"></a><h4 class="title"><a id="innodb-fulltext-index"></a>15.6.2.4&nbsp;InnoDB Full-Text Indexes</h4></div></div></div><a id="idm45828891131040" class="indexterm"></a><a id="idm45828891129584" class="indexterm"></a><p>
+      Full-text indexes are created on text-based columns
+      (<a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a>,
+      <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>, or
+      <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">TEXT</code></a> columns) to speed up queries
+      and DML operations on data contained within those columns.
+    </p><p>
+      A full-text index is defined as part of a
+      <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement or added to
+      an existing table using <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+      or <a class="link" href="create-index.html" title="13.1.15&nbsp;CREATE INDEX Statement"><code class="literal">CREATE INDEX</code></a>.
+    </p><p>
+      Full-text search is performed using <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()
+      ... AGAINST</code></a> syntax. For usage information, see
+      <a class="xref" href="fulltext-search.html" title="12.9&nbsp;Full-Text Search Functions">Section&nbsp;12.9, &ldquo;Full-Text Search Functions&rdquo;</a>.
+    </p><p>
+      <code class="literal">InnoDB</code> full-text indexes are described under
+      the following topics in this section:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="innodb-fulltext-index.html#innodb-fulltext-index-design" title="InnoDB Full-Text Index Design">InnoDB Full-Text Index Design</a></p></li><li class="listitem"><p><a class="xref" href="innodb-fulltext-index.html#innodb-fulltext-index-tables" title="InnoDB Full-Text Index Tables">InnoDB Full-Text Index Tables</a></p></li><li class="listitem"><p><a class="xref" href="innodb-fulltext-index.html#innodb-fulltext-index-cache" title="InnoDB Full-Text Index Cache">InnoDB Full-Text Index Cache</a></p></li><li class="listitem"><p><a class="xref" href="innodb-fulltext-index.html#innodb-fulltext-index-docid" title="InnoDB Full-Text Index DOC_ID and FTS_DOC_ID Column">InnoDB Full-Text Index DOC_ID and FTS_DOC_ID Column</a></p></li><li class="listitem"><p><a class="xref" href="innodb-fulltext-index.html#innodb-fulltext-index-deletion" title="InnoDB Full-Text Index Deletion Handling">InnoDB Full-Text Index Deletion Handling</a></p></li><li class="listitem"><p><a class="xref" href="innodb-fulltext-index.html#innodb-fulltext-index-transaction" title="InnoDB Full-Text Index Transaction Handling">InnoDB Full-Text Index Transaction Handling</a></p></li><li class="listitem"><p><a class="xref" href="innodb-fulltext-index.html#innodb-fulltext-index-monitoring" title="Monitoring InnoDB Full-Text Indexes">Monitoring InnoDB Full-Text Indexes</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-fulltext-index-design"></a>InnoDB Full-Text Index Design</h5></div></div></div><p>
+        <code class="literal">InnoDB</code> full-text indexes have an inverted
+        index design. Inverted indexes store a list of words, and for
+        each word, a list of documents that the word appears in. To
+        support proximity search, position information for each word is
+        also stored, as a byte offset.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-fulltext-index-tables"></a>InnoDB Full-Text Index Tables</h5></div></div></div><p>
+        When an <code class="literal">InnoDB</code> full-text index is created, a
+        set of index tables is created, as shown in the following
+        example:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE opening_lines (</code></strong>
+       <strong class="userinput"><code>id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,</code></strong>
+       <strong class="userinput"><code>opening_line TEXT(500),</code></strong>
+       <strong class="userinput"><code>author VARCHAR(200),</code></strong>
+       <strong class="userinput"><code>title VARCHAR(200),</code></strong>
+       <strong class="userinput"><code>FULLTEXT idx (opening_line)</code></strong>
+       <strong class="userinput"><code>) ENGINE=InnoDB;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT table_id, name, space from INFORMATION_SCHEMA.INNODB_TABLES</code></strong>
+       <strong class="userinput"><code>WHERE name LIKE &#39;test/%&#39;;</code></strong>
++----------+----------------------------------------------------+-------+
+| table_id | name                                               | space |
++----------+----------------------------------------------------+-------+
+|      333 | test/fts_0000000000000147_00000000000001c9_index_1 |   289 |
+|      334 | test/fts_0000000000000147_00000000000001c9_index_2 |   290 |
+|      335 | test/fts_0000000000000147_00000000000001c9_index_3 |   291 |
+|      336 | test/fts_0000000000000147_00000000000001c9_index_4 |   292 |
+|      337 | test/fts_0000000000000147_00000000000001c9_index_5 |   293 |
+|      338 | test/fts_0000000000000147_00000000000001c9_index_6 |   294 |
+|      330 | test/fts_0000000000000147_being_deleted            |   286 |
+|      331 | test/fts_0000000000000147_being_deleted_cache      |   287 |
+|      332 | test/fts_0000000000000147_config                   |   288 |
+|      328 | test/fts_0000000000000147_deleted                  |   284 |
+|      329 | test/fts_0000000000000147_deleted_cache            |   285 |
+|      327 | test/opening_lines                                 |   283 |
++----------+----------------------------------------------------+-------+
+</pre><p>
+        The first six index tables comprise the inverted index and are
+        referred to as auxiliary index tables. When incoming documents
+        are tokenized, the individual words (also referred to as
+        <span class="quote">&ldquo;<span class="quote">tokens</span>&rdquo;</span>) are inserted into the index tables along
+        with position information and an associated
+        <code class="literal">DOC_ID</code>. The words are fully sorted and
+        partitioned among the six index tables based on the character
+        set sort weight of the word&#39;s first character.
+      </p><p>
+        The inverted index is partitioned into six auxiliary index
+        tables to support parallel index creation. By default, two
+        threads tokenize, sort, and insert words and associated data
+        into the index tables. The number of threads that perform this
+        work is configurable using the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_ft_sort_pll_degree"><code class="literal">innodb_ft_sort_pll_degree</code></a>
+        variable. Consider increasing the number of threads when
+        creating full-text indexes on large tables.
+      </p><p>
+        Auxiliary index table names are prefixed with
+        <code class="literal">fts_</code> and postfixed with
+        <code class="literal">index_<em class="replaceable"><code>#</code></em></code>. Each
+        auxiliary index table is associated with the indexed table by a
+        hex value in the auxiliary index table name that matches the
+        <code class="literal">table_id</code> of the indexed table. For example,
+        the <code class="literal">table_id</code> of the
+        <code class="literal">test/opening_lines</code> table is
+        <code class="literal">327</code>, for which the hex value is 0x147. As
+        shown in the preceding example, the <span class="quote">&ldquo;<span class="quote">147</span>&rdquo;</span> hex value
+        appears in the names of auxiliary index tables that are
+        associated with the <code class="literal">test/opening_lines</code> table.
+      </p><p>
+        A hex value representing the <code class="literal">index_id</code> of the
+        full-text index also appears in auxiliary index table names. For
+        example, in the auxiliary table name
+        <code class="literal">test/fts_0000000000000147_00000000000001c9_index_1</code>,
+        the hex value <code class="literal">1c9</code> has a decimal value of 457.
+        The index defined on the <code class="literal">opening_lines</code> table
+        (<code class="literal">idx</code>) can be identified by querying the
+        Information Schema <a class="link" href="information-schema-innodb-indexes-table.html" title="26.4.20&nbsp;The INFORMATION_SCHEMA INNODB_INDEXES Table"><code class="literal">INNODB_INDEXES</code></a>
+        table for this value (457).
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT index_id, name, table_id, space from INFORMATION_SCHEMA.INNODB_INDEXES</code></strong>
+       <strong class="userinput"><code>WHERE index_id=457;</code></strong>
++----------+------+----------+-------+
+| index_id | name | table_id | space |
++----------+------+----------+-------+
+|      457 | idx  |      327 |   283 |
++----------+------+----------+-------+
+</pre><p>
+        Index tables are stored in their own tablespace if the primary
+        table is created in a
+        <a class="link" href="glossary.html#glos_file_per_table" title="file-per-table">file-per-table</a>
+        tablespace. Otherwise, index tables are stored in the tablespace
+        where the indexed table resides.
+      </p><p>
+        The other index tables shown in the preceding example are
+        referred to as common index tables and are used for deletion
+        handling and storing the internal state of full-text indexes.
+        Unlike the inverted index tables, which are created for each
+        full-text index, this set of tables is common to all full-text
+        indexes created on a particular table.
+      </p><p>
+        Common index tables are retained even if full-text indexes are
+        dropped. When a full-text index is dropped, the
+        <code class="literal">FTS_DOC_ID</code> column that was created for the
+        index is retained, as removing the <code class="literal">FTS_DOC_ID</code>
+        column would require rebuilding the previously indexed table.
+        Common index tables are required to manage the
+        <code class="literal">FTS_DOC_ID</code> column.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">fts_*_deleted</code> and
+            <code class="literal">fts_*_deleted_cache</code>
+          </p><p>
+            Contain the document IDs (DOC_ID) for documents that are
+            deleted but whose data is not yet removed from the full-text
+            index. The <code class="literal">fts_*_deleted_cache</code> is the
+            in-memory version of the <code class="literal">fts_*_deleted</code>
+            table.
+          </p></li><li class="listitem"><p>
+            <code class="literal">fts_*_being_deleted</code> and
+            <code class="literal">fts_*_being_deleted_cache</code>
+          </p><p>
+            Contain the document IDs (DOC_ID) for documents that are
+            deleted and whose data is currently in the process of being
+            removed from the full-text index. The
+            <code class="literal">fts_*_being_deleted_cache</code> table is the
+            in-memory version of the
+            <code class="literal">fts_*_being_deleted</code> table.
+          </p></li><li class="listitem"><p>
+            <code class="literal">fts_*_config</code>
+          </p><p>
+            Stores information about the internal state of the full-text
+            index. Most importantly, it stores the
+            <code class="literal">FTS_SYNCED_DOC_ID</code>, which identifies
+            documents that have been parsed and flushed to disk. In case
+            of crash recovery, <code class="literal">FTS_SYNCED_DOC_ID</code>
+            values are used to identify documents that have not been
+            flushed to disk so that the documents can be re-parsed and
+            added back to the full-text index cache. To view the data in
+            this table, query the Information Schema
+            <a class="link" href="information-schema-innodb-ft-config-table.html" title="26.4.15&nbsp;The INFORMATION_SCHEMA INNODB_FT_CONFIG Table"><code class="literal">INNODB_FT_CONFIG</code></a> table.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-fulltext-index-cache"></a>InnoDB Full-Text Index Cache</h5></div></div></div><p>
+        When a document is inserted, it is tokenized, and the individual
+        words and associated data are inserted into the full-text index.
+        This process, even for small documents, can result in numerous
+        small insertions into the auxiliary index tables, making
+        concurrent access to these tables a point of contention. To
+        avoid this problem, <code class="literal">InnoDB</code> uses a full-text
+        index cache to temporarily cache index table insertions for
+        recently inserted rows. This in-memory cache structure holds
+        insertions until the cache is full and then batch flushes them
+        to disk (to the auxiliary index tables). You can query the
+        Information Schema
+        <a class="link" href="information-schema-innodb-ft-index-cache-table.html" title="26.4.18&nbsp;The INFORMATION_SCHEMA INNODB_FT_INDEX_CACHE Table"><code class="literal">INNODB_FT_INDEX_CACHE</code></a> table to view
+        tokenized data for recently inserted rows.
+      </p><p>
+        The caching and batch flushing behavior avoids frequent updates
+        to auxiliary index tables, which could result in concurrent
+        access issues during busy insert and update times. The batching
+        technique also avoids multiple insertions for the same word, and
+        minimizes duplicate entries. Instead of flushing each word
+        individually, insertions for the same word are merged and
+        flushed to disk as a single entry, improving insertion
+        efficiency while keeping auxiliary index tables as small as
+        possible.
+      </p><p>
+        The <a class="link" href="innodb-parameters.html#sysvar_innodb_ft_cache_size"><code class="literal">innodb_ft_cache_size</code></a>
+        variable is used to configure the full-text index cache size (on
+        a per-table basis), which affects how often the full-text index
+        cache is flushed. You can also define a global full-text index
+        cache size limit for all tables in a given instance using the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_ft_total_cache_size"><code class="literal">innodb_ft_total_cache_size</code></a>
+        variable.
+      </p><p>
+        The full-text index cache stores the same information as
+        auxiliary index tables. However, the full-text index cache only
+        caches tokenized data for recently inserted rows. The data that
+        is already flushed to disk (to the auxiliary index tables) is
+        not brought back into the full-text index cache when queried.
+        The data in auxiliary index tables is queried directly, and
+        results from the auxiliary index tables are merged with results
+        from the full-text index cache before being returned.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-fulltext-index-docid"></a>InnoDB Full-Text Index DOC_ID and FTS_DOC_ID Column</h5></div></div></div><p>
+        <code class="literal">InnoDB</code> uses a unique document identifier
+        referred to as the <code class="literal">DOC_ID</code> to map words in the
+        full-text index to document records where the word appears. The
+        mapping requires an <code class="literal">FTS_DOC_ID</code> column on the
+        indexed table. If an <code class="literal">FTS_DOC_ID</code> column is not
+        defined, <code class="literal">InnoDB</code> automatically adds a hidden
+        <code class="literal">FTS_DOC_ID</code> column when the full-text index is
+        created. The following example demonstrates this behavior.
+      </p><p>
+        The following table definition does not include an
+        <code class="literal">FTS_DOC_ID</code> column:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE opening_lines (</code></strong>
+       <strong class="userinput"><code>id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,</code></strong>
+       <strong class="userinput"><code>opening_line TEXT(500),</code></strong>
+       <strong class="userinput"><code>author VARCHAR(200),</code></strong>
+       <strong class="userinput"><code>title VARCHAR(200)</code></strong>
+       <strong class="userinput"><code>) ENGINE=InnoDB;</code></strong>
+</pre><p>
+        When you create a full-text index on the table using
+        <code class="literal">CREATE FULLTEXT INDEX</code> syntax, a warning is
+        returned which reports that <code class="literal">InnoDB</code> is
+        rebuilding the table to add the <code class="literal">FTS_DOC_ID</code>
+        column.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE FULLTEXT INDEX idx ON opening_lines(opening_line);</code></strong>
+Query OK, 0 rows affected, 1 warning (0.19 sec)
+Records: 0  Duplicates: 0  Warnings: 1
+
+mysql&gt; <strong class="userinput"><code>SHOW WARNINGS;</code></strong>
++---------+------+--------------------------------------------------+
+| Level   | Code | Message                                          |
++---------+------+--------------------------------------------------+
+| Warning |  124 | InnoDB rebuilding table to add column FTS_DOC_ID |
++---------+------+--------------------------------------------------+
+</pre><p>
+        The same warning is returned when using
+        <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> to add a full-text
+        index to a table that does not have an
+        <code class="literal">FTS_DOC_ID</code> column. If you create a full-text
+        index at <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> time and do
+        not specify an <code class="literal">FTS_DOC_ID</code> column,
+        <code class="literal">InnoDB</code> adds a hidden
+        <code class="literal">FTS_DOC_ID</code> column, without warning.
+      </p><p>
+        Defining an <code class="literal">FTS_DOC_ID</code> column at
+        <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> time is less
+        expensive than creating a full-text index on a table that is
+        already loaded with data. If an <code class="literal">FTS_DOC_ID</code>
+        column is defined on a table prior to loading data, the table
+        and its indexes do not have to be rebuilt to add the new column.
+        If you are not concerned with <code class="literal">CREATE FULLTEXT
+        INDEX</code> performance, leave out the
+        <code class="literal">FTS_DOC_ID</code> column to have
+        <code class="literal">InnoDB</code> create it for you.
+        <code class="literal">InnoDB</code> creates a hidden
+        <code class="literal">FTS_DOC_ID</code> column along with a unique index
+        (<code class="literal">FTS_DOC_ID_INDEX</code>) on the
+        <code class="literal">FTS_DOC_ID</code> column. If you want to create your
+        own <code class="literal">FTS_DOC_ID</code> column, the column must be
+        defined as <code class="literal">BIGINT UNSIGNED NOT NULL</code> and named
+        <code class="literal">FTS_DOC_ID</code> (all uppercase), as in the
+        following example:
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          The <code class="literal">FTS_DOC_ID</code> column does not need to be
+          defined as an <code class="literal">AUTO_INCREMENT</code> column, but
+          doing so could make loading data easier.
+        </p></div><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE opening_lines (</code></strong>
+       <strong class="userinput"><code>FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,</code></strong>
+       <strong class="userinput"><code>opening_line TEXT(500),</code></strong>
+       <strong class="userinput"><code>author VARCHAR(200),</code></strong>
+       <strong class="userinput"><code>title VARCHAR(200)</code></strong>
+       <strong class="userinput"><code>) ENGINE=InnoDB;</code></strong>
+</pre><p>
+        If you choose to define the <code class="literal">FTS_DOC_ID</code> column
+        yourself, you are responsible for managing the column to avoid
+        empty or duplicate values. <code class="literal">FTS_DOC_ID</code> values
+        cannot be reused, which means <code class="literal">FTS_DOC_ID</code>
+        values must be ever increasing.
+      </p><p>
+        Optionally, you can create the required unique
+        <code class="literal">FTS_DOC_ID_INDEX</code> (all uppercase) on the
+        <code class="literal">FTS_DOC_ID</code> column.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE UNIQUE INDEX FTS_DOC_ID_INDEX on opening_lines(FTS_DOC_ID);</code></strong>
+</pre><p>
+        If you do not create the <code class="literal">FTS_DOC_ID_INDEX</code>,
+        <code class="literal">InnoDB</code> creates it automatically.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          <code class="literal">FTS_DOC_ID_INDEX</code> cannot be defined as a
+          descending index because the <code class="literal">InnoDB</code> SQL
+          parser does not use descending indexes.
+        </p></div><p>
+        The permitted gap between the largest used
+        <code class="literal">FTS_DOC_ID</code> value and new
+        <code class="literal">FTS_DOC_ID</code> value is 65535.
+      </p><p>
+        To avoid rebuilding the table, the <code class="literal">FTS_DOC_ID</code>
+        column is retained when dropping a full-text index.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-fulltext-index-deletion"></a>InnoDB Full-Text Index Deletion Handling</h5></div></div></div><p>
+        Deleting a record that has a full-text index column could result
+        in numerous small deletions in the auxiliary index tables,
+        making concurrent access to these tables a point of contention.
+        To avoid this problem, the <code class="literal">DOC_ID</code> of a
+        deleted document is logged in a special
+        <code class="literal">FTS_*_DELETED</code> table whenever a record is
+        deleted from an indexed table, and the indexed record remains in
+        the full-text index. Before returning query results, information
+        in the <code class="literal">FTS_*_DELETED</code> table is used to filter
+        out deleted <code class="literal">DOC_ID</code>s. The benefit of this
+        design is that deletions are fast and inexpensive. The drawback
+        is that the size of the index is not immediately reduced after
+        deleting records. To remove full-text index entries for deleted
+        records, run <code class="literal">OPTIMIZE TABLE</code> on the indexed
+        table with
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_optimize_fulltext_only"><code class="literal">innodb_optimize_fulltext_only=ON</code></a>
+        to rebuild the full-text index. For more information, see
+        <a class="xref" href="fulltext-fine-tuning.html#fulltext-optimize" title="Optimizing InnoDB Full-Text Indexes">Optimizing InnoDB Full-Text Indexes</a>.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-fulltext-index-transaction"></a>InnoDB Full-Text Index Transaction Handling</h5></div></div></div><p>
+        <code class="literal">InnoDB</code> full-text indexes have special
+        transaction handling characteristics due its caching and batch
+        processing behavior. Specifically, updates and insertions on a
+        full-text index are processed at transaction commit time, which
+        means that a full-text search can only see committed data. The
+        following example demonstrates this behavior. The full-text
+        search only returns a result after the inserted lines are
+        committed.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE opening_lines (</code></strong>
+       <strong class="userinput"><code>id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,</code></strong>
+       <strong class="userinput"><code>opening_line TEXT(500),</code></strong>
+       <strong class="userinput"><code>author VARCHAR(200),</code></strong>
+       <strong class="userinput"><code>title VARCHAR(200),</code></strong>
+       <strong class="userinput"><code>FULLTEXT idx (opening_line)</code></strong>
+       <strong class="userinput"><code>) ENGINE=InnoDB;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>BEGIN;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO opening_lines(opening_line,author,title) VALUES</code></strong>
+       <strong class="userinput"><code>(&#39;Call me Ishmael.&#39;,&#39;Herman Melville&#39;,&#39;Moby-Dick&#39;),</code></strong>
+       <strong class="userinput"><code>(&#39;A screaming comes across the sky.&#39;,&#39;Thomas Pynchon&#39;,&#39;Gravity\&#39;s Rainbow&#39;),</code></strong>
+       <strong class="userinput"><code>(&#39;I am an invisible man.&#39;,&#39;Ralph Ellison&#39;,&#39;Invisible Man&#39;),</code></strong>
+       <strong class="userinput"><code>(&#39;Where now? Who now? When now?&#39;,&#39;Samuel Beckett&#39;,&#39;The Unnamable&#39;),</code></strong>
+       <strong class="userinput"><code>(&#39;It was love at first sight.&#39;,&#39;Joseph Heller&#39;,&#39;Catch-22&#39;),</code></strong>
+       <strong class="userinput"><code>(&#39;All this happened, more or less.&#39;,&#39;Kurt Vonnegut&#39;,&#39;Slaughterhouse-Five&#39;),</code></strong>
+       <strong class="userinput"><code>(&#39;Mrs. Dalloway said she would buy the flowers herself.&#39;,&#39;Virginia Woolf&#39;,&#39;Mrs. Dalloway&#39;),</code></strong>
+       <strong class="userinput"><code>(&#39;It was a pleasure to burn.&#39;,&#39;Ray Bradbury&#39;,&#39;Fahrenheit 451&#39;);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT COUNT(*) FROM opening_lines WHERE MATCH(opening_line) AGAINST(&#39;Ishmael&#39;);</code></strong>
++----------+
+| COUNT(*) |
++----------+
+|        0 |
++----------+
+
+mysql&gt; <strong class="userinput"><code>COMMIT;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT COUNT(*) FROM opening_lines WHERE MATCH(opening_line) AGAINST(&#39;Ishmael&#39;);</code></strong>
++----------+
+| COUNT(*) |
++----------+
+|        1 |
++----------+
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-fulltext-index-monitoring"></a>Monitoring InnoDB Full-Text Indexes</h5></div></div></div><a id="idm45828890962400" class="indexterm"></a><a id="idm45828890960912" class="indexterm"></a><p>
+        You can monitor and examine the special text-processing aspects
+        of <code class="literal">InnoDB</code> full-text indexes by querying the
+        following <code class="literal">INFORMATION_SCHEMA</code> tables:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="information-schema-innodb-ft-config-table.html" title="26.4.15&nbsp;The INFORMATION_SCHEMA INNODB_FT_CONFIG Table"><code class="literal">INNODB_FT_CONFIG</code></a>
+          </p></li><li class="listitem"><p>
+            <a class="link" href="information-schema-innodb-ft-index-table-table.html" title="26.4.19&nbsp;The INFORMATION_SCHEMA INNODB_FT_INDEX_TABLE Table"><code class="literal">INNODB_FT_INDEX_TABLE</code></a>
+          </p></li><li class="listitem"><p>
+            <a class="link" href="information-schema-innodb-ft-index-cache-table.html" title="26.4.18&nbsp;The INFORMATION_SCHEMA INNODB_FT_INDEX_CACHE Table"><code class="literal">INNODB_FT_INDEX_CACHE</code></a>
+          </p></li><li class="listitem"><p>
+            <a class="link" href="information-schema-innodb-ft-default-stopword-table.html" title="26.4.16&nbsp;The INFORMATION_SCHEMA INNODB_FT_DEFAULT_STOPWORD Table"><code class="literal">INNODB_FT_DEFAULT_STOPWORD</code></a>
+          </p></li><li class="listitem"><p>
+            <a class="link" href="information-schema-innodb-ft-deleted-table.html" title="26.4.17&nbsp;The INFORMATION_SCHEMA INNODB_FT_DELETED Table"><code class="literal">INNODB_FT_DELETED</code></a>
+          </p></li><li class="listitem"><p>
+            <a class="link" href="information-schema-innodb-ft-being-deleted-table.html" title="26.4.14&nbsp;The INFORMATION_SCHEMA INNODB_FT_BEING_DELETED Table"><code class="literal">INNODB_FT_BEING_DELETED</code></a>
+          </p></li></ul></div><p>
+        You can also view basic information for full-text indexes and
+        tables by querying <a class="link" href="information-schema-innodb-indexes-table.html" title="26.4.20&nbsp;The INFORMATION_SCHEMA INNODB_INDEXES Table"><code class="literal">INNODB_INDEXES</code></a>
+        and <a class="link" href="information-schema-innodb-tables-table.html" title="26.4.23&nbsp;The INFORMATION_SCHEMA INNODB_TABLES Table"><code class="literal">INNODB_TABLES</code></a>.
+      </p><p>
+        For more information, see
+        <a class="xref" href="innodb-information-schema-fulltext_index-tables.html" title="15.15.4&nbsp;InnoDB INFORMATION_SCHEMA FULLTEXT Index Tables">Section&nbsp;15.15.4, &ldquo;InnoDB INFORMATION_SCHEMA FULLTEXT Index Tables&rdquo;</a>.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="sorted-index-builds.html">Previous <span class="navHint"> Sorted Index Builds </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-indexes.html">Up <span class="navHint"> Indexes </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-tablespace.html">Next <span class="navHint"> Tablespaces </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

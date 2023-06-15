@@ -1,0 +1,455 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3042"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/24.2.3.1%C2%A0RANGE%20COLUMNS%20partitioning"></a><title>24.2.3.1&nbsp;RANGE COLUMNS partitioning</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="partitioning-columns.html" title="24.2.3&nbsp;COLUMNS Partitioning"/><link rel="prev" href="partitioning-columns.html" title="24.2.3&nbsp;COLUMNS Partitioning"/><link rel="next" href="partitioning-columns-list.html" title="24.2.3.2&nbsp;LIST COLUMNS partitioning"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partitioning-columns-range.html#partitioning-columns-range">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="partitioning-columns.html">Previous <span class="navHint"> COLUMNS Partitioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="partitioning-columns.html">Up <span class="navHint"> COLUMNS Partitioning </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="partitioning-columns-list.html">Next <span class="navHint"> LIST COLUMNS partitioning </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3043"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/24.2.3.1%C2%A0RANGE%20COLUMNS%20partitioning"></a><h4 class="title"><a id="partitioning-columns-range"></a>24.2.3.1&nbsp;RANGE COLUMNS partitioning</h4></div></div></div><p>
+          Range columns partitioning is similar to range partitioning,
+          but enables you to define partitions using ranges based on
+          multiple column values. In addition, you can define the ranges
+          using columns of types other than integer types.
+        </p><p>
+          <code class="literal">RANGE COLUMNS</code> partitioning differs
+          significantly from <code class="literal">RANGE</code> partitioning in
+          the following ways:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">RANGE COLUMNS</code> does not accept
+              expressions, only names of columns.
+            </p></li><li class="listitem"><p>
+              <code class="literal">RANGE COLUMNS</code> accepts a list of one or
+              more columns.
+            </p><p>
+              <code class="literal">RANGE COLUMNS</code> partitions are based on
+              comparisons between
+              <span class="firstterm">tuples</span> (lists of
+              column values) rather than comparisons between scalar
+              values. Placement of rows in <code class="literal">RANGE
+              COLUMNS</code> partitions is also based on comparisons
+              between tuples; this is discussed further later in this
+              section.
+            </p></li><li class="listitem"><p>
+              <code class="literal">RANGE COLUMNS</code> partitioning columns are
+              not restricted to integer columns; string,
+              <a class="link" href="datetime.html" title="11.2.2&nbsp;The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a> and
+              <a class="link" href="datetime.html" title="11.2.2&nbsp;The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATETIME</code></a> columns can also
+              be used as partitioning columns. (See
+              <a class="xref" href="partitioning-columns.html" title="24.2.3&nbsp;COLUMNS Partitioning">Section&nbsp;24.2.3, &ldquo;COLUMNS Partitioning&rdquo;</a>, for details.)
+            </p></li></ul></div><p>
+          The basic syntax for creating a table partitioned by
+          <code class="literal">RANGE COLUMNS</code> is shown here:
+        </p><pre class="programlisting">CREATE TABLE <em class="replaceable"><code>table_name</code></em>
+PARTITION BY RANGE COLUMNS(<em class="replaceable"><code>column_list</code></em>) (
+    PARTITION <em class="replaceable"><code>partition_name</code></em> VALUES LESS THAN (<em class="replaceable"><code>value_list</code></em>)[,
+    PARTITION <em class="replaceable"><code>partition_name</code></em> VALUES LESS THAN (<em class="replaceable"><code>value_list</code></em>)][,
+    ...]
+)
+
+<em class="replaceable"><code>column_list</code></em>:
+    <em class="replaceable"><code>column_name</code></em>[, <em class="replaceable"><code>column_name</code></em>][, ...]
+
+<em class="replaceable"><code>value_list</code></em>:
+    <em class="replaceable"><code>value</code></em>[, <em class="replaceable"><code>value</code></em>][, ...]
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            Not all <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> options
+            that can be used when creating partitioned tables are shown
+            here. For complete information, see
+            <a class="xref" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement">Section&nbsp;13.1.20, &ldquo;CREATE TABLE Statement&rdquo;</a>.
+          </p></div><p>
+          In the syntax just shown,
+          <em class="replaceable"><code>column_list</code></em> is a list of one or
+          more columns (sometimes called a
+          <span class="firstterm">partitioning column
+          list</span>), and <em class="replaceable"><code>value_list</code></em> is
+          a list of values (that is, it is a
+          <span class="firstterm">partition definition value
+          list</span>). A <em class="replaceable"><code>value_list</code></em> must
+          be supplied for each partition definition, and each
+          <em class="replaceable"><code>value_list</code></em> must have the same
+          number of values as the <em class="replaceable"><code>column_list</code></em>
+          has columns. Generally speaking, if you use
+          <em class="replaceable"><code>N</code></em> columns in the
+          <code class="literal">COLUMNS</code> clause, then each <code class="literal">VALUES
+          LESS THAN</code> clause must also be supplied with a list
+          of <em class="replaceable"><code>N</code></em> values.
+        </p><p>
+          The elements in the partitioning column list and in the value
+          list defining each partition must occur in the same order. In
+          addition, each element in the value list must be of the same
+          data type as the corresponding element in the column list.
+          However, the order of the column names in the partitioning
+          column list and the value lists does not have to be the same
+          as the order of the table column definitions in the main part
+          of the <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement.
+          As with table partitioned by <code class="literal">RANGE</code>, you can
+          use <code class="literal">MAXVALUE</code> to represent a value such that
+          any legal value inserted into a given column is always less
+          than this value. Here is an example of a
+          <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement that
+          helps to illustrate all of these points:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE rcx (</code></strong>
+    -&gt;     <strong class="userinput"><code>a INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>b INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>c CHAR(3),</code></strong>
+    -&gt;     <strong class="userinput"><code>d INT</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY RANGE COLUMNS(a,d,c) (</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p0 VALUES LESS THAN (5,10,&#39;ggg&#39;),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p1 VALUES LESS THAN (10,20,&#39;mmm&#39;),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p2 VALUES LESS THAN (15,30,&#39;sss&#39;),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p3 VALUES LESS THAN (MAXVALUE,MAXVALUE,MAXVALUE)</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.15 sec)
+</pre><p>
+          Table <code class="literal">rcx</code> contains the columns
+          <code class="literal">a</code>, <code class="literal">b</code>,
+          <code class="literal">c</code>, <code class="literal">d</code>. The partitioning
+          column list supplied to the <code class="literal">COLUMNS</code> clause
+          uses 3 of these columns, in the order <code class="literal">a</code>,
+          <code class="literal">d</code>, <code class="literal">c</code>. Each value list
+          used to define a partition contains 3 values in the same
+          order; that is, each value list tuple has the form
+          (<code class="literal">INT</code>, <code class="literal">INT</code>,
+          <code class="literal">CHAR(3)</code>), which corresponds to the data
+          types used by columns <code class="literal">a</code>,
+          <code class="literal">d</code>, and <code class="literal">c</code> (in that
+          order).
+        </p><p>
+          Placement of rows into partitions is determined by comparing
+          the tuple from a row to be inserted that matches the column
+          list in the <code class="literal">COLUMNS</code> clause with the tuples
+          used in the <code class="literal">VALUES LESS THAN</code> clauses to
+          define partitions of the table. Because we are comparing
+          tuples (that is, lists or sets of values) rather than scalar
+          values, the semantics of <code class="literal">VALUES LESS THAN</code>
+          as used with <code class="literal">RANGE COLUMNS</code> partitions
+          differs somewhat from the case with simple
+          <code class="literal">RANGE</code> partitions. In
+          <code class="literal">RANGE</code> partitioning, a row generating an
+          expression value that is equal to a limiting value in a
+          <code class="literal">VALUES LESS THAN</code> is never placed in the
+          corresponding partition; however, when using <code class="literal">RANGE
+          COLUMNS</code> partitioning, it is sometimes possible for a
+          row whose partitioning column list&#39;s first element is
+          equal in value to the that of the first element in a
+          <code class="literal">VALUES LESS THAN</code> value list to be placed in
+          the corresponding partition.
+        </p><p>
+          Consider the <code class="literal">RANGE</code> partitioned table
+          created by this statement:
+        </p><pre class="programlisting">CREATE TABLE r1 (
+    a INT,
+    b INT
+)
+PARTITION BY RANGE (a)  (
+    PARTITION p0 VALUES LESS THAN (5),
+    PARTITION p1 VALUES LESS THAN (MAXVALUE)
+);
+</pre><p>
+          If we insert 3 rows into this table such that the column value
+          for <code class="literal">a</code> is <code class="literal">5</code> for each row,
+          all 3 rows are stored in partition <code class="literal">p1</code>
+          because the <code class="literal">a</code> column value is in each case
+          not less than 5, as we can see by executing the proper query
+          against the Information Schema
+          <a class="link" href="information-schema-partitions-table.html" title="26.3.21&nbsp;The INFORMATION_SCHEMA PARTITIONS Table"><code class="literal">PARTITIONS</code></a> table:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO r1 VALUES (5,10), (5,11), (5,12);</code></strong>
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>SELECT PARTITION_NAME, TABLE_ROWS</code></strong>
+    -&gt;     <strong class="userinput"><code>FROM INFORMATION_SCHEMA.PARTITIONS</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE TABLE_NAME = &#39;r1&#39;;</code></strong>
++----------------+------------+
+| PARTITION_NAME | TABLE_ROWS |
++----------------+------------+
+| p0             |          0 |
+| p1             |          3 |
++----------------+------------+
+2 rows in set (0.00 sec)
+</pre><p>
+          Now consider a similar table <code class="literal">rc1</code> that uses
+          <code class="literal">RANGE COLUMNS</code> partitioning with both
+          columns <code class="literal">a</code> and <code class="literal">b</code>
+          referenced in the <code class="literal">COLUMNS</code> clause, created
+          as shown here:
+        </p><pre class="programlisting">CREATE TABLE rc1 (
+    a INT,
+    b INT
+)
+PARTITION BY RANGE COLUMNS(a, b) (
+    PARTITION p0 VALUES LESS THAN (5, 12),
+    PARTITION p3 VALUES LESS THAN (MAXVALUE, MAXVALUE)
+);
+</pre><p>
+          If we insert exactly the same rows into <code class="literal">rc1</code>
+          as we just inserted into <code class="literal">r1</code>, the
+          distribution of the rows is quite different:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO rc1 VALUES (5,10), (5,11), (5,12);</code></strong>
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>SELECT PARTITION_NAME, TABLE_ROWS</code></strong>
+    -&gt;     <strong class="userinput"><code>FROM INFORMATION_SCHEMA.PARTITIONS</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE TABLE_NAME = &#39;rc1&#39;;</code></strong>
++----------------+------------+
+| PARTITION_NAME | TABLE_ROWS |
++----------------+------------+
+| p0             |          2 |
+| p3             |          1 |
++----------------+------------+
+2 rows in set (0.00 sec)
+</pre><p>
+          This is because we are comparing rows rather than scalar
+          values. We can compare the row values inserted with the
+          limiting row value from the <code class="literal">VALUES THAN LESS
+          THAN</code> clause used to define partition
+          <code class="literal">p0</code> in table <code class="literal">rc1</code>, like
+          this:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT (5,10) &lt; (5,12), (5,11) &lt; (5,12), (5,12) &lt; (5,12);</code></strong>
++-----------------+-----------------+-----------------+
+| (5,10) &lt; (5,12) | (5,11) &lt; (5,12) | (5,12) &lt; (5,12) |
++-----------------+-----------------+-----------------+
+|               1 |               1 |               0 |
++-----------------+-----------------+-----------------+
+1 row in set (0.00 sec)
+</pre><p>
+          The 2 tuples <code class="literal">(5,10)</code> and
+          <code class="literal">(5,11)</code> evaluate as less than
+          <code class="literal">(5,12)</code>, so they are stored in partition
+          <code class="literal">p0</code>. Since 5 is not less than 5 and 12 is
+          not less than 12, <code class="literal">(5,12)</code> is considered not
+          less than <code class="literal">(5,12)</code>, and is stored in
+          partition <code class="literal">p1</code>.
+        </p><p>
+          The <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statement in the
+          preceding example could also have been written using explicit
+          row constructors, like this:
+        </p><pre class="programlisting">SELECT ROW(5,10) &lt; ROW(5,12), ROW(5,11) &lt; ROW(5,12), ROW(5,12) &lt; ROW(5,12);
+</pre><p>
+          For more information about the use of row constructors in
+          MySQL, see <a class="xref" href="row-subqueries.html" title="13.2.15.5&nbsp;Row Subqueries">Section&nbsp;13.2.15.5, &ldquo;Row Subqueries&rdquo;</a>.
+        </p><p>
+          For a table partitioned by <code class="literal">RANGE COLUMNS</code>
+          using only a single partitioning column, the storing of rows
+          in partitions is the same as that of an equivalent table that
+          is partitioned by <code class="literal">RANGE</code>. The following
+          <code class="literal">CREATE TABLE</code> statement creates a table
+          partitioned by <code class="literal">RANGE COLUMNS</code> using 1
+          partitioning column:
+        </p><pre class="programlisting">CREATE TABLE rx (
+    a INT,
+    b INT
+)
+PARTITION BY RANGE COLUMNS (a)  (
+    PARTITION p0 VALUES LESS THAN (5),
+    PARTITION p1 VALUES LESS THAN (MAXVALUE)
+);
+</pre><p>
+          If we insert the rows <code class="literal">(5,10)</code>,
+          <code class="literal">(5,11)</code>, and <code class="literal">(5,12)</code> into
+          this table, we can see that their placement is the same as it
+          is for the table <code class="literal">r</code> we created and populated
+          earlier:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO rx VALUES (5,10), (5,11), (5,12);</code></strong>
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>SELECT PARTITION_NAME,TABLE_ROWS</code></strong>
+    -&gt;     <strong class="userinput"><code>FROM INFORMATION_SCHEMA.PARTITIONS</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE TABLE_NAME = &#39;rx&#39;;</code></strong>
++----------------+------------+
+| PARTITION_NAME | TABLE_ROWS |
++----------------+------------+
+| p0             |          0 |
+| p1             |          3 |
++----------------+------------+
+2 rows in set (0.00 sec)
+</pre><p>
+          It is also possible to create tables partitioned by
+          <code class="literal">RANGE COLUMNS</code> where limiting values for one
+          or more columns are repeated in successive partition
+          definitions. You can do this as long as the tuples of column
+          values used to define the partitions are strictly increasing.
+          For example, each of the following <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE
+          TABLE</code></a> statements is valid:
+        </p><pre class="programlisting">CREATE TABLE rc2 (
+    a INT,
+    b INT
+)
+PARTITION BY RANGE COLUMNS(a,b) (
+    PARTITION p0 VALUES LESS THAN (0,10),
+    PARTITION p1 VALUES LESS THAN (10,20),
+    PARTITION p2 VALUES LESS THAN (10,30),
+    PARTITION p3 VALUES LESS THAN (MAXVALUE,MAXVALUE)
+ );
+
+CREATE TABLE rc3 (
+    a INT,
+    b INT
+)
+PARTITION BY RANGE COLUMNS(a,b) (
+    PARTITION p0 VALUES LESS THAN (0,10),
+    PARTITION p1 VALUES LESS THAN (10,20),
+    PARTITION p2 VALUES LESS THAN (10,30),
+    PARTITION p3 VALUES LESS THAN (10,35),
+    PARTITION p4 VALUES LESS THAN (20,40),
+    PARTITION p5 VALUES LESS THAN (MAXVALUE,MAXVALUE)
+ );
+</pre><p>
+          The following statement also succeeds, even though it might
+          appear at first glance that it would not, since the limiting
+          value of column <code class="literal">b</code> is 25 for partition
+          <code class="literal">p0</code> and 20 for partition
+          <code class="literal">p1</code>, and the limiting value of column
+          <code class="literal">c</code> is 100 for partition
+          <code class="literal">p1</code> and 50 for partition
+          <code class="literal">p2</code>:
+        </p><pre class="programlisting">CREATE TABLE rc4 (
+    a INT,
+    b INT,
+    c INT
+)
+PARTITION BY RANGE COLUMNS(a,b,c) (
+    PARTITION p0 VALUES LESS THAN (0,25,50),
+    PARTITION p1 VALUES LESS THAN (10,20,100),
+    PARTITION p2 VALUES LESS THAN (10,30,50),
+    PARTITION p3 VALUES LESS THAN (MAXVALUE,MAXVALUE,MAXVALUE)
+ );
+</pre><p>
+          When designing tables partitioned by <code class="literal">RANGE
+          COLUMNS</code>, you can always test successive partition
+          definitions by comparing the desired tuples using the
+          <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client, like this:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT (0,25,50) &lt; (10,20,100), (10,20,100) &lt; (10,30,50);</code></strong>
++-------------------------+--------------------------+
+| (0,25,50) &lt; (10,20,100) | (10,20,100) &lt; (10,30,50) |
++-------------------------+--------------------------+
+|                       1 |                        1 |
++-------------------------+--------------------------+
+1 row in set (0.00 sec)
+</pre><p>
+          If a <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement
+          contains partition definitions that are not in strictly
+          increasing order, it fails with an error, as shown in this
+          example:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE rcf (</code></strong>
+    -&gt;     <strong class="userinput"><code>a INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>b INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>c INT</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY RANGE COLUMNS(a,b,c) (</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p0 VALUES LESS THAN (0,25,50),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p1 VALUES LESS THAN (20,20,100),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p2 VALUES LESS THAN (10,30,50),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p3 VALUES LESS THAN (MAXVALUE,MAXVALUE,MAXVALUE)</code></strong>
+    -&gt;  <strong class="userinput"><code>);</code></strong>
+<span class="errortext">ERROR 1493 (HY000): VALUES LESS THAN value must be strictly increasing for each partition</span>
+</pre><p>
+          When you get such an error, you can deduce which partition
+          definitions are invalid by making <span class="quote">&ldquo;<span class="quote">less than</span>&rdquo;</span>
+          comparisons between their column lists. In this case, the
+          problem is with the definition of partition
+          <code class="literal">p2</code> because the tuple used to define it is
+          not less than the tuple used to define partition
+          <code class="literal">p3</code>, as shown here:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT (0,25,50) &lt; (20,20,100), (20,20,100) &lt; (10,30,50);</code></strong>
++-------------------------+--------------------------+
+| (0,25,50) &lt; (20,20,100) | (20,20,100) &lt; (10,30,50) |
++-------------------------+--------------------------+
+|                       1 |                        0 |
++-------------------------+--------------------------+
+1 row in set (0.00 sec)
+</pre><p>
+          It is also possible for <code class="literal">MAXVALUE</code> to appear
+          for the same column in more than one <code class="literal">VALUES LESS
+          THAN</code> clause when using <code class="literal">RANGE
+          COLUMNS</code>. However, the limiting values for individual
+          columns in successive partition definitions should otherwise
+          be increasing, there should be no more than one partition
+          defined where <code class="literal">MAXVALUE</code> is used as the upper
+          limit for all column values, and this partition definition
+          should appear last in the list of <code class="literal">PARTITION ...
+          VALUES LESS THAN</code> clauses. In addition, you cannot
+          use <code class="literal">MAXVALUE</code> as the limiting value for the
+          first column in more than one partition definition.
+        </p><p>
+          As stated previously, it is also possible with <code class="literal">RANGE
+          COLUMNS</code> partitioning to use non-integer columns as
+          partitioning columns. (See
+          <a class="xref" href="partitioning-columns.html" title="24.2.3&nbsp;COLUMNS Partitioning">Section&nbsp;24.2.3, &ldquo;COLUMNS Partitioning&rdquo;</a>, for a complete listing
+          of these.) Consider a table named <code class="literal">employees</code>
+          (which is not partitioned), created using the following
+          statement:
+        </p><pre class="programlisting">CREATE TABLE employees (
+    id INT NOT NULL,
+    fname VARCHAR(30),
+    lname VARCHAR(30),
+    hired DATE NOT NULL DEFAULT &#39;1970-01-01&#39;,
+    separated DATE NOT NULL DEFAULT &#39;9999-12-31&#39;,
+    job_code INT NOT NULL,
+    store_id INT NOT NULL
+);
+</pre><p>
+          Using <code class="literal">RANGE COLUMNS</code> partitioning, you can
+          create a version of this table that stores each row in one of
+          four partitions based on the employee&#39;s last name, like
+          this:
+        </p><pre class="programlisting">CREATE TABLE employees_by_lname (
+    id INT NOT NULL,
+    fname VARCHAR(30),
+    lname VARCHAR(30),
+    hired DATE NOT NULL DEFAULT &#39;1970-01-01&#39;,
+    separated DATE NOT NULL DEFAULT &#39;9999-12-31&#39;,
+    job_code INT NOT NULL,
+    store_id INT NOT NULL
+)
+PARTITION BY RANGE COLUMNS (lname)  (
+    PARTITION p0 VALUES LESS THAN (&#39;g&#39;),
+    PARTITION p1 VALUES LESS THAN (&#39;m&#39;),
+    PARTITION p2 VALUES LESS THAN (&#39;t&#39;),
+    PARTITION p3 VALUES LESS THAN (MAXVALUE)
+);
+</pre><p>
+          Alternatively, you could cause the
+          <code class="literal">employees</code> table as created previously to be
+          partitioned using this scheme by executing the following
+          <a class="link" href="alter-table-partition-operations.html" title="13.1.9.1&nbsp;ALTER TABLE Partition Operations"><code class="literal">ALTER
+          TABLE</code></a> statement:
+        </p><pre class="programlisting">ALTER TABLE employees PARTITION BY RANGE COLUMNS (lname)  (
+    PARTITION p0 VALUES LESS THAN (&#39;g&#39;),
+    PARTITION p1 VALUES LESS THAN (&#39;m&#39;),
+    PARTITION p2 VALUES LESS THAN (&#39;t&#39;),
+    PARTITION p3 VALUES LESS THAN (MAXVALUE)
+);
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            Because different character sets and collations have
+            different sort orders, the character sets and collations in
+            use may effect which partition of a table partitioned by
+            <code class="literal">RANGE COLUMNS</code> a given row is stored in
+            when using string columns as partitioning columns. In
+            addition, changing the character set or collation for a
+            given database, table, or column after such a table is
+            created may cause changes in how rows are distributed. For
+            example, when using a case-sensitive collation,
+            <code class="literal">&#39;and&#39;</code> sorts before
+            <code class="literal">&#39;Andersen&#39;</code>, but when using a collation
+            that is case-insensitive, the reverse is true.
+          </p><p>
+            For information about how MySQL handles character sets and
+            collations, see <a class="xref" href="charset.html" title="Chapter&nbsp;10&nbsp;Character Sets, Collations, Unicode">Chapter&nbsp;10, <em>Character Sets, Collations, Unicode</em></a>.
+          </p></div><p>
+          Similarly, you can cause the <code class="literal">employees</code>
+          table to be partitioned in such a way that each row is stored
+          in one of several partitions based on the decade in which the
+          corresponding employee was hired using the
+          <a class="link" href="alter-table-partition-operations.html" title="13.1.9.1&nbsp;ALTER TABLE Partition Operations"><code class="literal">ALTER
+          TABLE</code></a> statement shown here:
+        </p><pre class="programlisting">ALTER TABLE employees PARTITION BY RANGE COLUMNS (hired)  (
+    PARTITION p0 VALUES LESS THAN (&#39;1970-01-01&#39;),
+    PARTITION p1 VALUES LESS THAN (&#39;1980-01-01&#39;),
+    PARTITION p2 VALUES LESS THAN (&#39;1990-01-01&#39;),
+    PARTITION p3 VALUES LESS THAN (&#39;2000-01-01&#39;),
+    PARTITION p4 VALUES LESS THAN (&#39;2010-01-01&#39;),
+    PARTITION p5 VALUES LESS THAN (MAXVALUE)
+);
+</pre><p>
+          See <a class="xref" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement">Section&nbsp;13.1.20, &ldquo;CREATE TABLE Statement&rdquo;</a>, for additional information
+          about <code class="literal">PARTITION BY RANGE COLUMNS</code> syntax.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partitioning-columns.html">Previous <span class="navHint"> COLUMNS Partitioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="partitioning-columns.html">Up <span class="navHint"> COLUMNS Partitioning </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="partitioning-columns-list.html">Next <span class="navHint"> LIST COLUMNS partitioning </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

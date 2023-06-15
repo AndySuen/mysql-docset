@@ -1,0 +1,135 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2353"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.6.7.1%C2%A0Adding%20NDB%20Cluster%20Data%20Nodes%20Online%3A%20General%20Issues"></a><title>23.6.7.1&nbsp;Adding NDB Cluster Data Nodes Online: General Issues</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-online-add-node.html" title="23.6.7&nbsp;Adding NDB Cluster Data Nodes Online"/><link rel="prev" href="mysql-cluster-online-add-node.html" title="23.6.7&nbsp;Adding NDB Cluster Data Nodes Online"/><link rel="next" href="mysql-cluster-online-add-node-basics.html" title="23.6.7.2&nbsp;Adding NDB Cluster Data Nodes Online: Basic procedure"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-online-add-node-remarks.html#mysql-cluster-online-add-node-remarks">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-online-add-node.html">Previous <span class="navHint"> Adding NDB Cluster Data Nodes Online </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-online-add-node.html">Up <span class="navHint"> Adding NDB Cluster Data Nodes Online </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-online-add-node-basics.html">Next <span class="navHint"> Adding NDB Cluster Data Nodes Online: Basic procedure </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2332"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/23.6.7.1%C2%A0Adding%20NDB%20Cluster%20Data%20Nodes%20Online%3A%20General%20Issues"></a><h4 class="title"><a id="mysql-cluster-online-add-node-remarks"></a>23.6.7.1&nbsp;Adding NDB Cluster Data Nodes Online: General Issues</h4></div></div></div><p>
+        This section provides general information about the behavior of
+        and current limitations in adding NDB Cluster nodes online.
+      </p><p><strong>Redistribution of Data.&nbsp;</strong>
+          The ability to add new nodes online includes a means to
+          reorganize <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> table data
+          and indexes so that they are distributed across all data
+          nodes, including the new ones, by means of the
+          <a class="link" href="alter-table-partition-operations.html" title="13.1.9.1&nbsp;ALTER TABLE Partition Operations"><code class="literal">ALTER
+          TABLE ... REORGANIZE PARTITION</code></a> statement. Table
+          reorganization of both in-memory and Disk Data tables is
+          supported. This redistribution does not currently include
+          unique indexes (only ordered indexes are redistributed).
+        </p><p>
+        The redistribution for <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a>
+        tables already existing before the new data nodes were added is
+        not automatic, but can be accomplished using simple SQL
+        statements in <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> or another MySQL client
+        application. However, all data and indexes added to tables
+        created after a new node group has been added are distributed
+        automatically among all cluster data nodes, including those
+        added as part of the new node group.
+      </p><p><strong>Partial starts.&nbsp;</strong>
+          It is possible to add a new node group without all of the new
+          data nodes being started. It is also possible to add a new
+          node group to a degraded cluster&mdash;that is, a cluster that
+          is only partially started, or where one or more data nodes are
+          not running. In the latter case, the cluster must have enough
+          nodes running to be viable before the new node group can be
+          added.
+        </p><p><strong>Effects on ongoing operations.&nbsp;</strong>
+          Normal DML operations using NDB Cluster data are not prevented
+          by the creation or addition of a new node group, or by table
+          reorganization. However, it is not possible to perform DDL
+          concurrently with table reorganization&mdash;that is, no other
+          DDL statements can be issued while an
+          <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE ...
+          REORGANIZE PARTITION</code></a> statement is executing. In
+          addition, during the execution of <code class="literal">ALTER TABLE ...
+          REORGANIZE PARTITION</code> (or the execution of any other
+          DDL statement), it is not possible to restart cluster data
+          nodes.
+        </p><p><strong>Failure handling.&nbsp;</strong>
+          Failures of data nodes during node group creation and table
+          reorganization are handled as shown in the following table:
+        </p><div class="table"><a id="idm45828809803600"></a><p class="title"><strong>Table&nbsp;23.66&nbsp;Data node failure handling during node group creation and
+          table reorganization</strong></p><div class="table-contents"><table summary="Data node failure handling during node group creation and
+          table reorganization"><colgroup><col style="width: 25%"/><col style="width: 25%"/><col style="width: 25%"/><col style="width: 25%"/></colgroup><thead><tr>
+            <th scope="col">Failure during</th>
+            <th scope="col">Failure in <span class="quote">&ldquo;<span class="quote">Old</span>&rdquo;</span> data node</th>
+            <th scope="col">Failure in <span class="quote">&ldquo;<span class="quote">New</span>&rdquo;</span> data node</th>
+            <th scope="col">System Failure</th>
+          </tr></thead><tbody><tr>
+            <th scope="row">Node group creation</th>
+            <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2333"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20a%20node%20other%20than%20the%20master%20fails%3A"></a><strong>If a node other than the master fails:&nbsp;</strong>
+                      The creation of the node group is always rolled
+                      forward.
+                    </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2334"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20master%20fails%3A"></a><strong>If the master fails:&nbsp;</strong></p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2335"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20internal%20commit%20point%20has%20been%20reached%3A"></a><strong>If the internal commit point has been reached:&nbsp;</strong>
+                          The creation of the node group is rolled
+                          forward.
+                        </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2336"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20internal%20commit%20point%20has%20not%20yet%20been%20reached."></a><strong>If the internal commit point has not yet been reached.&nbsp;</strong>
+                          The creation of the node group is rolled back
+                        </p></li></ul></div></li></ul></div></td>
+            <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2337"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20a%20node%20other%20than%20the%20master%20fails%3A"></a><strong>If a node other than the master fails:&nbsp;</strong>
+                      The creation of the node group is always rolled
+                      forward.
+                    </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2338"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20master%20fails%3A"></a><strong>If the master fails:&nbsp;</strong></p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2339"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20internal%20commit%20point%20has%20been%20reached%3A"></a><strong>If the internal commit point has been reached:&nbsp;</strong>
+                          The creation of the node group is rolled
+                          forward.
+                        </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2340"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20internal%20commit%20point%20has%20not%20yet%20been%20reached."></a><strong>If the internal commit point has not yet been reached.&nbsp;</strong>
+                          The creation of the node group is rolled back
+                        </p></li></ul></div></li></ul></div></td>
+            <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2341"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20execution%20of%20CREATE%20NODEGROUP%20has%20reached%20the%20internal%20commit%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20point%3A"></a><strong>If the execution of CREATE NODEGROUP has reached the internal commit
+                      point:&nbsp;</strong>
+                      When restarted, the cluster includes the new node
+                      group. Otherwise it without.
+                    </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2342"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20execution%20of%20CREATE%20NODEGROUP%20has%20not%20yet%20reached%20the%20internal%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20commit%20point%3A"></a><strong>If the execution of CREATE NODEGROUP has not yet reached the internal
+                      commit point:&nbsp;</strong>
+                      When restarted, the cluster does not include the
+                      new node group.
+                    </p></li></ul></div></td>
+          </tr><tr>
+            <th scope="row">Table reorganization</th>
+            <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2343"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20a%20node%20other%20than%20the%20master%20fails%3A"></a><strong>If a node other than the master fails:&nbsp;</strong>
+                      The table reorganization is always rolled forward.
+                    </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2344"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20master%20fails%3A"></a><strong>If the master fails:&nbsp;</strong></p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2345"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20internal%20commit%20point%20has%20been%20reached%3A"></a><strong>If the internal commit point has been reached:&nbsp;</strong>
+                          The table reorganization is rolled forward.
+                        </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2346"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20internal%20commit%20point%20has%20not%20yet%20been%20reached."></a><strong>If the internal commit point has not yet been reached.&nbsp;</strong>
+                          The table reorganization is rolled back.
+                        </p></li></ul></div></li></ul></div></td>
+            <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2347"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20a%20node%20other%20than%20the%20master%20fails%3A"></a><strong>If a node other than the master fails:&nbsp;</strong>
+                      The table reorganization is always rolled forward.
+                    </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2348"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20master%20fails%3A"></a><strong>If the master fails:&nbsp;</strong></p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2349"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20internal%20commit%20point%20has%20been%20reached%3A"></a><strong>If the internal commit point has been reached:&nbsp;</strong>
+                          The table reorganization is rolled forward.
+                        </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2350"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20internal%20commit%20point%20has%20not%20yet%20been%20reached."></a><strong>If the internal commit point has not yet been reached.&nbsp;</strong>
+                          The table reorganization is rolled back.
+                        </p></li></ul></div></li></ul></div></td>
+            <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2351"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20execution%20of%20an%20ALTER%20TABLE%20...%20REORGANIZE%20PARTITION%20statement%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20has%20reached%20the%20internal%20commit%20point%3A"></a><strong>If the execution of an ALTER TABLE ... REORGANIZE PARTITION statement
+                      has reached the internal commit point:&nbsp;</strong>
+                      When the cluster is restarted, the data and
+                      indexes belonging to
+                      <em class="replaceable"><code>table</code></em> are distributed
+                      using the <span class="quote">&ldquo;<span class="quote">new</span>&rdquo;</span> data nodes.
+                    </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2352"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/If%20the%20execution%20of%20an%20ALTER%20TABLE%20...%20REORGANIZE%20PARTITION%20statement%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20has%20not%20yet%20reached%20the%20internal%20commit%20point%3A"></a><strong>If the execution of an ALTER TABLE ... REORGANIZE PARTITION statement
+                      has not yet reached the internal commit point:&nbsp;</strong>
+                      When the cluster is restarted, the data and
+                      indexes belonging to
+                      <em class="replaceable"><code>table</code></em> are distributed
+                      using only the <span class="quote">&ldquo;<span class="quote">old</span>&rdquo;</span> data nodes.
+                    </p></li></ul></div></td>
+          </tr></tbody></table></div></div><br class="table-break"/><p><strong>Dropping node groups.&nbsp;</strong>
+          The <a class="link" href="mysql-cluster-programs-ndb-mgm.html" title="23.5.5&nbsp;ndb_mgm &mdash; The NDB Cluster Management Client"><span class="command"><strong>ndb_mgm</strong></span></a> client supports a
+          <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-drop-nodegroup"><code class="literal">DROP NODEGROUP</code></a> command,
+          but it is possible to drop a node group only when no data
+          nodes in the node group contain any data. Since there is
+          currently no way to <span class="quote">&ldquo;<span class="quote">empty</span>&rdquo;</span> a specific data node
+          or node group, this command works only the following two
+          cases:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            After issuing <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-create-nodegroup"><code class="literal">CREATE
+            NODEGROUP</code></a> in the <a class="link" href="mysql-cluster-programs-ndb-mgm.html" title="23.5.5&nbsp;ndb_mgm &mdash; The NDB Cluster Management Client"><span class="command"><strong>ndb_mgm</strong></span></a>
+            client, but before issuing any
+            <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE ...
+            REORGANIZE PARTITION</code></a> statements in the
+            <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client.
+          </p></li><li class="listitem"><p>
+            After dropping all <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a>
+            tables using <a class="link" href="drop-table.html" title="13.1.32&nbsp;DROP TABLE Statement"><code class="literal">DROP TABLE</code></a>.
+          </p><p>
+            <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a> does not work
+            for this purpose because the data nodes continue to store
+            the table definitions.
+          </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-online-add-node.html">Previous <span class="navHint"> Adding NDB Cluster Data Nodes Online </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-online-add-node.html">Up <span class="navHint"> Adding NDB Cluster Data Nodes Online </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-online-add-node-basics.html">Next <span class="navHint"> Adding NDB Cluster Data Nodes Online: Basic procedure </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

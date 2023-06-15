@@ -1,0 +1,392 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2936"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/5.1.14%C2%A0Network%20Namespace%20Support"></a><title>5.1.14&nbsp;Network Namespace Support</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysqld-server.html" title="5.1&nbsp;The MySQL Server"/><link rel="prev" href="ipv6-brokers.html" title="5.1.13.5&nbsp;Obtaining an IPv6 Address from a Broker"/><link rel="next" href="time-zone-support.html" title="5.1.15&nbsp;MySQL Server Time Zone Support"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="network-namespace-support.html#network-namespace-support">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="ipv6-brokers.html">Previous <span class="navHint"> Obtaining an IPv6 Address from a Broker </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysqld-server.html">Up <span class="navHint"> The MySQL Server </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="time-zone-support.html">Next <span class="navHint"> MySQL Server Time Zone Support </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="network-namespace-support"></a>5.1.14&nbsp;Network Namespace Support</h3></div></div></div><a id="idm45828988176416" class="indexterm"></a><a id="idm45828988175344" class="indexterm"></a><p>
+      A network namespace is a logical copy of the network stack from
+      the host system. Network namespaces are useful for setting up
+      containers or virtual environments. Each namespace has its own IP
+      addresses, network interfaces, routing tables, and so forth. The
+      default or global namespace is the one in which the host system
+      physical interfaces exist.
+    </p><p>
+      Namespace-specific address spaces can lead to problems when MySQL
+      connections cross namespaces. For example, the network address
+      space for a MySQL instance running in a container or virtual
+      network may differ from the address space of the host machine.
+      This can produce phenomena such as a client connection from an
+      address in one namespace appearing to the MySQL server to be
+      coming from a different address, even for client and server
+      running on the same machine. Suppose that both processes run on a
+      host with IP address <code class="literal">203.0.113.10</code> but use
+      different namespaces. A connection may produce a result like this:
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql --user=admin --host=203.0.113.10 --protocol=tcp</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT USER();</code></strong>
++--------------------+
+| USER()             |
++--------------------+
+| admin@198.51.100.2 |
++--------------------+
+</pre><p>
+      In this case, the expected <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a>
+      value is <code class="literal">admin@203.0.113.10</code>. Such behavior can
+      make it difficult to assign account permissions properly if the
+      address from which an connection originates is not what it
+      appears.
+    </p><p>
+      To address this issue, MySQL enables specifying the network
+      namespace to use for TCP/IP connections, so that both endpoints of
+      connections use an agreed-upon common address space.
+    </p><p>
+      MySQL 8.0.22 and higher supports network namespaces on platforms
+      that implement them. Support within MySQL applies to:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The MySQL server, <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>.
+        </p></li><li class="listitem"><p>
+          X Plugin.
+        </p></li><li class="listitem"><p>
+          The <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client and the
+          <span class="command"><strong>mysqlxtest</strong></span> test suite client. (Other
+          clients are not supported. They must be invoked from within
+          the network namespace of the server to which they are to
+          connect.)
+        </p></li><li class="listitem"><p>
+          Regular replication.
+        </p></li><li class="listitem"><p>
+          Group Replication, only when using the MySQL communication
+          stack to establish group communication connections (from MySQL
+          8.0.27).
+        </p></li></ul></div><p>
+      The following sections describe how to use network namespaces in
+      MySQL:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="network-namespace-support.html#network-namespaces-host-prerequisites" title="Host System Prerequisites">Host System Prerequisites</a></p></li><li class="listitem"><p><a class="xref" href="network-namespace-support.html#network-namespaces-mysql-configuration" title="MySQL Configuration">MySQL Configuration</a></p></li><li class="listitem"><p><a class="xref" href="network-namespace-support.html#network-namespaces-monitoring" title="Network Namespace Monitoring">Network Namespace Monitoring</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2933"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Host%20System%20Prerequisites"></a><h4 class="title"><a id="network-namespaces-host-prerequisites"></a>Host System Prerequisites</h4></div></div></div><p>
+        Prior to using network namespace support in MySQL, these host
+        system prerequisites must be satisfied:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The host operating system must support network namespaces.
+            (For example, Linux.)
+          </p></li><li class="listitem"><p>
+            Any network namespace to be used by MySQL must first be
+            created on the host system.
+          </p></li><li class="listitem"><p>
+            Host name resolution must be configured by the system
+            administrator to support network namespaces.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              A known limitation is that, within MySQL, host name
+              resolution does not work for names specified in network
+              namespace-specific host files. For example, if the address
+              for a host name in the <code class="literal">red</code> namespace is
+              specified in the <code class="filename">/etc/netns/red/hosts</code>
+              file, binding to the name fails on both the server and
+              client sides. The workaround is to use the IP address
+              rather than the host name.
+            </p></div></li><li class="listitem"><p>
+            The system administrator must enable the
+            <code class="literal">CAP_SYS_ADMIN</code> operating system privilege
+            for the MySQL binaries that support network namespaces
+            (<a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a>,
+            <span class="command"><strong>mysqlxtest</strong></span>).
+          </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+              Enabling <code class="literal">CAP_SYS_ADMIN</code> is a security
+              sensitive operation because it enables a process to
+              perform other privileged actions in addition to setting
+              namespaces. For a description of its effects, see
+              <a class="ulink" href="https://man7.org/linux/man-pages/man7/capabilities.7.html" target="_top">https://man7.org/linux/man-pages/man7/capabilities.7.html</a>.
+            </p><p>
+              Because <code class="literal">CAP_SYS_ADMIN</code> must be enabled
+              explicitly by the system administrator, MySQL binaries by
+              default do not have network namespace support enabled. The
+              system administrator should evaluate the security
+              implications of running MySQL processes with
+              <code class="literal">CAP_SYS_ADMIN</code> before enabling it.
+            </p></div></li></ul></div><p>
+        The instructions in the following example set up network
+        namespaces named <code class="literal">red</code> and
+        <code class="literal">blue</code>. The names you choose may differ, as may
+        the network addresses and interfaces on your host system.
+      </p><p>
+        Invoke the commands shown here either as the
+        <code class="literal">root</code> operating system user or by prefixing
+        each command with <span class="command"><strong>sudo</strong></span>. For example, to
+        invoke the <span class="command"><strong>ip</strong></span> or <span class="command"><strong>setcap</strong></span>
+        command if you are not <code class="literal">root</code>, use
+        <span class="command"><strong>sudo ip</strong></span> or <span class="command"><strong>sudo setcap</strong></span>.
+      </p><p>
+        To configure network namespaces, use the <span class="command"><strong>ip</strong></span>
+        command. For some operations, the <span class="command"><strong>ip</strong></span> command
+        must execute within a particular namespace (which must already
+        exist). In such cases, begin the command like this:
+      </p><pre class="programlisting">ip netns exec <em class="replaceable"><code>namespace_name</code></em>
+</pre><p>
+        For example, this command executes within the
+        <code class="literal">red</code> namespace to bring up the loopback
+        interface:
+      </p><pre class="programlisting">ip netns exec red ip link set lo up
+</pre><p>
+        To add namespaces named <code class="literal">red</code> and
+        <code class="literal">blue</code>, each with its own virtual Ethernet
+        device used as a link between namespaces and its own loopback
+        interface:
+      </p><pre class="programlisting">ip netns add red
+ip link add veth-red type veth peer name vpeer-red
+ip link set vpeer-red netns red
+ip addr add 192.0.2.1/24 dev veth-red
+ip link set veth-red up
+ip netns exec red ip addr add 192.0.2.2/24 dev vpeer-red
+ip netns exec red ip link set vpeer-red up
+ip netns exec red ip link set lo up
+
+ip netns add blue
+ip link add veth-blue type veth peer name vpeer-blue
+ip link set vpeer-blue netns blue
+ip addr add 198.51.100.1/24 dev veth-blue
+ip link set veth-blue up
+ip netns exec blue ip addr add 198.51.100.2/24 dev vpeer-blue
+ip netns exec blue ip link set vpeer-blue up
+ip netns exec blue ip link set lo up
+
+# if you want to enable inter-subnet routing...
+sysctl net.ipv4.ip_forward=1
+ip netns exec red ip route add default via 192.0.2.1
+ip netns exec blue ip route add default via 198.51.100.1
+</pre><p>
+        A diagram of the links between namespaces looks like this:
+      </p><pre class="programlisting">red              global           blue
+
+192.0.2.2   &lt;=&gt;  192.0.2.1
+(vpeer-red)      (veth-red)
+
+                 198.51.100.1 &lt;=&gt; 198.51.100.2
+                 (veth-blue)      (vpeer-blue)
+</pre><p>
+        To check which namespaces and links exist:
+      </p><pre class="programlisting">ip netns list
+ip link list
+</pre><p>
+        To see the routing tables for the global and named namespaces:
+      </p><pre class="programlisting">ip route show
+ip netns exec red ip route show
+ip netns exec blue ip route show
+</pre><p>
+        To remove the <code class="literal">red</code> and <code class="literal">blue</code>
+        links and namespaces:
+      </p><pre class="programlisting">ip link del veth-red
+ip link del veth-blue
+
+ip netns del red
+ip netns del blue
+
+sysctl net.ipv4.ip_forward=0
+</pre><p>
+        So that the MySQL binaries that include network namespace
+        support can actually use namespaces, you must grant them the
+        <code class="literal">CAP_SYS_ADMIN</code> capability. The following
+        <span class="command"><strong>setcap</strong></span> commands assume that you have changed
+        location to the directory containing your MySQL binaries (adjust
+        the pathname for your system as necessary):
+      </p><pre class="programlisting">cd /usr/local/mysql/bin
+</pre><p>
+        To grant <code class="literal">CAP_SYS_ADMIN</code> capability to the
+        appropriate binaries:
+      </p><pre class="programlisting">setcap cap_sys_admin+ep ./mysqld
+setcap cap_sys_admin+ep ./mysql
+setcap cap_sys_admin+ep ./mysqlxtest
+</pre><p>
+        To check <code class="literal">CAP_SYS_ADMIN</code> capability:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>getcap ./mysqld ./mysql ./mysqlxtest</code></strong>
+./mysqld = cap_sys_admin+ep
+./mysql = cap_sys_admin+ep
+./mysqlxtest = cap_sys_admin+ep
+</pre><p>
+        To remove <code class="literal">CAP_SYS_ADMIN</code> capability:
+      </p><pre class="programlisting">setcap -r ./mysqld
+setcap -r ./mysql
+setcap -r ./mysqlxtest
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          If you reinstall binaries to which you have previously applied
+          <span class="command"><strong>setcap</strong></span>, you must use
+          <span class="command"><strong>setcap</strong></span> again. For example, if you perform
+          an in-place MySQL upgrade, failure to grant the
+          <code class="literal">CAP_SYS_ADMIN</code> capability again results in
+          namespace-related failures. The server fails with this error
+          for attempts to bind to an address with a named namespace:
+        </p><pre class="programlisting">[ERROR] [MY-013408] [Server] setns() failed with error &#39;Operation not permitted&#39;
+</pre><p>
+          A client invoked with the
+          <a class="link" href="mysql-command-options.html#option_mysql_network-namespace"><code class="option">--network-namespace</code></a> option fails
+          like this:
+        </p><pre class="programlisting">ERROR: Network namespace error: Operation not permitted
+</pre></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2934"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/MySQL%20Configuration"></a><h4 class="title"><a id="network-namespaces-mysql-configuration"></a>MySQL Configuration</h4></div></div></div><p>
+        Assuming that the preceding host system prerequisites have been
+        satisfied, MySQL enables configuring the server-side namespace
+        for the listening (inbound) side of connections and the
+        client-side namespace for the outbound side of connections.
+      </p><p>
+        On the server side, the
+        <a class="link" href="server-system-variables.html#sysvar_bind_address"><code class="literal">bind_address</code></a>,
+        <a class="link" href="server-system-variables.html#sysvar_admin_address"><code class="literal">admin_address</code></a>, and
+        <a class="link" href="x-plugin-options-system-variables.html#sysvar_mysqlx_bind_address"><code class="literal">mysqlx_bind_address</code></a> system
+        variables have extended syntax for specifying the network
+        namespace to use for a given IP address or host name on which to
+        listen for incoming connections. To specify a namespace for an
+        address, add a slash and the namespace name. For example, a
+        server <code class="filename">my.cnf</code> file might contain these
+        lines:
+      </p><pre class="programlisting">[mysqld]
+bind_address = 127.0.1.1,192.0.2.2/red,198.51.100.2/blue
+admin_address = 102.0.2.2/red
+mysqlx_bind_address = 102.0.2.2/red
+</pre><p>
+        These rules apply:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A network namespace can be specified for an IP address or a
+            host name.
+          </p></li><li class="listitem"><p>
+            A network namespace cannot be specified for a wildcard IP
+            address.
+          </p></li><li class="listitem"><p>
+            For a given address, the network namespace is optional. If
+            given, it must be specified as a
+            <code class="literal">/<em class="replaceable"><code>ns</code></em></code> suffix
+            immediately following the address.
+          </p></li><li class="listitem"><p>
+            An address with no
+            <code class="literal">/<em class="replaceable"><code>ns</code></em></code> suffix
+            uses the host system global namespace. The global namespace
+            is therefore the default.
+          </p></li><li class="listitem"><p>
+            An address with a
+            <code class="literal">/<em class="replaceable"><code>ns</code></em></code> suffix
+            uses the namespace named <em class="replaceable"><code>ns</code></em>.
+          </p></li><li class="listitem"><p>
+            The host system must support network namespaces and each
+            named namespace must previously have been set up. Naming a
+            nonexistent namespace produces an error.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="server-system-variables.html#sysvar_bind_address"><code class="literal">bind_address</code></a> and (as of
+            MySQL 8.0.21)
+            <a class="link" href="x-plugin-options-system-variables.html#sysvar_mysqlx_bind_address"><code class="literal">mysqlx_bind_address</code></a> accept
+            a list of multiple comma-separated addresses, the variable
+            value can specify addresses in the global namespace, in
+            named namespaces, or a mix.
+          </p></li></ul></div><p>
+        If an error occurs during server startup for attempts to use a
+        namespace, the server does not start. If errors occur for
+        X Plugin during plugin initialization such that it is unable to
+        bind to any address, the plugin fails its initialization
+        sequence and the server does not load it.
+      </p><p>
+        On the client side, a network namespace can be specified in
+        these contexts:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For the <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client and the
+            <span class="command"><strong>mysqlxtest</strong></span> test suite client, use the
+            <a class="link" href="mysql-command-options.html#option_mysql_network-namespace"><code class="option">--network-namespace</code></a> option.
+            For example:
+          </p><pre class="programlisting">mysql --host=192.0.2.2 --network-namespace=red
+</pre><p>
+            If the <a class="link" href="mysql-command-options.html#option_mysql_network-namespace"><code class="option">--network-namespace</code></a>
+            option is omitted, the connection uses the default (global)
+            namespace.
+          </p></li><li class="listitem"><p>
+            For replication connections from replica servers to source
+            servers, use the <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION
+            SOURCE TO</code></a> statement (from MySQL 8.0.23) or
+            <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement
+            (before MySQL 8.0.23) and specify the
+            <code class="literal">NETWORK_NAMESPACE</code> option. For example:
+          </p><pre class="programlisting">CHANGE REPLICATION SOURCE TO
+  SOURCE_HOST = &#39;192.0.2.2&#39;,
+  NETWORK_NAMESPACE = &#39;red&#39;;
+</pre><p>
+            If the <code class="literal">NETWORK_NAMESPACE</code> option is
+            omitted, replication connections use the default (global)
+            namespace.
+          </p></li></ul></div><p>
+        The following example sets up a MySQL server that listens for
+        connections in the global, <code class="literal">red</code>, and
+        <code class="literal">blue</code> namespaces, and shows how to configure
+        accounts that connect from the <code class="literal">red</code> and
+        <code class="literal">blue</code> namespaces. It is assumed that the
+        <code class="literal">red</code> and <code class="literal">blue</code> namespaces
+        have already been created as shown in
+        <a class="xref" href="network-namespace-support.html#network-namespaces-host-prerequisites" title="Host System Prerequisites">Host System Prerequisites</a>.
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Configure the server to listen on addresses in multiple
+            namespaces. Put these lines in the server
+            <code class="filename">my.cnf</code> file and start the server:
+          </p><pre class="programlisting">[mysqld]
+bind_address = 127.0.1.1,192.0.2.2/red,198.51.100.2/blue
+</pre><p>
+            The value tells the server to listen on the loopback address
+            <code class="literal">127.0.0.1</code> in the global namespace, the
+            address <code class="literal">192.0.2.2</code> in the
+            <code class="literal">red</code> namespace, and the address
+            <code class="literal">198.51.100.2</code> in the
+            <code class="literal">blue</code> namespace.
+          </p></li><li class="listitem"><p>
+            Connect to the server in the global namespace and create
+            accounts that have permission to connect from an address in
+            the address space of each named namespace:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql -u root -h 127.0.0.1 -p</code></strong>
+Enter password: <em class="replaceable"><code>root_password</code></em>
+
+mysql&gt; <strong class="userinput"><code>CREATE USER &#39;red_user&#39;@&#39;192.0.2.2&#39;</code></strong>
+       <strong class="userinput"><code>IDENTIFIED BY &#39;<em class="replaceable"><code>red_user_password</code></em>&#39;;</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE USER &#39;blue_user&#39;@&#39;198.51.100.2&#39;</code></strong>
+       <strong class="userinput"><code>IDENTIFIED BY &#39;<em class="replaceable"><code>blue_user_password</code></em>&#39;;</code></strong>
+</pre></li><li class="listitem"><p>
+            Verify that you can connect to the server in each named
+            namespace:
+          </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql -u red_user -h 192.0.2.2 --network-namespace=red -p</code></strong>
+Enter password: <em class="replaceable"><code>red_user_password</code></em>
+
+mysql&gt; <strong class="userinput"><code>SELECT USER();</code></strong>
++--------------------+
+| USER()             |
++--------------------+
+| red_user@192.0.2.2 |
++--------------------+
+</pre><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql -u blue_user -h 198.51.100.2 --network-namespace=blue -p</code></strong>
+Enter password: <em class="replaceable"><code>blue_user_password</code></em>
+
+mysql&gt; <strong class="userinput"><code>SELECT USER();</code></strong>
++------------------------+
+| USER()                 |
++------------------------+
+| blue_user@198.51.100.2 |
++------------------------+
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              You might see different results from
+              <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a>, which can return a
+              value that includes a host name rather than an IP address
+              if your DNS is configured to be able to resolve the
+              address to the corresponding host name and the server is
+              not run with the
+              <a class="link" href="server-system-variables.html#sysvar_skip_name_resolve"><code class="literal">skip_name_resolve</code></a> system
+              variable enabled.
+            </p></div><p>
+            You might also try invoking <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> without
+            the <a class="link" href="mysql-command-options.html#option_mysql_network-namespace"><code class="option">--network-namespace</code></a> option
+            to see whether the connection attempt succeeds, and, if so,
+            how the <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> value is
+            affected.
+          </p></li></ol></div></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2935"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Network%20Namespace%20Monitoring"></a><h4 class="title"><a id="network-namespaces-monitoring"></a>Network Namespace Monitoring</h4></div></div></div><p>
+        For replication monitoring purposes, these information sources
+        have a column that displays the applicable network namespace for
+        connections:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The Performance Schema
+            <code class="literal">replication_connection_configuration</code>
+            table. See
+            <a class="xref" href="performance-schema-replication-connection-configuration-table.html" title="27.12.11.1&nbsp;The replication_connection_configuration Table">Section&nbsp;27.12.11.1, &ldquo;The replication_connection_configuration Table&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            The replica server connection metadata repository. See
+            <a class="xref" href="replica-logs-status.html" title="17.2.4.2&nbsp;Replication Metadata Repositories">Section&nbsp;17.2.4.2, &ldquo;Replication Metadata Repositories&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            The
+            <a class="link" href="show-replica-status.html" title="13.7.7.35&nbsp;SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+            REPLICA STATUS</code></a> (or before MySQL 8.0.22,
+            <a class="link" href="show-slave-status.html" title="13.7.7.36&nbsp;SHOW SLAVE | REPLICA STATUS Statement"><code class="literal">SHOW
+            SLAVE STATUS</code></a>) statement. See
+            <a class="xref" href="show-replica-status.html" title="13.7.7.35&nbsp;SHOW REPLICA STATUS Statement">Section&nbsp;13.7.7.35, &ldquo;SHOW REPLICA STATUS Statement&rdquo;</a>.
+          </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="ipv6-brokers.html">Previous <span class="navHint"> Obtaining an IPv6 Address from a Broker </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysqld-server.html">Up <span class="navHint"> The MySQL Server </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="time-zone-support.html">Next <span class="navHint"> MySQL Server Time Zone Support </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

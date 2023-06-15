@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.5.1.14 Replication and System Functions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-features.html" title="17.5.1 Replication Features and Issues" /><link rel="prev" href="replication-features-flush.html" title="17.5.1.13 Replication and FLUSH" /><link rel="next" href="replication-features-fractional-seconds.html" title="17.5.1.15 Replication and Fractional Seconds Support" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-functions.html#replication-features-functions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-features-flush.html">Previous <span class="navHint"> Replication and FLUSH </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-features-fractional-seconds.html">Next <span class="navHint"> Replication and Fractional Seconds Support </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-features-functions"></a>17.5.1.14 Replication and System Functions</h4></div></div></div><a id="idm45828856723040" class="indexterm"></a><a id="idm45828856721552" class="indexterm"></a><p>
+        Certain functions do not replicate well under some conditions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a>,
+            <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> (or
+            <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER</code></a>),
+            <a class="link" href="miscellaneous-functions.html#function_uuid"><code class="literal">UUID()</code></a>,
+            <a class="link" href="information-functions.html#function_version"><code class="literal">VERSION()</code></a>, and
+            <a class="link" href="string-functions.html#function_load-file"><code class="literal">LOAD_FILE()</code></a> functions are
+            replicated without change and thus do not work reliably on
+            the replica unless row-based replication is enabled. (See
+            <a class="xref" href="replication-formats.html" title="17.2.1 Replication Formats">Section 17.2.1, “Replication Formats”</a>.)
+          </p><p>
+            <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> and
+            <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> are
+            automatically replicated using row-based replication when
+            using <code class="literal">MIXED</code> mode, and generate a warning
+            in <code class="literal">STATEMENT</code> mode. (See also
+            <a class="xref" href="replication-features-current-user.html" title="17.5.1.8 Replication of CURRENT_USER()">Section 17.5.1.8, “Replication of CURRENT_USER()”</a>.) This
+            is also true for <a class="link" href="information-functions.html#function_version"><code class="literal">VERSION()</code></a>
+            and <a class="link" href="mathematical-functions.html#function_rand"><code class="literal">RAND()</code></a>.
+          </p></li><li class="listitem"><p>
+            For <a class="link" href="date-and-time-functions.html#function_now"><code class="literal">NOW()</code></a>, the binary log
+            includes the timestamp. This means that the value
+            <span class="emphasis"><em>as returned by the call to this function on the
+            source</em></span> is replicated to the replica. To avoid
+            unexpected results when replicating between MySQL servers in
+            different time zones, set the time zone on both source and
+            replica. For more information, see
+            <a class="xref" href="replication-features-timezone.html" title="17.5.1.33 Replication and Time Zones">Section 17.5.1.33, “Replication and Time Zones”</a>.
+          </p><p>
+            To explain the potential problems when replicating between
+            servers which are in different time zones, suppose that the
+            source is located in New York, the replica is located in
+            Stockholm, and both servers are using local time. Suppose
+            further that, on the source, you create a table
+            <code class="literal">mytable</code>, perform an
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement on this
+            table, and then select from the table, as shown here:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE mytable (mycol TEXT);</code></strong>
+Query OK, 0 rows affected (0.06 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO mytable VALUES ( NOW() );</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM mytable;</code></strong>
++---------------------+
+| mycol               |
++---------------------+
+| 2009-09-01 12:00:00 |
++---------------------+
+1 row in set (0.00 sec)
+</pre><p>
+            Local time in Stockholm is 6 hours later than in New York;
+            so, if you issue <code class="literal">SELECT NOW()</code> on the
+            replica at that exact same instant, the value
+            <code class="literal">2009-09-01 18:00:00</code> is returned. For this
+            reason, if you select from the replica's copy of
+            <code class="literal">mytable</code> after the
+            <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> and
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements just shown
+            have been replicated, you might expect
+            <code class="literal">mycol</code> to contain the value
+            <code class="literal">2009-09-01 18:00:00</code>. However, this is not
+            the case; when you select from the replica's copy of
+            <code class="literal">mytable</code>, you obtain exactly the same
+            result as on the source:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM mytable;</code></strong>
++---------------------+
+| mycol               |
++---------------------+
+| 2009-09-01 12:00:00 |
++---------------------+
+1 row in set (0.00 sec)
+</pre><p>
+            Unlike <a class="link" href="date-and-time-functions.html#function_now"><code class="literal">NOW()</code></a>, the
+            <a class="link" href="date-and-time-functions.html#function_sysdate"><code class="literal">SYSDATE()</code></a> function is not
+            replication-safe because it is not affected by <code class="literal">SET
+            TIMESTAMP</code> statements in the binary log and is
+            nondeterministic if statement-based logging is used. This is
+            not a problem if row-based logging is used.
+          </p><p>
+            An alternative is to use the
+            <a class="link" href="server-options.html#option_mysqld_sysdate-is-now"><code class="option">--sysdate-is-now</code></a> option to
+            cause <a class="link" href="date-and-time-functions.html#function_sysdate"><code class="literal">SYSDATE()</code></a> to be an
+            alias for <a class="link" href="date-and-time-functions.html#function_now"><code class="literal">NOW()</code></a>. This must be
+            done on the source and the replica to work correctly. In
+            such cases, a warning is still issued by this function, but
+            can safely be ignored as long as
+            <a class="link" href="server-options.html#option_mysqld_sysdate-is-now"><code class="option">--sysdate-is-now</code></a> is used on
+            both the source and the replica.
+          </p><p>
+            <a class="link" href="date-and-time-functions.html#function_sysdate"><code class="literal">SYSDATE()</code></a> is automatically
+            replicated using row-based replication when using
+            <code class="literal">MIXED</code> mode, and generates a warning in
+            <code class="literal">STATEMENT</code> mode.
+          </p><p>
+            See also <a class="xref" href="replication-features-timezone.html" title="17.5.1.33 Replication and Time Zones">Section 17.5.1.33, “Replication and Time Zones”</a>.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>The following restriction applies to
+            statement-based replication only, not to row-based
+            replication.</em></span> The
+            <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a>,
+            <a class="link" href="locking-functions.html#function_release-lock"><code class="literal">RELEASE_LOCK()</code></a>,
+            <a class="link" href="locking-functions.html#function_is-free-lock"><code class="literal">IS_FREE_LOCK()</code></a>, and
+            <a class="link" href="locking-functions.html#function_is-used-lock"><code class="literal">IS_USED_LOCK()</code></a> functions that
+            handle user-level locks are replicated without the replica
+            knowing the concurrency context on the source. Therefore,
+            these functions should not be used to insert into a source
+            table because the content on the replica would differ. For
+            example, do not issue a statement such as <code class="literal">INSERT
+            INTO mytable VALUES(GET_LOCK(...))</code>.
+          </p><p>
+            These functions are automatically replicated using row-based
+            replication when using <code class="literal">MIXED</code> mode, and
+            generate a warning in <code class="literal">STATEMENT</code> mode.
+          </p></li></ul></div><p>
+        As a workaround for the preceding limitations when
+        statement-based replication is in effect, you can use the
+        strategy of saving the problematic function result in a user
+        variable and referring to the variable in a later statement. For
+        example, the following single-row
+        <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> is problematic due to the
+        reference to the <a class="link" href="miscellaneous-functions.html#function_uuid"><code class="literal">UUID()</code></a> function:
+      </p><pre class="programlisting">INSERT INTO t VALUES(UUID());
+</pre><p>
+        To work around the problem, do this instead:
+      </p><pre class="programlisting">SET @my_uuid = UUID();
+INSERT INTO t VALUES(@my_uuid);
+</pre><p>
+        That sequence of statements replicates because the value of
+        <code class="literal">@my_uuid</code> is stored in the binary log as a
+        user-variable event prior to the
+        <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement and is available
+        for use in the <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>.
+      </p><p>
+        The same idea applies to multiple-row inserts, but is more
+        cumbersome to use. For a two-row insert, you can do this:
+      </p><pre class="programlisting">SET @my_uuid1 = UUID(); @my_uuid2 = UUID();
+INSERT INTO t VALUES(@my_uuid1),(@my_uuid2);
+</pre><p>
+        However, if the number of rows is large or unknown, the
+        workaround is difficult or impracticable. For example, you
+        cannot convert the following statement to one in which a given
+        individual user variable is associated with each row:
+      </p><pre class="programlisting">INSERT INTO t2 SELECT UUID(), * FROM t1;
+</pre><p>
+        Within a stored function, <a class="link" href="mathematical-functions.html#function_rand"><code class="literal">RAND()</code></a>
+        replicates correctly as long as it is invoked only once during
+        the execution of the function. (You can consider the function
+        execution timestamp and random number seed as implicit inputs
+        that are identical on the source and replica.)
+      </p><p>
+        The <a class="link" href="information-functions.html#function_found-rows"><code class="literal">FOUND_ROWS()</code></a> and
+        <a class="link" href="information-functions.html#function_row-count"><code class="literal">ROW_COUNT()</code></a> functions are not
+        replicated reliably using statement-based replication. A
+        workaround is to store the result of the function call in a user
+        variable, and then use that in the
+        <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement. For example, if
+        you wish to store the result in a table named
+        <code class="literal">mytable</code>, you might normally do so like this:
+      </p><pre class="programlisting">SELECT SQL_CALC_FOUND_ROWS FROM mytable LIMIT 1;
+INSERT INTO mytable VALUES( FOUND_ROWS() );
+</pre><p>
+        However, if you are replicating <code class="literal">mytable</code>, you
+        should use <a class="link" href="select-into.html" title="13.2.13.1 SELECT ... INTO Statement"><code class="literal">SELECT
+        ... INTO</code></a>, and then store the variable in the table,
+        like this:
+      </p><pre class="programlisting">SELECT SQL_CALC_FOUND_ROWS INTO @found_rows FROM mytable LIMIT 1;
+INSERT INTO mytable VALUES(@found_rows);
+</pre><p>
+        In this way, the user variable is replicated as part of the
+        context, and applied on the replica correctly.
+      </p><p>
+        These functions are automatically replicated using row-based
+        replication when using <code class="literal">MIXED</code> mode, and
+        generate a warning in <code class="literal">STATEMENT</code> mode. (Bug
+        #12092, Bug #30244)
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-flush.html">Previous <span class="navHint"> Replication and FLUSH </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-fractional-seconds.html">Next <span class="navHint"> Replication and Fractional Seconds Support </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.2.3 Replication Threads</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-implementation.html" title="17.2 Replication Implementation" /><link rel="prev" href="channels-naming-conventions.html" title="17.2.2.4 Replication Channel Naming Conventions" /><link rel="next" href="replication-threads-monitor-main.html" title="17.2.3.1 Monitoring Replication Main Threads" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-threads.html#replication-threads">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="channels-naming-conventions.html">Previous <span class="navHint"> Replication Channel Naming Conventions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-implementation.html">Up <span class="navHint"> Replication Implementation </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-threads-monitor-main.html">Next <span class="navHint"> Monitoring Replication Main Threads </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="replication-threads"></a>17.2.3 Replication Threads</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="replication-threads-monitor-main.html">17.2.3.1 Monitoring Replication Main Threads</a></span></li><li><span class="section"><a href="replication-threads-monitor-worker.html">17.2.3.2 Monitoring Replication Applier Worker Threads</a></span></li></ul></div><p>
+      MySQL replication capabilities are implemented using three main
+      threads, one on the source server and two on the replica:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><strong>Binary log dump thread. </strong>
+            The source creates a thread to send the binary log contents
+            to a replica when the replica connects. This thread can be
+            identified in the output of <a class="link" href="show-processlist.html" title="13.7.7.29 SHOW PROCESSLIST Statement"><code class="literal">SHOW
+            PROCESSLIST</code></a> on the source as the <code class="literal">Binlog
+            Dump</code> thread.
+          </p><p>
+          The binary log dump thread acquires a lock on the source's
+          binary log for reading each event that is to be sent to the
+          replica. As soon as the event has been read, the lock is
+          released, even before the event is sent to the replica.
+        </p></li><li class="listitem"><p><strong>Replication I/O receiver thread. </strong>
+            When a <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START REPLICA</code></a>
+            statement is issued on a replica server, the replica creates
+            an I/O (receiver) thread, which connects to the source and
+            asks it to send the updates recorded in its binary logs.
+          </p><p>
+          The replication receiver thread reads the updates that the
+          source's <code class="literal">Binlog Dump</code> thread sends (see
+          previous item) and copies them to local files that comprise
+          the replica's relay log.
+        </p><p>
+          The state of this thread is shown as
+          <code class="literal">Slave_IO_running</code> in the output of
+          <a class="link" href="show-replica-status.html" title="13.7.7.35 SHOW REPLICA STATUS Statement"><code class="literal">SHOW REPLICA STATUS</code></a>.
+        </p></li><li class="listitem"><p><strong>Replication SQL applier thread. </strong>
+            The replica creates an SQL (applier) thread to read the
+            relay log that is written by the replication receiver thread
+            and execute the transactions contained in it.
+          </p></li></ul></div><p>
+      There are three main threads for each connection between a source
+      and a replica. A source that has multiple replicas creates one
+      binary log dump thread for each replica currently connected; each
+      replica has its own replication receiver and applier threads.
+    </p><p>
+      A replica uses two threads to separate reading updates from the
+      source and executing them into independent tasks. Thus, the task
+      of reading transactions is not slowed down if the process of
+      applying them is slow. For example, if the replica server has not
+      been running for a while, its receiver thread can quickly fetch
+      all the binary log contents from the source when the replica
+      starts, even if the applier thread lags far behind. If the replica
+      stops before the SQL thread has executed all the fetched
+      statements, the receiver thread has at least fetched everything so
+      that a safe copy of the transactions is stored locally in the
+      replica's relay logs, ready for execution the next time that
+      the replica starts.
+    </p><p>
+      You can enable further parallelization for tasks on a replica by
+      setting the system variable
+      <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_workers"><code class="literal">replica_parallel_workers</code></a> (MySQL
+      8.0.26 or later) or
+      <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_workers"><code class="literal">slave_parallel_workers</code></a> (prior to
+      MySQL 8.0.26) to a value greater than 0 (the default). When this
+      system variable is set, the replica creates the specified number
+      of worker threads to apply transactions, plus a coordinator thread
+      to manage them. If you are using multiple replication channels,
+      each channel has this number of threads. A replica with
+      <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_workers"><code class="literal">replica_parallel_workers</code></a> or
+      <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_workers"><code class="literal">slave_parallel_workers</code></a> set to a
+      value greater than 0 is called a multithreaded replica. With this
+      setup, transactions that fail can be retried.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        Multithreaded replicas are supported by NDB Cluster beginning
+        with NDB 8.0.33. (Previously, <code class="literal">NDB</code> silently
+        ignored any setting for
+        <code class="literal">replica_parallel_workers</code>.) See
+        <a class="xref" href="mysql-cluster-replication-mta.html" title="23.7.11 NDB Cluster Replication Using the Multithreaded Applier">Section 23.7.11, “NDB Cluster Replication Using the Multithreaded Applier”</a>, for more
+        information.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="channels-naming-conventions.html">Previous <span class="navHint"> Replication Channel Naming Conventions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-implementation.html">Up <span class="navHint"> Replication Implementation </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-threads-monitor-main.html">Next <span class="navHint"> Monitoring Replication Main Threads </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

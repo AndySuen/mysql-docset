@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.20.6.2 Adapting a memcached Application for the InnoDB memcached Plugin</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-memcached-developing.html" title="15.20.6 Writing Applications for the InnoDB memcached Plugin" /><link rel="prev" href="innodb-memcached-porting-mysql.html" title="15.20.6.1 Adapting an Existing MySQL Schema for the InnoDB memcached Plugin" /><link rel="next" href="innodb-memcached-tuning.html" title="15.20.6.3 Tuning InnoDB memcached Plugin Performance" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-memcached-porting-memcached.html#innodb-memcached-porting-memcached">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-memcached-porting-mysql.html">Previous <span class="navHint"> Adapting an Existing MySQL Schema for the InnoDB memcached Plugin </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-memcached-developing.html">Up <span class="navHint"> Writing Applications for the InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-memcached-tuning.html">Next <span class="navHint"> Tuning InnoDB memcached Plugin Performance </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-porting-memcached"></a>15.20.6.2 Adapting a memcached Application for the InnoDB memcached Plugin</h4></div></div></div><p>
+        Consider these aspects of MySQL and <code class="literal">InnoDB</code>
+        tables when adapting existing <span class="command"><strong>memcached</strong></span>
+        applications to use the <code class="literal">daemon_memcached</code>
+        plugin:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If there are key values longer than a few bytes, it may be
+            more efficient to use a numeric auto-increment column as the
+            <a class="link" href="glossary.html#glos_primary_key" title="primary key">primary key</a> of the
+            <code class="literal">InnoDB</code> table, and to create a unique
+            <a class="link" href="glossary.html#glos_secondary_index" title="secondary index">secondary index</a>
+            on the column that contains the <span class="command"><strong>memcached</strong></span>
+            key values. This is because <code class="literal">InnoDB</code>
+            performs best for large-scale insertions if primary key
+            values are added in sorted order (as they are with
+            auto-increment values). Primary key values are included in
+            secondary indexes, which takes up unnecessary space if the
+            primary key is a long string value.
+          </p></li><li class="listitem"><p>
+            If you store several different classes of information using
+            <span class="command"><strong>memcached</strong></span>, consider setting up a separate
+            <code class="literal">InnoDB</code> table for each type of data.
+            Define additional table identifiers in the
+            <code class="literal">innodb_memcache.containers</code> table, and use
+            the
+            <code class="literal">@@<em class="replaceable"><code>table_id</code></em>.<em class="replaceable"><code>key</code></em></code>
+            notation to store and retrieve items from different tables.
+            Physically dividing different types of information allows
+            you tune the characteristics of each table for optimum space
+            utilization, performance, and reliability. For example, you
+            might enable
+            <a class="link" href="glossary.html#glos_compression" title="compression">compression</a> for a
+            table that holds blog posts, but not for a table that holds
+            thumbnail images. You might back up one table more
+            frequently than another because it holds critical data. You
+            might create additional
+            <a class="link" href="glossary.html#glos_secondary_index" title="secondary index">secondary
+            indexes</a> on tables that are frequently used to
+            generate reports using SQL.
+          </p></li><li class="listitem"><p>
+            Preferably, configure a stable set of table definitions for
+            use with the <span class="command"><strong>daemon_memcached</strong></span> plugin, and
+            leave the tables in place permanently. Changes to the
+            <code class="literal">innodb_memcache.containers</code> table take
+            effect the next time the
+            <code class="literal">innodb_memcache.containers</code> table is
+            queried. Entries in the containers table are processed at
+            startup, and are consulted whenever an unrecognized table
+            identifier (as defined by
+            <code class="literal">containers.name</code>) is requested using
+            <code class="literal">@@</code> notation. Thus, new entries are
+            visible as soon as you use the associated table identifier,
+            but changes to existing entries require a server restart
+            before they take effect.
+          </p></li><li class="listitem"><p>
+            When you use the default <code class="literal">innodb_only</code>
+            caching policy, calls to <code class="literal">add()</code>,
+            <code class="literal">set()</code>, <code class="literal">incr()</code>, and so
+            on can succeed but still trigger debugging messages such as
+            <code class="literal">while expecting 'STORED', got unexpected response
+            'NOT_STORED</code>. Debug messages occur because new and
+            updated values are sent directly to the
+            <code class="literal">InnoDB</code> table without being saved in the
+            memory cache, due to the <code class="literal">innodb_only</code>
+            caching policy.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-memcached-porting-mysql.html">Previous <span class="navHint"> Adapting an Existing MySQL Schema for the InnoDB memcached Plugin </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-memcached-developing.html">Up <span class="navHint"> Writing Applications for the InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-memcached-tuning.html">Next <span class="navHint"> Tuning InnoDB memcached Plugin Performance </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

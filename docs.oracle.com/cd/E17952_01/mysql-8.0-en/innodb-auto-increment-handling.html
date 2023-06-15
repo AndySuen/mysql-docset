@@ -1,0 +1,690 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.6.1.6 AUTO_INCREMENT Handling in InnoDB</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-tables.html" title="15.6.1 Tables" /><link rel="prev" href="converting-tables-to-innodb.html" title="15.6.1.5 Converting Tables from MyISAM to InnoDB" /><link rel="next" href="innodb-indexes.html" title="15.6.2 Indexes" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-auto-increment-handling.html#innodb-auto-increment-handling">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="converting-tables-to-innodb.html">Previous <span class="navHint"> Converting Tables from MyISAM to InnoDB </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-tables.html">Up <span class="navHint"> Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-indexes.html">Next <span class="navHint"> Indexes </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-auto-increment-handling"></a>15.6.1.6 AUTO_INCREMENT Handling in InnoDB</h4></div></div></div><a id="idm45828891511056" class="indexterm"></a><a id="idm45828891509984" class="indexterm"></a><p>
+      <code class="literal">InnoDB</code> provides a configurable locking
+      mechanism that can significantly improve scalability and
+      performance of SQL statements that add rows to tables with
+      <code class="literal">AUTO_INCREMENT</code> columns. To use the
+      <code class="literal">AUTO_INCREMENT</code> mechanism with an
+      <code class="literal">InnoDB</code> table, an
+      <code class="literal">AUTO_INCREMENT</code> column must be defined as the
+      first or only column of some index such that it is possible to
+      perform the equivalent of an indexed <code class="literal">SELECT
+      MAX(<em class="replaceable"><code>ai_col</code></em>)</code> lookup on the
+      table to obtain the maximum column value. The index is not
+      required to be a <code class="literal">PRIMARY KEY</code> or
+      <code class="literal">UNIQUE</code>, but to avoid duplicate values in the
+      <code class="literal">AUTO_INCREMENT</code> column, those index types are
+      recommended.
+    </p><p>
+      This section describes the <code class="literal">AUTO_INCREMENT</code> lock
+      modes, usage implications of different
+      <code class="literal">AUTO_INCREMENT</code> lock mode settings, and how
+      <code class="literal">InnoDB</code> initializes the
+      <code class="literal">AUTO_INCREMENT</code> counter.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="innodb-auto-increment-handling.html#innodb-auto-increment-lock-modes" title="InnoDB AUTO_INCREMENT Lock Modes">InnoDB AUTO_INCREMENT Lock Modes</a></p></li><li class="listitem"><p><a class="xref" href="innodb-auto-increment-handling.html#innodb-auto-increment-lock-mode-usage-implications" title="InnoDB AUTO_INCREMENT Lock Mode Usage Implications">InnoDB AUTO_INCREMENT Lock Mode Usage Implications</a></p></li><li class="listitem"><p><a class="xref" href="innodb-auto-increment-handling.html#innodb-auto-increment-initialization" title="InnoDB AUTO_INCREMENT Counter Initialization">InnoDB AUTO_INCREMENT Counter Initialization</a></p></li><li class="listitem"><p><a class="xref" href="innodb-auto-increment-handling.html#innodb-auto-increment-notes" title="Notes">Notes</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-auto-increment-lock-modes"></a>InnoDB AUTO_INCREMENT Lock Modes</h5></div></div></div><a id="idm45828891491952" class="indexterm"></a><p>
+        This section describes the <code class="literal">AUTO_INCREMENT</code>
+        lock modes used to generate auto-increment values, and how each
+        lock mode affects replication. The auto-increment lock mode is
+        configured at startup using the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+        variable.
+      </p><p>
+        The following terms are used in describing
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+        settings:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <span class="quote">“<span class="quote"><a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>-like</span>”</span>
+            statements
+          </p><p>
+            All statements that generate new rows in a table, including
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>,
+            <a class="link" href="insert-select.html" title="13.2.7.1 INSERT ... SELECT Statement"><code class="literal">INSERT ...
+            SELECT</code></a>, <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE</code></a>,
+            <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE ...
+            SELECT</code></a>, and <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD
+            DATA</code></a>. Includes <span class="quote">“<span class="quote">simple-inserts</span>”</span>,
+            <span class="quote">“<span class="quote">bulk-inserts</span>”</span>, and <span class="quote">“<span class="quote">mixed-mode</span>”</span>
+            inserts.
+          </p></li><li class="listitem"><p>
+            <span class="quote">“<span class="quote">Simple inserts</span>”</span>
+          </p><p>
+            Statements for which the number of rows to be inserted can
+            be determined in advance (when the statement is initially
+            processed). This includes single-row and multiple-row
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> and
+            <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE</code></a> statements that do
+            not have a nested subquery, but not
+            <a class="link" href="insert-on-duplicate.html" title="13.2.7.2 INSERT ... ON DUPLICATE KEY UPDATE Statement"><code class="literal">INSERT
+            ... ON DUPLICATE KEY UPDATE</code></a>.
+          </p></li><li class="listitem"><p>
+            <span class="quote">“<span class="quote">Bulk inserts</span>”</span>
+          </p><p>
+            Statements for which the number of rows to be inserted (and
+            the number of required auto-increment values) is not known
+            in advance. This includes
+            <a class="link" href="insert-select.html" title="13.2.7.1 INSERT ... SELECT Statement"><code class="literal">INSERT ...
+            SELECT</code></a>,
+            <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE ...
+            SELECT</code></a>, and <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD
+            DATA</code></a> statements, but not plain
+            <code class="literal">INSERT</code>. <code class="literal">InnoDB</code> assigns
+            new values for the <code class="literal">AUTO_INCREMENT</code> column
+            one at a time as each row is processed.
+          </p></li><li class="listitem"><p>
+            <span class="quote">“<span class="quote">Mixed-mode inserts</span>”</span>
+          </p><p>
+            These are <span class="quote">“<span class="quote">simple insert</span>”</span> statements that
+            specify the auto-increment value for some (but not all) of
+            the new rows. An example follows, where
+            <code class="literal">c1</code> is an
+            <code class="literal">AUTO_INCREMENT</code> column of table
+            <code class="literal">t1</code>:
+          </p><pre class="programlisting">INSERT INTO t1 (c1,c2) VALUES (1,'a'), (NULL,'b'), (5,'c'), (NULL,'d');
+</pre><p>
+            Another type of <span class="quote">“<span class="quote">mixed-mode insert</span>”</span> is
+            <a class="link" href="insert-on-duplicate.html" title="13.2.7.2 INSERT ... ON DUPLICATE KEY UPDATE Statement"><code class="literal">INSERT
+            ... ON DUPLICATE KEY UPDATE</code></a>, which in the worst
+            case is in effect an <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+            followed by a <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>, where
+            the allocated value for the
+            <code class="literal">AUTO_INCREMENT</code> column may or may not be
+            used during the update phase.
+          </p></li></ul></div><p>
+        There are three possible settings for the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+        variable. The settings are 0, 1, or 2, for
+        <span class="quote">“<span class="quote">traditional</span>”</span>, <span class="quote">“<span class="quote">consecutive</span>”</span>, or
+        <span class="quote">“<span class="quote">interleaved</span>”</span> lock mode, respectively. As of MySQL
+        8.0, interleaved lock mode
+        (<a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode=2</code></a>) is
+        the default setting. Prior to MySQL 8.0, consecutive lock mode
+        is the default
+        (<a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode=1</code></a>).
+      </p><p>
+        The default setting of interleaved lock mode in MySQL
+        8.0 reflects the change from statement-based
+        replication to row based replication as the default replication
+        type. Statement-based replication requires the consecutive
+        auto-increment lock mode to ensure that auto-increment values
+        are assigned in a predictable and repeatable order for a given
+        sequence of SQL statements, whereas row-based replication is not
+        sensitive to the execution order of SQL statements.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="innodb-auto-increment-lock-mode-traditional"></a>
+            <code class="literal">innodb_autoinc_lock_mode = 0</code>
+            (<span class="quote">“<span class="quote">traditional</span>”</span> lock mode)
+          </p><p>
+            The traditional lock mode provides the same behavior that
+            existed before the
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+            variable was introduced. The traditional lock mode option is
+            provided for backward compatibility, performance testing,
+            and working around issues with “mixed-mode inserts”, due
+            to possible differences in semantics.
+          </p><p>
+            In this lock mode, all <span class="quote">“<span class="quote">INSERT-like</span>”</span> statements
+            obtain a special table-level <code class="literal">AUTO-INC</code>
+            lock for inserts into tables with
+            <code class="literal">AUTO_INCREMENT</code> columns. This lock is
+            normally held to the end of the statement (not to the end of
+            the transaction) to ensure that auto-increment values are
+            assigned in a predictable and repeatable order for a given
+            sequence of <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+            statements, and to ensure that auto-increment values
+            assigned by any given statement are consecutive.
+          </p><p>
+            In the case of statement-based replication, this means that
+            when an SQL statement is replicated on a replica server, the
+            same values are used for the auto-increment column as on the
+            source server. The result of execution of multiple
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements is
+            deterministic, and the replica reproduces the same data as
+            on the source. If auto-increment values generated by
+            multiple <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements
+            were interleaved, the result of two concurrent
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements would be
+            nondeterministic, and could not reliably be propagated to a
+            replica server using statement-based replication.
+          </p><p>
+            To make this clear, consider an example that uses this
+            table:
+          </p><pre class="programlisting">CREATE TABLE t1 (
+  c1 INT(11) NOT NULL AUTO_INCREMENT,
+  c2 VARCHAR(10) DEFAULT NULL,
+  PRIMARY KEY (c1)
+) ENGINE=InnoDB;
+</pre><p>
+            Suppose that there are two transactions running, each
+            inserting rows into a table with an
+            <code class="literal">AUTO_INCREMENT</code> column. One transaction is
+            using an
+            <a class="link" href="insert-select.html" title="13.2.7.1 INSERT ... SELECT Statement"><code class="literal">INSERT ...
+            SELECT</code></a> statement that inserts 1000 rows, and
+            another is using a simple
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement that inserts
+            one row:
+          </p><pre class="programlisting">Tx1: INSERT INTO t1 (c2) SELECT 1000 rows from another table ...
+Tx2: INSERT INTO t1 (c2) VALUES ('xxx');
+</pre><p>
+            <code class="literal">InnoDB</code> cannot tell in advance how many
+            rows are retrieved from the
+            <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> in the
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement in Tx1, and
+            it assigns the auto-increment values one at a time as the
+            statement proceeds. With a table-level lock, held to the end
+            of the statement, only one
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement referring to
+            table <code class="literal">t1</code> can execute at a time, and the
+            generation of auto-increment numbers by different statements
+            is not interleaved. The auto-increment values generated by
+            the Tx1
+            <a class="link" href="insert-select.html" title="13.2.7.1 INSERT ... SELECT Statement"><code class="literal">INSERT ...
+            SELECT</code></a> statement are consecutive, and the (single)
+            auto-increment value used by the
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement in Tx2 is
+            either smaller or larger than all those used for Tx1,
+            depending on which statement executes first.
+          </p><p>
+            As long as the SQL statements execute in the same order when
+            replayed from the binary log (when using statement-based
+            replication, or in recovery scenarios), the results are the
+            same as they were when Tx1 and Tx2 first ran. Thus,
+            table-level locks held until the end of a statement make
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements using
+            auto-increment safe for use with statement-based
+            replication. However, those table-level locks limit
+            concurrency and scalability when multiple transactions are
+            executing insert statements at the same time.
+          </p><p>
+            In the preceding example, if there were no table-level lock,
+            the value of the auto-increment column used for the
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> in Tx2 depends on
+            precisely when the statement executes. If the
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> of Tx2 executes while
+            the <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> of Tx1 is running
+            (rather than before it starts or after it completes), the
+            specific auto-increment values assigned by the two
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements are
+            nondeterministic, and may vary from run to run.
+          </p><p>
+            Under the
+            <a class="link" href="innodb-auto-increment-handling.html#innodb-auto-increment-lock-mode-consecutive">consecutive</a>
+            lock mode, <code class="literal">InnoDB</code> can avoid using
+            table-level <code class="literal">AUTO-INC</code> locks for
+            <span class="quote">“<span class="quote">simple insert</span>”</span> statements where the number of
+            rows is known in advance, and still preserve deterministic
+            execution and safety for statement-based replication.
+          </p><p>
+            If you are not using the binary log to replay SQL statements
+            as part of recovery or replication, the
+            <a class="link" href="innodb-auto-increment-handling.html#innodb-auto-increment-lock-mode-interleaved">interleaved</a>
+            lock mode can be used to eliminate all use of table-level
+            <code class="literal">AUTO-INC</code> locks for even greater
+            concurrency and performance, at the cost of permitting gaps
+            in auto-increment numbers assigned by a statement and
+            potentially having the numbers assigned by concurrently
+            executing statements interleaved.
+          </p></li><li class="listitem"><p><a id="innodb-auto-increment-lock-mode-consecutive"></a>
+            <code class="literal">innodb_autoinc_lock_mode = 1</code>
+            (<span class="quote">“<span class="quote">consecutive</span>”</span> lock mode)
+          </p><p>
+            In this mode, <span class="quote">“<span class="quote">bulk inserts</span>”</span> use the special
+            <code class="literal">AUTO-INC</code> table-level lock and hold it
+            until the end of the statement. This applies to all
+            <a class="link" href="insert-select.html" title="13.2.7.1 INSERT ... SELECT Statement"><code class="literal">INSERT ...
+            SELECT</code></a>,
+            <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE ...
+            SELECT</code></a>, and <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD
+            DATA</code></a> statements. Only one statement holding the
+            <code class="literal">AUTO-INC</code> lock can execute at a time. If
+            the source table of the bulk insert operation is different
+            from the target table, the <code class="literal">AUTO-INC</code> lock
+            on the target table is taken after a shared lock is taken on
+            the first row selected from the source table. If the source
+            and target of the bulk insert operation are the same table,
+            the <code class="literal">AUTO-INC</code> lock is taken after shared
+            locks are taken on all selected rows.
+          </p><p>
+            <span class="quote">“<span class="quote">Simple inserts</span>”</span> (for which the number of rows
+            to be inserted is known in advance) avoid table-level
+            <code class="literal">AUTO-INC</code> locks by obtaining the required
+            number of auto-increment values under the control of a mutex
+            (a light-weight lock) that is only held for the duration of
+            the allocation process, <span class="emphasis"><em>not</em></span> until the
+            statement completes. No table-level
+            <code class="literal">AUTO-INC</code> lock is used unless an
+            <code class="literal">AUTO-INC</code> lock is held by another
+            transaction. If another transaction holds an
+            <code class="literal">AUTO-INC</code> lock, a <span class="quote">“<span class="quote">simple
+            insert</span>”</span> waits for the <code class="literal">AUTO-INC</code>
+            lock, as if it were a <span class="quote">“<span class="quote">bulk insert</span>”</span>.
+          </p><p>
+            This lock mode ensures that, in the presence of
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements where the
+            number of rows is not known in advance (and where
+            auto-increment numbers are assigned as the statement
+            progresses), all auto-increment values assigned by any
+            <span class="quote">“<span class="quote"><a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>-like</span>”</span>
+            statement are consecutive, and operations are safe for
+            statement-based replication.
+          </p><p>
+            Simply put, this lock mode significantly improves
+            scalability while being safe for use with statement-based
+            replication. Further, as with <span class="quote">“<span class="quote">traditional</span>”</span>
+            lock mode, auto-increment numbers assigned by any given
+            statement are <span class="emphasis"><em>consecutive</em></span>. There is
+            <span class="emphasis"><em>no change</em></span> in semantics compared to
+            <span class="quote">“<span class="quote">traditional</span>”</span> mode for any statement that uses
+            auto-increment, with one important exception.
+          </p><p>
+            The exception is for <span class="quote">“<span class="quote">mixed-mode inserts</span>”</span>,
+            where the user provides explicit values for an
+            <code class="literal">AUTO_INCREMENT</code> column for some, but not
+            all, rows in a multiple-row <span class="quote">“<span class="quote">simple insert</span>”</span>.
+            For such inserts, <code class="literal">InnoDB</code> allocates more
+            auto-increment values than the number of rows to be
+            inserted. However, all values automatically assigned are
+            consecutively generated (and thus higher than) the
+            auto-increment value generated by the most recently executed
+            previous statement. <span class="quote">“<span class="quote">Excess</span>”</span> numbers are lost.
+          </p></li><li class="listitem"><p><a id="innodb-auto-increment-lock-mode-interleaved"></a>
+            <code class="literal">innodb_autoinc_lock_mode = 2</code>
+            (<span class="quote">“<span class="quote">interleaved</span>”</span> lock mode)
+          </p><p>
+            In this lock mode, no
+            <span class="quote">“<span class="quote"><a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>-like</span>”</span>
+            statements use the table-level <code class="literal">AUTO-INC</code>
+            lock, and multiple statements can execute at the same time.
+            This is the fastest and most scalable lock mode, but it is
+            <span class="emphasis"><em>not safe</em></span> when using statement-based
+            replication or recovery scenarios when SQL statements are
+            replayed from the binary log.
+          </p><p>
+            In this lock mode, auto-increment values are guaranteed to
+            be unique and monotonically increasing across all
+            concurrently executing
+            <span class="quote">“<span class="quote"><a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>-like</span>”</span>
+            statements. However, because multiple statements can be
+            generating numbers at the same time (that is, allocation of
+            numbers is <span class="emphasis"><em>interleaved</em></span> across
+            statements), the values generated for the rows inserted by
+            any given statement may not be consecutive.
+          </p><p>
+            If the only statements executing are <span class="quote">“<span class="quote">simple
+            inserts</span>”</span> where the number of rows to be inserted is
+            known ahead of time, there are no gaps in the numbers
+            generated for a single statement, except for
+            <span class="quote">“<span class="quote">mixed-mode inserts</span>”</span>. However, when <span class="quote">“<span class="quote">bulk
+            inserts</span>”</span> are executed, there may be gaps in the
+            auto-increment values assigned by any given statement.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-auto-increment-lock-mode-usage-implications"></a>InnoDB AUTO_INCREMENT Lock Mode Usage Implications</h5></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Using auto-increment with replication
+          </p><p>
+            If you are using statement-based replication, set
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a> to
+            0 or 1 and use the same value on the source and its
+            replicas. Auto-increment values are not ensured to be the
+            same on the replicas as on the source if you use
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a> =
+            2 (<span class="quote">“<span class="quote">interleaved</span>”</span>) or configurations where the
+            source and replicas do not use the same lock mode.
+          </p><p>
+            If you are using row-based or mixed-format replication, all
+            of the auto-increment lock modes are safe, since row-based
+            replication is not sensitive to the order of execution of
+            the SQL statements (and the mixed format uses row-based
+            replication for any statements that are unsafe for
+            statement-based replication).
+          </p></li><li class="listitem"><p>
+            <span class="quote">“<span class="quote">Lost</span>”</span> auto-increment values and sequence gaps
+          </p><p>
+            In all lock modes (0, 1, and 2), if a transaction that
+            generated auto-increment values rolls back, those
+            auto-increment values are <span class="quote">“<span class="quote">lost</span>”</span>. Once a value
+            is generated for an auto-increment column, it cannot be
+            rolled back, whether or not the
+            <span class="quote">“<span class="quote"><a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>-like</span>”</span>
+            statement is completed, and whether or not the containing
+            transaction is rolled back. Such lost values are not reused.
+            Thus, there may be gaps in the values stored in an
+            <code class="literal">AUTO_INCREMENT</code> column of a table.
+          </p></li><li class="listitem"><p>
+            Specifying NULL or 0 for the
+            <code class="literal">AUTO_INCREMENT</code> column
+          </p><p>
+            In all lock modes (0, 1, and 2), if a user specifies NULL or
+            0 for the <code class="literal">AUTO_INCREMENT</code> column in an
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>,
+            <code class="literal">InnoDB</code> treats the row as if the value was
+            not specified and generates a new value for it.
+          </p></li><li class="listitem"><p>
+            Assigning a negative value to the
+            <code class="literal">AUTO_INCREMENT</code> column
+          </p><p>
+            In all lock modes (0, 1, and 2), the behavior of the
+            auto-increment mechanism is undefined if you assign a
+            negative value to the <code class="literal">AUTO_INCREMENT</code>
+            column.
+          </p></li><li class="listitem"><p>
+            If the <code class="literal">AUTO_INCREMENT</code> value becomes
+            larger than the maximum integer for the specified integer
+            type
+          </p><p>
+            In all lock modes (0, 1, and 2), the behavior of the
+            auto-increment mechanism is undefined if the value becomes
+            larger than the maximum integer that can be stored in the
+            specified integer type.
+          </p></li><li class="listitem"><p>
+            Gaps in auto-increment values for <span class="quote">“<span class="quote">bulk
+            inserts</span>”</span>
+          </p><p>
+            With
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+            set to 0 (<span class="quote">“<span class="quote">traditional</span>”</span>) or 1
+            (<span class="quote">“<span class="quote">consecutive</span>”</span>), the auto-increment values
+            generated by any given statement are consecutive, without
+            gaps, because the table-level <code class="literal">AUTO-INC</code>
+            lock is held until the end of the statement, and only one
+            such statement can execute at a time.
+          </p><p>
+            With
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+            set to 2 (<span class="quote">“<span class="quote">interleaved</span>”</span>), there may be gaps in
+            the auto-increment values generated by <span class="quote">“<span class="quote">bulk
+            inserts,</span>”</span> but only if there are concurrently
+            executing
+            <span class="quote">“<span class="quote"><a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>-like</span>”</span>
+            statements.
+          </p><p>
+            For lock modes 1 or 2, gaps may occur between successive
+            statements because for bulk inserts the exact number of
+            auto-increment values required by each statement may not be
+            known and overestimation is possible.
+          </p></li><li class="listitem"><p>
+            Auto-increment values assigned by <span class="quote">“<span class="quote">mixed-mode
+            inserts</span>”</span>
+          </p><p>
+            Consider a <span class="quote">“<span class="quote">mixed-mode insert,</span>”</span> where a
+            <span class="quote">“<span class="quote">simple insert</span>”</span> specifies the auto-increment
+            value for some (but not all) resulting rows. Such a
+            statement behaves differently in lock modes 0, 1, and 2. For
+            example, assume <code class="literal">c1</code> is an
+            <code class="literal">AUTO_INCREMENT</code> column of table
+            <code class="literal">t1</code>, and that the most recent
+            automatically generated sequence number is 100.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t1 (</code></strong>
+    -&gt; <strong class="userinput"><code>c1 INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, </code></strong>
+    -&gt; <strong class="userinput"><code>c2 CHAR(1)</code></strong>
+    -&gt; <strong class="userinput"><code>) ENGINE = INNODB;</code></strong>
+</pre><p>
+            Now, consider the following <span class="quote">“<span class="quote">mixed-mode insert</span>”</span>
+            statement:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO t1 (c1,c2) VALUES (1,'a'), (NULL,'b'), (5,'c'), (NULL,'d');</code></strong>
+</pre><p>
+            With
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+            set to 0 (<span class="quote">“<span class="quote">traditional</span>”</span>), the four new rows
+            are:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT c1, c2 FROM t1 ORDER BY c2;</code></strong>
++-----+------+
+| c1  | c2   |
++-----+------+
+|   1 | a    |
+| 101 | b    |
+|   5 | c    |
+| 102 | d    |
++-----+------+
+</pre><p>
+            The next available auto-increment value is 103 because the
+            auto-increment values are allocated one at a time, not all
+            at once at the beginning of statement execution. This result
+            is true whether or not there are concurrently executing
+            <span class="quote">“<span class="quote"><a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>-like</span>”</span>
+            statements (of any type).
+          </p><p>
+            With
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+            set to 1 (<span class="quote">“<span class="quote">consecutive</span>”</span>), the four new rows are
+            also:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT c1, c2 FROM t1 ORDER BY c2;</code></strong>
++-----+------+
+| c1  | c2   |
++-----+------+
+|   1 | a    |
+| 101 | b    |
+|   5 | c    |
+| 102 | d    |
++-----+------+
+</pre><p>
+            However, in this case, the next available auto-increment
+            value is 105, not 103 because four auto-increment values are
+            allocated at the time the statement is processed, but only
+            two are used. This result is true whether or not there are
+            concurrently executing
+            <span class="quote">“<span class="quote"><a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>-like</span>”</span>
+            statements (of any type).
+          </p><p>
+            With
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+            set to 2 (<span class="quote">“<span class="quote">interleaved</span>”</span>), the four new rows
+            are:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT c1, c2 FROM t1 ORDER BY c2;</code></strong>
++-----+------+
+| c1  | c2   |
++-----+------+
+|   1 | a    |
+|   <em class="replaceable"><code>x</code></em> | b    |
+|   5 | c    |
+|   <em class="replaceable"><code>y</code></em> | d    |
++-----+------+
+</pre><p>
+            The values of <em class="replaceable"><code>x</code></em> and
+            <em class="replaceable"><code>y</code></em> are unique and larger than any
+            previously generated rows. However, the specific values of
+            <em class="replaceable"><code>x</code></em> and
+            <em class="replaceable"><code>y</code></em> depend on the number of
+            auto-increment values generated by concurrently executing
+            statements.
+          </p><p>
+            Finally, consider the following statement, issued when the
+            most-recently generated sequence number is 100:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO t1 (c1,c2) VALUES (1,'a'), (NULL,'b'), (101,'c'), (NULL,'d');</code></strong>
+</pre><p>
+            With any
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_autoinc_lock_mode"><code class="literal">innodb_autoinc_lock_mode</code></a>
+            setting, this statement generates a duplicate-key error
+            23000 (<code class="literal">Can't write; duplicate key in
+            table</code>) because 101 is allocated for the row
+            <code class="literal">(NULL, 'b')</code> and insertion of the row
+            <code class="literal">(101, 'c')</code> fails.
+          </p></li><li class="listitem"><p>
+            Modifying <code class="literal">AUTO_INCREMENT</code> column values in
+            the middle of a sequence of
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements
+          </p><p>
+            In MySQL 5.7 and earlier, modifying an
+            <code class="literal">AUTO_INCREMENT</code> column value in the middle
+            of a sequence of <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+            statements could lead to <span class="quote">“<span class="quote">Duplicate entry</span>”</span>
+            errors. For example, if you performed an
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> operation that changed
+            an <code class="literal">AUTO_INCREMENT</code> column value to a value
+            larger than the current maximum auto-increment value,
+            subsequent <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operations
+            that did not specify an unused auto-increment value could
+            encounter <span class="quote">“<span class="quote">Duplicate entry</span>”</span> errors. In MySQL
+            8.0 and later, if you modify an
+            <code class="literal">AUTO_INCREMENT</code> column value to a value
+            larger than the current maximum auto-increment value, the
+            new value is persisted, and subsequent
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operations allocate
+            auto-increment values starting from the new, larger value.
+            This behavior is demonstrated in the following example.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t1 (</code></strong>
+    -&gt; <strong class="userinput"><code>c1 INT NOT NULL AUTO_INCREMENT,</code></strong>
+    -&gt; <strong class="userinput"><code>PRIMARY KEY (c1)</code></strong>
+    -&gt;  <strong class="userinput"><code>) ENGINE = InnoDB;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES(0), (0), (3);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT c1 FROM t1;</code></strong>
++----+
+| c1 |
++----+
+|  1 |
+|  2 |
+|  3 |
++----+
+
+mysql&gt; <strong class="userinput"><code>UPDATE t1 SET c1 = 4 WHERE c1 = 1;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT c1 FROM t1;</code></strong>
++----+
+| c1 |
++----+
+|  2 |
+|  3 |
+|  4 |
++----+
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES(0);</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT c1 FROM t1;</code></strong>
++----+
+| c1 |
++----+
+|  2 |
+|  3 |
+|  4 |
+|  5 |
++----+
+</pre></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-auto-increment-initialization"></a>InnoDB AUTO_INCREMENT Counter Initialization</h5></div></div></div><a id="idm45828891273792" class="indexterm"></a><p>
+        This section describes how <code class="literal">InnoDB</code> initializes
+        <code class="literal">AUTO_INCREMENT</code> counters.
+      </p><p>
+        If you specify an <code class="literal">AUTO_INCREMENT</code> column for
+        an <code class="literal">InnoDB</code> table, the in-memory table object
+        contains a special counter called the auto-increment counter
+        that is used when assigning new values for the column.
+      </p><p>
+        In MySQL 5.7 and earlier, the auto-increment counter is stored
+        in main memory, not on disk. To initialize an auto-increment
+        counter after a server restart, <code class="literal">InnoDB</code> would
+        execute the equivalent of the following statement on the first
+        insert into a table containing an
+        <code class="literal">AUTO_INCREMENT</code> column.
+      </p><pre class="programlisting">SELECT MAX(ai_col) FROM <em class="replaceable"><code>table_name</code></em> FOR UPDATE;
+</pre><p>
+        In MySQL 8.0, this behavior is changed. The current maximum
+        auto-increment counter value is written to the redo log each
+        time it changes and saved to the data dictionary on each
+        checkpoint. These changes make the current maximum
+        auto-increment counter value persistent across server restarts.
+      </p><p>
+        On a server restart following a normal shutdown,
+        <code class="literal">InnoDB</code> initializes the in-memory
+        auto-increment counter using the current maximum auto-increment
+        value stored in the data dictionary.
+      </p><p>
+        On a server restart during crash recovery,
+        <code class="literal">InnoDB</code> initializes the in-memory
+        auto-increment counter using the current maximum auto-increment
+        value stored in the data dictionary and scans the redo log for
+        auto-increment counter values written since the last checkpoint.
+        If a redo-logged value is greater than the in-memory counter
+        value, the redo-logged value is applied. However, in the case of
+        an unexpected server exit, reuse of a previously allocated
+        auto-increment value cannot be guaranteed. Each time the current
+        maximum auto-increment value is changed due to an
+        <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> or
+        <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> operation, the new value
+        is written to the redo log, but if the unexpected exit occurs
+        before the redo log is flushed to disk, the previously allocated
+        value could be reused when the auto-increment counter is
+        initialized after the server is restarted.
+      </p><p>
+        The only circumstance in which <code class="literal">InnoDB</code> uses
+        the equivalent of a <code class="literal">SELECT MAX(ai_col) FROM
+        <em class="replaceable"><code>table_name</code></em> FOR UPDATE</code>
+        statement to initialize an auto-increment counter is when
+        <a class="link" href="innodb-table-import.html" title="15.6.1.3 Importing InnoDB Tables">importing a table</a>
+        without a <code class="filename">.cfg</code> metadata file. Otherwise,
+        the current maximum auto-increment counter value is read from
+        the <code class="filename">.cfg</code> metadata file if present. Aside
+        from counter value initialization, the equivalent of a
+        <code class="literal">SELECT MAX(ai_col) FROM
+        <em class="replaceable"><code>table_name</code></em></code> statement is
+        used to determine the current maximum auto-increment counter
+        value of the table when attempting to set the counter value to
+        one that is smaller than or equal to the persisted counter value
+        using an <code class="literal">ALTER TABLE ... AUTO_INCREMENT =
+        <em class="replaceable"><code>N</code></em></code> statement. For example,
+        you might try to set the counter value to a lesser value after
+        deleting some records. In this case, the table must be searched
+        to ensure that the new counter value is not less than or equal
+        to the actual current maximum counter value.
+      </p><p>
+        In MySQL 5.7 and earlier, a server restart cancels the effect of
+        the <code class="literal">AUTO_INCREMENT = N</code> table option, which
+        may be used in a <code class="literal">CREATE TABLE</code> or
+        <code class="literal">ALTER TABLE</code> statement to set an initial
+        counter value or alter the existing counter value, respectively.
+        In MySQL 8.0, a server restart does not cancel the effect of the
+        <code class="literal">AUTO_INCREMENT = N</code> table option. If you
+        initialize the auto-increment counter to a specific value, or if
+        you alter the auto-increment counter value to a larger value,
+        the new value is persisted across server restarts.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE ...
+          AUTO_INCREMENT = N</code></a> can only change the
+          auto-increment counter value to a value larger than the
+          current maximum.
+        </p></div><p>
+        In MySQL 5.7 and earlier, a server restart immediately following
+        a <a class="link" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">ROLLBACK</code></a>
+        operation could result in the reuse of auto-increment values
+        that were previously allocated to the rolled-back transaction,
+        effectively rolling back the current maximum auto-increment
+        value. In MySQL 8.0, the current maximum auto-increment value is
+        persisted, preventing the reuse of previously allocated values.
+      </p><p>
+        If a <a class="link" href="show-table-status.html" title="13.7.7.38 SHOW TABLE STATUS Statement"><code class="literal">SHOW TABLE STATUS</code></a> statement
+        examines a table before the auto-increment counter is
+        initialized, <code class="literal">InnoDB</code> opens the table and
+        initializes the counter value using the current maximum
+        auto-increment value that is stored in the data dictionary. The
+        value is then stored in memory for use by later inserts or
+        updates. Initialization of the counter value uses a normal
+        exclusive-locking read on the table which lasts to the end of
+        the transaction. <code class="literal">InnoDB</code> follows the same
+        procedure when initializing the auto-increment counter for a
+        newly created table that has a user-specified auto-increment
+        value greater than 0.
+      </p><p>
+        After the auto-increment counter is initialized, if you do not
+        explicitly specify an auto-increment value when inserting a row,
+        <code class="literal">InnoDB</code> implicitly increments the counter and
+        assigns the new value to the column. If you insert a row that
+        explicitly specifies an auto-increment column value, and the
+        value is greater than the current maximum counter value, the
+        counter is set to the specified value.
+      </p><p>
+        <code class="literal">InnoDB</code> uses the in-memory auto-increment
+        counter as long as the server runs. When the server is stopped
+        and restarted, <code class="literal">InnoDB</code> reinitializes the
+        auto-increment counter, as described earlier.
+      </p><p>
+        The <a class="link" href="replication-options-source.html#sysvar_auto_increment_offset"><code class="literal">auto_increment_offset</code></a>
+        variable determines the starting point for the
+        <code class="literal">AUTO_INCREMENT</code> column value. The default
+        setting is 1.
+      </p><p>
+        The <a class="link" href="replication-options-source.html#sysvar_auto_increment_increment"><code class="literal">auto_increment_increment</code></a>
+        variable controls the interval between successive column values.
+        The default setting is 1.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="innodb-auto-increment-notes"></a>Notes</h5></div></div></div><a id="idm45828891230528" class="indexterm"></a><a id="idm45828891229456" class="indexterm"></a><p>
+        When an <code class="literal">AUTO_INCREMENT</code> integer column runs
+        out of values, a subsequent <code class="literal">INSERT</code> operation
+        returns a duplicate-key error. This is general MySQL behavior.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="converting-tables-to-innodb.html">Previous <span class="navHint"> Converting Tables from MyISAM to InnoDB </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-tables.html">Up <span class="navHint"> Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-indexes.html">Next <span class="navHint"> Indexes </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

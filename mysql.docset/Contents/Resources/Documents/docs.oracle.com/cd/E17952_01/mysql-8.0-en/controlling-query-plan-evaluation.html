@@ -1,0 +1,62 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-413"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.9.1%C2%A0Controlling%20Query%20Plan%20Evaluation"></a><title>8.9.1&nbsp;Controlling Query Plan Evaluation</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="controlling-optimizer.html" title="8.9&nbsp;Controlling the Query Optimizer"/><link rel="prev" href="controlling-optimizer.html" title="8.9&nbsp;Controlling the Query Optimizer"/><link rel="next" href="switchable-optimizations.html" title="8.9.2&nbsp;Switchable Optimizations"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="controlling-query-plan-evaluation.html#controlling-query-plan-evaluation">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="controlling-optimizer.html">Previous <span class="navHint"> Controlling the Query Optimizer </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="controlling-optimizer.html">Up <span class="navHint"> Controlling the Query Optimizer </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="switchable-optimizations.html">Next <span class="navHint"> Switchable Optimizations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="controlling-query-plan-evaluation"></a>8.9.1&nbsp;Controlling Query Plan Evaluation</h3></div></div></div><a id="idm45828951329312" class="indexterm"></a><p>
+        The task of the query optimizer is to find an optimal plan for
+        executing an SQL query. Because the difference in performance
+        between <span class="quote">&ldquo;<span class="quote">good</span>&rdquo;</span> and <span class="quote">&ldquo;<span class="quote">bad</span>&rdquo;</span> plans can be
+        orders of magnitude (that is, seconds versus hours or even
+        days), most query optimizers, including that of MySQL, perform a
+        more or less exhaustive search for an optimal plan among all
+        possible query evaluation plans. For join queries, the number of
+        possible plans investigated by the MySQL optimizer grows
+        exponentially with the number of tables referenced in a query.
+        For small numbers of tables (typically less than 7 to 10) this
+        is not a problem. However, when larger queries are submitted,
+        the time spent in query optimization may easily become the major
+        bottleneck in the server&#39;s performance.
+      </p><p>
+        A more flexible method for query optimization enables the user
+        to control how exhaustive the optimizer is in its search for an
+        optimal query evaluation plan. The general idea is that the
+        fewer plans that are investigated by the optimizer, the less
+        time it spends in compiling a query. On the other hand, because
+        the optimizer skips some plans, it may miss finding an optimal
+        plan.
+      </p><p>
+        The behavior of the optimizer with respect to the number of
+        plans it evaluates can be controlled using two system variables:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The <a class="link" href="server-system-variables.html#sysvar_optimizer_prune_level"><code class="literal">optimizer_prune_level</code></a>
+            variable tells the optimizer to skip certain plans based on
+            estimates of the number of rows accessed for each table. Our
+            experience shows that this kind of <span class="quote">&ldquo;<span class="quote">educated
+            guess</span>&rdquo;</span> rarely misses optimal plans, and may
+            dramatically reduce query compilation times. That is why
+            this option is on
+            (<code class="literal">optimizer_prune_level=1</code>) by default.
+            However, if you believe that the optimizer missed a better
+            query plan, this option can be switched off
+            (<code class="literal">optimizer_prune_level=0</code>) with the risk
+            that query compilation may take much longer. Note that, even
+            with the use of this heuristic, the optimizer still explores
+            a roughly exponential number of plans.
+          </p></li><li class="listitem"><p>
+            The <a class="link" href="server-system-variables.html#sysvar_optimizer_search_depth"><code class="literal">optimizer_search_depth</code></a>
+            variable tells how far into the <span class="quote">&ldquo;<span class="quote">future</span>&rdquo;</span> of
+            each incomplete plan the optimizer should look to evaluate
+            whether it should be expanded further. Smaller values of
+            <a class="link" href="server-system-variables.html#sysvar_optimizer_search_depth"><code class="literal">optimizer_search_depth</code></a> may
+            result in orders of magnitude smaller query compilation
+            times. For example, queries with 12, 13, or more tables may
+            easily require hours and even days to compile if
+            <a class="link" href="server-system-variables.html#sysvar_optimizer_search_depth"><code class="literal">optimizer_search_depth</code></a> is
+            close to the number of tables in the query. At the same
+            time, if compiled with
+            <a class="link" href="server-system-variables.html#sysvar_optimizer_search_depth"><code class="literal">optimizer_search_depth</code></a>
+            equal to 3 or 4, the optimizer may compile in less than a
+            minute for the same query. If you are unsure of what a
+            reasonable value is for
+            <a class="link" href="server-system-variables.html#sysvar_optimizer_search_depth"><code class="literal">optimizer_search_depth</code></a>,
+            this variable can be set to 0 to tell the optimizer to
+            determine the value automatically.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="controlling-optimizer.html">Previous <span class="navHint"> Controlling the Query Optimizer </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="controlling-optimizer.html">Up <span class="navHint"> Controlling the Query Optimizer </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="switchable-optimizations.html">Next <span class="navHint"> Switchable Optimizations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

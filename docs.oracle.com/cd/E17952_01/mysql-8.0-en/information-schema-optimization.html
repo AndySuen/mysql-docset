@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.3 Optimizing INFORMATION_SCHEMA Queries</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="statement-optimization.html" title="8.2 Optimizing SQL Statements" /><link rel="prev" href="derived-condition-pushdown-optimization.html" title="8.2.2.5 Derived Condition Pushdown Optimization" /><link rel="next" href="performance-schema-optimization.html" title="8.2.4 Optimizing Performance Schema Queries" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="information-schema-optimization.html#information-schema-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="derived-condition-pushdown-optimization.html">Previous <span class="navHint"> Derived Condition Pushdown Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="statement-optimization.html">Up <span class="navHint"> Optimizing SQL Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="performance-schema-optimization.html">Next <span class="navHint"> Optimizing Performance Schema Queries </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="information-schema-optimization"></a>8.2.3 Optimizing INFORMATION_SCHEMA Queries</h3></div></div></div><a id="idm45828954591760" class="indexterm"></a><a id="idm45828954590256" class="indexterm"></a><p>
+        Applications that monitor databases may make frequent use of
+        <code class="literal">INFORMATION_SCHEMA</code> tables. To write queries
+        for these tables most efficiently, use the following general
+        guidelines:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Try to query only <code class="literal">INFORMATION_SCHEMA</code>
+            tables that are views on data dictionary tables.
+          </p></li><li class="listitem"><p>
+            Try to query only for static metadata. Selecting columns or
+            using retrieval conditions for dynamic metadata along with
+            static metadata adds overhead to process the dynamic
+            metadata.
+          </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Comparison behavior for database and table names in
+          <code class="literal">INFORMATION_SCHEMA</code> queries might differ
+          from what you expect. For details, see
+          <a class="xref" href="charset-collation-information-schema.html" title="10.8.7 Using Collation in INFORMATION_SCHEMA Searches">Section 10.8.7, “Using Collation in INFORMATION_SCHEMA Searches”</a>.
+        </p></div><p>
+        These <code class="literal">INFORMATION_SCHEMA</code> tables are
+        implemented as views on data dictionary tables, so queries on
+        them retrieve information from the data dictionary:
+      </p><pre class="programlisting">CHARACTER_SETS
+CHECK_CONSTRAINTS
+COLLATIONS
+COLLATION_CHARACTER_SET_APPLICABILITY
+COLUMNS
+EVENTS
+FILES
+INNODB_COLUMNS
+INNODB_DATAFILES
+INNODB_FIELDS
+INNODB_FOREIGN
+INNODB_FOREIGN_COLS
+INNODB_INDEXES
+INNODB_TABLES
+INNODB_TABLESPACES
+INNODB_TABLESPACES_BRIEF
+INNODB_TABLESTATS
+KEY_COLUMN_USAGE
+PARAMETERS
+PARTITIONS
+REFERENTIAL_CONSTRAINTS
+RESOURCE_GROUPS
+ROUTINES
+SCHEMATA
+STATISTICS
+TABLES
+TABLE_CONSTRAINTS
+TRIGGERS
+VIEWS
+VIEW_ROUTINE_USAGE
+VIEW_TABLE_USAGE
+</pre><p>
+        Some types of values, even for a non-view
+        <code class="literal">INFORMATION_SCHEMA</code> table, are retrieved by
+        lookups from the data dictionary. This includes values such as
+        database and table names, table types, and storage engines.
+      </p><p>
+        Some <code class="literal">INFORMATION_SCHEMA</code> tables contain
+        columns that provide table statistics:
+      </p><pre class="programlisting">STATISTICS.CARDINALITY
+TABLES.AUTO_INCREMENT
+TABLES.AVG_ROW_LENGTH
+TABLES.CHECKSUM
+TABLES.CHECK_TIME
+TABLES.CREATE_TIME
+TABLES.DATA_FREE
+TABLES.DATA_LENGTH
+TABLES.INDEX_LENGTH
+TABLES.MAX_DATA_LENGTH
+TABLES.TABLE_ROWS
+TABLES.UPDATE_TIME
+</pre><p>
+        Those columns represent dynamic table metadata; that is,
+        information that changes as table contents change.
+      </p><p>
+        By default, MySQL retrieves cached values for those columns from
+        the <code class="literal">mysql.index_stats</code> and
+        <code class="literal">mysql.table_stats</code> dictionary tables when the
+        columns are queried, which is more efficient than retrieving
+        statistics directly from the storage engine. If cached
+        statistics are not available or have expired, MySQL retrieves
+        the latest statistics from the storage engine and caches them in
+        the <code class="literal">mysql.index_stats</code> and
+        <code class="literal">mysql.table_stats</code> dictionary tables.
+        Subsequent queries retrieve the cached statistics until the
+        cached statistics expire. A server restart or the first opening
+        of the <code class="literal">mysql.index_stats</code> and
+        <code class="literal">mysql.table_stats</code> tables do not update cached
+        statistics automatically.
+      </p><p>
+        The
+        <a class="link" href="server-system-variables.html#sysvar_information_schema_stats_expiry"><code class="literal">information_schema_stats_expiry</code></a>
+        session variable defines the period of time before cached
+        statistics expire. The default is 86400 seconds (24 hours), but
+        the time period can be extended to as much as one year.
+      </p><p>
+        To update cached values at any time for a given table, use
+        <a class="link" href="analyze-table.html" title="13.7.3.1 ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a>.
+      </p><p>
+        Querying statistics columns does not store or update statistics
+        in the <code class="literal">mysql.index_stats</code> and
+        <code class="literal">mysql.table_stats</code> dictionary tables under
+        these circumstances:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            When cached statistics have not expired.
+          </p></li><li class="listitem"><p>
+            When
+            <a class="link" href="server-system-variables.html#sysvar_information_schema_stats_expiry"><code class="literal">information_schema_stats_expiry</code></a>
+            is set to 0.
+          </p></li><li class="listitem"><p>
+            When the server is in
+            <a class="link" href="server-system-variables.html#sysvar_read_only"><code class="literal">read_only</code></a>,
+            <a class="link" href="server-system-variables.html#sysvar_super_read_only"><code class="literal">super_read_only</code></a>,
+            <a class="link" href="server-system-variables.html#sysvar_transaction_read_only"><code class="literal">transaction_read_only</code></a>, or
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_read_only"><code class="literal">innodb_read_only</code></a> mode.
+          </p></li><li class="listitem"><p>
+            When the query also fetches Performance Schema data.
+          </p></li></ul></div><p>
+        <a class="link" href="server-system-variables.html#sysvar_information_schema_stats_expiry"><code class="literal">information_schema_stats_expiry</code></a>
+        is a session variable, and each client session can define its
+        own expiration value. Statistics that are retrieved from the
+        storage engine and cached by one session are available to other
+        sessions.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          If the <a class="link" href="innodb-parameters.html#sysvar_innodb_read_only"><code class="literal">innodb_read_only</code></a>
+          system variable is enabled, <a class="link" href="analyze-table.html" title="13.7.3.1 ANALYZE TABLE Statement"><code class="literal">ANALYZE
+          TABLE</code></a> may fail because it cannot update statistics
+          tables in the data dictionary, which use
+          <code class="literal">InnoDB</code>. For <a class="link" href="analyze-table.html" title="13.7.3.1 ANALYZE TABLE Statement"><code class="literal">ANALYZE
+          TABLE</code></a> operations that update the key distribution,
+          failure may occur even if the operation updates the table
+          itself (for example, if it is a <code class="literal">MyISAM</code>
+          table). To obtain the updated distribution statistics, set
+          <a class="link" href="server-system-variables.html#sysvar_information_schema_stats_expiry"><code class="literal">information_schema_stats_expiry=0</code></a>.
+        </p></div><p>
+        For <code class="literal">INFORMATION_SCHEMA</code> tables implemented as
+        views on data dictionary tables, indexes on the underlying data
+        dictionary tables permit the optimizer to construct efficient
+        query execution plans. To see the choices made by the optimizer,
+        use <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>. To also see the
+        query used by the server to execute an
+        <code class="literal">INFORMATION_SCHEMA</code> query, use
+        <a class="link" href="show-warnings.html" title="13.7.7.42 SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a> immediately
+        following <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>.
+      </p><p>
+        Consider this statement, which identifies collations for the
+        <code class="literal">utf8mb4</code> character set:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT COLLATION_NAME</code></strong>
+       <strong class="userinput"><code>FROM INFORMATION_SCHEMA.COLLATION_CHARACTER_SET_APPLICABILITY</code></strong>
+       <strong class="userinput"><code>WHERE CHARACTER_SET_NAME = 'utf8mb4';</code></strong>
++----------------------------+
+| COLLATION_NAME             |
++----------------------------+
+| utf8mb4_general_ci         |
+| utf8mb4_bin                |
+| utf8mb4_unicode_ci         |
+| utf8mb4_icelandic_ci       |
+| utf8mb4_latvian_ci         |
+| utf8mb4_romanian_ci        |
+| utf8mb4_slovenian_ci       |
+...
+</pre><p>
+        How does the server process that statement? To find out, use
+        <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT COLLATION_NAME</code></strong>
+       <strong class="userinput"><code>FROM INFORMATION_SCHEMA.COLLATION_CHARACTER_SET_APPLICABILITY</code></strong>
+       <strong class="userinput"><code>WHERE CHARACTER_SET_NAME = 'utf8mb4'\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: cs
+   partitions: NULL
+         type: const
+possible_keys: PRIMARY,name
+          key: name
+      key_len: 194
+          ref: const
+         rows: 1
+     filtered: 100.00
+        Extra: Using index
+*************************** 2. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: col
+   partitions: NULL
+         type: ref
+possible_keys: character_set_id
+          key: character_set_id
+      key_len: 8
+          ref: const
+         rows: 68
+     filtered: 100.00
+        Extra: NULL
+2 rows in set, 1 warning (0.01 sec)
+</pre><p>
+        To see the query used to satisfy that statement, use
+        <a class="link" href="show-warnings.html" title="13.7.7.42 SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW WARNINGS\G</code></strong>
+*************************** 1. row ***************************
+  Level: Note
+   Code: 1003
+Message: /* select#1 */ select `mysql`.`col`.`name` AS `COLLATION_NAME`
+         from `mysql`.`character_sets` `cs`
+         join `mysql`.`collations` `col`
+         where ((`mysql`.`col`.`character_set_id` = '45')
+         and ('utf8mb4' = 'utf8mb4'))
+</pre><p>
+        As indicated by <a class="link" href="show-warnings.html" title="13.7.7.42 SHOW WARNINGS Statement"><code class="literal">SHOW WARNINGS</code></a>,
+        the server handles the query on
+        <a class="link" href="information-schema-collation-character-set-applicability-table.html" title="26.3.7 The INFORMATION_SCHEMA COLLATION_CHARACTER_SET_APPLICABILITY Table"><code class="literal">COLLATION_CHARACTER_SET_APPLICABILITY</code></a>
+        as a query on the <code class="literal">character_sets</code> and
+        <code class="literal">collations</code> data dictionary tables in the
+        <code class="literal">mysql</code> system database.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="derived-condition-pushdown-optimization.html">Previous <span class="navHint"> Derived Condition Pushdown Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="statement-optimization.html">Up <span class="navHint"> Optimizing SQL Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-optimization.html">Next <span class="navHint"> Optimizing Performance Schema Queries </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

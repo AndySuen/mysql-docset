@@ -1,0 +1,156 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1149"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.5.3.1%C2%A0Understanding%20Transaction%20Consistency%20Guarantees"></a><title>18.5.3.1&nbsp;Understanding Transaction Consistency Guarantees</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-consistency-guarantees.html" title="18.5.3&nbsp;Transaction Consistency Guarantees"/><link rel="prev" href="group-replication-consistency-guarantees.html" title="18.5.3&nbsp;Transaction Consistency Guarantees"/><link rel="next" href="group-replication-configuring-consistency-guarantees.html" title="18.5.3.2&nbsp;Configuring Transaction Consistency Guarantees"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-understanding-consistency-guarantees.html#group-replication-understanding-consistency-guarantees">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-consistency-guarantees.html">Previous <span class="navHint"> Transaction Consistency Guarantees </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-consistency-guarantees.html">Up <span class="navHint"> Transaction Consistency Guarantees </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-configuring-consistency-guarantees.html">Next <span class="navHint"> Configuring Transaction Consistency Guarantees </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1148"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/18.5.3.1%C2%A0Understanding%20Transaction%20Consistency%20Guarantees"></a><h4 class="title"><a id="group-replication-understanding-consistency-guarantees"></a>18.5.3.1&nbsp;Understanding Transaction Consistency Guarantees</h4></div></div></div><a id="idm45828854329936" class="indexterm"></a><a id="idm45828854328416" class="indexterm"></a><p>
+        In terms of distributed consistency guarantees, either in normal
+        or failure repair operations, Group Replication has always been
+        an eventual consistency system. This means that as soon as the
+        incoming traffic slows down or stops, all group members have the
+        same data content. The events that relate to the consistency of
+        a system can be split into control operations, either manual or
+        automatically triggered by failures; and data flow operations.
+      </p><p>
+        For Group Replication, the control operations that can be
+        evaluated in terms of consistency are:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            a member joining or leaving, which is covered by Group
+            Replication&#39;s
+            <a class="xref" href="group-replication-distributed-recovery.html" title="18.5.4&nbsp;Distributed Recovery">Section&nbsp;18.5.4, &ldquo;Distributed Recovery&rdquo;</a> and
+            write protection.
+
+            
+          </p></li><li class="listitem"><p>
+            network failures, which are covered by the fencing modes.
+          </p></li><li class="listitem"><p>
+            in single-primary groups, primary failover, which can also
+            be an operation triggered by
+            <a class="link" href="group-replication-functions-for-new-primary.html#function_group-replication-set-as-primary"><code class="literal">group_replication_set_as_primary()</code></a>.
+          </p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-control-operation-failover"></a>Consistency Guarantees and Primary Failover</h5></div></div></div><a id="idm45828854318368" class="indexterm"></a><a id="idm45828854316880" class="indexterm"></a><p>
+          
+
+          In a single-primary group, in the event of a primary failover
+          when a secondary is promoted to primary, the new primary can
+          either be made available to application traffic immediately,
+          regardless of how large the replication backlog is, or
+          alternatively access to it can be restricted until the backlog
+          has been applied.
+        </p><p>
+          With the first approach, the group takes the minimum time
+          possible to secure a stable group membership after a primary
+          failure by electing a new primary and then allowing data
+          access immediately while it is still applying any possible
+          backlog from the old primary. Write consistency is ensured,
+          but reads can temporarily retrieve stale data while the new
+          primary applies the backlog. For example, if client C1 wrote
+          <code class="literal">A=2 WHERE A=1</code> on the old primary just
+          before its failure, when client C1 is reconnected to the new
+          primary it could potentially read <code class="literal">A=1</code> until
+          the new primary applies its backlog and catches up with the
+          state of the old primary before it left the group.
+        </p><p>
+          With the second alternative, the system secures a stable group
+          membership after the primary failure and elects a new primary
+          in the same way as the first alternative, but in this case the
+          group then waits until the new primary applies all backlog and
+          only then does it permit data access. This ensures that in a
+          situation as described previously, when client C1 is
+          reconnected to the new primary it reads
+          <code class="literal">A=2</code>. However, the trade-off is that the
+          time required to failover is then proportional to the size of
+          the backlog, which on a correctly configured group should be
+          small
+
+          
+
+          .
+        </p><p>
+          Prior to MySQL 8.0.14 there was no way to configure the
+          failover policy, by default availability was maximized as
+          described in the first approach. In a group with members
+          running MySQL 8.0.14 and higher, you can configure the level
+          of transaction consistency guarantees provided by members
+          during primary failover using the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_consistency"><code class="literal">group_replication_consistency</code></a>
+          variable. See
+          <a class="xref" href="group-replication-configuring-consistency-guarantees.html#group-replication-consistency-level-impact-election" title="Impact of Consistency on Primary Election">Impact of Consistency on Primary Election</a>.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-data-flow-operations"></a>Data Flow Operations</h5></div></div></div><a id="idm45828854304304" class="indexterm"></a><p>
+          Data flow is relevant to group consistency guarantees due to
+          the reads and writes executed against a group, especially when
+          these operations are distributed across all members. Data flow
+          operations apply to both modes of Group Replication:
+          single-primary and multi-primary, however to make this
+          explanation clearer it is restricted to single-primary mode.
+          The usual way to split incoming read or write transactions
+          across a single-primary group&#39;s members is to route writes to
+          the primary and evenly distribute reads to the secondaries.
+          Since the group should behave as a single entity, it is
+          reasonable to expect that writes on the primary are
+          instantaneously available on the secondaries. Although Group
+          Replication is written using Group Communication System (GCS)
+          protocols that implement the Paxos algorithm, some parts of
+          Group Replication are asynchronous, which implies that data is
+          asynchronously applied to secondaries. This means that a
+          client C2 can write <code class="literal">B=2 WHERE B=1</code> on the
+          primary, immediately connect to a secondary and read
+          <code class="literal">B=1</code>. This is because the secondary is still
+          applying backlog, and has not applied the transaction which
+          was applied by the primary.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="group-replication-synchronization-points"></a>Transaction Synchronization Points</h5></div></div></div><a id="idm45828854298224" class="indexterm"></a><p>
+          You configure a group&#39;s consistency guarantee based on the
+          point at which you want to synchronize transactions across the
+          group. To help you understand the concept, this section
+          simplifies the points of synchronizing transactions across a
+          group to be at the time of a read operation or at the time of
+          a write operation. If data is synchronized at the time of a
+          read, the current client session waits until a given
+          point,&nbsp;which is the point in time that all preceding update
+          transactions have been applied, before it can start executing.
+          With this approach, only this session is affected, all other
+          concurrent data operations are not affected.
+        </p><p>
+          If data is synchronized at the time of write, the writing
+          session waits until all secondaries have written their data.
+          Group Replication uses a total order on writes, and therefore
+          this implies waiting for this and all preceding writes that
+          are in secondaries&rsquo; queues to be applied. Therefore when
+          using this synchronization point, the writing session waits
+          for all secondaries queues to be applied.
+        </p><p>
+          Any alternative ensures that in the situation described for
+          client C2 would always read <code class="literal">B=2</code> even if
+          immediately connected to a secondary. Each alternative has its
+          advantages and disadvantages, which are directly related to
+          your system workload. The following examples describe
+          different types of workloads and advise which point of
+          synchronization is appropriate.
+        </p><p>
+          Imagine the following situations:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              you want to load balance your reads without deploying
+              additional restrictions on which server you read from to
+              avoid reading stale data, group writes are much less
+              common than group reads.
+            </p></li><li class="listitem"><p>
+              you have a group that has a predominantly read-only data,
+              you want read-write transactions to be applied everywhere
+              once they commit, so that subsequent reads are done on
+              up-to-date data that includes the latest write. This
+              ensures that you do not pay the synchronization cost for
+              every RO transaction, but only on RW ones.
+            </p></li></ul></div><p>
+          In these cases, you should choose to synchronize on writes.
+        </p><p>
+          Imagine the following situations:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              You want to load balance your reads without deploying
+              additional restrictions on which server you read from to
+              avoid reading stale data, group writes are much more
+              common than group reads.
+            </p></li><li class="listitem"><p>
+              You want specific transactions in your workload to always
+              read up-to-date data from the group, for example whenever
+              sensitive data is updated (such as credentials for a file
+              or similar data) and you want to enforce that reads
+              retrieve the most up to date value.
+            </p></li></ul></div><p>
+          In these cases, you should choose to synchronize on reads.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-consistency-guarantees.html">Previous <span class="navHint"> Transaction Consistency Guarantees </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-consistency-guarantees.html">Up <span class="navHint"> Transaction Consistency Guarantees </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-configuring-consistency-guarantees.html">Next <span class="navHint"> Configuring Transaction Consistency Guarantees </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

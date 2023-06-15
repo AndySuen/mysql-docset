@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>25.4.2 Event Scheduler Configuration</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="event-scheduler.html" title="25.4 Using the Event Scheduler" /><link rel="prev" href="events-overview.html" title="25.4.1 Event Scheduler Overview" /><link rel="next" href="events-syntax.html" title="25.4.3 Event Syntax" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="events-configuration.html#events-configuration">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="events-overview.html">Previous <span class="navHint"> Event Scheduler Overview </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="event-scheduler.html">Up <span class="navHint"> Using the Event Scheduler </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="events-syntax.html">Next <span class="navHint"> Event Syntax </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="events-configuration"></a>25.4.2 Event Scheduler Configuration</h3></div></div></div><p>
+      Events are executed by a special <span class="firstterm">event
+      scheduler thread</span>; when we refer to the Event Scheduler,
+      we actually refer to this thread. When running, the event
+      scheduler thread and its current state can be seen by users having
+      the <a class="link" href="privileges-provided.html#priv_process"><code class="literal">PROCESS</code></a> privilege in the output
+      of <a class="link" href="show-processlist.html" title="13.7.7.29 SHOW PROCESSLIST Statement"><code class="literal">SHOW PROCESSLIST</code></a>, as shown in
+      the discussion that follows.
+    </p><a id="idm45828799893152" class="indexterm"></a><a id="idm45828799891664" class="indexterm"></a><p>
+      The global <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> system
+      variable determines whether the Event Scheduler is enabled and
+      running on the server. It has one of the following values, which
+      affect event scheduling as described:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">ON</code>: The Event Scheduler is started; the
+          event scheduler thread runs and executes all scheduled events.
+          <code class="literal">ON</code> is the default
+          <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> value.
+        </p><a id="idm45828799884720" class="indexterm"></a><p>
+          When the Event Scheduler is <code class="literal">ON</code>, the event
+          scheduler thread is listed in the output of
+          <a class="link" href="show-processlist.html" title="13.7.7.29 SHOW PROCESSLIST Statement"><code class="literal">SHOW PROCESSLIST</code></a> as a daemon
+          process, and its state is represented as shown here:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW PROCESSLIST\G</code></strong>
+*************************** 1. row ***************************
+     Id: 1
+   User: root
+   Host: localhost
+     db: NULL
+Command: Query
+   Time: 0
+  State: NULL
+   Info: show processlist
+*************************** 2. row ***************************
+     Id: 2
+   User: event_scheduler
+   Host: localhost
+     db: NULL
+Command: Daemon
+   Time: 3
+  State: Waiting for next activation
+   Info: NULL
+2 rows in set (0.00 sec)
+</pre><p>
+          Event scheduling can be stopped by setting the value of
+          <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> to
+          <code class="literal">OFF</code>.
+        </p></li><li class="listitem"><p>
+          <code class="literal">OFF</code>: The Event Scheduler is stopped. The
+          event scheduler thread does not run, is not shown in the
+          output of <a class="link" href="show-processlist.html" title="13.7.7.29 SHOW PROCESSLIST Statement"><code class="literal">SHOW PROCESSLIST</code></a>, and
+          no scheduled events execute.
+        </p><p>
+          When the Event Scheduler is stopped
+          (<a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> is
+          <code class="literal">OFF</code>), it can be started by setting the
+          value of <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> to
+          <code class="literal">ON</code>. (See next item.)
+        </p></li><li class="listitem"><p>
+          <code class="literal">DISABLED</code>: This value renders the Event
+          Scheduler nonoperational. When the Event Scheduler is
+          <code class="literal">DISABLED</code>, the event scheduler thread does
+          not run (and so does not appear in the output of
+          <a class="link" href="show-processlist.html" title="13.7.7.29 SHOW PROCESSLIST Statement"><code class="literal">SHOW PROCESSLIST</code></a>). In addition,
+          the Event Scheduler state cannot be changed at runtime.
+        </p></li></ul></div><p>
+      If the Event Scheduler status has not been set to
+      <code class="literal">DISABLED</code>,
+      <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> can be toggled
+      between <code class="literal">ON</code> and <code class="literal">OFF</code> (using
+      <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a>). It
+      is also possible to use <code class="literal">0</code> for
+      <code class="literal">OFF</code>, and <code class="literal">1</code> for
+      <code class="literal">ON</code> when setting this variable. Thus, any of the
+      following 4 statements can be used in the <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a>
+      client to turn on the Event Scheduler:
+    </p><pre class="programlisting">SET GLOBAL event_scheduler = ON;
+SET @@GLOBAL.event_scheduler = ON;
+SET GLOBAL event_scheduler = 1;
+SET @@GLOBAL.event_scheduler = 1;
+</pre><p>
+      Similarly, any of these 4 statements can be used to turn off the
+      Event Scheduler:
+    </p><pre class="programlisting">SET GLOBAL event_scheduler = OFF;
+SET @@GLOBAL.event_scheduler = OFF;
+SET GLOBAL event_scheduler = 0;
+SET @@GLOBAL.event_scheduler = 0;
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        If the Event Scheduler is enabled, enabling the
+        <a class="link" href="server-system-variables.html#sysvar_super_read_only"><code class="literal">super_read_only</code></a> system variable
+        prevents it from updating event <span class="quote">“<span class="quote">last executed</span>”</span>
+        timestamps in the <code class="literal">events</code> data dictionary
+        table. This causes the Event Scheduler to stop the next time it
+        tries to execute a scheduled event, after writing a message to
+        the server error log. (In this situation the
+        <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> system variable
+        does not change from <code class="literal">ON</code> to
+        <code class="literal">OFF</code>. An implication is that this variable
+        rejects the DBA <span class="emphasis"><em>intent</em></span> that the Event
+        Scheduler be enabled or disabled, where its actual status of
+        started or stopped may be distinct.). If
+        <a class="link" href="server-system-variables.html#sysvar_super_read_only"><code class="literal">super_read_only</code></a> is subsequently
+        disabled after being enabled, the server automatically restarts
+        the Event Scheduler as needed, as of MySQL 8.0.26. Prior to
+        MySQL 8.0.26, it is necessary to manually restart the Event
+        Scheduler by enabling it again.
+      </p></div><p>
+      Although <code class="literal">ON</code> and <code class="literal">OFF</code> have
+      numeric equivalents, the value displayed for
+      <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> by
+      <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> or <a class="link" href="show-variables.html" title="13.7.7.41 SHOW VARIABLES Statement"><code class="literal">SHOW
+      VARIABLES</code></a> is always one of <code class="literal">OFF</code>,
+      <code class="literal">ON</code>, or <code class="literal">DISABLED</code>.
+      <span class="emphasis"><em><code class="literal">DISABLED</code> has no numeric
+      equivalent</em></span>. For this reason, <code class="literal">ON</code> and
+      <code class="literal">OFF</code> are usually preferred over
+      <code class="literal">1</code> and <code class="literal">0</code> when setting this
+      variable.
+    </p><p>
+      Note that attempting to set
+      <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> without
+      specifying it as a global variable causes an error:
+    </p><pre class="programlisting">mysql&lt; <strong class="userinput"><code>SET @@event_scheduler = OFF;</code></strong>
+<span class="errortext">ERROR 1229 (HY000): Variable 'event_scheduler' is a GLOBAL
+variable and should be set with SET GLOBAL</span>
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        It is possible to set the Event Scheduler to
+        <code class="literal">DISABLED</code> only at server startup. If
+        <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> is
+        <code class="literal">ON</code> or <code class="literal">OFF</code>, you cannot set
+        it to <code class="literal">DISABLED</code> at runtime. Also, if the Event
+        Scheduler is set to <code class="literal">DISABLED</code> at startup, you
+        cannot change the value of
+        <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> at runtime.
+      </p></div><p>
+      To disable the event scheduler, use one of the following two
+      methods:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          As a command-line option when starting the server:
+        </p><pre class="programlisting">--event-scheduler=DISABLED
+</pre></li><li class="listitem"><p>
+          In the server configuration file (<code class="filename">my.cnf</code>,
+          or <code class="filename">my.ini</code> on Windows systems), include
+          the line where it can be read by the server (for example, in a
+          <code class="literal">[mysqld]</code> section):
+        </p><pre class="programlisting">event_scheduler=DISABLED
+</pre></li></ul></div><p>
+      To enable the Event Scheduler, restart the server without the
+      <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="option">--event-scheduler=DISABLED</code></a>
+      command-line option, or after removing or commenting out the line
+      containing <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="option">event-scheduler=DISABLED</code></a>
+      in the server configuration file, as appropriate. Alternatively,
+      you can use <code class="literal">ON</code> (or <code class="literal">1</code>) or
+      <code class="literal">OFF</code> (or <code class="literal">0</code>) in place of the
+      <code class="literal">DISABLED</code> value when starting the server.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        You can issue event-manipulation statements when
+        <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> is set to
+        <code class="literal">DISABLED</code>. No warnings or errors are generated
+        in such cases (provided that the statements are themselves
+        valid). However, scheduled events cannot execute until this
+        variable is set to <code class="literal">ON</code> (or
+        <code class="literal">1</code>). Once this has been done, the event
+        scheduler thread executes all events whose scheduling conditions
+        are satisfied.
+      </p></div><p>
+      Starting the MySQL server with the
+      <a class="link" href="server-options.html#option_mysqld_skip-grant-tables"><code class="option">--skip-grant-tables</code></a> option causes
+      <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> to be set to
+      <code class="literal">DISABLED</code>, overriding any other value set either
+      on the command line or in the <code class="filename">my.cnf</code> or
+      <code class="filename">my.ini</code> file (Bug #26807).
+    </p><p>
+      For SQL statements used to create, alter, and drop events, see
+      <a class="xref" href="events-syntax.html" title="25.4.3 Event Syntax">Section 25.4.3, “Event Syntax”</a>.
+    </p><p>
+      MySQL provides an <a class="link" href="information-schema-events-table.html" title="26.3.14 The INFORMATION_SCHEMA EVENTS Table"><code class="literal">EVENTS</code></a> table in the
+      <code class="literal">INFORMATION_SCHEMA</code> database. This table can be
+      queried to obtain information about scheduled events which have
+      been defined on the server. See <a class="xref" href="events-metadata.html" title="25.4.4 Event Metadata">Section 25.4.4, “Event Metadata”</a>,
+      and <a class="xref" href="information-schema-events-table.html" title="26.3.14 The INFORMATION_SCHEMA EVENTS Table">Section 26.3.14, “The INFORMATION_SCHEMA EVENTS Table”</a>, for more
+      information.
+    </p><p>
+      For information regarding event scheduling and the MySQL privilege
+      system, see <a class="xref" href="events-privileges.html" title="25.4.6 The Event Scheduler and MySQL Privileges">Section 25.4.6, “The Event Scheduler and MySQL Privileges”</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="events-overview.html">Previous <span class="navHint"> Event Scheduler Overview </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="event-scheduler.html">Up <span class="navHint"> Using the Event Scheduler </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="events-syntax.html">Next <span class="navHint"> Event Syntax </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.3.3.2 Privilege Checks For Group Replication Channels</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-privilege-checks.html" title="17.3.3 Replication Privilege Checks" /><link rel="prev" href="replication-privilege-checks-account.html" title="17.3.3.1 Privileges For The Replication PRIVILEGE_CHECKS_USER Account" /><link rel="next" href="replication-privilege-checks-recover.html" title="17.3.3.3 Recovering From Failed Replication Privilege Checks" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-privilege-checks-gr.html#replication-privilege-checks-gr">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-privilege-checks-account.html">Previous <span class="navHint"> Privileges For The Replication PRIVILEGE_CHECKS_USER Account </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-privilege-checks.html">Up <span class="navHint"> Replication Privilege Checks </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-privilege-checks-recover.html">Next <span class="navHint"> Recovering From Failed Replication Privilege Checks </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-privilege-checks-gr"></a>17.3.3.2 Privilege Checks For Group Replication Channels</h4></div></div></div><p>
+        From MySQL 8.0.19, as well as securing asynchronous and
+        semi-synchronous replication, you may choose to use a
+        <code class="literal">PRIVILEGE_CHECKS_USER</code> account to secure the
+        two replication applier threads used by Group Replication. The
+        <code class="literal">group_replication_applier</code> thread on each
+        group member is used for applying the group's transactions, and
+        the <code class="literal">group_replication_recovery</code> thread on each
+        group member is used for state transfer from the binary log as
+        part of distributed recovery when the member joins or rejoins
+        the group.
+      </p><p>
+        To secure one of these threads, stop Group Replication, then
+        issue the <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+        TO</code></a> statement (from MySQL 8.0.23) or
+        <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement
+        (before MySQL 8.0.23) with the
+        <code class="literal">PRIVILEGE_CHECKS_USER</code> option, specifying
+        <code class="literal">group_replication_applier</code> or
+        <code class="literal">group_replication_recovery</code> as the channel
+        name. For example:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>STOP GROUP_REPLICATION;</code></strong>
+mysql&gt; <strong class="userinput"><code>CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'gr_repl'@'%.example.com' 
+          FOR CHANNEL 'group_replication_recovery';</code></strong>
+mysql&gt; <strong class="userinput"><code>FLUSH PRIVILEGES;</code></strong>
+mysql&gt; <strong class="userinput"><code>START GROUP_REPLICATION;</code></strong>
+
+Or from MySQL 8.0.23:
+mysql&gt; <strong class="userinput"><code>STOP GROUP_REPLICATION;</code></strong>
+mysql&gt; <strong class="userinput"><code>CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'gr_repl'@'%.example.com' 
+          FOR CHANNEL 'group_replication_recovery';</code></strong>
+mysql&gt; <strong class="userinput"><code>FLUSH PRIVILEGES;</code></strong>
+mysql&gt; <strong class="userinput"><code>START GROUP_REPLICATION;</code></strong>
+</pre><p>
+        For Group Replication channels, the
+        <code class="literal">REQUIRE_ROW_FORMAT</code> setting is automatically
+        enabled when the channel is created, and cannot be disabled, so
+        you do not need to specify this.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          In MySQL 8.0.19, ensure that you do not issue the
+          <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a> |
+          <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement with
+          the <code class="literal">PRIVILEGE_CHECKS_USER</code> option while
+          Group Replication is running. This action causes the relay log
+          files for the channel to be purged, which might cause the loss
+          of transactions that have been received and queued in the
+          relay log, but not yet applied.
+        </p></div><p>
+        Group Replication requires every table that is to be replicated
+        by the group to have a defined primary key, or primary key
+        equivalent where the equivalent is a non-null unique key. Rather
+        than using the checks carried out by the
+        <a class="link" href="server-system-variables.html#sysvar_sql_require_primary_key"><code class="literal">sql_require_primary_key</code></a> system
+        variable, Group Replication has its own built-in set of checks
+        for primary keys or primary key equivalents. You may set the
+        <code class="literal">REQUIRE_TABLE_PRIMARY_KEY_CHECK</code> option of the
+        <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a> |
+        <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement to
+        <code class="literal">ON</code> for a Group Replication channel. However,
+        be aware that you might find some transactions that are
+        permitted under Group Replication's built-in checks are not
+        permitted under the checks carried out when you set
+        <code class="literal">sql_require_primary_key = ON</code> or
+        <code class="literal">REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON</code>. For
+        this reason, new and upgraded Group Replication channels from
+        MySQL 8.0.20 (when the option was introduced) have
+        <code class="literal">REQUIRE_TABLE_PRIMARY_KEY_CHECK</code> set to the
+        default of <code class="literal">STREAM</code>, rather than to
+        <code class="literal">ON</code>.
+      </p><p>
+        If a remote cloning operation is used for distributed recovery
+        in Group Replication (see
+        <a class="xref" href="group-replication-cloning.html" title="18.5.4.2 Cloning for Distributed Recovery">Section 18.5.4.2, “Cloning for Distributed Recovery”</a>), from MySQL 8.0.19,
+        the <code class="literal">PRIVILEGE_CHECKS_USER</code> account and related
+        settings from the donor are cloned to the joining member. If the
+        joining member is set to start Group Replication on boot, it
+        automatically uses the account for privilege checks on the
+        appropriate replication channels.
+      </p><p>
+        In MySQL 8.0.18, due to a number of limitations, it is
+        recommended that you do not use a
+        <code class="literal">PRIVILEGE_CHECKS_USER</code> account with Group
+        Replication channels.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-privilege-checks-account.html">Previous <span class="navHint"> Privileges For The Replication PRIVILEGE_CHECKS_USER Account </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-privilege-checks.html">Up <span class="navHint"> Replication Privilege Checks </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-privilege-checks-recover.html">Next <span class="navHint"> Recovering From Failed Replication Privilege Checks </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

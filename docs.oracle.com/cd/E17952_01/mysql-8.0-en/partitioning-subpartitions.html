@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>24.2.6 Subpartitioning</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="partitioning-types.html" title="24.2 Partitioning Types" /><link rel="prev" href="partitioning-key.html" title="24.2.5 KEY Partitioning" /><link rel="next" href="partitioning-handling-nulls.html" title="24.2.7 How MySQL Partitioning Handles NULL" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partitioning-subpartitions.html#partitioning-subpartitions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="partitioning-key.html">Previous <span class="navHint"> KEY Partitioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="partitioning-types.html">Up <span class="navHint"> Partitioning Types </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="partitioning-handling-nulls.html">Next <span class="navHint"> How MySQL Partitioning Handles NULL </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="partitioning-subpartitions"></a>24.2.6 Subpartitioning</h3></div></div></div><a id="idm45828801873568" class="indexterm"></a><a id="idm45828801872496" class="indexterm"></a><p>
+        Subpartitioning—also known as
+        <span class="firstterm">composite
+        partitioning</span>—is the further division of each
+        partition in a partitioned table. Consider the following
+        <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement:
+      </p><pre class="programlisting">CREATE TABLE ts (id INT, purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) )
+    SUBPARTITIONS 2 (
+        PARTITION p0 VALUES LESS THAN (1990),
+        PARTITION p1 VALUES LESS THAN (2000),
+        PARTITION p2 VALUES LESS THAN MAXVALUE
+    );
+</pre><p>
+        Table <code class="literal">ts</code> has 3 <code class="literal">RANGE</code>
+        partitions. Each of these
+        partitions—<code class="literal">p0</code>, <code class="literal">p1</code>,
+        and <code class="literal">p2</code>—is further divided into 2
+        subpartitions. In effect, the entire table is divided into
+        <code class="literal">3 * 2 = 6</code> partitions. However, due to the
+        action of the <code class="literal">PARTITION BY RANGE</code> clause, the
+        first 2 of these store only those records with a value less than
+        1990 in the <code class="literal">purchased</code> column.
+      </p><a id="idm45828801861360" class="indexterm"></a><p>
+        It is possible to subpartition tables that are partitioned by
+        <code class="literal">RANGE</code> or <code class="literal">LIST</code>.
+        Subpartitions may use either <code class="literal">HASH</code> or
+        <code class="literal">KEY</code> partitioning. This is also known as
+        <span class="firstterm">composite partitioning</span>.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          <code class="literal">SUBPARTITION BY HASH</code> and
+          <code class="literal">SUBPARTITION BY KEY</code> generally follow the
+          same syntax rules as <code class="literal">PARTITION BY HASH</code> and
+          <code class="literal">PARTITION BY KEY</code>, respectively. An
+          exception to this is that <code class="literal">SUBPARTITION BY
+          KEY</code> (unlike <code class="literal">PARTITION BY KEY</code>)
+          does not currently support a default column, so the column
+          used for this purpose must be specified, even if the table has
+          an explicit primary key. This is a known issue which we are
+          working to address; see
+          <a class="xref" href="partitioning-limitations.html#partitioning-limitations-subpartitions" title="Issues with subpartitions">Issues with subpartitions</a>, for
+          more information and an example.
+        </p></div><a id="idm45828801849872" class="indexterm"></a><p>
+        It is also possible to define subpartitions explicitly using
+        <code class="literal">SUBPARTITION</code> clauses to specify options for
+        individual subpartitions. For example, a more verbose fashion of
+        creating the same table <code class="literal">ts</code> as shown in the
+        previous example would be:
+      </p><pre class="programlisting">CREATE TABLE ts (id INT, purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+    );
+</pre><p>
+        Some syntactical items of note are listed here:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Each partition must have the same number of subpartitions.
+          </p></li><li class="listitem"><p>
+            If you explicitly define any subpartitions using
+            <code class="literal">SUBPARTITION</code> on any partition of a
+            partitioned table, you must define them all. In other words,
+            the following statement fails:
+          </p><pre class="programlisting">CREATE TABLE ts (id INT, purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        )
+    );
+</pre><p>
+            This statement would still fail even if it used
+            <code class="literal">SUBPARTITIONS 2</code>.
+          </p></li><li class="listitem"><p>
+            Each <code class="literal">SUBPARTITION</code> clause must include (at
+            a minimum) a name for the subpartition. Otherwise, you may
+            set any desired option for the subpartition or allow it to
+            assume its default setting for that option.
+          </p></li><li class="listitem"><p>
+            Subpartition names must be unique across the entire table.
+            For example, the following <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE
+            TABLE</code></a> statement is valid:
+          </p><pre class="programlisting">CREATE TABLE ts (id INT, purchased DATE)
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+    );
+</pre></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partitioning-key.html">Previous <span class="navHint"> KEY Partitioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="partitioning-types.html">Up <span class="navHint"> Partitioning Types </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="partitioning-handling-nulls.html">Next <span class="navHint"> How MySQL Partitioning Handles NULL </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

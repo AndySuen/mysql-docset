@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.6.6 NDB Cluster Single User Mode</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-management.html" title="23.6 Management of NDB Cluster" /><link rel="prev" href="mysql-cluster-rolling-restart.html" title="23.6.5 Performing a Rolling Restart of an NDB Cluster" /><link rel="next" href="mysql-cluster-online-add-node.html" title="23.6.7 Adding NDB Cluster Data Nodes Online" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-single-user-mode.html#mysql-cluster-single-user-mode">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-rolling-restart.html">Previous <span class="navHint"> Performing a Rolling Restart of an NDB Cluster </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-management.html">Up <span class="navHint"> Management of NDB Cluster </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-online-add-node.html">Next <span class="navHint"> Adding NDB Cluster Data Nodes Online </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-single-user-mode"></a>23.6.6 NDB Cluster Single User Mode</h3></div></div></div><a id="idm45828809852048" class="indexterm"></a><a id="idm45828809850560" class="indexterm"></a><p>
+      <span class="firstterm">Single user mode</span> enables the
+      database administrator to restrict access to the database system
+      to a single API node, such as a MySQL server (SQL node) or an
+      instance of <a class="link" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23 ndb_restore — Restore an NDB Cluster Backup"><span class="command"><strong>ndb_restore</strong></span></a>. When entering single
+      user mode, connections to all other API nodes are closed
+      gracefully and all running transactions are aborted. No new
+      transactions are permitted to start.
+    </p><p>
+      Once the cluster has entered single user mode, only the designated
+      API node is granted access to the database.
+    </p><p>
+      You can use the <code class="literal">ALL STATUS</code> command in the
+      <a class="link" href="mysql-cluster-programs-ndb-mgm.html" title="23.5.5 ndb_mgm — The NDB Cluster Management Client"><span class="command"><strong>ndb_mgm</strong></span></a> client to see when the cluster has
+      entered single user mode. You can also check the
+      <code class="literal">status</code> column of the
+      <a class="link" href="mysql-cluster-ndbinfo-nodes.html" title="23.6.16.47 The ndbinfo nodes Table"><code class="literal">ndbinfo.nodes</code></a> table (see
+      <a class="xref" href="mysql-cluster-ndbinfo-nodes.html" title="23.6.16.47 The ndbinfo nodes Table">Section 23.6.16.47, “The ndbinfo nodes Table”</a>, for more
+      information).
+    </p><p>
+      Example:
+    </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>ENTER SINGLE USER MODE 5</code></strong>
+</pre><p>
+      After this command has executed and the cluster has entered single
+      user mode, the API node whose node ID is <code class="literal">5</code>
+      becomes the cluster's only permitted user.
+    </p><p>
+      The node specified in the preceding command must be an API node;
+      attempting to specify any other type of node is rejected.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        When the preceding command is invoked, all transactions running
+        on the designated node are aborted, the connection is closed,
+        and the server must be restarted.
+      </p></div><p>
+      The command <code class="literal">EXIT SINGLE USER MODE</code> changes the
+      state of the cluster's data nodes from single user mode to
+      normal mode. API nodes—such as MySQL Servers—waiting
+      for a connection (that is, waiting for the cluster to become ready
+      and available), are again permitted to connect. The API node
+      denoted as the single-user node continues to run (if still
+      connected) during and after the state change.
+    </p><p>
+      Example:
+    </p><pre class="programlisting">ndb_mgm&gt; <strong class="userinput"><code>EXIT SINGLE USER MODE</code></strong>
+</pre><a id="idm45828809832224" class="indexterm"></a><p>
+      There are two recommended ways to handle a node failure when
+      running in single user mode:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Method 1:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              Finish all single user mode transactions
+            </p></li><li class="listitem"><p>
+              Issue the <code class="literal">EXIT SINGLE USER MODE</code> command
+            </p></li><li class="listitem"><p>
+              Restart the cluster's data nodes
+            </p></li></ol></div></li><li class="listitem"><p>
+          Method 2:
+        </p><p>
+          Restart storage nodes prior to entering single user mode.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-rolling-restart.html">Previous <span class="navHint"> Performing a Rolling Restart of an NDB Cluster </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-management.html">Up <span class="navHint"> Management of NDB Cluster </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-online-add-node.html">Next <span class="navHint"> Adding NDB Cluster Data Nodes Online </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,246 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-614"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/13.2.15.8%C2%A0Derived%20Tables"></a><title>13.2.15.8&nbsp;Derived Tables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="subqueries.html" title="13.2.15&nbsp;Subqueries"/><link rel="prev" href="correlated-subqueries.html" title="13.2.15.7&nbsp;Correlated Subqueries"/><link rel="next" href="lateral-derived-tables.html" title="13.2.15.9&nbsp;Lateral Derived Tables"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="derived-tables.html#derived-tables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="correlated-subqueries.html">Previous <span class="navHint"> Correlated Subqueries </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="lateral-derived-tables.html">Next <span class="navHint"> Lateral Derived Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-615"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/13.2.15.8%C2%A0Derived%20Tables"></a><h4 class="title"><a id="derived-tables"></a>13.2.15.8&nbsp;Derived Tables</h4></div></div></div><a id="idm45828906206240" class="indexterm"></a><a id="idm45828906205168" class="indexterm"></a><a id="idm45828906203264" class="indexterm"></a><p>
+        This section discusses general characteristics of derived
+        tables. For information about lateral derived tables preceded by
+        the <code class="literal">LATERAL</code> keyword, see
+        <a class="xref" href="lateral-derived-tables.html" title="13.2.15.9&nbsp;Lateral Derived Tables">Section&nbsp;13.2.15.9, &ldquo;Lateral Derived Tables&rdquo;</a>.
+      </p><p>
+        A derived table is an expression that generates a table within
+        the scope of a query <code class="literal">FROM</code> clause. For
+        example, a subquery in a <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>
+        statement <code class="literal">FROM</code> clause is a derived table:
+      </p><pre class="programlisting">SELECT ... FROM (<em class="replaceable"><code>subquery</code></em>) [AS] <em class="replaceable"><code>tbl_name</code></em> ...
+</pre><p>
+        The <a class="link" href="json-table-functions.html#function_json-table"><code class="literal">JSON_TABLE()</code></a> function
+        generates a table and provides another way to create a derived
+        table:
+      </p><pre class="programlisting">SELECT * FROM JSON_TABLE(<em class="replaceable"><code>arg_list</code></em>) [AS] <em class="replaceable"><code>tbl_name</code></em> ...
+</pre><p>
+        The <code class="literal">[AS] <em class="replaceable"><code>tbl_name</code></em></code>
+        clause is mandatory because every table in a
+        <code class="literal">FROM</code> clause must have a name. Any columns in
+        the derived table must have unique names. Alternatively,
+        <em class="replaceable"><code>tbl_name</code></em> may be followed by a
+        parenthesized list of names for the derived table columns:
+      </p><pre class="programlisting">SELECT ... FROM (<em class="replaceable"><code>subquery</code></em>) [AS] <em class="replaceable"><code>tbl_name</code></em> (<em class="replaceable"><code>col_list</code></em>) ...
+</pre><p>
+        The number of column names must be the same as the number of
+        table columns.
+      </p><p>
+        For the sake of illustration, assume that you have this table:
+      </p><pre class="programlisting">CREATE TABLE t1 (s1 INT, s2 CHAR(5), s3 FLOAT);
+</pre><p>
+        Here is how to use a subquery in the <code class="literal">FROM</code>
+        clause, using the example table:
+      </p><pre class="programlisting">INSERT INTO t1 VALUES (1,&#39;1&#39;,1.0);
+INSERT INTO t1 VALUES (2,&#39;2&#39;,2.0);
+SELECT sb1,sb2,sb3
+  FROM (SELECT s1 AS sb1, s2 AS sb2, s3*2 AS sb3 FROM t1) AS sb
+  WHERE sb1 &gt; 1;
+</pre><p>
+        Result:
+      </p><pre class="programlisting">+------+------+------+
+| sb1  | sb2  | sb3  |
++------+------+------+
+|    2 | 2    |    4 |
++------+------+------+
+</pre><p>
+        Here is another example: Suppose that you want to know the
+        average of a set of sums for a grouped table. This does not
+        work:
+      </p><pre class="programlisting">SELECT AVG(SUM(column1)) FROM t1 GROUP BY column1;
+</pre><p>
+        However, this query provides the desired information:
+      </p><pre class="programlisting">SELECT AVG(sum_column1)
+  FROM (SELECT SUM(column1) AS sum_column1
+        FROM t1 GROUP BY column1) AS t1;
+</pre><p>
+        Notice that the column name used within the subquery
+        (<code class="literal">sum_column1</code>) is recognized in the outer
+        query.
+      </p><p>
+        The column names for a derived table come from its select list:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM (SELECT 1, 2, 3, 4) AS dt;</code></strong>
++---+---+---+---+
+| 1 | 2 | 3 | 4 |
++---+---+---+---+
+| 1 | 2 | 3 | 4 |
++---+---+---+---+
+</pre><p>
+        To provide column names explicitly, follow the derived table
+        name with a parenthesized list of column names:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM (SELECT 1, 2, 3, 4) AS dt (a, b, c, d);</code></strong>
++---+---+---+---+
+| a | b | c | d |
++---+---+---+---+
+| 1 | 2 | 3 | 4 |
++---+---+---+---+
+</pre><p>
+        A derived table can return a scalar, column, row, or table.
+      </p><p>
+        Derived tables are subject to these restrictions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A derived table cannot contain references to other tables of
+            the same <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> (use a
+            <code class="literal">LATERAL</code> derived table for that; see
+            <a class="xref" href="lateral-derived-tables.html" title="13.2.15.9&nbsp;Lateral Derived Tables">Section&nbsp;13.2.15.9, &ldquo;Lateral Derived Tables&rdquo;</a>).
+          </p></li><li class="listitem"><p>
+            Prior to MySQL 8.0.14, a derived table cannot contain outer
+            references. This is a MySQL restriction that is lifted in
+            MySQL 8.0.14, not a restriction of the SQL standard. For
+            example, the derived table <code class="literal">dt</code> in the
+            following query contains a reference <code class="literal">t1.b</code>
+            to the table <code class="literal">t1</code> in the outer query:
+          </p><pre class="programlisting">SELECT * FROM t1
+WHERE t1.d &gt; (SELECT AVG(dt.a)
+                FROM (SELECT SUM(t2.a) AS a
+                      FROM t2
+                      WHERE t2.b = t1.b GROUP BY t2.c) dt
+              WHERE dt.a &gt; 10);
+</pre><p>
+            The query is valid in MySQL 8.0.14 and higher. Before
+            8.0.14, it produces an error: <code class="literal">Unknown column &#39;t1.b&#39;
+            in &#39;where clause&#39;</code>
+          </p></li></ul></div><p>
+        The optimizer determines information about derived tables in
+        such a way that <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> does not
+        need to materialize them. See
+        <a class="xref" href="derived-table-optimization.html" title="8.2.2.4&nbsp;Optimizing Derived Tables, View References, and Common Table Expressions with Merging or Materialization">Section&nbsp;8.2.2.4, &ldquo;Optimizing Derived Tables, View References, and Common Table Expressions
+          with Merging or Materialization&rdquo;</a>.
+      </p><p>
+        It is possible under certain circumstances that using
+        <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN
+        SELECT</code></a> modifies table data. This can occur if the
+        outer query accesses any tables and an inner query invokes a
+        stored function that changes one or more rows of a table.
+        Suppose that there are two tables <code class="literal">t1</code> and
+        <code class="literal">t2</code> in database <code class="literal">d1</code>, and a
+        stored function <code class="literal">f1</code> that modifies
+        <code class="literal">t2</code>, created as shown here:
+      </p><pre class="programlisting">CREATE DATABASE d1;
+USE d1;
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+CREATE FUNCTION f1(p1 INT) RETURNS INT
+  BEGIN
+    INSERT INTO t2 VALUES (p1);
+    RETURN p1;
+  END;
+</pre><p>
+        Referencing the function directly in an
+        <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN
+        SELECT</code></a> has no effect on <code class="literal">t2</code>, as
+        shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM t2;</code></strong>
+Empty set (0.02 sec)
+
+mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT f1(5)\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: NULL
+   partitions: NULL
+         type: NULL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: NULL
+     filtered: NULL
+        Extra: No tables used
+1 row in set (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM t2;</code></strong>
+Empty set (0.01 sec)
+</pre><p>
+        This is because the <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>
+        statement did not reference any tables, as can be seen in the
+        <code class="literal">table</code> and <code class="literal">Extra</code> columns of
+        the output. This is also true of the following nested
+        <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT NOW() AS a1, (SELECT f1(5)) AS a2\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: NULL
+         type: NULL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: NULL
+     filtered: NULL
+        Extra: No tables used
+1 row in set, 1 warning (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SHOW WARNINGS;</code></strong>
++-------+------+------------------------------------------+
+| Level | Code | Message                                  |
++-------+------+------------------------------------------+
+| Note  | 1249 | Select 2 was reduced during optimization |
++-------+------+------------------------------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM t2;</code></strong>
+Empty set (0.00 sec)
+</pre><p>
+        However, if the outer <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>
+        references any tables, the optimizer executes the statement in
+        the subquery as well, with the result that <code class="literal">t2</code>
+        is modified:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t1 AS a1, (SELECT f1(5)) AS a2\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: &lt;derived2&gt;
+   partitions: NULL
+         type: system
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 1
+     filtered: 100.00
+        Extra: NULL
+*************************** 2. row ***************************
+           id: 1
+  select_type: PRIMARY
+        table: a1
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 1
+     filtered: 100.00
+        Extra: NULL
+*************************** 3. row ***************************
+           id: 2
+  select_type: DERIVED
+        table: NULL
+   partitions: NULL
+         type: NULL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: NULL
+     filtered: NULL
+        Extra: No tables used
+3 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM t2;</code></strong>
++------+
+| c1   |
++------+
+|    5 |
++------+
+1 row in set (0.00 sec)
+</pre><p>
+        The derived table optimization can also be employed with many
+        correlated (scalar) subqueries (MySQL 8.0.24 and later). For
+        more information and examples, see
+        <a class="xref" href="correlated-subqueries.html" title="13.2.15.7&nbsp;Correlated Subqueries">Section&nbsp;13.2.15.7, &ldquo;Correlated Subqueries&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="correlated-subqueries.html">Previous <span class="navHint"> Correlated Subqueries </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="lateral-derived-tables.html">Next <span class="navHint"> Lateral Derived Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

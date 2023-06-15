@@ -1,0 +1,421 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1754"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/12.17.6%C2%A0JSON%20Table%20Functions"></a><title>12.17.6&nbsp;JSON Table Functions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="json-functions.html" title="12.17&nbsp;JSON Functions"/><link rel="prev" href="json-attribute-functions.html" title="12.17.5&nbsp;Functions That Return JSON Value Attributes"/><link rel="next" href="json-validation-functions.html" title="12.17.7&nbsp;JSON Schema Validation Functions"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="json-table-functions.html#json-table-functions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="json-attribute-functions.html">Previous <span class="navHint"> Functions That Return JSON Value Attributes </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="json-functions.html">Up <span class="navHint"> JSON Functions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="json-validation-functions.html">Next <span class="navHint"> JSON Schema Validation Functions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="json-table-functions"></a>12.17.6&nbsp;JSON Table Functions</h3></div></div></div><p>
+      This section contains information about JSON functions that
+      convert JSON data to tabular data. MySQL 8.0 supports
+      one such function, <code class="literal">JSON_TABLE()</code>.
+    </p><p><a id="function_json-table"></a>
+      <a class="link" href="json-table-functions.html#function_json-table"><code class="literal">JSON_TABLE(<em class="replaceable"><code>expr</code></em>,
+      <em class="replaceable"><code>path</code></em> COLUMNS
+      (<em class="replaceable"><code>column_list</code></em>) [AS]
+      <em class="replaceable"><code>alias</code></em>)</code></a>
+    </p><a id="idm45828920793872" class="indexterm"></a><p>
+      Extracts data from a JSON document and returns it as a relational
+      table having the specified columns. The complete syntax for this
+      function is shown here:
+    </p><pre class="programlisting">JSON_TABLE(
+    <em class="replaceable"><code>expr</code></em>,
+    <em class="replaceable"><code>path</code></em> COLUMNS (<em class="replaceable"><code>column_list</code></em>)
+)   [AS] <em class="replaceable"><code>alias</code></em>
+
+<em class="replaceable"><code>column_list</code></em>:
+    <em class="replaceable"><code>column</code></em>[, <em class="replaceable"><code>column</code></em>][, ...]
+
+<em class="replaceable"><code>column</code></em>:
+    <em class="replaceable"><code>name</code></em> FOR ORDINALITY
+    |  <em class="replaceable"><code>name</code></em> <em class="replaceable"><code>type</code></em> PATH <em class="replaceable"><code>string path</code></em> [<em class="replaceable"><code>on_empty</code></em>] [<em class="replaceable"><code>on_error</code></em>]
+    |  <em class="replaceable"><code>name</code></em> <em class="replaceable"><code>type</code></em> EXISTS PATH <em class="replaceable"><code>string path</code></em>
+    |  NESTED [PATH] <em class="replaceable"><code>path</code></em> COLUMNS (<em class="replaceable"><code>column_list</code></em>)
+
+<em class="replaceable"><code>on_empty</code></em>:
+    {NULL | DEFAULT <em class="replaceable"><code>json_string</code></em> | ERROR} ON EMPTY
+
+<em class="replaceable"><code>on_error</code></em>:
+    {NULL | DEFAULT <em class="replaceable"><code>json_string</code></em> | ERROR} ON ERROR
+</pre><p>
+      <em class="replaceable"><code>expr</code></em>: This is an expression that
+      returns JSON data. This can be a constant
+      (<code class="literal">&#39;{&#34;a&#34;:1}&#39;</code>), a column
+      (<code class="literal">t1.json_data</code>, given table
+      <code class="literal">t1</code> specified prior to
+      <code class="literal">JSON_TABLE()</code> in the <code class="literal">FROM</code>
+      clause), or a function call
+      (<code class="literal">JSON_EXTRACT(t1.json_data,&#39;$.post.comments&#39;)</code>).
+    </p><p>
+      <em class="replaceable"><code>path</code></em>: A JSON path expression, which is
+      applied to the data source. We refer to the JSON value matching
+      the path as the <span class="emphasis"><em>row source</em></span>; this is used to
+      generate a row of relational data. The <code class="literal">COLUMNS</code>
+      clause evaluates the row source, finds specific JSON values within
+      the row source, and returns those JSON values as SQL values in
+      individual columns of a row of relational data.
+    </p><p>
+      The <em class="replaceable"><code>alias</code></em> is required. The usual rules
+      for table aliases apply (see <a class="xref" href="identifiers.html" title="9.2&nbsp;Schema Object Names">Section&nbsp;9.2, &ldquo;Schema Object Names&rdquo;</a>).
+    </p><p>
+      Beginning with MySQL 8.0.27, this function compares column names
+      in case-insensitive fashion.
+    </p><p>
+      <code class="literal">JSON_TABLE()</code> supports four types of columns,
+      described in the following list:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          <code class="literal"><em class="replaceable"><code>name</code></em> FOR
+          ORDINALITY</code>: This type enumerates rows in the
+          <code class="literal">COLUMNS</code> clause; the column named
+          <em class="replaceable"><code>name</code></em> is a counter whose type is
+          <code class="literal">UNSIGNED INT</code>, and whose initial value is 1.
+          This is equivalent to specifying a column as
+          <code class="literal">AUTO_INCREMENT</code> in a
+          <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement, and can
+          be used to distinguish parent rows with the same value for
+          multiple rows generated by a <code class="literal">NESTED [PATH]</code>
+          clause.
+        </p></li><li class="listitem"><p>
+          <code class="literal"><em class="replaceable"><code>name</code></em>
+          <em class="replaceable"><code>type</code></em> PATH
+          <em class="replaceable"><code>string_path</code></em>
+          [<em class="replaceable"><code>on_empty</code></em>]
+          [<em class="replaceable"><code>on_error</code></em>]</code>: Columns of
+          this type are used to extract values specified by
+          <em class="replaceable"><code>string_path</code></em>.
+          <em class="replaceable"><code>type</code></em> is a MySQL scalar data type
+          (that is, it cannot be an object or array).
+          <code class="literal">JSON_TABLE()</code> extracts data as JSON then
+          coerces it to the column type, using the regular automatic
+          type conversion applying to JSON data in MySQL. A missing
+          value triggers the <em class="replaceable"><code>on_empty</code></em> clause.
+          Saving an object or array triggers the optional
+          <em class="replaceable"><code>on error</code></em> clause; this also occurs
+          when an error takes place during coercion from the value saved
+          as JSON to the table column, such as trying to save the string
+          <code class="literal">&#39;asd&#39;</code> to an integer column.
+        </p></li><li class="listitem"><p>
+          <code class="literal"><em class="replaceable"><code>name</code></em>
+          <em class="replaceable"><code>type</code></em> EXISTS PATH
+          <em class="replaceable"><code>path</code></em></code>: This column returns
+          1 if any data is present at the location specified by
+          <em class="replaceable"><code>path</code></em>, and 0 otherwise.
+          <em class="replaceable"><code>type</code></em> can be any valid MySQL data
+          type, but should normally be specified as some variety of
+          <a class="link" href="integer-types.html" title="11.1.2&nbsp;Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INT</code></a>.
+        </p></li><li class="listitem"><p>
+          <code class="literal">NESTED [PATH] <em class="replaceable"><code>path</code></em> COLUMNS
+          (<em class="replaceable"><code>column_list</code></em>)</code>: This
+          flattens nested objects or arrays in JSON data into a single
+          row along with the JSON values from the parent object or
+          array. Using multiple <code class="literal">PATH</code> options allows
+          projection of JSON values from multiple levels of nesting into
+          a single row.
+        </p><p>
+          The <em class="replaceable"><code>path</code></em> is relative to the parent
+          path row path of <code class="literal">JSON_TABLE()</code>, or the path
+          of the parent <code class="literal">NESTED [PATH]</code> clause in the
+          event of nested paths.
+        </p></li></ol></div><p>
+      <em class="replaceable"><code>on empty</code></em>, if specified, determines what
+      <code class="literal">JSON_TABLE()</code> does in the event that data is
+      missing (depending on type). This clause is also triggered on a
+      column in a <code class="literal">NESTED PATH</code> clause when the latter
+      has no match and a <code class="literal">NULL</code> complemented row is
+      produced for it. <em class="replaceable"><code>on empty</code></em> takes one of
+      the following values:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">NULL ON EMPTY</code>: The column is set to
+          <code class="literal">NULL</code>; this is the default behavior.
+        </p></li><li class="listitem"><p>
+          <code class="literal">DEFAULT <em class="replaceable"><code>json_string</code></em> ON
+          EMPTY</code>: the provided
+          <em class="replaceable"><code>json_string</code></em> is parsed as JSON, as
+          long as it is valid, and stored instead of the missing value.
+          Column type rules also apply to the default value.
+        </p></li><li class="listitem"><p>
+          <code class="literal">ERROR ON EMPTY</code>: An error is thrown.
+        </p></li></ul></div><p>
+      If used, <em class="replaceable"><code>on_error</code></em> takes one of the
+      following values with the corresponding result as shown here:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">NULL ON ERROR</code>: The column is set to
+          <code class="literal">NULL</code>; this is the default behavior.
+        </p></li><li class="listitem"><p>
+          <code class="literal">DEFAULT <em class="replaceable"><code>json string</code></em> ON
+          ERROR</code>: The <em class="replaceable"><code>json_string</code></em> is
+          parsed as JSON (provided that it is valid) and stored instead
+          of the object or array.
+        </p></li><li class="listitem"><p>
+          <code class="literal">ERROR ON ERROR</code>: An error is thrown.
+        </p></li></ul></div><p>
+      Prior to MySQL 8.0.20, a warning was thrown if a type conversion
+      error occurred with <code class="literal">NULL ON ERROR</code> or
+      <code class="literal">DEFAULT ... ON ERROR</code> was specified or implied.
+      In MySQL 8.0.20 and later, this is no longer the case. (Bug
+      #30628330)
+    </p><p>
+      Previously, it was possible to specify <code class="literal">ON EMPTY</code>
+      and <code class="literal">ON ERROR</code> clauses in either order. This runs
+      counter to the SQL standard, which stipulates that <code class="literal">ON
+      EMPTY</code>, if specified, must precede any <code class="literal">ON
+      ERROR</code> clause. For this reason, beginning with MySQL
+      8.0.20, specifying <code class="literal">ON ERROR</code> before <code class="literal">ON
+      EMPTY</code> is deprecated; trying to do so causes the server
+      to issue a warning. Expect support for the nonstandard syntax to
+      be removed in a future version of MySQL.
+    </p><p>
+      When a value saved to a column is truncated, such as saving
+      3.14159 in a <a class="link" href="fixed-point-types.html" title="11.1.3&nbsp;Fixed-Point Types (Exact Value) - DECIMAL, NUMERIC"><code class="literal">DECIMAL(10,1)</code></a> column,
+      a warning is issued independently of any <code class="literal">ON
+      ERROR</code> option. When multiple values are truncated in a
+      single statement, the warning is issued only once.
+    </p><p>
+      Prior to MySQL 8.0.21, when the expression and path passed to this
+      function resolved to JSON null, <code class="literal">JSON_TABLE()</code>
+      raised an error. In MySQL 8.0.21 and later, it returns SQL
+      <code class="literal">NULL</code> in such cases, in accordance with the SQL
+      standard, as shown here (Bug #31345503, Bug #99557):
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+    -&gt;   <strong class="userinput"><code>FROM</code></strong>
+    -&gt;     <strong class="userinput"><code>JSON_TABLE(</code></strong>
+    -&gt;       <strong class="userinput"><code>&#39;[ {&#34;c1&#34;: null} ]&#39;,</code></strong>
+    -&gt;       <strong class="userinput"><code>&#39;$[*]&#39; COLUMNS( c1 INT PATH &#39;$.c1&#39; ERROR ON ERROR )</code></strong>
+    -&gt;     <strong class="userinput"><code>) as jt;</code></strong>
++------+
+| c1   |
++------+
+| NULL |
++------+
+1 row in set (0.00 sec)
+</pre><p>
+      The following query demonstrates the use of <code class="literal">ON
+      EMPTY</code> and <code class="literal">ON ERROR</code>. The row
+      corresponding to <code class="literal">{&#34;b&#34;:1}</code> is empty for the path
+      <code class="literal">&#34;$.a&#34;</code>, and attempting to save
+      <code class="literal">[1,2]</code> as a scalar produces an error; these rows
+      are highlighted in the output shown.
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+    -&gt; <strong class="userinput"><code>FROM</code></strong>
+    -&gt;   <strong class="userinput"><code>JSON_TABLE(</code></strong>
+    -&gt;     <strong class="userinput"><code>&#39;[{&#34;a&#34;:&#34;3&#34;},{&#34;a&#34;:2},{&#34;b&#34;:1},{&#34;a&#34;:0},{&#34;a&#34;:[1,2]}]&#39;,</code></strong>
+    -&gt;     <strong class="userinput"><code>&#34;$[*]&#34;</code></strong>
+    -&gt;     <strong class="userinput"><code>COLUMNS(</code></strong>
+    -&gt;       <strong class="userinput"><code>rowid FOR ORDINALITY,</code></strong>
+    -&gt;       <strong class="userinput"><code>ac VARCHAR(100) PATH &#34;$.a&#34; DEFAULT &#39;111&#39; ON EMPTY DEFAULT &#39;999&#39; ON ERROR,</code></strong>
+    -&gt;       <strong class="userinput"><code>aj JSON PATH &#34;$.a&#34; DEFAULT &#39;{&#34;x&#34;: 333}&#39; ON EMPTY,</code></strong>
+    -&gt;       <strong class="userinput"><code>bx INT EXISTS PATH &#34;$.b&#34;</code></strong>
+    -&gt;     <strong class="userinput"><code>)</code></strong>
+    -&gt;   <strong class="userinput"><code>) AS tt;</code></strong>
+
++-------+------+------------+------+
+| rowid | ac   | aj         | bx   |
++-------+------+------------+------+
+|     1 | 3    | &#34;3&#34;        |    0 |
+|     2 | 2    | 2          |    0 |
+<span class="emphasis"><em>|     3 | 111  | {&#34;x&#34;: 333} |    1 |</em></span>
+|     4 | 0    | 0          |    0 |
+<span class="emphasis"><em>|     5 | 999  | [1, 2]     |    0 |</em></span>
++-------+------+------------+------+
+5 rows in set (0.00 sec)
+</pre><p>
+      Column names are subject to the usual rules and limitations
+      governing table column names. See <a class="xref" href="identifiers.html" title="9.2&nbsp;Schema Object Names">Section&nbsp;9.2, &ldquo;Schema Object Names&rdquo;</a>.
+    </p><p>
+      All JSON and JSON path expressions are checked for validity; an
+      invalid expression of either type causes an error.
+    </p><p>
+      Each match for the <em class="replaceable"><code>path</code></em> preceding the
+      <code class="literal">COLUMNS</code> keyword maps to an individual row in
+      the result table. For example, the following query gives the
+      result shown here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+    -&gt; <strong class="userinput"><code>FROM</code></strong>
+    -&gt;   <strong class="userinput"><code>JSON_TABLE(</code></strong>
+    -&gt;     <strong class="userinput"><code>&#39;[{&#34;x&#34;:2,&#34;y&#34;:&#34;8&#34;},{&#34;x&#34;:&#34;3&#34;,&#34;y&#34;:&#34;7&#34;},{&#34;x&#34;:&#34;4&#34;,&#34;y&#34;:6}]&#39;,</code></strong>
+    -&gt;     <strong class="userinput"><code>&#34;$[*]&#34; COLUMNS(</code></strong>
+    -&gt;       <strong class="userinput"><code>xval VARCHAR(100) PATH &#34;$.x&#34;,</code></strong>
+    -&gt;       <strong class="userinput"><code>yval VARCHAR(100) PATH &#34;$.y&#34;</code></strong>
+    -&gt;     <strong class="userinput"><code>)</code></strong>
+    -&gt;   <strong class="userinput"><code>) AS  jt1;</code></strong>
+
++------+------+
+| xval | yval |
++------+------+
+| 2    | 8    |
+| 3    | 7    |
+| 4    | 6    |
++------+------+
+</pre><p>
+      The expression <code class="literal">&#34;$[*]&#34;</code> matches each element of
+      the array. You can filter the rows in the result by modifying the
+      path. For example, using <code class="literal">&#34;$[1]&#34;</code> limits
+      extraction to the second element of the JSON array used as the
+      source, as shown here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+    -&gt; <strong class="userinput"><code>FROM</code></strong>
+    -&gt;   <strong class="userinput"><code>JSON_TABLE(</code></strong>
+    -&gt;     <strong class="userinput"><code>&#39;[{&#34;x&#34;:2,&#34;y&#34;:&#34;8&#34;},{&#34;x&#34;:&#34;3&#34;,&#34;y&#34;:&#34;7&#34;},{&#34;x&#34;:&#34;4&#34;,&#34;y&#34;:6}]&#39;,</code></strong>
+    -&gt;     <strong class="userinput"><code>&#34;$[1]&#34; COLUMNS(</code></strong>
+    -&gt;       <strong class="userinput"><code>xval VARCHAR(100) PATH &#34;$.x&#34;,</code></strong>
+    -&gt;       <strong class="userinput"><code>yval VARCHAR(100) PATH &#34;$.y&#34;</code></strong>
+    -&gt;     <strong class="userinput"><code>)</code></strong>
+    -&gt;   <strong class="userinput"><code>) AS  jt1;</code></strong>
+
++------+------+
+| xval | yval |
++------+------+
+| 3    | 7    |
++------+------+
+</pre><p>
+      Within a column definition, <code class="literal">&#34;$&#34;</code> passes the
+      entire match to the column; <code class="literal">&#34;$.x&#34;</code> and
+      <code class="literal">&#34;$.y&#34;</code> pass only the values corresponding to the
+      keys <code class="literal">x</code> and <code class="literal">y</code>, respectively,
+      within that match. For more information, see
+      <a class="xref" href="json.html#json-path-syntax" title="JSON Path Syntax">JSON Path Syntax</a>.
+    </p><p>
+      <code class="literal">NESTED PATH</code> (or simply
+      <code class="literal">NESTED</code>; <code class="literal">PATH</code> is optional)
+      produces a set of records for each match in the
+      <code class="literal">COLUMNS</code> clause to which it belongs. If there is
+      no match, all columns of the nested path are set to
+      <code class="literal">NULL</code>. This implements an outer join between the
+      topmost clause and <code class="literal">NESTED [PATH]</code>. An inner join
+      can be emulated by applying a suitable condition in the
+      <code class="literal">WHERE</code> clause, as shown here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+    -&gt; <strong class="userinput"><code>FROM</code></strong>
+    -&gt;   <strong class="userinput"><code>JSON_TABLE(</code></strong>
+    -&gt;     <strong class="userinput"><code>&#39;[ {&#34;a&#34;: 1, &#34;b&#34;: [11,111]}, {&#34;a&#34;: 2, &#34;b&#34;: [22,222]}, {&#34;a&#34;:3}]&#39;,</code></strong>
+    -&gt;     <strong class="userinput"><code>&#39;$[*]&#39; COLUMNS(</code></strong>
+    -&gt;             <strong class="userinput"><code>a INT PATH &#39;$.a&#39;,</code></strong>
+    -&gt;             <strong class="userinput"><code>NESTED PATH &#39;$.b[*]&#39; COLUMNS (b INT PATH &#39;$&#39;)</code></strong>
+    -&gt;            <strong class="userinput"><code>)</code></strong>
+    -&gt;    <strong class="userinput"><code>) AS jt</code></strong>
+    -&gt; <strong class="userinput"><code>WHERE b IS NOT NULL;</code></strong>
+
++------+------+
+| a    | b    |
++------+------+
+|    1 |   11 |
+|    1 |  111 |
+|    2 |   22 |
+|    2 |  222 |
++------+------+
+</pre><p>
+      Sibling nested paths&mdash;that is, two or more instances of
+      <code class="literal">NESTED [PATH]</code> in the same
+      <code class="literal">COLUMNS</code> clause&mdash;are processed one after
+      another, one at a time. While one nested path is producing
+      records, columns of any sibling nested path expressions are set to
+      <code class="literal">NULL</code>. This means that the total number of
+      records for a single match within a single containing
+      <code class="literal">COLUMNS</code> clause is the sum and not the product
+      of all records produced by <code class="literal">NESTED [PATH]</code>
+      modifiers, as shown here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+    -&gt; <strong class="userinput"><code>FROM</code></strong>
+    -&gt;   <strong class="userinput"><code>JSON_TABLE(</code></strong>
+    -&gt;     <strong class="userinput"><code>&#39;[{&#34;a&#34;: 1, &#34;b&#34;: [11,111]}, {&#34;a&#34;: 2, &#34;b&#34;: [22,222]}]&#39;,</code></strong>
+    -&gt;     <strong class="userinput"><code>&#39;$[*]&#39; COLUMNS(</code></strong>
+    -&gt;         <strong class="userinput"><code>a INT PATH &#39;$.a&#39;,</code></strong>
+    -&gt;         <strong class="userinput"><code>NESTED PATH &#39;$.b[*]&#39; COLUMNS (b1 INT PATH &#39;$&#39;),</code></strong>
+    -&gt;         <strong class="userinput"><code>NESTED PATH &#39;$.b[*]&#39; COLUMNS (b2 INT PATH &#39;$&#39;)</code></strong>
+    -&gt;     <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>) AS jt;</code></strong>
+
++------+------+------+
+| a    | b1   | b2   |
++------+------+------+
+|    1 |   11 | NULL |
+|    1 |  111 | NULL |
+|    1 | NULL |   11 |
+|    1 | NULL |  111 |
+|    2 |   22 | NULL |
+|    2 |  222 | NULL |
+|    2 | NULL |   22 |
+|    2 | NULL |  222 |
++------+------+------+
+</pre><p>
+      A <code class="literal">FOR ORDINALITY</code> column enumerates records
+      produced by the <code class="literal">COLUMNS</code> clause, and can be used
+      to distinguish parent records of a nested path, especially if
+      values in parent records are the same, as can be seen here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+    -&gt; <strong class="userinput"><code>FROM</code></strong>
+    -&gt;   <strong class="userinput"><code>JSON_TABLE(</code></strong>
+    -&gt;     <strong class="userinput"><code>&#39;[{&#34;a&#34;: &#34;a_val&#34;,</code></strong>
+    &#39;&gt;       <strong class="userinput"><code>&#34;b&#34;: [{&#34;c&#34;: &#34;c_val&#34;, &#34;l&#34;: [1,2]}]},</code></strong>
+    &#39;&gt;     <strong class="userinput"><code>{&#34;a&#34;: &#34;a_val&#34;,</code></strong>
+    &#39;&gt;       <strong class="userinput"><code>&#34;b&#34;: [{&#34;c&#34;: &#34;c_val&#34;,&#34;l&#34;: [11]}, {&#34;c&#34;: &#34;c_val&#34;, &#34;l&#34;: [22]}]}]&#39;,</code></strong>
+    -&gt;     <strong class="userinput"><code>&#39;$[*]&#39; COLUMNS(</code></strong>
+    -&gt;       <strong class="userinput"><code>top_ord FOR ORDINALITY,</code></strong>
+    -&gt;       <strong class="userinput"><code>apath VARCHAR(10) PATH &#39;$.a&#39;,</code></strong>
+    -&gt;       <strong class="userinput"><code>NESTED PATH &#39;$.b[*]&#39; COLUMNS (</code></strong>
+    -&gt;         <strong class="userinput"><code>bpath VARCHAR(10) PATH &#39;$.c&#39;,</code></strong>
+    -&gt;         <strong class="userinput"><code>ord FOR ORDINALITY,</code></strong>
+    -&gt;         <strong class="userinput"><code>NESTED PATH &#39;$.l[*]&#39; COLUMNS (lpath varchar(10) PATH &#39;$&#39;)</code></strong>
+    -&gt;         <strong class="userinput"><code>)</code></strong>
+    -&gt;     <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>) as jt;</code></strong>
+
++---------+---------+---------+------+-------+
+| top_ord | apath   | bpath   | ord  | lpath |
++---------+---------+---------+------+-------+
+|       1 |  a_val  |  c_val  |    1 | 1     |
+|       1 |  a_val  |  c_val  |    1 | 2     |
+|       2 |  a_val  |  c_val  |    1 | 11    |
+|       2 |  a_val  |  c_val  |    2 | 22    |
++---------+---------+---------+------+-------+
+</pre><p>
+      The source document contains an array of two elements; each of
+      these elements produces two rows. The values of
+      <code class="literal">apath</code> and <code class="literal">bpath</code> are the same
+      over the entire result set; this means that they cannot be used to
+      determine whether <code class="literal">lpath</code> values came from the
+      same or different parents. The value of the <code class="literal">ord</code>
+      column remains the same as the set of records having
+      <code class="literal">top_ord</code> equal to 1, so these two values are
+      from a single object. The remaining two values are from different
+      objects, since they have different values in the
+      <code class="literal">ord</code> column.
+    </p><p>
+      Normally, you cannot join a derived table which depends on columns
+      of preceding tables in the same <code class="literal">FROM</code> clause.
+      MySQL, per the SQL standard, makes an exception for table
+      functions; these are considered lateral derived tables, even in
+      versions of MySQL that do not yet support the
+      <code class="literal">LATERAL</code> keyword (8.0.13 and earlier). In
+      versions where <code class="literal">LATERAL</code> is supported (8.0.14 and
+      later), it is implicit, and for this reason is not allowed before
+      <code class="literal">JSON_TABLE()</code>, also according to the standard.
+    </p><p>
+      Suppose you have a table <code class="literal">t1</code> created and
+      populated using the statements shown here:
+    </p><pre class="programlisting">CREATE TABLE t1 (c1 INT, c2 CHAR(1), c3 JSON);
+
+INSERT INTO t1 () VALUES
+	ROW(1, &#39;z&#39;, JSON_OBJECT(&#39;a&#39;, 23, &#39;b&#39;, 27, &#39;c&#39;, 1)),
+	ROW(1, &#39;y&#39;, JSON_OBJECT(&#39;a&#39;, 44, &#39;b&#39;, 22, &#39;c&#39;, 11)),
+	ROW(2, &#39;x&#39;, JSON_OBJECT(&#39;b&#39;, 1, &#39;c&#39;, 15)),
+	ROW(3, &#39;w&#39;, JSON_OBJECT(&#39;a&#39;, 5, &#39;b&#39;, 6, &#39;c&#39;, 7)),
+	ROW(5, &#39;v&#39;, JSON_OBJECT(&#39;a&#39;, 123, &#39;c&#39;, 1111))
+;
+</pre><p>
+      You can then execute joins, such as this one, in which
+      <code class="literal">JSON_TABLE()</code> acts as a derived table while at
+      the same time it refers to a column in a previously referenced
+      table:
+    </p><pre class="programlisting">SELECT c1, c2, JSON_EXTRACT(c3, &#39;$.*&#39;) 
+FROM t1 AS m 
+JOIN 
+JSON_TABLE(
+  m.c3, 
+  &#39;$.*&#39; 
+  COLUMNS(
+    at VARCHAR(10) PATH &#39;$.a&#39; DEFAULT &#39;1&#39; ON EMPTY, 
+    bt VARCHAR(10) PATH &#39;$.b&#39; DEFAULT &#39;2&#39; ON EMPTY, 
+    ct VARCHAR(10) PATH &#39;$.c&#39; DEFAULT &#39;3&#39; ON EMPTY
+  )
+) AS tt
+ON m.c1 &gt; tt.at;
+</pre><p>
+      Attempting to use the <code class="literal">LATERAL</code> keyword with this
+      query raises <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_parse_error" target="_top"><code class="literal">ER_PARSE_ERROR</code></a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="json-attribute-functions.html">Previous <span class="navHint"> Functions That Return JSON Value Attributes </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="json-functions.html">Up <span class="navHint"> JSON Functions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="json-validation-functions.html">Next <span class="navHint"> JSON Schema Validation Functions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

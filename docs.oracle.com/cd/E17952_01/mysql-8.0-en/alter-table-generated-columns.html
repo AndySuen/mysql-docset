@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.1.9.2 ALTER TABLE and Generated Columns</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="alter-table.html" title="13.1.9 ALTER TABLE Statement" /><link rel="prev" href="alter-table-partition-operations.html" title="13.1.9.1 ALTER TABLE Partition Operations" /><link rel="next" href="alter-table-examples.html" title="13.1.9.3 ALTER TABLE Examples" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="alter-table-generated-columns.html#alter-table-generated-columns">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="alter-table-partition-operations.html">Previous <span class="navHint"> ALTER TABLE Partition Operations </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="alter-table.html">Up <span class="navHint"> ALTER TABLE Statement </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="alter-table-examples.html">Next <span class="navHint"> ALTER TABLE Examples </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="alter-table-generated-columns"></a>13.1.9.2 ALTER TABLE and Generated Columns</h4></div></div></div><a id="idm45828915097280" class="indexterm"></a><p>
+        <code class="literal">ALTER TABLE</code> operations permitted for
+        generated columns are <code class="literal">ADD</code>,
+        <code class="literal">MODIFY</code>, and <code class="literal">CHANGE</code>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Generated columns can be added.
+          </p><pre class="programlisting">CREATE TABLE t1 (c1 INT);
+ALTER TABLE t1 ADD COLUMN c2 INT GENERATED ALWAYS AS (c1 + 1) STORED;
+</pre></li><li class="listitem"><p>
+            The data type and expression of generated columns can be
+            modified.
+          </p><pre class="programlisting">CREATE TABLE t1 (c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1) STORED);
+ALTER TABLE t1 MODIFY COLUMN c2 TINYINT GENERATED ALWAYS AS (c1 + 5) STORED;
+</pre></li><li class="listitem"><p>
+            Generated columns can be renamed or dropped, if no other
+            column refers to them.
+          </p><pre class="programlisting">CREATE TABLE t1 (c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1) STORED);
+ALTER TABLE t1 CHANGE c2 c3 INT GENERATED ALWAYS AS (c1 + 1) STORED;
+ALTER TABLE t1 DROP COLUMN c3;
+</pre></li><li class="listitem"><p>
+            Virtual generated columns cannot be altered to stored
+            generated columns, or vice versa. To work around this, drop
+            the column, then add it with the new definition.
+          </p><pre class="programlisting">CREATE TABLE t1 (c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1) VIRTUAL);
+ALTER TABLE t1 DROP COLUMN c2;
+ALTER TABLE t1 ADD COLUMN c2 INT GENERATED ALWAYS AS (c1 + 1) STORED;
+</pre></li><li class="listitem"><p>
+            Nongenerated columns can be altered to stored but not
+            virtual generated columns.
+          </p><pre class="programlisting">CREATE TABLE t1 (c1 INT, c2 INT);
+ALTER TABLE t1 MODIFY COLUMN c2 INT GENERATED ALWAYS AS (c1 + 1) STORED;
+</pre></li><li class="listitem"><p>
+            Stored but not virtual generated columns can be altered to
+            nongenerated columns. The stored generated values become the
+            values of the nongenerated column.
+          </p><pre class="programlisting">CREATE TABLE t1 (c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1) STORED);
+ALTER TABLE t1 MODIFY COLUMN c2 INT;
+</pre></li><li class="listitem"><p>
+            <code class="literal">ADD COLUMN</code> is not an in-place operation
+            for stored columns (done without using a temporary table)
+            because the expression must be evaluated by the server. For
+            stored columns, indexing changes are done in place, and
+            expression changes are not done in place. Changes to column
+            comments are done in place.
+          </p></li><li class="listitem"><p>
+            For non-partitioned tables, <code class="literal">ADD COLUMN</code>
+            and <code class="literal">DROP COLUMN</code> are in-place operations
+            for virtual columns. However, adding or dropping a virtual
+            column cannot be performed in place in combination with
+            other <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> operations.
+          </p><p>
+            For partitioned tables, <code class="literal">ADD COLUMN</code> and
+            <code class="literal">DROP COLUMN</code> are not in-place operations
+            for virtual columns.
+          </p></li><li class="listitem"><p>
+            <code class="literal">InnoDB</code> supports secondary indexes on
+            virtual generated columns. Adding or dropping a secondary
+            index on a virtual generated column is an in-place
+            operation. For more information, see
+            <a class="xref" href="create-table-secondary-indexes.html" title="13.1.20.9 Secondary Indexes and Generated Columns">Section 13.1.20.9, “Secondary Indexes and Generated Columns”</a>.
+          </p></li><li class="listitem"><p>
+            When a <code class="literal">VIRTUAL</code> generated column is added
+            to a table or modified, it is not ensured that data being
+            calculated by the generated column expression is not out of
+            range for the column. This can lead to inconsistent data
+            being returned and unexpectedly failed statements. To permit
+            control over whether validation occurs for such columns,
+            <code class="literal">ALTER TABLE</code> supports <code class="literal">WITHOUT
+            VALIDATION</code> and <code class="literal">WITH VALIDATION</code>
+            clauses:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                With <code class="literal">WITHOUT VALIDATION</code> (the default
+                if neither clause is specified), an in-place operation
+                is performed (if possible), data integrity is not
+                checked, and the statement finishes more quickly.
+                However, later reads from the table might report
+                warnings or errors for the column if values are out of
+                range.
+              </p></li><li class="listitem"><p>
+                With <code class="literal">WITH VALIDATION</code>, <code class="literal">ALTER
+                TABLE</code> copies the table. If an out-of-range or
+                any other error occurs, the statement fails. Because a
+                table copy is performed, the statement takes longer.
+              </p></li></ul></div><p>
+            <code class="literal">WITHOUT VALIDATION</code> and <code class="literal">WITH
+            VALIDATION</code> are permitted only with <code class="literal">ADD
+            COLUMN</code>, <code class="literal">CHANGE COLUMN</code>, and
+            <code class="literal">MODIFY COLUMN</code> operations. Otherwise, an
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_wrong_usage" target="_top"><code class="literal">ER_WRONG_USAGE</code></a> error occurs.
+          </p></li><li class="listitem"><p>
+            If expression evaluation causes truncation or provides
+            incorrect input to a function, the
+            <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement
+            terminates with an error and the DDL operation is rejected.
+          </p></li><li class="listitem"><p>
+            An <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement that
+            changes the default value of a column
+            <em class="replaceable"><code>col_name</code></em> may also change the
+            value of a generated column expression that refers to the
+            column using <em class="replaceable"><code>col_name</code></em>, which may
+            change the value of a generated column expression that
+            refers to the column using
+            <a class="link" href="miscellaneous-functions.html#function_default"><code class="literal">DEFAULT(<em class="replaceable"><code>col_name</code></em>)</code></a>.
+            For this reason, <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+            operations that change the definition of a column cause a
+            table rebuild if any generated column expression uses
+            <a class="link" href="miscellaneous-functions.html#function_default"><code class="literal">DEFAULT()</code></a>.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="alter-table-partition-operations.html">Previous <span class="navHint"> ALTER TABLE Partition Operations </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="alter-table.html">Up <span class="navHint"> ALTER TABLE Statement </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="alter-table-examples.html">Next <span class="navHint"> ALTER TABLE Examples </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

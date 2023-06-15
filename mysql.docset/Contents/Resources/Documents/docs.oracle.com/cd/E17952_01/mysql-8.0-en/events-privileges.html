@@ -1,0 +1,204 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-739"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/25.4.6%C2%A0The%20Event%20Scheduler%20and%20MySQL%20Privileges"></a><title>25.4.6&nbsp;The Event Scheduler and MySQL Privileges</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="event-scheduler.html" title="25.4&nbsp;Using the Event Scheduler"/><link rel="prev" href="events-status-info.html" title="25.4.5&nbsp;Event Scheduler Status"/><link rel="next" href="views.html" title="25.5&nbsp;Using Views"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="events-privileges.html#events-privileges">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="events-status-info.html">Previous <span class="navHint"> Event Scheduler Status </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="event-scheduler.html">Up <span class="navHint"> Using the Event Scheduler </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="views.html">Next <span class="navHint"> Using Views </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="events-privileges"></a>25.4.6&nbsp;The Event Scheduler and MySQL Privileges</h3></div></div></div><a id="idm45828799701664" class="indexterm"></a><p>
+      To enable or disable the execution of scheduled events, it is
+      necessary to set the value of the global
+      <a class="link" href="server-system-variables.html#sysvar_event_scheduler"><code class="literal">event_scheduler</code></a> system variable.
+      This requires privileges sufficient to set global system
+      variables. See <a class="xref" href="system-variable-privileges.html" title="5.1.9.1&nbsp;System Variable Privileges">Section&nbsp;5.1.9.1, &ldquo;System Variable Privileges&rdquo;</a>.
+    </p><p>
+      The <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privilege governs the
+      creation, modification, and deletion of events. This privilege can
+      be bestowed using <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a>. For
+      example, this <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a> statement
+      confers the <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privilege for the
+      schema named <code class="literal">myschema</code> on the user
+      <code class="literal">jon@ghidora</code>:
+    </p><pre class="programlisting">GRANT EVENT ON myschema.* TO jon@ghidora;
+</pre><p>
+      (We assume that this user account already exists, and that we wish
+      for it to remain unchanged otherwise.)
+    </p><p>
+      To grant this same user the <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a>
+      privilege on all schemas, use the following statement:
+    </p><pre class="programlisting">GRANT EVENT ON *.* TO jon@ghidora;
+</pre><p>
+      The <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privilege has global or
+      schema-level scope. Therefore, trying to grant it on a single
+      table results in an error as shown:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>GRANT EVENT ON myschema.mytable TO jon@ghidora;</code></strong>
+<span class="errortext">ERROR 1144 (42000): Illegal GRANT/REVOKE command; please
+consult the manual to see which privileges can be used</span>
+</pre><p>
+      It is important to understand that an event is executed with the
+      privileges of its definer, and that it cannot perform any actions
+      for which its definer does not have the requisite privileges. For
+      example, suppose that <code class="literal">jon@ghidora</code> has the
+      <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privilege for
+      <code class="literal">myschema</code>. Suppose also that this user has the
+      <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> privilege for
+      <code class="literal">myschema</code>, but no other privileges for this
+      schema. It is possible for <code class="literal">jon@ghidora</code> to
+      create a new event such as this one:
+    </p><pre class="programlisting">CREATE EVENT e_store_ts
+    ON SCHEDULE
+      EVERY 10 SECOND
+    DO
+      INSERT INTO myschema.mytable VALUES (UNIX_TIMESTAMP());
+</pre><p>
+      The user waits for a minute or so, and then performs a
+      <code class="literal">SELECT * FROM mytable;</code> query, expecting to see
+      several new rows in the table. Instead, the table is empty. Since
+      the user does not have the <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a>
+      privilege for the table in question, the event has no effect.
+    </p><p>
+      If you inspect the MySQL error log
+      (<code class="filename"><em class="replaceable"><code>hostname</code></em>.err</code>),
+      you can see that the event is executing, but the action it is
+      attempting to perform fails:
+    </p><pre class="programlisting">2013-09-24T12:41:31.261992Z 25 [ERROR] Event Scheduler:
+[jon@ghidora][cookbook.e_store_ts] INSERT command denied to user
+&#39;jon&#39;@&#39;ghidora&#39; for table &#39;mytable&#39;
+2013-09-24T12:41:31.262022Z 25 [Note] Event Scheduler:
+[jon@ghidora].[myschema.e_store_ts] event execution failed.
+2013-09-24T12:41:41.271796Z 26 [ERROR] Event Scheduler:
+[jon@ghidora][cookbook.e_store_ts] INSERT command denied to user
+&#39;jon&#39;@&#39;ghidora&#39; for table &#39;mytable&#39;
+2013-09-24T12:41:41.272761Z 26 [Note] Event Scheduler:
+[jon@ghidora].[myschema.e_store_ts] event execution failed.
+</pre><p>
+      Since this user very likely does not have access to the error log,
+      it is possible to verify whether the event&#39;s action statement is
+      valid by executing it directly:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO myschema.mytable VALUES (UNIX_TIMESTAMP());</code></strong>
+<span class="errortext">ERROR 1142 (42000): INSERT command denied to user
+&#39;jon&#39;@&#39;ghidora&#39; for table &#39;mytable&#39;</span>
+</pre><a id="idm45828799667152" class="indexterm"></a><p>
+      Inspection of the Information Schema
+      <a class="link" href="information-schema-events-table.html" title="26.3.14&nbsp;The INFORMATION_SCHEMA EVENTS Table"><code class="literal">EVENTS</code></a> table shows that
+      <code class="literal">e_store_ts</code> exists and is enabled, but its
+      <code class="literal">LAST_EXECUTED</code> column is
+      <code class="literal">NULL</code>:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM INFORMATION_SCHEMA.EVENTS</code></strong>
+     &gt;     <strong class="userinput"><code>WHERE EVENT_NAME=&#39;e_store_ts&#39;</code></strong>
+     &gt;     <strong class="userinput"><code>AND EVENT_SCHEMA=&#39;myschema&#39;\G</code></strong>
+*************************** 1. row ***************************
+   EVENT_CATALOG: NULL
+    EVENT_SCHEMA: myschema
+      EVENT_NAME: e_store_ts
+         DEFINER: jon@ghidora
+      EVENT_BODY: SQL
+EVENT_DEFINITION: INSERT INTO myschema.mytable VALUES (UNIX_TIMESTAMP())
+      EVENT_TYPE: RECURRING
+      EXECUTE_AT: NULL
+  INTERVAL_VALUE: 5
+  INTERVAL_FIELD: SECOND
+        SQL_MODE: NULL
+          STARTS: 0000-00-00 00:00:00
+            ENDS: 0000-00-00 00:00:00
+          STATUS: ENABLED
+   ON_COMPLETION: NOT PRESERVE
+         CREATED: 2006-02-09 22:36:06
+    LAST_ALTERED: 2006-02-09 22:36:06
+   LAST_EXECUTED: NULL
+   EVENT_COMMENT:
+1 row in set (0.00 sec)
+</pre><p>
+      To rescind the <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privilege, use
+      the <a class="link" href="revoke.html" title="13.7.1.8&nbsp;REVOKE Statement"><code class="literal">REVOKE</code></a> statement. In this
+      example, the <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privilege on the
+      schema <code class="literal">myschema</code> is removed from the
+      <code class="literal">jon@ghidora</code> user account:
+    </p><pre class="programlisting">REVOKE EVENT ON myschema.* FROM jon@ghidora;
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        Revoking the <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privilege from
+        a user does not delete or disable any events that may have been
+        created by that user.
+      </p><p>
+        An event is not migrated or dropped as a result of renaming or
+        dropping the user who created it.
+      </p></div><p>
+      Suppose that the user <code class="literal">jon@ghidora</code> has been
+      granted the <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> and
+      <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a> privileges on the
+      <code class="literal">myschema</code> schema. This user then creates the
+      following event:
+    </p><pre class="programlisting">CREATE EVENT e_insert
+    ON SCHEDULE
+      EVERY 7 SECOND
+    DO
+      INSERT INTO myschema.mytable;
+</pre><p>
+      After this event has been created, <code class="literal">root</code> revokes
+      the <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privilege for
+      <code class="literal">jon@ghidora</code>. However,
+      <code class="literal">e_insert</code> continues to execute, inserting a new
+      row into <code class="literal">mytable</code> each seven seconds. The same
+      would be true if <code class="literal">root</code> had issued either of
+      these statements:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">DROP USER jon@ghidora;</code>
+        </p></li><li class="listitem"><p>
+          <code class="literal">RENAME USER jon@ghidora TO
+          someotherguy@ghidora;</code>
+        </p></li></ul></div><p>
+      You can verify that this is true by examining the Information
+      Schema <a class="link" href="information-schema-events-table.html" title="26.3.14&nbsp;The INFORMATION_SCHEMA EVENTS Table"><code class="literal">EVENTS</code></a> table before and after
+      issuing a <a class="link" href="drop-user.html" title="13.7.1.5&nbsp;DROP USER Statement"><code class="literal">DROP USER</code></a> or
+      <a class="link" href="rename-user.html" title="13.7.1.7&nbsp;RENAME USER Statement"><code class="literal">RENAME USER</code></a> statement.
+    </p><p>
+      Event definitions are stored in the data dictionary. To drop an
+      event created by another user account, you must be the MySQL
+      <code class="literal">root</code> user or another user with the necessary
+      privileges.
+    </p><p>
+      Users&#39; <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privileges are stored
+      in the <code class="literal">Event_priv</code> columns of the
+      <code class="literal">mysql.user</code> and <code class="literal">mysql.db</code>
+      tables. In both cases, this column holds one of the values
+      &#39;<code class="literal">Y</code>&#39; or &#39;<code class="literal">N</code>&#39;.
+      &#39;<code class="literal">N</code>&#39; is the default.
+      <code class="literal">mysql.user.Event_priv</code> is set to
+      &#39;<code class="literal">Y</code>&#39; for a given user only if that user has the
+      global <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privilege (that is, if
+      the privilege was bestowed using <code class="literal">GRANT EVENT ON
+      *.*</code>). For a schema-level
+      <a class="link" href="privileges-provided.html#priv_event"><code class="literal">EVENT</code></a> privilege,
+      <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a> creates a row in
+      <code class="literal">mysql.db</code> and sets that row&#39;s
+      <code class="literal">Db</code> column to the name of the schema, the
+      <code class="literal">User</code> column to the name of the user, and the
+      <code class="literal">Event_priv</code> column to &#39;<code class="literal">Y</code>&#39;.
+      There should never be any need to manipulate these tables
+      directly, since the <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT
+      EVENT</code></a> and <code class="literal">REVOKE EVENT</code> statements
+      perform the required operations on them.
+    </p><a id="idm45828799611392" class="indexterm"></a><p>
+      Five status variables provide counts of event-related operations
+      (but <span class="emphasis"><em>not</em></span> of statements executed by events;
+      see <a class="xref" href="stored-program-restrictions.html" title="25.8&nbsp;Restrictions on Stored Programs">Section&nbsp;25.8, &ldquo;Restrictions on Stored Programs&rdquo;</a>). These are:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">Com_create_event</code>: The number of
+          <a class="link" href="create-event.html" title="13.1.13&nbsp;CREATE EVENT Statement"><code class="literal">CREATE EVENT</code></a> statements
+          executed since the last server restart.
+        </p></li><li class="listitem"><p>
+          <code class="literal">Com_alter_event</code>: The number of
+          <a class="link" href="alter-event.html" title="13.1.3&nbsp;ALTER EVENT Statement"><code class="literal">ALTER EVENT</code></a> statements executed
+          since the last server restart.
+        </p></li><li class="listitem"><p>
+          <code class="literal">Com_drop_event</code>: The number of
+          <a class="link" href="drop-event.html" title="13.1.25&nbsp;DROP EVENT Statement"><code class="literal">DROP EVENT</code></a> statements executed
+          since the last server restart.
+        </p></li><li class="listitem"><p>
+          <code class="literal">Com_show_create_event</code>: The number of
+          <a class="link" href="show-create-event.html" title="13.7.7.7&nbsp;SHOW CREATE EVENT Statement"><code class="literal">SHOW CREATE EVENT</code></a> statements
+          executed since the last server restart.
+        </p></li><li class="listitem"><p>
+          <code class="literal">Com_show_events</code>: The number of
+          <a class="link" href="show-events.html" title="13.7.7.18&nbsp;SHOW EVENTS Statement"><code class="literal">SHOW EVENTS</code></a> statements executed
+          since the last server restart.
+        </p></li></ul></div><p>
+      You can view current values for all of these at one time by
+      running the statement <code class="literal">SHOW STATUS LIKE
+      &#39;%event%&#39;;</code>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="events-status-info.html">Previous <span class="navHint"> Event Scheduler Status </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="event-scheduler.html">Up <span class="navHint"> Using the Event Scheduler </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="views.html">Next <span class="navHint"> Using Views </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

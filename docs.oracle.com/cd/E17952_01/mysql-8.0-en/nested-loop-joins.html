@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.1.7 Nested-Loop Join Algorithms</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="select-optimization.html" title="8.2.1 Optimizing SELECT Statements" /><link rel="prev" href="index-condition-pushdown-optimization.html" title="8.2.1.6 Index Condition Pushdown Optimization" /><link rel="next" href="nested-join-optimization.html" title="8.2.1.8 Nested Join Optimization" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="nested-loop-joins.html#nested-loop-joins">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="index-condition-pushdown-optimization.html">Previous <span class="navHint"> Index Condition Pushdown Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="nested-join-optimization.html">Next <span class="navHint"> Nested Join Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="nested-loop-joins"></a>8.2.1.7 Nested-Loop Join Algorithms</h4></div></div></div><a id="idm45828956452640" class="indexterm"></a><a id="idm45828956451584" class="indexterm"></a><a id="idm45828956450096" class="indexterm"></a><a id="idm45828956449008" class="indexterm"></a><p>
+          MySQL executes joins between tables using a nested-loop
+          algorithm or variations on it.
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="nested-loop-joins.html#nested-loop-join-algorithm" title="Nested-Loop Join Algorithm">Nested-Loop Join Algorithm</a></p></li><li class="listitem"><p><a class="xref" href="nested-loop-joins.html#block-nested-loop-join-algorithm" title="Block Nested-Loop Join Algorithm">Block Nested-Loop Join Algorithm</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="nested-loop-join-algorithm"></a>Nested-Loop Join Algorithm</h5></div></div></div><p>
+            A simple nested-loop join (NLJ) algorithm reads rows from
+            the first table in a loop one at a time, passing each row to
+            a nested loop that processes the next table in the join.
+            This process is repeated as many times as there remain
+            tables to be joined.
+          </p><p>
+            Assume that a join between three tables
+            <code class="literal">t1</code>, <code class="literal">t2</code>, and
+            <code class="literal">t3</code> is to be executed using the following
+            join types:
+          </p><pre class="programlisting">Table   Join Type
+t1      range
+t2      ref
+t3      ALL
+</pre><p>
+            If a simple NLJ algorithm is used, the join is processed
+            like this:
+          </p><pre class="programlisting">for each row in t1 matching range {
+  for each row in t2 matching reference key {
+    for each row in t3 {
+      if row satisfies join conditions, send to client
+    }
+  }
+}
+</pre><p>
+            Because the NLJ algorithm passes rows one at a time from
+            outer loops to inner loops, it typically reads tables
+            processed in the inner loops many times.
+          </p></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="block-nested-loop-join-algorithm"></a>Block Nested-Loop Join Algorithm</h5></div></div></div><p>
+            A Block Nested-Loop (BNL) join algorithm uses buffering of
+            rows read in outer loops to reduce the number of times that
+            tables in inner loops must be read. For example, if 10 rows
+            are read into a buffer and the buffer is passed to the next
+            inner loop, each row read in the inner loop can be compared
+            against all 10 rows in the buffer. This reduces by an order
+            of magnitude the number of times the inner table must be
+            read.
+          </p><p>
+            Prior to MySQL 8.0.18, this algorithm was applied for
+            equi-joins when no indexes could be used; in MySQL 8.0.18
+            and later, the hash join optimization is employed in such
+            cases. Starting with MySQL 8.0.20, the block nested loop is
+            no longer used by MySQL, and a hash join is employed for in
+            all cases where the block nested loop was used previously.
+            See <a class="xref" href="hash-joins.html" title="8.2.1.4 Hash Join Optimization">Section 8.2.1.4, “Hash Join Optimization”</a>.
+          </p><p>
+            MySQL join buffering has these characteristics:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                Join buffering can be used when the join is of type
+                <a class="link" href="explain-output.html#jointype_all"><code class="literal">ALL</code></a> or
+                <a class="link" href="explain-output.html#jointype_index"><code class="literal">index</code></a> (in other
+                words, when no possible keys can be used, and a full
+                scan is done, of either the data or index rows,
+                respectively), or
+                <a class="link" href="explain-output.html#jointype_range"><code class="literal">range</code></a>. Use of
+                buffering is also applicable to outer joins, as
+                described in <a class="xref" href="bnl-bka-optimization.html" title="8.2.1.12 Block Nested-Loop and Batched Key Access Joins">Section 8.2.1.12, “Block Nested-Loop and Batched Key Access Joins”</a>.
+              </p></li><li class="listitem"><p>
+                A join buffer is never allocated for the first
+                nonconstant table, even if it would be of type
+                <a class="link" href="explain-output.html#jointype_all"><code class="literal">ALL</code></a> or
+                <a class="link" href="explain-output.html#jointype_index"><code class="literal">index</code></a>.
+              </p></li><li class="listitem"><p>
+                Only columns of interest to a join are stored in its
+                join buffer, not whole rows.
+              </p></li><li class="listitem"><p>
+                The <a class="link" href="server-system-variables.html#sysvar_join_buffer_size"><code class="literal">join_buffer_size</code></a>
+                system variable determines the size of each join buffer
+                used to process a query.
+              </p></li><li class="listitem"><p>
+                One buffer is allocated for each join that can be
+                buffered, so a given query might be processed using
+                multiple join buffers.
+              </p></li><li class="listitem"><p>
+                A join buffer is allocated prior to executing the join
+                and freed after the query is done.
+              </p></li></ul></div><p>
+            For the example join described previously for the NLJ
+            algorithm (without buffering), the join is done as follows
+            using join buffering:
+          </p><pre class="programlisting">for each row in t1 matching range {
+  for each row in t2 matching reference key {
+    store used columns from t1, t2 in join buffer
+    if buffer is full {
+      for each row in t3 {
+        for each t1, t2 combination in join buffer {
+          if row satisfies join conditions, send to client
+        }
+      }
+      empty join buffer
+    }
+  }
+}
+
+if buffer is not empty {
+  for each row in t3 {
+    for each t1, t2 combination in join buffer {
+      if row satisfies join conditions, send to client
+    }
+  }
+}
+</pre><p>
+            If <em class="replaceable"><code>S</code></em> is the size of each stored
+            <code class="literal">t1</code>, <code class="literal">t2</code> combination in
+            the join buffer and <em class="replaceable"><code>C</code></em> is the
+            number of combinations in the buffer, the number of times
+            table <code class="literal">t3</code> is scanned is:
+          </p><pre class="programlisting">(<em class="replaceable"><code>S</code></em> * <em class="replaceable"><code>C</code></em>)/join_buffer_size + 1
+</pre><p>
+            The number of <code class="literal">t3</code> scans decreases as the
+            value of <a class="link" href="server-system-variables.html#sysvar_join_buffer_size"><code class="literal">join_buffer_size</code></a>
+            increases, up to the point when
+            <a class="link" href="server-system-variables.html#sysvar_join_buffer_size"><code class="literal">join_buffer_size</code></a> is large
+            enough to hold all previous row combinations. At that point,
+            no speed is gained by making it larger.
+          </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="index-condition-pushdown-optimization.html">Previous <span class="navHint"> Index Condition Pushdown Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="nested-join-optimization.html">Next <span class="navHint"> Nested Join Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

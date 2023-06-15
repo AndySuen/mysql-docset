@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.1.12.2 Administrative Connection Management</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="connection-management.html" title="5.1.12 Connection Management" /><link rel="prev" href="connection-interfaces.html" title="5.1.12.1 Connection Interfaces" /><link rel="next" href="host-cache.html" title="5.1.12.3 DNS Lookups and the Host Cache" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="administrative-connection-interface.html#administrative-connection-interface">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="connection-interfaces.html">Previous <span class="navHint"> Connection Interfaces </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="connection-management.html">Up <span class="navHint"> Connection Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="host-cache.html">Next <span class="navHint"> DNS Lookups and the Host Cache </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="administrative-connection-interface"></a>5.1.12.2 Administrative Connection Management</h4></div></div></div><a id="idm45828988514976" class="indexterm"></a><p>
+        As mentioned in
+        <a class="xref" href="connection-interfaces.html#connection-interfaces-volume-management" title="Connection Volume Management">Connection Volume Management</a>, to
+        allow for the need to perform administrative operations even
+        when <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a>
+        connections are already established on the interfaces used for
+        ordinary connections, the MySQL server permits a single
+        administrative connection to users who have the
+        <a class="link" href="privileges-provided.html#priv_connection-admin"><code class="literal">CONNECTION_ADMIN</code></a> privilege (or
+        the deprecated <a class="link" href="privileges-provided.html#priv_super"><code class="literal">SUPER</code></a> privilege).
+      </p><p>
+        Additionally, as of MySQL 8.0.14, the server permits dedicating
+        a TCP/IP port for administrative connections, as described in
+        the following sections.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="administrative-connection-interface.html#administrative-interface-characteristics" title="Administrative Interface Characteristics">Administrative Interface Characteristics</a></p></li><li class="listitem"><p><a class="xref" href="administrative-connection-interface.html#administrative-interface-encrypted-connections" title="Administrative Interface Support for Encrypted Connections">Administrative Interface Support for Encrypted Connections</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="administrative-interface-characteristics"></a>Administrative Interface Characteristics</h5></div></div></div><p>
+          The administrative connection interface has these
+          characteristics:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The server enables the interface only if the
+              <a class="link" href="server-system-variables.html#sysvar_admin_address"><code class="literal">admin_address</code></a> system
+              variable is set at startup to indicate the IP address for
+              it. If <a class="link" href="server-system-variables.html#sysvar_admin_address"><code class="literal">admin_address</code></a> is
+              not set, the server maintains no administrative interface.
+            </p></li><li class="listitem"><p>
+              The <a class="link" href="server-system-variables.html#sysvar_admin_port"><code class="literal">admin_port</code></a> system
+              variable specifies the interface TCP/IP port number
+              (default 33062).
+            </p></li><li class="listitem"><p>
+              There is no limit on the number of administrative
+              connections, but connections are permitted only for users
+              who have the
+              <a class="link" href="privileges-provided.html#priv_service-connection-admin"><code class="literal">SERVICE_CONNECTION_ADMIN</code></a>
+              privilege.
+            </p></li><li class="listitem"><p>
+              The
+              <a class="link" href="server-system-variables.html#sysvar_create_admin_listener_thread"><code class="literal">create_admin_listener_thread</code></a>
+              system variable enables DBAs to choose at startup whether
+              the administrative interface has its own separate thread.
+              The default is <code class="literal">OFF</code>; that is, the
+              manager thread for ordinary connections on the main
+              interface also handles connections for the administrative
+              interface.
+            </p></li></ul></div><p>
+          These lines in the server <code class="filename">my.cnf</code> file
+          enable the administrative interface on the loopback interface
+          and configure it to use port number 33064 (that is, a port
+          different from the default):
+        </p><pre class="programlisting">[mysqld]
+admin_address=127.0.0.1
+admin_port=33064
+</pre><p>
+          MySQL client programs connect to either the main or
+          administrative interface by specifying appropriate connection
+          parameters. If the server running on the local host is using
+          the default TCP/IP port numbers of 3306 and 33062 for the main
+          and administrative interfaces, these commands connect to those
+          interfaces:
+        </p><pre class="programlisting">mysql --protocol=TCP --port=3306
+mysql --protocol=TCP --port=33062
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="administrative-interface-encrypted-connections"></a>Administrative Interface Support for Encrypted Connections</h5></div></div></div><p>
+          Prior to MySQL 8.0.21, the administrative interface supports
+          encrypted connections using the connection-encryption
+          configuration that applies to the main interface. As of MySQL
+          8.0.21, the administrative interface has its own configuration
+          parameters for encrypted connections. These correspond to the
+          main interface parameters but enable independent configuration
+          of encrypted connections for the administrative interface:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The
+              <code class="literal">admin_tls_<em class="replaceable"><code>xxx</code></em></code>
+              and
+              <code class="literal">admin_ssl_<em class="replaceable"><code>xxx</code></em></code>
+              system variables are like the
+              <code class="literal">tls_<em class="replaceable"><code>xxx</code></em></code> and
+              <code class="literal">ssl_<em class="replaceable"><code>xxx</code></em></code>
+              system variables, but they configure the TLS context for
+              the administrative interface rather than the main
+              interface.
+            </p></li><li class="listitem"><p>
+              The <a class="link" href="server-options.html#option_mysqld_admin-ssl"><code class="option">--admin-ssl</code></a> option is
+              like the <a class="link" href="server-options.html#option_mysqld_ssl"><code class="option">--ssl</code></a> option, but
+              it enables or disables support for encrypted connections
+              on the administrative interface rather than the main
+              interface.
+            </p><p>
+              Because support for encrypted connections is enabled by
+              default, it is normally unnecessary to specify
+              <a class="link" href="server-options.html#option_mysqld_admin-ssl"><code class="option">--admin-ssl</code></a>. As of MySQL
+              8.0.26, <a class="link" href="server-options.html#option_mysqld_admin-ssl"><code class="option">--admin-ssl</code></a> is
+              deprecated and subject to removal in a future MySQL
+              version.
+            </p></li></ul></div><p>
+          For general information about configuring
+          connection-encryption support, see
+          <a class="xref" href="using-encrypted-connections.html" title="6.3.1 Configuring MySQL to Use Encrypted Connections">Section 6.3.1, “Configuring MySQL to Use Encrypted Connections”</a>, and
+          <a class="xref" href="encrypted-connection-protocols-ciphers.html" title="6.3.2 Encrypted Connection TLS Protocols and Ciphers">Section 6.3.2, “Encrypted Connection TLS Protocols and Ciphers”</a>. That
+          discussion is written for the main connection interface, but
+          the parameter names are similar for the administrative
+          connection interface. Use that discussion together with the
+          following remarks, which provide information specific to the
+          administrative interface.
+        </p><p>
+          TLS configuration for the administrative interface follows
+          these rules:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              If <a class="link" href="server-options.html#option_mysqld_admin-ssl"><code class="option">--admin-ssl</code></a> is enabled
+              (the default), the administrative interface supports
+              encrypted connections. For connections on the interface,
+              the applicable TLS context depends on whether any
+              nondefault administrative TLS parameter is configured:
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                  If all administrative TLS parameters have their
+                  default values, the administrative interface uses the
+                  same TLS context as the main interface.
+                </p></li><li class="listitem"><p>
+                  If any administrative TLS parameter has a nondefault
+                  value, the administrative interface uses the TLS
+                  context defined by its own parameters. (This is the
+                  case if any
+                  <code class="literal">admin_tls_<em class="replaceable"><code>xxx</code></em></code>
+                  or
+                  <code class="literal">admin_ssl_<em class="replaceable"><code>xxx</code></em></code>
+                  system variable is set to a value different from its
+                  default.) If a valid TLS context cannot be created
+                  from those parameters, the administrative interface
+                  falls back to the main interface TLS context.
+                </p></li></ul></div></li><li class="listitem"><p>
+              If <a class="link" href="server-options.html#option_mysqld_admin-ssl"><code class="option">--admin-ssl</code></a> is disabled
+              (for example, by specifying
+              <a class="link" href="server-options.html#option_mysqld_admin-ssl"><code class="option">--admin-ssl=OFF</code></a>, encrypted
+              connections to the administrative interface are disabled.
+              This is true even if administrative TLS parameters have
+              nondefault values because disabling
+              <a class="link" href="server-options.html#option_mysqld_admin-ssl"><code class="option">--admin-ssl</code></a> takes
+              precedence.
+            </p><p>
+              It is also possible to disable encrypted connections on
+              the administrative interface without specifying
+              <a class="link" href="server-options.html#option_mysqld_admin-ssl"><code class="option">--admin-ssl</code></a> in negated
+              form. Set the
+              <a class="link" href="server-system-variables.html#sysvar_admin_tls_version"><code class="literal">admin_tls_version</code></a> system
+              variable to the empty value to indicate that no TLS
+              versions are supported. For example, these lines in the
+              server <code class="filename">my.cnf</code> file disable encrypted
+              connections on the administrative interface:
+            </p><pre class="programlisting">[mysqld]
+admin_tls_version=''
+</pre></li></ul></div><p>
+          Examples:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              This configuration in the server
+              <code class="filename">my.cnf</code> file enables the
+              administrative interface, but does not set any of the TLS
+              parameters specific to that interface:
+            </p><pre class="programlisting">[mysqld]
+admin_address=127.0.0.1
+</pre><p>
+              As a result, the administrative interface supports
+              encrypted connections (because encryption is supported by
+              default when the administrative interface is enabled), and
+              uses the main interface TLS context. When clients connect
+              to the administrative interface, they should use the same
+              certificate and key files as for ordinary connections on
+              the main interface. For example (enter the command on a
+              single line):
+            </p><pre class="programlisting">mysql --protocol=TCP --port=33062
+      --ssl-ca=ca.pem
+      --ssl-cert=client-cert.pem
+      --ssl-key=client-key.pem
+</pre></li><li class="listitem"><p>
+              This server configuration enables the administrative
+              interface and sets the TLS certificate and key file
+              parameters specific to that interface:
+            </p><pre class="programlisting">[mysqld]
+admin_address=127.0.0.1
+admin_ssl_ca=admin-ca.pem
+admin_ssl_cert=admin-server-cert.pem
+admin_ssl_key=admin-server-key.pem
+</pre><p>
+              As a result, the administrative interface supports
+              encrypted connections using its own TLS context. When
+              clients connect to the administrative interface, they
+              should use certificate and key files specific to that
+              interface. For example (enter the command on a single
+              line):
+            </p><pre class="programlisting">mysql --protocol=TCP --port=33062
+      --ssl-ca=admin-ca.pem
+      --ssl-cert=admin-client-cert.pem
+      --ssl-key=admin-client-key.pem
+</pre></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="connection-interfaces.html">Previous <span class="navHint"> Connection Interfaces </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="connection-management.html">Up <span class="navHint"> Connection Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="host-cache.html">Next <span class="navHint"> DNS Lookups and the Host Cache </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

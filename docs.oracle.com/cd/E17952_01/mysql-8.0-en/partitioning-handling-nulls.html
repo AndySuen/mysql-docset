@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>24.2.7 How MySQL Partitioning Handles NULL</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="partitioning-types.html" title="24.2 Partitioning Types" /><link rel="prev" href="partitioning-subpartitions.html" title="24.2.6 Subpartitioning" /><link rel="next" href="partitioning-management.html" title="24.3 Partition Management" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partitioning-handling-nulls.html#partitioning-handling-nulls">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="partitioning-subpartitions.html">Previous <span class="navHint"> Subpartitioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="partitioning-types.html">Up <span class="navHint"> Partitioning Types </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="partitioning-management.html">Next <span class="navHint"> Partition Management </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="partitioning-handling-nulls"></a>24.2.7 How MySQL Partitioning Handles NULL</h3></div></div></div><p>
+        Partitioning in MySQL does nothing to disallow
+        <code class="literal">NULL</code> as the value of a partitioning
+        expression, whether it is a column value or the value of a
+        user-supplied expression. Even though it is permitted to use
+        <code class="literal">NULL</code> as the value of an expression that must
+        otherwise yield an integer, it is important to keep in mind that
+        <code class="literal">NULL</code> is not a number. MySQL's
+        partitioning implementation treats <code class="literal">NULL</code> as
+        being less than any non-<code class="literal">NULL</code> value, just as
+        <code class="literal">ORDER BY</code> does.
+      </p><p>
+        This means that treatment of <code class="literal">NULL</code> varies
+        between partitioning of different types, and may produce
+        behavior which you do not expect if you are not prepared for it.
+        This being the case, we discuss in this section how each MySQL
+        partitioning type handles <code class="literal">NULL</code> values when
+        determining the partition in which a row should be stored, and
+        provide examples for each.
+      </p><p><strong>Handling of NULL with RANGE partitioning. </strong>
+          If you insert a row into a table partitioned by
+          <code class="literal">RANGE</code> such that the column value used to
+          determine the partition is <code class="literal">NULL</code>, the row is
+          inserted into the lowest partition. Consider these two tables
+          in a database named <code class="literal">p</code>, created as follows:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t1 (</code></strong>
+    -&gt;     <strong class="userinput"><code>c1 INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>c2 VARCHAR(20)</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY RANGE(c1) (</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p0 VALUES LESS THAN (0),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p1 VALUES LESS THAN (10),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p2 VALUES LESS THAN MAXVALUE</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.09 sec)
+
+mysql&gt; <strong class="userinput"><code>CREATE TABLE t2 (</code></strong>
+    -&gt;     <strong class="userinput"><code>c1 INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>c2 VARCHAR(20)</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY RANGE(c1) (</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p0 VALUES LESS THAN (-5),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p1 VALUES LESS THAN (0),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p2 VALUES LESS THAN (10),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p3 VALUES LESS THAN MAXVALUE</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.09 sec)
+</pre><p>
+        You can see the partitions created by these two
+        <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statements using the
+        following query against the
+        <a class="link" href="information-schema-partitions-table.html" title="26.3.21 The INFORMATION_SCHEMA PARTITIONS Table"><code class="literal">PARTITIONS</code></a> table in the
+        <code class="literal">INFORMATION_SCHEMA</code> database:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT TABLE_NAME, PARTITION_NAME, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH</code></strong>
+     &gt;   <strong class="userinput"><code>FROM INFORMATION_SCHEMA.PARTITIONS</code></strong>
+     &gt;   <strong class="userinput"><code>WHERE TABLE_SCHEMA = 'p' AND TABLE_NAME LIKE 't_';</code></strong>
++------------+----------------+------------+----------------+-------------+
+| TABLE_NAME | PARTITION_NAME | TABLE_ROWS | AVG_ROW_LENGTH | DATA_LENGTH |
++------------+----------------+------------+----------------+-------------+
+| t1         | p0             |          0 |              0 |           0 |
+| t1         | p1             |          0 |              0 |           0 |
+| t1         | p2             |          0 |              0 |           0 |
+| t2         | p0             |          0 |              0 |           0 |
+| t2         | p1             |          0 |              0 |           0 |
+| t2         | p2             |          0 |              0 |           0 |
+| t2         | p3             |          0 |              0 |           0 |
++------------+----------------+------------+----------------+-------------+
+7 rows in set (0.00 sec)
+</pre><p>
+        (For more information about this table, see
+        <a class="xref" href="information-schema-partitions-table.html" title="26.3.21 The INFORMATION_SCHEMA PARTITIONS Table">Section 26.3.21, “The INFORMATION_SCHEMA PARTITIONS Table”</a>.) Now let
+        us populate each of these tables with a single row containing a
+        <code class="literal">NULL</code> in the column used as the partitioning
+        key, and verify that the rows were inserted using a pair of
+        <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES (NULL, 'mothra');</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO t2 VALUES (NULL, 'mothra');</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM t1;</code></strong>
++------+--------+
+| id   | name   |
++------+--------+
+| NULL | mothra |
++------+--------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM t2;</code></strong>
++------+--------+
+| id   | name   |
++------+--------+
+| NULL | mothra |
++------+--------+
+1 row in set (0.00 sec)
+</pre><p>
+        You can see which partitions are used to store the inserted rows
+        by rerunning the previous query against
+        <a class="link" href="information-schema-partitions-table.html" title="26.3.21 The INFORMATION_SCHEMA PARTITIONS Table"><code class="literal">INFORMATION_SCHEMA.PARTITIONS</code></a> and
+        inspecting the output:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT TABLE_NAME, PARTITION_NAME, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH</code></strong>
+     &gt;   <strong class="userinput"><code>FROM INFORMATION_SCHEMA.PARTITIONS</code></strong>
+     &gt;   <strong class="userinput"><code>WHERE TABLE_SCHEMA = 'p' AND TABLE_NAME LIKE 't_';</code></strong>
++------------+----------------+------------+----------------+-------------+
+| TABLE_NAME | PARTITION_NAME | TABLE_ROWS | AVG_ROW_LENGTH | DATA_LENGTH |
++------------+----------------+------------+----------------+-------------+
+<span class="emphasis"><em>| t1         | p0             |          1 |             20 |          20 |</em></span>
+| t1         | p1             |          0 |              0 |           0 |
+| t1         | p2             |          0 |              0 |           0 |
+<span class="emphasis"><em>| t2         | p0             |          1 |             20 |          20 |</em></span>
+| t2         | p1             |          0 |              0 |           0 |
+| t2         | p2             |          0 |              0 |           0 |
+| t2         | p3             |          0 |              0 |           0 |
++------------+----------------+------------+----------------+-------------+
+7 rows in set (0.01 sec)
+</pre><p>
+        You can also demonstrate that these rows were stored in the
+        lowest-numbered partition of each table by dropping these
+        partitions, and then re-running the
+        <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER TABLE t1 DROP PARTITION p0;</code></strong>
+Query OK, 0 rows affected (0.16 sec)
+
+mysql&gt; <strong class="userinput"><code>ALTER TABLE t2 DROP PARTITION p0;</code></strong>
+Query OK, 0 rows affected (0.16 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM t1;</code></strong>
+Empty set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM t2;</code></strong>
+Empty set (0.00 sec)
+</pre><p>
+        (For more information on <code class="literal">ALTER TABLE ... DROP
+        PARTITION</code>, see <a class="xref" href="alter-table.html" title="13.1.9 ALTER TABLE Statement">Section 13.1.9, “ALTER TABLE Statement”</a>.)
+      </p><p>
+        <code class="literal">NULL</code> is also treated in this way for
+        partitioning expressions that use SQL functions. Suppose that we
+        define a table using a <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE
+        TABLE</code></a> statement such as this one:
+      </p><pre class="programlisting">CREATE TABLE tndate (
+    id INT,
+    dt DATE
+)
+PARTITION BY RANGE( YEAR(dt) ) (
+    PARTITION p0 VALUES LESS THAN (1990),
+    PARTITION p1 VALUES LESS THAN (2000),
+    PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+</pre><p>
+        As with other MySQL functions,
+        <a class="link" href="date-and-time-functions.html#function_year"><code class="literal">YEAR(NULL)</code></a> returns
+        <code class="literal">NULL</code>. A row with a <code class="literal">dt</code>
+        column value of <code class="literal">NULL</code> is treated as though the
+        partitioning expression evaluated to a value less than any other
+        value, and so is inserted into partition <code class="literal">p0</code>.
+      </p><p><strong>Handling of NULL with LIST partitioning. </strong>
+          A table that is partitioned by <code class="literal">LIST</code> admits
+          <code class="literal">NULL</code> values if and only if one of its
+          partitions is defined using that value-list that contains
+          <code class="literal">NULL</code>. The converse of this is that a table
+          partitioned by <code class="literal">LIST</code> which does not
+          explicitly use <code class="literal">NULL</code> in a value list rejects
+          rows resulting in a <code class="literal">NULL</code> value for the
+          partitioning expression, as shown in this example:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE ts1 (</code></strong>
+    -&gt;     <strong class="userinput"><code>c1 INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>c2 VARCHAR(20)</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY LIST(c1) (</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p0 VALUES IN (0, 3, 6),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p1 VALUES IN (1, 4, 7),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p2 VALUES IN (2, 5, 8)</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO ts1 VALUES (9, 'mothra');</code></strong>
+<span class="errortext">ERROR 1504 (HY000): Table has no partition for value 9</span>
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO ts1 VALUES (NULL, 'mothra');</code></strong>
+<span class="errortext">ERROR 1504 (HY000): Table has no partition for value NULL</span>
+</pre><p>
+        Only rows having a <code class="literal">c1</code> value between
+        <code class="literal">0</code> and <code class="literal">8</code> inclusive can be
+        inserted into <code class="literal">ts1</code>. <code class="literal">NULL</code>
+        falls outside this range, just like the number
+        <code class="literal">9</code>. We can create tables
+        <code class="literal">ts2</code> and <code class="literal">ts3</code> having value
+        lists containing <code class="literal">NULL</code>, as shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE ts2 (</code></strong>
+    -&gt;     <strong class="userinput"><code>c1 INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>c2 VARCHAR(20)</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY LIST(c1) (</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p0 VALUES IN (0, 3, 6),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p1 VALUES IN (1, 4, 7),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p2 VALUES IN (2, 5, 8),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p3 VALUES IN (NULL)</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>CREATE TABLE ts3 (</code></strong>
+    -&gt;     <strong class="userinput"><code>c1 INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>c2 VARCHAR(20)</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY LIST(c1) (</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p0 VALUES IN (0, 3, 6),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p1 VALUES IN (1, 4, 7, NULL),</code></strong>
+    -&gt;     <strong class="userinput"><code>PARTITION p2 VALUES IN (2, 5, 8)</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.01 sec)
+</pre><p>
+        When defining value lists for partitioning, you can (and should)
+        treat <code class="literal">NULL</code> just as you would any other value.
+        For example, both <code class="literal">VALUES IN (NULL)</code> and
+        <code class="literal">VALUES IN (1, 4, 7, NULL)</code> are valid, as are
+        <code class="literal">VALUES IN (1, NULL, 4, 7)</code>, <code class="literal">VALUES IN
+        (NULL, 1, 4, 7)</code>, and so on. You can insert a row
+        having <code class="literal">NULL</code> for column <code class="literal">c1</code>
+        into each of the tables <code class="literal">ts2</code> and
+        <code class="literal">ts3</code>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO ts2 VALUES (NULL, 'mothra');</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO ts3 VALUES (NULL, 'mothra');</code></strong>
+Query OK, 1 row affected (0.00 sec)
+</pre><p>
+        By issuing the appropriate query against
+        <a class="link" href="information-schema-partitions-table.html" title="26.3.21 The INFORMATION_SCHEMA PARTITIONS Table"><code class="literal">INFORMATION_SCHEMA.PARTITIONS</code></a>, you
+        can determine which partitions were used to store the rows just
+        inserted (we assume, as in the previous examples, that the
+        partitioned tables were created in the <code class="literal">p</code>
+        database):
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT TABLE_NAME, PARTITION_NAME, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH</code></strong>
+     &gt;   <strong class="userinput"><code>FROM INFORMATION_SCHEMA.PARTITIONS</code></strong>
+     &gt;   <strong class="userinput"><code>WHERE TABLE_SCHEMA = 'p' AND TABLE_NAME LIKE 'ts_';</code></strong>
++------------+----------------+------------+----------------+-------------+
+| TABLE_NAME | PARTITION_NAME | TABLE_ROWS | AVG_ROW_LENGTH | DATA_LENGTH |
++------------+----------------+------------+----------------+-------------+
+| ts2        | p0             |          0 |              0 |           0 |
+| ts2        | p1             |          0 |              0 |           0 |
+| ts2        | p2             |          0 |              0 |           0 |
+<span class="emphasis"><em>| ts2        | p3             |          1 |             20 |          20 |</em></span>
+| ts3        | p0             |          0 |              0 |           0 |
+<span class="emphasis"><em>| ts3        | p1             |          1 |             20 |          20 |</em></span>
+| ts3        | p2             |          0 |              0 |           0 |
++------------+----------------+------------+----------------+-------------+
+7 rows in set (0.01 sec)
+</pre><p>
+        As shown earlier in this section, you can also verify which
+        partitions were used for storing the rows by deleting these
+        partitions and then performing a
+        <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>.
+      </p><p><strong>Handling of NULL with HASH and KEY partitioning. </strong>
+          <code class="literal">NULL</code> is handled somewhat differently for
+          tables partitioned by <code class="literal">HASH</code> or
+          <code class="literal">KEY</code>. In these cases, any partition
+          expression that yields a <code class="literal">NULL</code> value is
+          treated as though its return value were zero. We can verify
+          this behavior by examining the effects on the file system of
+          creating a table partitioned by <code class="literal">HASH</code> and
+          populating it with a record containing appropriate values.
+          Suppose that you have a table <code class="literal">th</code> (also in
+          the <code class="literal">p</code> database) created using the following
+          statement:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE th (</code></strong>
+    -&gt;     <strong class="userinput"><code>c1 INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>c2 VARCHAR(20)</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY HASH(c1)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITIONS 2;</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+</pre><p>
+        The partitions belonging to this table can be viewed using the
+        query shown here:
+      </p><pre class="programlisting">mysql&gt; SELECT TABLE_NAME,PARTITION_NAME,TABLE_ROWS,AVG_ROW_LENGTH,DATA_LENGTH
+     &gt;   FROM INFORMATION_SCHEMA.PARTITIONS
+     &gt;   WHERE TABLE_SCHEMA = 'p' AND TABLE_NAME ='th';
++------------+----------------+------------+----------------+-------------+
+| TABLE_NAME | PARTITION_NAME | TABLE_ROWS | AVG_ROW_LENGTH | DATA_LENGTH |
++------------+----------------+------------+----------------+-------------+
+| th         | p0             |          0 |              0 |           0 |
+| th         | p1             |          0 |              0 |           0 |
++------------+----------------+------------+----------------+-------------+
+2 rows in set (0.00 sec)
+</pre><p>
+        <code class="literal">TABLE_ROWS</code> for each partition is 0. Now
+        insert two rows into <code class="literal">th</code> whose
+        <code class="literal">c1</code> column values are <code class="literal">NULL</code>
+        and 0, and verify that these rows were inserted, as shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO th VALUES (NULL, 'mothra'), (0, 'gigan');</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM th;</code></strong>
++------+---------+
+| c1   | c2      |
++------+---------+
+| NULL | mothra  |
++------+---------+
+|    0 | gigan   |
++------+---------+
+2 rows in set (0.01 sec)
+</pre><p>
+        Recall that for any integer <em class="replaceable"><code>N</code></em>, the
+        value of <code class="literal">NULL MOD
+        <em class="replaceable"><code>N</code></em></code> is always
+        <code class="literal">NULL</code>. For tables that are partitioned by
+        <code class="literal">HASH</code> or <code class="literal">KEY</code>, this result
+        is treated for determining the correct partition as
+        <code class="literal">0</code>. Checking the Information Schema
+        <a class="link" href="information-schema-partitions-table.html" title="26.3.21 The INFORMATION_SCHEMA PARTITIONS Table"><code class="literal">PARTITIONS</code></a> table once again, we can
+        see that both rows were inserted into partition
+        <code class="literal">p0</code>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT TABLE_NAME, PARTITION_NAME, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH</code></strong>
+     &gt;   <strong class="userinput"><code>FROM INFORMATION_SCHEMA.PARTITIONS</code></strong>
+     &gt;   <strong class="userinput"><code>WHERE TABLE_SCHEMA = 'p' AND TABLE_NAME ='th';</code></strong>
++------------+----------------+------------+----------------+-------------+
+| TABLE_NAME | PARTITION_NAME | TABLE_ROWS | AVG_ROW_LENGTH | DATA_LENGTH |
++------------+----------------+------------+----------------+-------------+
+<span class="emphasis"><em>| th         | p0             |          2 |             20 |          20 |</em></span>
+| th         | p1             |          0 |              0 |           0 |
++------------+----------------+------------+----------------+-------------+
+2 rows in set (0.00 sec)
+</pre><p>
+        By repeating the last example using <code class="literal">PARTITION BY
+        KEY</code> in place of <code class="literal">PARTITION BY HASH</code>
+        in the definition of the table, you can verify that
+        <code class="literal">NULL</code> is also treated like 0 for this type of
+        partitioning.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partitioning-subpartitions.html">Previous <span class="navHint"> Subpartitioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="partitioning-types.html">Up <span class="navHint"> Partitioning Types </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="partitioning-management.html">Next <span class="navHint"> Partition Management </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

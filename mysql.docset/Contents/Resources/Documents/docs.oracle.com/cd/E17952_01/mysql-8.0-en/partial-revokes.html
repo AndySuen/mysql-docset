@@ -1,0 +1,469 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3039"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/6.2.12%C2%A0Privilege%20Restriction%20Using%20Partial%20Revokes"></a><title>6.2.12&nbsp;Privilege Restriction Using Partial Revokes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="access-control.html" title="6.2&nbsp;Access Control and Account Management"/><link rel="prev" href="account-categories.html" title="6.2.11&nbsp;Account Categories"/><link rel="next" href="privilege-changes.html" title="6.2.13&nbsp;When Privilege Changes Take Effect"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partial-revokes.html#partial-revokes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="account-categories.html">Previous <span class="navHint"> Account Categories </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="privilege-changes.html">Next <span class="navHint"> When Privilege Changes Take Effect </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="partial-revokes"></a>6.2.12&nbsp;Privilege Restriction Using Partial Revokes</h3></div></div></div><a id="idm45828976687840" class="indexterm"></a><a id="idm45828976686800" class="indexterm"></a><p>
+      Prior to MySQL 8.0.16, it is not possible to grant privileges that
+      apply globally except for certain schemas. As of MySQL 8.0.16,
+      that is possible if the
+      <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> system variable
+      is enabled. Specifically, for users who have privileges at the
+      global level, <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a>
+      enables privileges for specific schemas to be revoked while
+      leaving the privileges in place for other schemas. Privilege
+      restrictions thus imposed may be useful for administration of
+      accounts that have global privileges but should not be permitted
+      to access certain schemas. For example, it is possible to permit
+      an account to modify any table except those in the
+      <code class="literal">mysql</code> system schema.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="partial-revokes.html#partial-revokes-usage" title="Using Partial Revokes">Using Partial Revokes</a></p></li><li class="listitem"><p><a class="xref" href="partial-revokes.html#partial-revokes-versus-schema-grants" title="Partial Revokes Versus Explicit Schema Grants">Partial Revokes Versus Explicit Schema Grants</a></p></li><li class="listitem"><p><a class="xref" href="partial-revokes.html#partial-revokes-disabling" title="Disabling Partial Revokes">Disabling Partial Revokes</a></p></li><li class="listitem"><p><a class="xref" href="partial-revokes.html#partial-revokes-replication" title="Partial Revokes and Replication">Partial Revokes and Replication</a></p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        For brevity, <a class="link" href="create-user.html" title="13.7.1.3&nbsp;CREATE USER Statement"><code class="literal">CREATE USER</code></a>
+        statements shown here do not include passwords. For production
+        use, always assign account passwords.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3035"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Using%20Partial%20Revokes"></a><h4 class="title"><a id="partial-revokes-usage"></a>Using Partial Revokes</h4></div></div></div><p>
+        The <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> system
+        variable controls whether privilege restrictions can be placed
+        on accounts. By default,
+        <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> is disabled and
+        attempts to partially revoke global privileges produce an error:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT SELECT, INSERT ON *.* TO u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>REVOKE INSERT ON world.* FROM u1;</code></strong>
+ERROR 1141 (42000): There is no such grant defined for user &#39;u1&#39; on host &#39;%&#39;
+</pre><p>
+        To permit the <a class="link" href="revoke.html" title="13.7.1.8&nbsp;REVOKE Statement"><code class="literal">REVOKE</code></a> operation,
+        enable <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a>:
+      </p><pre class="programlisting">SET PERSIST partial_revokes = ON;
+</pre><p>
+        <a class="link" href="set-variable.html" title="13.7.6.1&nbsp;SET Syntax for Variable Assignment"><code class="literal">SET
+        PERSIST</code></a> sets a value for the running MySQL instance.
+        It also saves the value, causing it to carry over to subsequent
+        server restarts. To change the value for the running MySQL
+        instance without having it carry over to subsequent restarts,
+        use the <code class="literal">GLOBAL</code> keyword rather than
+        <code class="literal">PERSIST</code>. See <a class="xref" href="set-variable.html" title="13.7.6.1&nbsp;SET Syntax for Variable Assignment">Section&nbsp;13.7.6.1, &ldquo;SET Syntax for Variable Assignment&rdquo;</a>.
+      </p><p>
+        With <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> enabled,
+        the partial revoke succeeds:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>REVOKE INSERT ON world.* FROM u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++------------------------------------------+
+| Grants for u1@%                          |
++------------------------------------------+
+| GRANT SELECT, INSERT ON *.* TO `u1`@`%`  |
+| REVOKE INSERT ON `world`.* FROM `u1`@`%` |
++------------------------------------------+
+</pre><p>
+        <a class="link" href="show-grants.html" title="13.7.7.21&nbsp;SHOW GRANTS Statement"><code class="literal">SHOW GRANTS</code></a> lists partial revokes
+        as <a class="link" href="revoke.html" title="13.7.1.8&nbsp;REVOKE Statement"><code class="literal">REVOKE</code></a> statements in its
+        output. The result indicates that <code class="literal">u1</code> has
+        global <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> and
+        <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a> privileges, except that
+        <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a> cannot be exercised for
+        tables in the <code class="literal">world</code> schema. That is, access
+        by <code class="literal">u1</code> to <code class="literal">world</code> tables is
+        read only.
+      </p><p>
+        The server records privilege restrictions implemented through
+        partial revokes in the <code class="literal">mysql.user</code> system
+        table. If an account has partial revokes, its
+        <code class="literal">User_attributes</code> column value has a
+        <code class="literal">Restrictions</code> attribute:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT User, Host, User_attributes-&gt;&gt;&#39;$.Restrictions&#39;</code></strong>
+       <strong class="userinput"><code>FROM mysql.user WHERE User_attributes-&gt;&gt;&#39;$.Restrictions&#39; &lt;&gt; &#39;&#39;;</code></strong>
++------+------+------------------------------------------------------+
+| User | Host | User_attributes-&gt;&gt;&#39;$.Restrictions&#39;                   |
++------+------+------------------------------------------------------+
+| u1   | %    | [{&#34;Database&#34;: &#34;world&#34;, &#34;Privileges&#34;: [&#34;INSERT&#34;]}] |
++------+------+------------------------------------------------------+
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Although partial revokes can be imposed for any schema,
+          privilege restrictions on the <code class="literal">mysql</code> system
+          schema in particular are useful as part of a strategy for
+          preventing regular accounts from modifying system accounts.
+          See <a class="xref" href="account-categories.html#protecting-system-accounts" title="Protecting System Accounts Against Manipulation by Regular Accounts">Protecting System Accounts Against Manipulation by Regular Accounts</a>.
+        </p></div><p>
+        Partial revoke operations are subject to these conditions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            It is possible to use partial revokes to place restrictions
+            on nonexistent schemas, but only if the revoked privilege is
+            granted globally. If a privilege is not granted globally,
+            revoking it for a nonexistent schema produces an error.
+          </p></li><li class="listitem"><p>
+            Partial revokes apply at the schema level only. You cannot
+            use partial revokes for privileges that apply only globally
+            (such as <a class="link" href="privileges-provided.html#priv_file"><code class="literal">FILE</code></a> or
+            <a class="link" href="privileges-provided.html#priv_binlog-admin"><code class="literal">BINLOG_ADMIN</code></a>), or for table,
+            column, or routine privileges.
+          </p></li><li class="listitem"><p>
+            In privilege assignments, enabling
+            <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> causes
+            MySQL to interpret occurrences of unescaped
+            <code class="literal">_</code> and <code class="literal">%</code> SQL wildcard
+            characters in schema names as literal characters, just as if
+            they had been escaped as <code class="literal">\_</code> and
+            <code class="literal">\%</code>. Because this changes how MySQL
+            interprets privileges, it may be advisable to avoid
+            unescaped wildcard characters in privilege assignments for
+            installations where
+            <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> may be
+            enabled.
+          </p></li></ul></div><p>
+        As mentioned previously, partial revokes of schema-level
+        privileges appear in <a class="link" href="show-grants.html" title="13.7.7.21&nbsp;SHOW GRANTS Statement"><code class="literal">SHOW GRANTS</code></a>
+        output as <a class="link" href="revoke.html" title="13.7.1.8&nbsp;REVOKE Statement"><code class="literal">REVOKE</code></a> statements. This
+        differs from how <a class="link" href="show-grants.html" title="13.7.7.21&nbsp;SHOW GRANTS Statement"><code class="literal">SHOW GRANTS</code></a>
+        represents <span class="quote">&ldquo;<span class="quote">plain</span>&rdquo;</span> schema-level privileges:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            When granted, schema-level privileges are represented by
+            their own <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a> statements in
+            the output:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT UPDATE ON mysql.* TO u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT DELETE ON world.* TO u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++---------------------------------------+
+| Grants for u1@%                       |
++---------------------------------------+
+| GRANT USAGE ON *.* TO `u1`@`%`        |
+| GRANT UPDATE ON `mysql`.* TO `u1`@`%` |
+| GRANT DELETE ON `world`.* TO `u1`@`%` |
++---------------------------------------+
+</pre></li><li class="listitem"><p>
+            When revoked, schema-level privileges simply disappear from
+            the output. They do not appear as
+            <a class="link" href="revoke.html" title="13.7.1.8&nbsp;REVOKE Statement"><code class="literal">REVOKE</code></a> statements:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>REVOKE UPDATE ON mysql.* FROM u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>REVOKE DELETE ON world.* FROM u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++--------------------------------+
+| Grants for u1@%                |
++--------------------------------+
+| GRANT USAGE ON *.* TO `u1`@`%` |
++--------------------------------+
+</pre></li></ul></div><p>
+        When a user grants a privilege, any restriction the grantor has
+        on the privilege is inherited by the grantee, unless the grantee
+        already has the privilege without the restriction. Consider the
+        following two users, one of whom has the global
+        <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> privilege:
+      </p><pre class="programlisting">CREATE USER u1, u2;
+GRANT SELECT ON *.* TO u2;
+</pre><p>
+        Suppose that an administrative user <code class="literal">admin</code> has
+        a global but partially revoked
+        <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> privilege:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER admin;</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT SELECT ON *.* TO admin WITH GRANT OPTION;</code></strong>
+mysql&gt; <strong class="userinput"><code>REVOKE SELECT ON mysql.* FROM admin;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR admin;</code></strong>
++------------------------------------------------------+
+| Grants for admin@%                                   |
++------------------------------------------------------+
+| GRANT SELECT ON *.* TO `admin`@`%` WITH GRANT OPTION |
+| REVOKE SELECT ON `mysql`.* FROM `admin`@`%`          |
++------------------------------------------------------+
+</pre><p>
+        If <code class="literal">admin</code> grants
+        <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> globally to
+        <code class="literal">u1</code> and <code class="literal">u2</code>, the result
+        differs for each user:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If <code class="literal">admin</code> grants
+            <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> globally to
+            <code class="literal">u1</code>, who has no
+            <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> privilege to begin
+            with, <code class="literal">u1</code> inherits the
+            <code class="literal">admin</code> privilege restriction:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>GRANT SELECT ON *.* TO u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++------------------------------------------+
+| Grants for u1@%                          |
++------------------------------------------+
+| GRANT SELECT ON *.* TO `u1`@`%`          |
+| REVOKE SELECT ON `mysql`.* FROM `u1`@`%` |
++------------------------------------------+
+</pre></li><li class="listitem"><p>
+            On the other hand, <code class="literal">u2</code> already holds a
+            global <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> privilege
+            without restriction. <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a>
+            can only add to a grantee&#39;s existing privileges, not reduce
+            them, so if <code class="literal">admin</code> grants
+            <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> globally to
+            <code class="literal">u2</code>, <code class="literal">u2</code> does not
+            inherit the <code class="literal">admin</code> restriction:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>GRANT SELECT ON *.* TO u2;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u2;</code></strong>
++---------------------------------+
+| Grants for u2@%                 |
++---------------------------------+
+| GRANT SELECT ON *.* TO `u2`@`%` |
++---------------------------------+
+</pre></li></ul></div><p>
+        If a <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a> statement includes an
+        <code class="literal">AS <em class="replaceable"><code>user</code></em></code> clause,
+        the privilege restrictions applied are those on the user/role
+        combination specified by the clause, rather than those on the
+        user who executes the statement. For information about the
+        <code class="literal">AS</code> clause, see <a class="xref" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement">Section&nbsp;13.7.1.6, &ldquo;GRANT Statement&rdquo;</a>.
+      </p><p>
+        Restrictions on new privileges granted to an account are added
+        to any existing restrictions for that account:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>REVOKE INSERT ON mysql.* FROM u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++---------------------------------------------------------+
+| Grants for u1@%                                         |
++---------------------------------------------------------+
+| GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO `u1`@`%` |
+| REVOKE INSERT ON `mysql`.* FROM `u1`@`%`                |
++---------------------------------------------------------+
+mysql&gt; <strong class="userinput"><code>REVOKE DELETE, UPDATE ON db2.* FROM u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++---------------------------------------------------------+
+| Grants for u1@%                                         |
++---------------------------------------------------------+
+| GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO `u1`@`%` |
+| REVOKE UPDATE, DELETE ON `db2`.* FROM `u1`@`%`          |
+| REVOKE INSERT ON `mysql`.* FROM `u1`@`%`                |
++---------------------------------------------------------+
+</pre><p>
+        Aggregation of privilege restrictions applies both when
+        privileges are partially revoked explicitly (as just shown) and
+        when restrictions are inherited implicitly from the user who
+        executes the statement or the user mentioned in an <code class="literal">AS
+        <em class="replaceable"><code>user</code></em></code> clause.
+      </p><p>
+        If an account has a privilege restriction on a schema:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The account cannot grant to other accounts a privilege on
+            the restricted schema or any object within it.
+          </p></li><li class="listitem"><p>
+            Another account that does not have the restriction can grant
+            privileges to the restricted account for the restricted
+            schema or objects within it. Suppose that an unrestricted
+            user executes these statements:
+          </p><pre class="programlisting">CREATE USER u1;
+GRANT SELECT, INSERT, UPDATE ON *.* TO u1;
+REVOKE SELECT, INSERT, UPDATE ON mysql.* FROM u1;
+GRANT SELECT ON mysql.user TO u1;          -- grant table privilege
+GRANT SELECT(Host,User) ON mysql.db TO u1; -- grant column privileges
+</pre><p>
+            The resulting account has these privileges, with the ability
+            to perform limited operations within the restricted schema:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++-----------------------------------------------------------+
+| Grants for u1@%                                           |
++-----------------------------------------------------------+
+| GRANT SELECT, INSERT, UPDATE ON *.* TO `u1`@`%`           |
+| REVOKE SELECT, INSERT, UPDATE ON `mysql`.* FROM `u1`@`%`  |
+| GRANT SELECT (`Host`, `User`) ON `mysql`.`db` TO `u1`@`%` |
+| GRANT SELECT ON `mysql`.`user` TO `u1`@`%`                |
++-----------------------------------------------------------+
+</pre></li></ul></div><p>
+        If an account has a restriction on a global privilege, the
+        restriction is removed by any of these actions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Granting the privilege globally to the account by an account
+            that has no restriction on the privilege.
+          </p></li><li class="listitem"><p>
+            Granting the privilege at the schema level.
+          </p></li><li class="listitem"><p>
+            Revoking the privilege globally.
+          </p></li></ul></div><p>
+        Consider a user <code class="literal">u1</code> who holds several
+        privileges globally, but with restrictions on
+        <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a>,
+        <a class="link" href="privileges-provided.html#priv_update"><code class="literal">UPDATE</code></a> and
+        <a class="link" href="privileges-provided.html#priv_delete"><code class="literal">DELETE</code></a>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>REVOKE INSERT, UPDATE, DELETE ON mysql.* FROM u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++----------------------------------------------------------+
+| Grants for u1@%                                          |
++----------------------------------------------------------+
+| GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO `u1`@`%`  |
+| REVOKE INSERT, UPDATE, DELETE ON `mysql`.* FROM `u1`@`%` |
++----------------------------------------------------------+
+</pre><p>
+        Granting a privilege globally to <code class="literal">u1</code> from an
+        account with no restriction removes the privilege restriction.
+        For example, to remove the <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a>
+        restriction:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>GRANT INSERT ON *.* TO u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++---------------------------------------------------------+
+| Grants for u1@%                                         |
++---------------------------------------------------------+
+| GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO `u1`@`%` |
+| REVOKE UPDATE, DELETE ON `mysql`.* FROM `u1`@`%`        |
++---------------------------------------------------------+
+</pre><p>
+        Granting a privilege at the schema level to
+        <code class="literal">u1</code> removes the privilege restriction. For
+        example, to remove the <a class="link" href="privileges-provided.html#priv_update"><code class="literal">UPDATE</code></a>
+        restriction:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>GRANT UPDATE ON mysql.* TO u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++---------------------------------------------------------+
+| Grants for u1@%                                         |
++---------------------------------------------------------+
+| GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO `u1`@`%` |
+| REVOKE DELETE ON `mysql`.* FROM `u1`@`%`                |
++---------------------------------------------------------+
+</pre><p>
+        Revoking a global privilege removes the privilege, including any
+        restrictions on it. For example, to remove the
+        <a class="link" href="privileges-provided.html#priv_delete"><code class="literal">DELETE</code></a> restriction (at the cost
+        of removing all <a class="link" href="privileges-provided.html#priv_delete"><code class="literal">DELETE</code></a> access):
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>REVOKE DELETE ON *.* FROM u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++-------------------------------------------------+
+| Grants for u1@%                                 |
++-------------------------------------------------+
+| GRANT SELECT, INSERT, UPDATE ON *.* TO `u1`@`%` |
++-------------------------------------------------+
+</pre><p>
+        If an account has a privilege at both the global and schema
+        levels, you must revoke it at the schema level twice to effect a
+        partial revoke. Suppose that <code class="literal">u1</code> has these
+        privileges, where <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a> is held
+        both globally and on the <code class="literal">world</code> schema:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT SELECT, INSERT ON *.* TO u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>GRANT INSERT ON world.* TO u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++-----------------------------------------+
+| Grants for u1@%                         |
++-----------------------------------------+
+| GRANT SELECT, INSERT ON *.* TO `u1`@`%` |
+| GRANT INSERT ON `world`.* TO `u1`@`%`   |
++-----------------------------------------+
+</pre><p>
+        Revoking <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a> on
+        <code class="literal">world</code> revokes the schema-level privilege
+        (<a class="link" href="show-grants.html" title="13.7.7.21&nbsp;SHOW GRANTS Statement"><code class="literal">SHOW GRANTS</code></a> no longer displays
+        the schema-level <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a>
+        statement):
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>REVOKE INSERT ON world.* FROM u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++-----------------------------------------+
+| Grants for u1@%                         |
++-----------------------------------------+
+| GRANT SELECT, INSERT ON *.* TO `u1`@`%` |
++-----------------------------------------+
+</pre><p>
+        Revoking <a class="link" href="privileges-provided.html#priv_insert"><code class="literal">INSERT</code></a> on
+        <code class="literal">world</code> again performs a partial revoke of the
+        global privilege (<a class="link" href="show-grants.html" title="13.7.7.21&nbsp;SHOW GRANTS Statement"><code class="literal">SHOW GRANTS</code></a> now
+        includes a schema-level <a class="link" href="revoke.html" title="13.7.1.8&nbsp;REVOKE Statement"><code class="literal">REVOKE</code></a>
+        statement):
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>REVOKE INSERT ON world.* FROM u1;</code></strong>
+mysql&gt; <strong class="userinput"><code>SHOW GRANTS FOR u1;</code></strong>
++------------------------------------------+
+| Grants for u1@%                          |
++------------------------------------------+
+| GRANT SELECT, INSERT ON *.* TO `u1`@`%`  |
+| REVOKE INSERT ON `world`.* FROM `u1`@`%` |
++------------------------------------------+
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3036"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Partial%20Revokes%20Versus%20Explicit%20Schema%20Grants"></a><h4 class="title"><a id="partial-revokes-versus-schema-grants"></a>Partial Revokes Versus Explicit Schema Grants</h4></div></div></div><p>
+        To provide access to accounts for some schemas but not others,
+        partial revokes provide an alternative to the approach of
+        explicitly granting schema-level access without granting global
+        privileges. The two approaches have different advantages and
+        disadvantages.
+      </p><p>
+        Granting schema-level privileges and not global privileges:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Adding a new schema: The schema is inaccessible to existing
+            accounts by default. For any account to which the schema
+            should be accessible, the DBA must grant schema-level
+            access.
+          </p></li><li class="listitem"><p>
+            Adding a new account: The DBA must grant schema-level access
+            for each schema to which the account should have access.
+          </p></li></ul></div><p>
+        Granting global privileges in conjunction with partial revokes:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Adding a new schema: The schema is accessible to existing
+            accounts that have global privileges. For any such account
+            to which the schema should be inaccessible, the DBA must add
+            a partial revoke.
+          </p></li><li class="listitem"><p>
+            Adding a new account: The DBA must grant the global
+            privileges, plus a partial revoke on each restricted schema.
+          </p></li></ul></div><p>
+        The approach that uses explicit schema-level grant is more
+        convenient for accounts for which access is limited to a few
+        schemas. The approach that uses partial revokes is more
+        convenient for accounts with broad access to all schemas except
+        a few.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3037"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Disabling%20Partial%20Revokes"></a><h4 class="title"><a id="partial-revokes-disabling"></a>Disabling Partial Revokes</h4></div></div></div><p>
+        Once enabled, <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a>
+        cannot be disabled if any account has privilege restrictions. If
+        any such account exists, disabling
+        <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> fails:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For attempts to disable
+            <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> at startup,
+            the server logs an error message and enables
+            <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a>.
+          </p></li><li class="listitem"><p>
+            For attempts to disable
+            <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> at runtime,
+            an error occurs and the
+            <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> value
+            remains unchanged.
+          </p></li></ul></div><p>
+        To disable <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> when
+        restrictions exist, the restrictions first must be removed:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Determine which accounts have partial revokes:
+          </p><pre class="programlisting">SELECT User, Host, User_attributes-&gt;&gt;&#39;$.Restrictions&#39;
+FROM mysql.user WHERE User_attributes-&gt;&gt;&#39;$.Restrictions&#39; &lt;&gt; &#39;&#39;;
+</pre></li><li class="listitem"><p>
+            For each such account, remove its privilege restrictions.
+            Suppose that the previous step shows account
+            <code class="literal">u1</code> to have these restrictions:
+          </p><pre class="programlisting">[{&#34;Database&#34;: &#34;world&#34;, &#34;Privileges&#34;: [&#34;INSERT&#34;, &#34;DELETE&#34;]
+</pre><p>
+            Restriction removal can be done various ways:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                Grant the privileges globally, without restrictions:
+              </p><pre class="programlisting">GRANT INSERT, DELETE ON *.* TO u1;
+</pre></li><li class="listitem"><p>
+                Grant the privileges at the schema level:
+              </p><pre class="programlisting">GRANT INSERT, DELETE ON world.* TO u1;
+</pre></li><li class="listitem"><p>
+                Revoke the privileges globally (assuming that they are
+                no longer needed):
+              </p><pre class="programlisting">REVOKE INSERT, DELETE ON *.* FROM u1;
+</pre></li><li class="listitem"><p>
+                Remove the account itself (assuming that it is no longer
+                needed):
+              </p><pre class="programlisting">DROP USER u1;
+</pre></li></ul></div></li></ol></div><p>
+        After all privilege restrictions are removed, it is possible to
+        disable partial revokes:
+      </p><pre class="programlisting">SET PERSIST partial_revokes = OFF;
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3038"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Partial%20Revokes%20and%20Replication"></a><h4 class="title"><a id="partial-revokes-replication"></a>Partial Revokes and Replication</h4></div></div></div><p>
+        In replication scenarios, if
+        <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> is enabled on
+        any host, it must be enabled on all hosts. Otherwise,
+        <a class="link" href="revoke.html" title="13.7.1.8&nbsp;REVOKE Statement"><code class="literal">REVOKE</code></a> statements to partially
+        revoke a global privilege do not have the same effect for all
+        hosts on which replication occurs, potentially resulting in
+        replication inconsistencies or errors.
+      </p><p>
+        When <a class="link" href="server-system-variables.html#sysvar_partial_revokes"><code class="literal">partial_revokes</code></a> is
+        enabled, an extended syntax is recorded in the binary log for
+        <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a> statements, including the
+        current user that issued the statement and their currently
+        active roles. If a user or a role recorded in this way does not
+        exist on the replica, the replication applier thread stops at
+        the <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a> statement
+        with an error. Ensure that all user accounts that issue or might
+        issue <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a> statements on the
+        replication source server also exist on the replica, and have
+        the same set of roles as they have on the source.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="account-categories.html">Previous <span class="navHint"> Account Categories </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="privilege-changes.html">Next <span class="navHint"> When Privilege Changes Take Effect </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,89 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3168"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/27.19%C2%A0Using%20the%20Performance%20Schema%20to%20Diagnose%20Problems"></a><title>27.19&nbsp;Using the Performance Schema to Diagnose Problems</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="performance-schema.html" title="Chapter&nbsp;27&nbsp;MySQL Performance Schema"/><link rel="prev" href="performance-schema-and-plugins.html" title="27.18&nbsp;Performance Schema and Plugins"/><link rel="next" href="performance-schema-query-profiling.html" title="27.19.1&nbsp;Query Profiling Using Performance Schema"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-examples.html#performance-schema-examples">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="performance-schema-and-plugins.html">Previous <span class="navHint"> Performance Schema and Plugins </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="performance-schema-query-profiling.html">Next <span class="navHint"> Query Profiling Using Performance Schema </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="performance-schema-examples"></a>27.19&nbsp;Using the Performance Schema to Diagnose Problems</h2></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="performance-schema-query-profiling.html">27.19.1 Query Profiling Using Performance Schema</a></span></li><li><span class="section"><a href="performance-schema-obtaining-parent-events.html">27.19.2 Obtaining Parent Event Information</a></span></li></ul></div><a id="idm45828781694832" class="indexterm"></a><a id="idm45828781693376" class="indexterm"></a><p>
+      The Performance Schema is a tool to help a DBA do performance
+      tuning by taking real measurements instead of <span class="quote">&ldquo;<span class="quote">wild
+      guesses.</span>&rdquo;</span> This section demonstrates some ways to use the
+      Performance Schema for this purpose. The discussion here relies on
+      the use of event filtering, which is described in
+      <a class="xref" href="performance-schema-filtering.html" title="27.4.2&nbsp;Performance Schema Event Filtering">Section&nbsp;27.4.2, &ldquo;Performance Schema Event Filtering&rdquo;</a>.
+    </p><p>
+      The following example provides one methodology that you can use to
+      analyze a repeatable problem, such as investigating a performance
+      bottleneck. To begin, you should have a repeatable use case where
+      performance is deemed <span class="quote">&ldquo;<span class="quote">too slow</span>&rdquo;</span> and needs
+      optimization, and you should enable all instrumentation (no
+      pre-filtering at all).
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Run the use case.
+        </p></li><li class="listitem"><p>
+          Using the Performance Schema tables, analyze the root cause of
+          the performance problem. This analysis relies heavily on
+          post-filtering.
+        </p></li><li class="listitem"><p>
+          For problem areas that are ruled out, disable the
+          corresponding instruments. For example, if analysis shows that
+          the issue is not related to file I/O in a particular storage
+          engine, disable the file I/O instruments for that engine. Then
+          truncate the history and summary tables to remove previously
+          collected events.
+        </p></li><li class="listitem"><p>
+          Repeat the process at step 1.
+        </p><p>
+          With each iteration, the Performance Schema output,
+          particularly the
+          <a class="link" href="performance-schema-events-waits-history-long-table.html" title="27.12.4.3&nbsp;The events_waits_history_long Table"><code class="literal">events_waits_history_long</code></a> table,
+          contains less and less <span class="quote">&ldquo;<span class="quote">noise</span>&rdquo;</span> caused by
+          nonsignificant instruments, and given that this table has a
+          fixed size, contains more and more data relevant to the
+          analysis of the problem at hand.
+        </p><p>
+          With each iteration, investigation should lead closer and
+          closer to the root cause of the problem, as the
+          <span class="quote">&ldquo;<span class="quote">signal/noise</span>&rdquo;</span> ratio improves, making analysis
+          easier.
+        </p></li><li class="listitem"><p>
+          Once a root cause of performance bottleneck is identified,
+          take the appropriate corrective action, such as:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Tune the server parameters (cache sizes, memory, and so
+              forth).
+            </p></li><li class="listitem"><p>
+              Tune a query by writing it differently,
+            </p></li><li class="listitem"><p>
+              Tune the database schema (tables, indexes, and so forth).
+            </p></li><li class="listitem"><p>
+              Tune the code (this applies to storage engine or server
+              developers only).
+            </p></li></ul></div></li><li class="listitem"><p>
+          Start again at step 1, to see the effects of the changes on
+          performance.
+        </p></li></ol></div><p>
+      The <code class="literal">mutex_instances.LOCKED_BY_THREAD_ID</code> and
+      <code class="literal">rwlock_instances.WRITE_LOCKED_BY_THREAD_ID</code>
+      columns are extremely important for investigating performance
+      bottlenecks or deadlocks. This is made possible by Performance
+      Schema instrumentation as follows:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Suppose that thread 1 is stuck waiting for a mutex.
+        </p></li><li class="listitem"><p>
+          You can determine what the thread is waiting for:
+        </p><pre class="programlisting">SELECT * FROM performance_schema.events_waits_current
+WHERE THREAD_ID = <em class="replaceable"><code>thread_1</code></em>;
+</pre><p>
+          Say the query result identifies that the thread is waiting for
+          mutex A, found in
+          <code class="literal">events_waits_current.OBJECT_INSTANCE_BEGIN</code>.
+        </p></li><li class="listitem"><p>
+          You can determine which thread is holding mutex A:
+        </p><pre class="programlisting">SELECT * FROM performance_schema.mutex_instances
+WHERE OBJECT_INSTANCE_BEGIN = <em class="replaceable"><code>mutex_A</code></em>;
+</pre><p>
+          Say the query result identifies that it is thread 2 holding
+          mutex A, as found in
+          <code class="literal">mutex_instances.LOCKED_BY_THREAD_ID</code>.
+        </p></li><li class="listitem"><p>
+          You can see what thread 2 is doing:
+        </p><pre class="programlisting">SELECT * FROM performance_schema.events_waits_current
+WHERE THREAD_ID = <em class="replaceable"><code>thread_2</code></em>;
+</pre></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="performance-schema-and-plugins.html">Previous <span class="navHint"> Performance Schema and Plugins </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-query-profiling.html">Next <span class="navHint"> Query Profiling Using Performance Schema </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

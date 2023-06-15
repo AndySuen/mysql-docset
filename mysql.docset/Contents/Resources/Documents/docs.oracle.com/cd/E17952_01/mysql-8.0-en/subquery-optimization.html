@@ -1,0 +1,48 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4168"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.2%C2%A0Optimizing%20Subqueries%2C%20Derived%20Tables%2C%20View%20References%2C%20and%20Common%20Table%20Expressions"></a><title>8.2.2&nbsp;Optimizing Subqueries, Derived Tables, View References, and Common Table Expressions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="statement-optimization.html" title="8.2&nbsp;Optimizing SQL Statements"/><link rel="prev" href="table-scan-avoidance.html" title="8.2.1.23&nbsp;Avoiding Full Table Scans"/><link rel="next" href="semijoins.html" title="8.2.2.1&nbsp;Optimizing IN and EXISTS Subquery Predicates with Semijoin Transformations"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="subquery-optimization.html#subquery-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="table-scan-avoidance.html">Previous <span class="navHint"> Avoiding Full Table Scans </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="statement-optimization.html">Up <span class="navHint"> Optimizing SQL Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="semijoins.html">Next <span class="navHint"> Optimizing IN and EXISTS Subquery Predicates with Semijoin
+          Transformations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="subquery-optimization"></a>8.2.2&nbsp;Optimizing Subqueries, Derived Tables, View References, and Common Table
+        Expressions</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="semijoins.html">8.2.2.1 Optimizing IN and EXISTS Subquery Predicates with Semijoin
+          Transformations</a></span></li><li><span class="section"><a href="subquery-materialization.html">8.2.2.2 Optimizing Subqueries with Materialization</a></span></li><li><span class="section"><a href="subquery-optimization-with-exists.html">8.2.2.3 Optimizing Subqueries with the EXISTS Strategy</a></span></li><li><span class="section"><a href="derived-table-optimization.html">8.2.2.4 Optimizing Derived Tables, View References, and Common Table Expressions
+          with Merging or Materialization</a></span></li><li><span class="section"><a href="derived-condition-pushdown-optimization.html">8.2.2.5 Derived Condition Pushdown Optimization</a></span></li></ul></div><a id="idm45828955238192" class="indexterm"></a><a id="idm45828955236736" class="indexterm"></a><a id="idm45828955235248" class="indexterm"></a><a id="idm45828955233760" class="indexterm"></a><a id="idm45828955232272" class="indexterm"></a><a id="idm45828955230784" class="indexterm"></a><a id="idm45828955229296" class="indexterm"></a><a id="idm45828955227792" class="indexterm"></a><p>
+        The MySQL query optimizer has different strategies available to
+        evaluate subqueries:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For a subquery used with an <code class="literal">IN</code>,
+            <code class="literal">= ANY</code>, or <code class="literal">EXISTS</code>
+            predicate, the optimizer has these choices:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                Semijoin
+              </p></li><li class="listitem"><p>
+                Materialization
+              </p></li><li class="listitem"><p>
+                <code class="literal">EXISTS</code> strategy
+              </p></li></ul></div></li><li class="listitem"><p>
+            For a subquery used with a <code class="literal">NOT IN</code>,
+            <code class="literal">&lt;&gt; ALL</code> or <code class="literal">NOT
+            EXISTS</code> predicate, the optimizer has these choices:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                Materialization
+              </p></li><li class="listitem"><p>
+                <code class="literal">EXISTS</code> strategy
+              </p></li></ul></div></li></ul></div><p>
+        For a derived table, the optimizer has these choices (which also
+        apply to view references and common table expressions):
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Merge the derived table into the outer query block
+          </p></li><li class="listitem"><p>
+            Materialize the derived table to an internal temporary table
+          </p></li></ul></div><p>
+        The following discussion provides more information about the
+        preceding optimization strategies.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          A limitation on <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> and
+          <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> statements that use a
+          subquery to modify a single table is that the optimizer does
+          not use semijoin or materialization subquery optimizations. As
+          a workaround, try rewriting them as multiple-table
+          <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> and
+          <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> statements that use a
+          join rather than a subquery.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="table-scan-avoidance.html">Previous <span class="navHint"> Avoiding Full Table Scans </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="statement-optimization.html">Up <span class="navHint"> Optimizing SQL Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="semijoins.html">Next <span class="navHint"> Optimizing IN and EXISTS Subquery Predicates with Semijoin
+          Transformations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

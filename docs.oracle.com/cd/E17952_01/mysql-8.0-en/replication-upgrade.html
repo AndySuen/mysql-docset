@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.5.3 Upgrading a Replication Topology</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-notes.html" title="17.5 Replication Notes and Tips" /><link rel="prev" href="replication-compatibility.html" title="17.5.2 Replication Compatibility Between MySQL Versions" /><link rel="next" href="replication-problems.html" title="17.5.4 Troubleshooting Replication" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-upgrade.html#replication-upgrade">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-compatibility.html">Previous <span class="navHint"> Replication Compatibility Between MySQL Versions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-notes.html">Up <span class="navHint"> Replication Notes and Tips </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-problems.html">Next <span class="navHint"> Troubleshooting Replication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="replication-upgrade"></a>17.5.3 Upgrading a Replication Topology</h3></div></div></div><p>
+      When you upgrade servers that participate in a replication
+      topology, you need to take into account each server's role in the
+      topology and look out for issues specific to replication. For
+      general information and instructions for upgrading a MySQL Server
+      instance, see <a class="xref" href="upgrading.html" title="2.10 Upgrading MySQL">Section 2.10, “Upgrading MySQL”</a>.
+    </p><p>
+      As explained in
+      <a class="xref" href="replication-compatibility.html" title="17.5.2 Replication Compatibility Between MySQL Versions">Section 17.5.2, “Replication Compatibility Between MySQL Versions”</a>, MySQL supports
+      replication from a source running one release series to a replica
+      running the next higher release series, but does not support
+      replication from a source running a later release to a replica
+      running an earlier release. A replica at an earlier release might
+      not have the required capability to process transactions that can
+      be handled by the source at a later release. You must therefore
+      upgrade all of the replicas in a replication topology to the
+      target MySQL Server release, before you upgrade the source server
+      to the target release. In this way you will never be in the
+      situation where a replica still at the earlier release is
+      attempting to handle transactions from a source at the later
+      release.
+    </p><p>
+      In a replication topology where there are multiple sources
+      (multi-source replication), the use of more than two MySQL Server
+      versions is not supported, regardless of the number of source or
+      replica MySQL servers. This restriction applies not only to
+      release series, but to version numbers within the same release
+      series as well. For example, you cannot use MySQL
+      8.0.22, MySQL 8.0.24, and MySQL
+      8.0.28 concurrently in such a setup, although you
+      could use any two of these releases together.
+    </p><p>
+      If you need to downgrade the servers in a replication topology,
+      the source must be downgraded before the replicas are downgraded.
+      On the replicas, you must ensure that the binary log and relay log
+      have been fully processed, and remove them before proceeding with
+      the downgrade.
+    </p><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="idm45828855788464"></a>Behavior Changes Between Releases</h4></div></div></div><p>
+        Although this upgrade sequence is correct, it is possible to
+        still encounter replication difficulties when replicating from a
+        source at an earlier release that has not yet been upgraded, to
+        a replica at a later release that has been upgraded. This can
+        happen if the source uses statements or relies on behavior that
+        is no longer supported in the later release installed on the
+        replica. You can use MySQL Shell's upgrade checker utility
+        <code class="literal">util.checkForServerUpgrade()</code> to check MySQL
+        5.7 server instances or MySQL 8.0 server instances for upgrade
+        to a GA MySQL 8.0 release. The utility identifies anything that
+        needs to be fixed for that server instance so that it does not
+        cause an issue after the upgrade, including features and
+        behaviors that are no longer available in the later release. See
+        <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-shell-8.0-en/mysql-shell-utilities-upgrade.html" target="_top">Upgrade Checker Utility</a> for
+        information on the upgrade checker utility.
+      </p><p>
+        If you are upgrading an existing replication setup from a
+        version of MySQL that does not support global transaction
+        identifiers (GTIDs) to a version that does, only enable GTIDs on
+        the source and the replicas when you have made sure that the
+        setup meets all the requirements for GTID-based replication. See
+        <a class="xref" href="replication-gtids-howto.html" title="17.1.3.4 Setting Up Replication Using GTIDs">Section 17.1.3.4, “Setting Up Replication Using GTIDs”</a> for information about
+        converting binary log file position based replication setups to
+        use GTID-based replication.
+      </p><p>
+        Changes affecting operations in strict SQL mode
+        (<a class="link" href="sql-mode.html#sqlmode_strict_trans_tables"><code class="literal">STRICT_TRANS_TABLES</code></a> or
+        <a class="link" href="sql-mode.html#sqlmode_strict_all_tables"><code class="literal">STRICT_ALL_TABLES</code></a>) may result
+        in replication failure on an upgraded replica. If you use
+        statement-based logging
+        (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=STATEMENT</code></a>),
+        if a replica is upgraded before the source, the source executes
+        statements which succeed there but which may fail on the replica
+        and so cause replication to stop. To deal with this, stop all
+        new statements on the source and wait until the replicas catch
+        up, then upgrade the replicas. Alternatively, if you cannot stop
+        new statements, temporarily change to row-based logging on the
+        source
+        (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a>)
+        and wait until all replicas have processed all binary logs
+        produced up to the point of this change, then upgrade the
+        replicas.
+      </p><p>
+        The default character set has changed from
+        <code class="literal">latin1</code> to <code class="literal">utf8mb4</code> in MySQL
+        8.0. In a replicated setting, when upgrading from MySQL 5.7 to
+        8.0, it is advisable to change the default character set back to
+        the character set used in MySQL 5.7 before upgrading. After the
+        upgrade is completed, the default character set can be changed
+        to <code class="literal">utf8mb4</code>. Assuming that the previous
+        defaults were used, one way to preserve them is to start the
+        server with these lines in the <code class="filename">my.cnf</code> file:
+      </p><pre class="programlisting">[mysqld]
+character_set_server=latin1
+collation_server=latin1_swedish_ci
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="idm45828855772384"></a>Standard Upgrade Procedure</h4></div></div></div><p>
+        To upgrade a replication topology, follow the instructions in
+        <a class="xref" href="upgrading.html" title="2.10 Upgrading MySQL">Section 2.10, “Upgrading MySQL”</a> for each individual MySQL Server
+        instance, using this overall procedure:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Upgrade the replicas first. On each replica instance:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                Carry out the preliminary checks and steps described in
+                <a class="xref" href="upgrade-prerequisites.html" title="2.10.5 Preparing Your Installation for Upgrade">Section 2.10.5, “Preparing Your Installation for Upgrade”</a>.
+              </p></li><li class="listitem"><p>
+                Shut down MySQL Server.
+              </p></li><li class="listitem"><p>
+                Upgrade the MySQL Server binaries or packages.
+              </p></li><li class="listitem"><p>
+                Restart MySQL Server.
+              </p></li><li class="listitem"><p>
+                If you have upgraded to a release earlier than MySQL
+                8.0.16, invoke <a class="link" href="mysql-upgrade.html" title="4.4.5 mysql_upgrade — Check and Upgrade MySQL Tables"><span class="command"><strong>mysql_upgrade</strong></span></a> manually
+                to upgrade the system tables and schemas. When the
+                server is running with global transaction identifiers
+                (GTIDs) enabled
+                (<a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">gtid_mode=ON</code></a>), do not
+                enable binary logging by
+                <a class="link" href="mysql-upgrade.html" title="4.4.5 mysql_upgrade — Check and Upgrade MySQL Tables"><span class="command"><strong>mysql_upgrade</strong></span></a> (so do not use the
+                <a class="link" href="mysql-upgrade.html#option_mysql_upgrade_write-binlog"><code class="option">--write-binlog</code></a>
+                option). Then shut down and restart the server.
+              </p></li><li class="listitem"><p>
+                If you have upgraded to MySQL 8.0.16 or later, do not
+                invoke <a class="link" href="mysql-upgrade.html" title="4.4.5 mysql_upgrade — Check and Upgrade MySQL Tables"><span class="command"><strong>mysql_upgrade</strong></span></a>. From that
+                release, MySQL Server performs the entire MySQL upgrade
+                procedure, disabling binary logging during the upgrade.
+              </p></li><li class="listitem"><p>
+                Restart replication using a <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+                REPLICA</code></a> or <a class="link" href="start-slave.html" title="13.4.2.9 START SLAVE Statement"><code class="literal">START
+                SLAVE</code></a> statement.
+              </p></li></ul></div></li><li class="listitem"><p>
+            When all the replicas have been upgraded, follow the same
+            steps to upgrade and restart the source server, with the
+            exception of the <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+            REPLICA</code></a> or <a class="link" href="start-slave.html" title="13.4.2.9 START SLAVE Statement"><code class="literal">START
+            SLAVE</code></a> statement. If you made a temporary change to
+            row-based logging or to the default character set, you can
+            revert the change now.
+          </p></li></ol></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="idm45828855749008"></a>Upgrade Procedure With Table Repair Or Rebuild</h4></div></div></div><p>
+        Some upgrades may require that you drop and re-create database
+        objects when you move from one MySQL series to the next. For
+        example, collation changes might require that table indexes be
+        rebuilt. Such operations, if necessary, are detailed at
+        <a class="xref" href="upgrading-from-previous-series.html" title="2.10.4 Changes in MySQL 8.0">Section 2.10.4, “Changes in MySQL 8.0”</a>. It is
+        safest to perform these operations separately on the replicas
+        and the source, and to disable replication of these operations
+        from the source to the replica. To achieve this, use the
+        following procedure:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Stop all the replicas and upgrade the binaries or packages.
+            Restart them with the
+            <a class="link" href="replication-options-replica.html#option_mysqld_skip-slave-start"><code class="option">--skip-slave-start</code></a> option, or
+            from MySQL 8.0.24, the
+            <a class="link" href="replication-options-replica.html#sysvar_skip_slave_start"><code class="literal">skip_slave_start</code></a>
+            system variable, so that they do not connect to the source.
+            Perform any table repair or rebuilding operations needed to
+            re-create database objects, such as use of <code class="literal">REPAIR
+            TABLE</code> or <code class="literal">ALTER TABLE</code>, or
+            dumping and reloading tables or triggers.
+          </p></li><li class="listitem"><p>
+            Disable the binary log on the source. To do this without
+            restarting the source, execute a <code class="literal">SET sql_log_bin =
+            OFF</code> statement. Alternatively, stop the source and
+            restart it with the
+            <a class="link" href="replication-options-binary-log.html#option_mysqld_log-bin"><code class="option">--skip-log-bin</code></a>
+            option. If you restart the source, you might also want to
+            disallow client connections. For example, if all clients
+            connect using TCP/IP, enable the
+            <a class="link" href="server-system-variables.html#sysvar_skip_networking"><code class="literal">skip_networking</code></a>
+            system variable when you restart the source.
+          </p></li><li class="listitem"><p>
+            With the binary log disabled, perform any table repair or
+            rebuilding operations needed to re-create database objects.
+            The binary log must be disabled during this step to prevent
+            these operations from being logged and sent to the replicas
+            later.
+          </p></li><li class="listitem"><p>
+            Re-enable the binary log on the source. If you set
+            <a class="link" href="replication-options-binary-log.html#sysvar_sql_log_bin"><code class="literal">sql_log_bin</code></a> to
+            <code class="literal">OFF</code> earlier, execute a <code class="literal">SET
+            sql_log_bin = ON</code> statement. If you restarted the
+            source to disable the binary log, restart it without
+            <a class="link" href="replication-options-binary-log.html#option_mysqld_log-bin"><code class="option">--skip-log-bin</code></a>,
+            and without enabling the
+            <a class="link" href="server-system-variables.html#sysvar_skip_networking"><code class="literal">skip_networking</code></a> system
+            variable so that clients and replicas can connect.
+          </p></li><li class="listitem"><p>
+            Restart the replicas, this time without the
+            <a class="link" href="replication-options-replica.html#option_mysqld_skip-slave-start"><code class="option">--skip-slave-start</code></a> option or
+            <a class="link" href="replication-options-replica.html#sysvar_skip_slave_start"><code class="literal">skip_slave_start</code></a> system
+            variable.
+          </p></li></ol></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-compatibility.html">Previous <span class="navHint"> Replication Compatibility Between MySQL Versions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-notes.html">Up <span class="navHint"> Replication Notes and Tips </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-problems.html">Next <span class="navHint"> Troubleshooting Replication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

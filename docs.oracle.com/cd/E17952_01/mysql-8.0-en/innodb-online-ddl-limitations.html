@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.12.8 Online DDL Limitations</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-online-ddl.html" title="15.12 InnoDB and Online DDL" /><link rel="prev" href="innodb-online-ddl-failure-conditions.html" title="15.12.7 Online DDL Failure Conditions" /><link rel="next" href="innodb-data-encryption.html" title="15.13 InnoDB Data-at-Rest Encryption" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-online-ddl-limitations.html#innodb-online-ddl-limitations">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-online-ddl-failure-conditions.html">Previous <span class="navHint"> Online DDL Failure Conditions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-online-ddl.html">Up <span class="navHint"> InnoDB and Online DDL </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-data-encryption.html">Next <span class="navHint"> InnoDB Data-at-Rest Encryption </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-online-ddl-limitations"></a>15.12.8 Online DDL Limitations</h3></div></div></div><a id="idm45828884450192" class="indexterm"></a><a id="idm45828884448704" class="indexterm"></a><a id="idm45828884447216" class="indexterm"></a><p>
+      The following limitations apply to online DDL operations:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The table is copied when creating an index on a
+          <code class="literal">TEMPORARY TABLE</code>.
+        </p></li><li class="listitem"><p>
+          The <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> clause
+          <code class="literal">LOCK=NONE</code> is not permitted if there are
+          <code class="literal">ON...CASCADE</code> or <code class="literal">ON...SET
+          NULL</code> constraints on the table.
+        </p></li><li class="listitem"><p>
+          Before an in-place online DDL operation can finish, it must
+          wait for transactions that hold metadata locks on the table to
+          commit or roll back. An online DDL operation may briefly
+          require an exclusive metadata lock on the table during its
+          execution phase, and always requires one in the final phase of
+          the operation when updating the table definition.
+          Consequently, transactions holding metadata locks on the table
+          can cause an online DDL operation to block. The transactions
+          that hold metadata locks on the table may have been started
+          before or during the online DDL operation. A long running or
+          inactive transaction that holds a metadata lock on the table
+          can cause an online DDL operation to timeout.
+        </p></li><li class="listitem"><p>
+          When running an in-place online DDL operation, the thread that
+          runs the <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement
+          applies an online log of DML operations that were run
+          concurrently on the same table from other connection threads.
+          When the DML operations are applied, it is possible to
+          encounter a duplicate key entry error (<span class="errortext">ERROR 1062
+          (23000): Duplicate entry</span>), even if the duplicate
+          entry is only temporary and would be reverted by a later entry
+          in the online log. This is similar to the idea of a foreign
+          key constraint check in <code class="literal">InnoDB</code> in which
+          constraints must hold during a transaction.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="optimize-table.html" title="13.7.3.4 OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> for an
+          <code class="literal">InnoDB</code> table is mapped to an
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> operation to
+          rebuild the table and update index statistics and free unused
+          space in the clustered index. Secondary indexes are not
+          created as efficiently because keys are inserted in the order
+          they appeared in the primary key.
+          <a class="link" href="optimize-table.html" title="13.7.3.4 OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> is supported
+          with the addition of online DDL support for rebuilding regular
+          and partitioned <code class="literal">InnoDB</code> tables.
+        </p></li><li class="listitem"><p>
+          Tables created before MySQL 5.6 that include temporal columns
+          (<a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATE</code></a>,
+          <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">DATETIME</code></a> or
+          <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">TIMESTAMP</code></a>) and have not been
+          rebuilt using <code class="literal"> ALGORITHM=COPY</code> do not
+          support <code class="literal">ALGORITHM=INPLACE</code>. In this case, an
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE ...
+          ALGORITHM=INPLACE</code></a> operation returns the following
+          error:
+        </p><pre class="programlisting">ERROR 1846 (0A000): ALGORITHM=INPLACE is not supported.
+Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+</pre></li><li class="listitem"><p>
+          The following limitations are generally applicable to online
+          DDL operations on large tables that involve rebuilding the
+          table:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              There is no mechanism to pause an online DDL operation or
+              to throttle I/O or CPU usage for an online DDL operation.
+            </p></li><li class="listitem"><p>
+              Rollback of an online DDL operation can be expensive
+              should the operation fail.
+            </p></li><li class="listitem"><p>
+              Long running online DDL operations can cause replication
+              lag. An online DDL operation must finish running on the
+              source before it is run on the replica. Also, DML that was
+              processed concurrently on the source is only processed on
+              the replica after the DDL operation on the replica is
+              completed.
+            </p></li></ul></div><p>
+          For additional information related to running online DDL
+          operations on large tables, see
+          <a class="xref" href="innodb-online-ddl-performance.html" title="15.12.2 Online DDL Performance and Concurrency">Section 15.12.2, “Online DDL Performance and Concurrency”</a>.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-online-ddl-failure-conditions.html">Previous <span class="navHint"> Online DDL Failure Conditions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-online-ddl.html">Up <span class="navHint"> InnoDB and Online DDL </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-data-encryption.html">Next <span class="navHint"> InnoDB Data-at-Rest Encryption </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

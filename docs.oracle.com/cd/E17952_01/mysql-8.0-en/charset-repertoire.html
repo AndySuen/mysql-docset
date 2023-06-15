@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>10.2.1 Character Set Repertoire</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="charset-mysql.html" title="10.2 Character Sets and Collations in MySQL" /><link rel="prev" href="charset-mysql.html" title="10.2 Character Sets and Collations in MySQL" /><link rel="next" href="charset-metadata.html" title="10.2.2 UTF-8 for Metadata" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="charset-repertoire.html#charset-repertoire">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="charset-mysql.html">Previous <span class="navHint"> Character Sets and Collations in MySQL </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="charset-mysql.html">Up <span class="navHint"> Character Sets and Collations in MySQL </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="charset-metadata.html">Next <span class="navHint"> UTF-8 for Metadata </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="charset-repertoire"></a>10.2.1 Character Set Repertoire</h3></div></div></div><a id="idm45828944938208" class="indexterm"></a><a id="idm45828944936752" class="indexterm"></a><a id="idm45828944935264" class="indexterm"></a><a id="idm45828944933776" class="indexterm"></a><p>
+        The <span class="firstterm">repertoire</span> of a
+        character set is the collection of characters in the set.
+      </p><p>
+        String expressions have a repertoire attribute, which can have
+        two values:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">ASCII</code>: The expression can contain only
+            ASCII characters; that is, characters in the Unicode range
+            <code class="literal">U+0000</code> to <code class="literal">U+007F</code>.
+          </p></li><li class="listitem"><p>
+            <code class="literal">UNICODE</code>: The expression can contain
+            characters in the Unicode range <code class="literal">U+0000</code> to
+            <code class="literal">U+10FFFF</code>. This includes characters in the
+            Basic Multilingual Plane (BMP) range
+            (<code class="literal">U+0000</code> to <code class="literal">U+FFFF</code>) and
+            supplementary characters outside the BMP range
+            (<code class="literal">U+10000</code> to <code class="literal">U+10FFFF</code>).
+          </p></li></ul></div><p>
+        The <code class="literal">ASCII</code> range is a subset of
+        <code class="literal">UNICODE</code> range, so a string with
+        <code class="literal">ASCII</code> repertoire can be converted safely
+        without loss of information to the character set of any string
+        with <code class="literal">UNICODE</code> repertoire. It can also be
+        converted safely to any character set that is a superset of the
+        <code class="literal">ascii</code> character set. (All MySQL character
+        sets are supersets of <code class="literal">ascii</code> with the
+        exception of <code class="literal">swe7</code>, which reuses some
+        punctuation characters for Swedish accented characters.)
+      </p><p>
+        The use of repertoire enables character set conversion in
+        expressions for many cases where MySQL would otherwise return an
+        <span class="quote">“<span class="quote">illegal mix of collations</span>”</span> error when the rules
+        for collation coercibility are insufficient to resolve
+        ambiguities. (For information about coercibility, see
+        <a class="xref" href="charset-collation-coercibility.html" title="10.8.4 Collation Coercibility in Expressions">Section 10.8.4, “Collation Coercibility in Expressions”</a>.)
+      </p><p>
+        The following discussion provides examples of expressions and
+        their repertoires, and describes how the use of repertoire
+        changes string expression evaluation:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The repertoire for a string constant depends on string
+            content and may differ from the repertoire of the string
+            character set. Consider these statements:
+          </p><pre class="programlisting">SET NAMES utf8mb4; SELECT 'abc';
+SELECT _utf8mb4'def';
+</pre><p>
+            Although the character set is <code class="literal">utf8mb4</code> in
+            each of the preceding cases, the strings do not actually
+            contain any characters outside the ASCII range, so their
+            repertoire is <code class="literal">ASCII</code> rather than
+            <code class="literal">UNICODE</code>.
+          </p></li><li class="listitem"><p>
+            A column having the <code class="literal">ascii</code> character set
+            has <code class="literal">ASCII</code> repertoire because of its
+            character set. In the following table, <code class="literal">c1</code>
+            has <code class="literal">ASCII</code> repertoire:
+          </p><pre class="programlisting">CREATE TABLE t1 (c1 CHAR(1) CHARACTER SET ascii);
+</pre><p>
+            The following example illustrates how repertoire enables a
+            result to be determined in a case where an error occurs
+            without repertoire:
+          </p><pre class="programlisting">CREATE TABLE t1 (
+  c1 CHAR(1) CHARACTER SET latin1,
+  c2 CHAR(1) CHARACTER SET ascii
+);
+INSERT INTO t1 VALUES ('a','b');
+SELECT CONCAT(c1,c2) FROM t1;
+</pre><p>
+            Without repertoire, this error occurs:
+          </p><pre class="programlisting">ERROR 1267 (HY000): Illegal mix of collations (latin1_swedish_ci,IMPLICIT)
+and (ascii_general_ci,IMPLICIT) for operation 'concat'
+</pre><p>
+            Using repertoire, subset to superset
+            (<code class="literal">ascii</code> to <code class="literal">latin1</code>)
+            conversion can occur and a result is returned:
+          </p><pre class="programlisting">+---------------+
+| CONCAT(c1,c2) |
++---------------+
+| ab            |
++---------------+
+</pre></li><li class="listitem"><p>
+            Functions with one string argument inherit the repertoire of
+            their argument. The result of
+            <a class="link" href="string-functions.html#function_upper"><code class="literal">UPPER(_utf8mb4'abc')</code></a> has
+            <code class="literal">ASCII</code> repertoire because its argument has
+            <code class="literal">ASCII</code> repertoire. (Despite the
+            <code class="literal">_utf8mb4</code> introducer, the string
+            <code class="literal">'abc'</code> contains no characters outside the
+            ASCII range.)
+          </p></li><li class="listitem"><p>
+            For functions that return a string but do not have string
+            arguments and use
+            <a class="link" href="server-system-variables.html#sysvar_character_set_connection"><code class="literal">character_set_connection</code></a> as
+            the result character set, the result repertoire is
+            <code class="literal">ASCII</code> if
+            <a class="link" href="server-system-variables.html#sysvar_character_set_connection"><code class="literal">character_set_connection</code></a> is
+            <code class="literal">ascii</code>, and <code class="literal">UNICODE</code>
+            otherwise:
+          </p><pre class="programlisting">FORMAT(<em class="replaceable"><code>numeric_column</code></em>, 4);
+</pre><p>
+            Use of repertoire changes how MySQL evaluates the following
+            example:
+          </p><pre class="programlisting">SET NAMES ascii;
+CREATE TABLE t1 (a INT, b VARCHAR(10) CHARACTER SET latin1);
+INSERT INTO t1 VALUES (1,'b');
+SELECT CONCAT(FORMAT(a, 4), b) FROM t1;
+</pre><p>
+            Without repertoire, this error occurs:
+          </p><pre class="programlisting">ERROR 1267 (HY000): Illegal mix of collations (ascii_general_ci,COERCIBLE)
+and (latin1_swedish_ci,IMPLICIT) for operation 'concat'
+</pre><p>
+            With repertoire, a result is returned:
+          </p><pre class="programlisting">+-------------------------+
+| CONCAT(FORMAT(a, 4), b) |
++-------------------------+
+| 1.0000b                 |
++-------------------------+
+</pre></li><li class="listitem"><p>
+            Functions with two or more string arguments use the
+            <span class="quote">“<span class="quote">widest</span>”</span> argument repertoire for the result
+            repertoire, where <code class="literal">UNICODE</code> is wider than
+            <code class="literal">ASCII</code>. Consider the following
+            <a class="link" href="string-functions.html#function_concat"><code class="literal">CONCAT()</code></a> calls:
+          </p><pre class="programlisting">CONCAT(_ucs2 X'0041', _ucs2 X'0042')
+CONCAT(_ucs2 X'0041', _ucs2 X'00C2')
+</pre><p>
+            For the first call, the repertoire is
+            <code class="literal">ASCII</code> because both arguments are within
+            the ASCII range. For the second call, the repertoire is
+            <code class="literal">UNICODE</code> because the second argument is
+            outside the ASCII range.
+          </p></li><li class="listitem"><p>
+            The repertoire for function return values is determined
+            based on the repertoire of only those arguments that affect
+            the result's character set and collation.
+          </p><pre class="programlisting">IF(column1 &lt; column2, 'smaller', 'greater')
+</pre><p>
+            The result repertoire is <code class="literal">ASCII</code> because
+            the two string arguments (the second argument and the third
+            argument) both have <code class="literal">ASCII</code> repertoire. The
+            first argument does not matter for the result repertoire,
+            even if the expression uses string values.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="charset-mysql.html">Previous <span class="navHint"> Character Sets and Collations in MySQL </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="charset-mysql.html">Up <span class="navHint"> Character Sets and Collations in MySQL </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="charset-metadata.html">Next <span class="navHint"> UTF-8 for Metadata </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

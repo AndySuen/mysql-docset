@@ -1,0 +1,61 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-264"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/10.9.5%C2%A0The%20utf16%20Character%20Set%20%28UTF-16%20Unicode%20Encoding%29"></a><title>10.9.5&nbsp;The utf16 Character Set (UTF-16 Unicode Encoding)</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="charset-unicode.html" title="10.9&nbsp;Unicode Support"/><link rel="prev" href="charset-unicode-ucs2.html" title="10.9.4&nbsp;The ucs2 Character Set (UCS-2 Unicode Encoding)"/><link rel="next" href="charset-unicode-utf16le.html" title="10.9.6&nbsp;The utf16le Character Set (UTF-16LE Unicode Encoding)"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="charset-unicode-utf16.html#charset-unicode-utf16">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="charset-unicode-ucs2.html">Previous <span class="navHint"> The ucs2 Character Set (UCS-2 Unicode Encoding) </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="charset-unicode.html">Up <span class="navHint"> Unicode Support </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="charset-unicode-utf16le.html">Next <span class="navHint"> The utf16le Character Set (UTF-16LE Unicode Encoding) </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="charset-unicode-utf16"></a>10.9.5&nbsp;The utf16 Character Set (UTF-16 Unicode Encoding)</h3></div></div></div><a id="idm45828943418352" class="indexterm"></a><p>
+        The <code class="literal">utf16</code> character set is the
+        <code class="literal">ucs2</code> character set with an extension that
+        enables encoding of supplementary characters:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For a BMP character, <code class="literal">utf16</code> and
+            <code class="literal">ucs2</code> have identical storage
+            characteristics: same code values, same encoding, same
+            length.
+          </p></li><li class="listitem"><p>
+            For a supplementary character, <code class="literal">utf16</code> has
+            a special sequence for representing the character using 32
+            bits. This is called the <span class="quote">&ldquo;<span class="quote">surrogate</span>&rdquo;</span> mechanism:
+            For a number greater than <code class="literal">0xffff</code>, take 10
+            bits and add them to <code class="literal">0xd800</code> and put them
+            in the first 16-bit word, take 10 more bits and add them to
+            <code class="literal">0xdc00</code> and put them in the next 16-bit
+            word. Consequently, all supplementary characters require 32
+            bits, where the first 16 bits are a number between
+            <code class="literal">0xd800</code> and <code class="literal">0xdbff</code>, and
+            the last 16 bits are a number between
+            <code class="literal">0xdc00</code> and <code class="literal">0xdfff</code>.
+            Examples are in Section
+            <a class="ulink" href="http://www.unicode.org/versions/Unicode4.0.0/ch15.pdf" target="_top">15.5
+            Surrogates Area</a> of the Unicode 4.0 document.
+          </p></li></ul></div><p>
+        Because <code class="literal">utf16</code> supports surrogates and
+        <code class="literal">ucs2</code> does not, there is a validity check that
+        applies only in <code class="literal">utf16</code>: You cannot insert a
+        top surrogate without a bottom surrogate, or vice versa. For
+        example:
+      </p><pre class="programlisting">INSERT INTO t (ucs2_column) VALUES (0xd800); /* legal */
+INSERT INTO t (utf16_column)VALUES (0xd800); /* illegal */
+</pre><p>
+        There is no validity check for characters that are technically
+        valid but are not true Unicode (that is, characters that Unicode
+        considers to be <span class="quote">&ldquo;<span class="quote">unassigned code points</span>&rdquo;</span> or
+        <span class="quote">&ldquo;<span class="quote">private use</span>&rdquo;</span> characters or even
+        <span class="quote">&ldquo;<span class="quote">illegals</span>&rdquo;</span> like <code class="literal">0xffff</code>). For
+        example, since <code class="literal">U+F8FF</code> is the Apple Logo, this
+        is legal:
+      </p><pre class="programlisting">INSERT INTO t (utf16_column)VALUES (0xf8ff); /* legal */
+</pre><p>
+        Such characters cannot be expected to mean the same thing to
+        everyone.
+      </p><p>
+        Because MySQL must allow for the worst case (that one character
+        requires four bytes) the maximum length of a
+        <code class="literal">utf16</code> column or index is only half of the
+        maximum length for a <code class="literal">ucs2</code> column or index.
+        For example, the maximum length of a <code class="literal">MEMORY</code>
+        table index key is 3072 bytes, so these statements create tables
+        with the longest permitted indexes for <code class="literal">ucs2</code>
+        and <code class="literal">utf16</code> columns:
+      </p><pre class="programlisting">CREATE TABLE tf (s1 VARCHAR(1536) CHARACTER SET ucs2) ENGINE=MEMORY;
+CREATE INDEX i ON tf (s1);
+CREATE TABLE tg (s1 VARCHAR(768) CHARACTER SET utf16) ENGINE=MEMORY;
+CREATE INDEX i ON tg (s1);
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="charset-unicode-ucs2.html">Previous <span class="navHint"> The ucs2 Character Set (UCS-2 Unicode Encoding) </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="charset-unicode.html">Up <span class="navHint"> Unicode Support </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="charset-unicode-utf16le.html">Next <span class="navHint"> The utf16le Character Set (UTF-16LE Unicode Encoding) </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

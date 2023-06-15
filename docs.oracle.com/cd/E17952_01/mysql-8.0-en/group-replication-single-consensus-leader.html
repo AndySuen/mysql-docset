@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>18.7.3 Single Consensus Leader</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="group-replication-performance.html" title="18.7 Group Replication Performance and Troubleshooting" /><link rel="prev" href="group-replication-throttling.html" title="18.7.2.2 Group Replication Throttling" /><link rel="next" href="group-replication-message-compression.html" title="18.7.4 Message Compression" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-single-consensus-leader.html#group-replication-single-consensus-leader">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-replication-throttling.html">Previous <span class="navHint"> Group Replication Throttling </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="group-replication-performance.html">Up <span class="navHint"> Group Replication Performance and Troubleshooting </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-message-compression.html">Next <span class="navHint"> Message Compression </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-replication-single-consensus-leader"></a>18.7.3 Single Consensus Leader</h3></div></div></div><p>
+      By default, the group communication engine for Group Replication
+      (XCom, a Paxos variant) operates using every member of the
+      replication group as a leader. From MySQL 8.0.27, the group
+      communication engine can use a single leader to drive consensus
+      when the group is in single-primary mode. Operating with a single
+      consensus leader improves performance and resilience in
+      single-primary mode, particularly when some of the group’s
+      secondary members are currently unreachable.
+    </p><p>
+      To use a single consensus leader, the group must be configured as
+      follows:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The group must be in single-primary mode.
+        </p></li><li class="listitem"><p>
+          The
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_paxos_single_leader"><code class="literal">group_replication_paxos_single_leader</code></a>
+          system variable must be set to <code class="literal">ON</code>. With the
+          default setting <code class="literal">OFF</code>, the behavior is
+          disabled. You must carry out a full reboot of the replication
+          group (bootstrap) for Group Replication to pick up a change to
+          this setting.
+        </p></li><li class="listitem"><p>
+          The Group Replication communication protocol version must be
+          set to 8.0.27 or above. Use the
+          <a class="link" href="group-replication-functions-for-communication-protocol.html#function_group-replication-get-communication-protocol"><code class="literal">group_replication_get_communication_protocol()</code></a>
+          function to view the group's communication protocol version.
+          If a lower version is in use, the group cannot use this
+          behavior. You can use the
+          <a class="link" href="group-replication-functions-for-communication-protocol.html#function_group-replication-set-communication-protocol"><code class="literal">group_replication_set_communication_protocol()</code></a>
+          function to set the group's communication protocol to a higher
+          version if all group members support it. MySQL InnoDB Cluster
+          manages the communication protocol version automatically. For
+          more information, see
+          <a class="xref" href="group-replication-communication-protocol.html" title="18.5.1.4 Setting a Group's Communication Protocol Version">Section 18.5.1.4, “Setting a Group's Communication Protocol Version”</a>.
+        </p></li></ul></div><p>
+      When this configuration is in place, Group Replication instructs
+      the group communication engine to use the group’s primary as the
+      single leader to drive consensus. When a new primary is elected,
+      Group Replication tells the group communication engine to use it
+      instead. If the primary is currently unhealthy, the group
+      communication engine uses an alternative member as the consensus
+      leader. The Performance Schema table
+      <a class="link" href="performance-schema-replication-group-communication-information-table.html" title="27.12.11.15 The replication_group_communication_information Table"><code class="literal">replication_group_communication_information</code></a>
+      shows the current preferred and actual consensus leader, with the
+      preferred leader being Group Replication’s choice, and the
+      actual leader being the one selected by the group communication
+      engine.
+    </p><p>
+      If the group is in multi-primary mode, has a lower communication
+      protocol version, or the behavior is disabled by the
+      <a class="link" href="group-replication-options.html#sysvar_group_replication_paxos_single_leader"><code class="literal">group_replication_paxos_single_leader</code></a>
+      setting, all members are used as leaders to drive consensus. In
+      this situation, the Performance Schema table
+      <a class="link" href="performance-schema-replication-group-communication-information-table.html" title="27.12.11.15 The replication_group_communication_information Table"><code class="literal">replication_group_communication_information</code></a>
+      shows all of the members as both the preferred and actual leaders.
+    </p><p>
+      The field <code class="literal">WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE</code>
+      in the Performance Schema table
+      <a class="link" href="performance-schema-replication-group-communication-information-table.html" title="27.12.11.15 The replication_group_communication_information Table"><code class="literal">replication_group_communication_information</code></a>
+      shows whether the group supports the use of a single leader, even
+      if
+      <a class="link" href="group-replication-options.html#sysvar_group_replication_paxos_single_leader"><code class="literal">group_replication_paxos_single_leader</code></a>
+      is currently set to <code class="literal">OFF</code> on the queried member.
+      The field is set to 1 if the group was started with
+      <a class="link" href="group-replication-options.html#sysvar_group_replication_paxos_single_leader"><code class="literal">group_replication_paxos_single_leader</code></a>
+      set to <code class="literal">ON</code>, and its communication protocol
+      version is MySQL 8.0.27 or above. This information is only
+      returned for group members in <code class="literal">ONLINE</code> or
+      <code class="literal">RECOVERING</code> state.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-throttling.html">Previous <span class="navHint"> Group Replication Throttling </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-performance.html">Up <span class="navHint"> Group Replication Performance and Troubleshooting </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-message-compression.html">Next <span class="navHint"> Message Compression </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

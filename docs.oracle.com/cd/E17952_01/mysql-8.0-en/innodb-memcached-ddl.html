@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.20.6.6 Performing DML and DDL Statements on the Underlying InnoDB Table</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-memcached-developing.html" title="15.20.6 Writing Applications for the InnoDB memcached Plugin" /><link rel="prev" href="innodb-memcached-dml.html" title="15.20.6.5 Adapting DML Statements to memcached Operations" /><link rel="next" href="innodb-memcached-replication.html" title="15.20.7 The InnoDB memcached Plugin and Replication" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-memcached-ddl.html#innodb-memcached-ddl">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-memcached-dml.html">Previous <span class="navHint"> Adapting DML Statements to memcached Operations </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-memcached-developing.html">Up <span class="navHint"> Writing Applications for the InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-memcached-replication.html">Next <span class="navHint"> The InnoDB memcached Plugin and Replication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="innodb-memcached-ddl"></a>15.20.6.6 Performing DML and DDL Statements on the Underlying InnoDB Table</h4></div></div></div><p>
+        You can access the underlying <code class="literal">InnoDB</code> table
+        (which is <code class="literal">test.demo_test</code> by default) through
+        standard SQL interfaces. However, there are some restrictions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            When querying a table that is also accessed through the
+            <span class="command"><strong>memcached</strong></span> interface, remember that
+            <span class="command"><strong>memcached</strong></span> operations can be configured to
+            be committed periodically rather than after every write
+            operation. This behavior is controlled by the
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+            option. If this option is set to a value greater than
+            <code class="literal">1</code>, use <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-uncommitted"><code class="literal">READ
+            UNCOMMITTED</code></a> queries to find rows that were just
+            inserted.
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET SESSSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM demo_test;</code></strong>
++------+------+------+------+-----------+------+------+------+------+------+------+
+| cx   | cy   | c1   | cz   | c2        | ca   | CB   | c3   | cu   | c4   | C5   |
++------+------+------+------+-----------+------+------+------+------+------+------+
+| NULL | NULL | a11  | NULL | 123456789 | NULL | NULL |   10 | NULL |    3 | NULL |
++------+------+------+------+-----------+------+------+------+------+------+------+
+</pre></li><li class="listitem"><p>
+            When modifying a table using SQL that is also accessed
+            through the <span class="command"><strong>memcached</strong></span> interface, you can
+            configure <span class="command"><strong>memcached</strong></span> operations to start a
+            new transaction periodically rather than for every read
+            operation. This behavior is controlled by the
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_r_batch_size"><code class="literal">daemon_memcached_r_batch_size</code></a>
+            option. If this option is set to a value greater than
+            <code class="literal">1</code>, changes made to the table using SQL
+            are not immediately visible to <span class="command"><strong>memcached</strong></span>
+            operations.
+          </p></li><li class="listitem"><p>
+            The <code class="literal">InnoDB</code> table is either IS (intention
+            shared) or IX (intention exclusive) locked for all
+            operations in a transaction. If you increase
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_r_batch_size"><code class="literal">daemon_memcached_r_batch_size</code></a>
+            and
+            <a class="link" href="innodb-parameters.html#sysvar_daemon_memcached_w_batch_size"><code class="literal">daemon_memcached_w_batch_size</code></a>
+            substantially from their default value of
+            <code class="literal">1</code>, the table is most likely locked
+            between each operation, preventing
+            <a class="link" href="glossary.html#glos_ddl" title="DDL">DDL</a> statements on the table.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-memcached-dml.html">Previous <span class="navHint"> Adapting DML Statements to memcached Operations </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-memcached-developing.html">Up <span class="navHint"> Writing Applications for the InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-memcached-replication.html">Next <span class="navHint"> The InnoDB memcached Plugin and Replication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

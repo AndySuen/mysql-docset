@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.8.3 Running Multiple MySQL Instances on Unix</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="multiple-servers.html" title="5.8 Running Multiple MySQL Instances on One Machine" /><link rel="prev" href="multiple-windows-services.html" title="5.8.2.2 Starting Multiple MySQL Instances as Windows Services" /><link rel="next" href="multiple-server-clients.html" title="5.8.4 Using Client Programs in a Multiple-Server Environment" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="multiple-unix-servers.html#multiple-unix-servers">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="multiple-windows-services.html">Previous <span class="navHint"> Starting Multiple MySQL Instances as Windows Services </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="multiple-servers.html">Up <span class="navHint"> Running Multiple MySQL Instances on One Machine </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="multiple-server-clients.html">Next <span class="navHint"> Using Client Programs in a Multiple-Server Environment </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="multiple-unix-servers"></a>5.8.3 Running Multiple MySQL Instances on Unix</h3></div></div></div><a id="idm45828981598432" class="indexterm"></a><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        The discussion here uses <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> to
+        launch multiple instances of MySQL. For MySQL installation using
+        an RPM distribution, server startup and shutdown is managed by
+        systemd on several Linux platforms. On these platforms,
+        <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> is not installed because it is
+        unnecessary. For information about using systemd to handle
+        multiple MySQL instances, see <a class="xref" href="using-systemd.html" title="2.5.9 Managing MySQL Server with systemd">Section 2.5.9, “Managing MySQL Server with systemd”</a>.
+      </p></div><p>
+      One way is to run multiple MySQL instances on Unix is to compile
+      different servers with different default TCP/IP ports and Unix
+      socket files so that each one listens on different network
+      interfaces. Compiling in different base directories for each
+      installation also results automatically in a separate, compiled-in
+      data directory, log file, and PID file location for each server.
+    </p><p>
+      Assume that an existing 5.7 server is configured for
+      the default TCP/IP port number (3306) and Unix socket file
+      (<code class="filename">/tmp/mysql.sock</code>). To configure a new
+      8.0.33 server to have different operating parameters,
+      use a <span class="command"><strong>CMake</strong></span> command something like this:
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>cmake . -DMYSQL_TCP_PORT=<em class="replaceable"><code>port_number</code></em> \</code></strong>
+             <strong class="userinput"><code>-DMYSQL_UNIX_ADDR=<em class="replaceable"><code>file_name</code></em> \</code></strong>
+             <strong class="userinput"><code>-DCMAKE_INSTALL_PREFIX=/usr/local/mysql-8.0.33</code></strong>
+</pre><p>
+      Here, <em class="replaceable"><code>port_number</code></em> and
+      <em class="replaceable"><code>file_name</code></em> must be different from the
+      default TCP/IP port number and Unix socket file path name, and the
+      <a class="link" href="source-configuration-options.html#option_cmake_cmake_install_prefix"><code class="option">CMAKE_INSTALL_PREFIX</code></a> value should
+      specify an installation directory different from the one under
+      which the existing MySQL installation is located.
+    </p><p>
+      If you have a MySQL server listening on a given port number, you
+      can use the following command to find out what operating
+      parameters it is using for several important configurable
+      variables, including the base directory and Unix socket file name:
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqladmin --host=<em class="replaceable"><code>host_name</code></em> --port=<em class="replaceable"><code>port_number</code></em> variables</code></strong>
+</pre><p>
+      With the information displayed by that command, you can tell what
+      option values <span class="emphasis"><em>not</em></span> to use when configuring an
+      additional server.
+    </p><p>
+      If you specify <code class="literal">localhost</code> as the host name,
+      <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin</strong></span></a> defaults to using a Unix socket file
+      rather than TCP/IP. To explicitly specify the transport protocol,
+      use the
+      <a class="link" href="connection-options.html#option_general_protocol"><code class="option">--protocol={TCP|SOCKET|PIPE|MEMORY}</code></a>
+      option.
+    </p><p>
+      You need not compile a new MySQL server just to start with a
+      different Unix socket file and TCP/IP port number. It is also
+      possible to use the same server binary and start each invocation
+      of it with different parameter values at runtime. One way to do so
+      is by using command-line options:
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqld_safe --socket=<em class="replaceable"><code>file_name</code></em> --port=<em class="replaceable"><code>port_number</code></em></code></strong>
+</pre><p>
+      To start a second server, provide different
+      <a class="link" href="server-options.html#option_mysqld_socket"><code class="option">--socket</code></a> and
+      <a class="link" href="server-options.html#option_mysqld_port"><code class="option">--port</code></a> option values, and pass a
+      <a class="link" href="server-system-variables.html#sysvar_datadir"><code class="option">--datadir=<em class="replaceable"><code>dir_name</code></em></code></a>
+      option to <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> so that the server uses a
+      different data directory.
+    </p><p>
+      Alternatively, put the options for each server in a different
+      option file, then start each server using a
+      <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a> option that
+      specifies the path to the appropriate option file. For example, if
+      the option files for two server instances are named
+      <code class="filename">/usr/local/mysql/my.cnf</code> and
+      <code class="filename">/usr/local/mysql/my.cnf2</code>, start the servers
+      like this: command:
+    </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqld_safe --defaults-file=/usr/local/mysql/my.cnf</code></strong>
+$&gt; <strong class="userinput"><code>mysqld_safe --defaults-file=/usr/local/mysql/my.cnf2</code></strong>
+</pre><p>
+      Another way to achieve a similar effect is to use environment
+      variables to set the Unix socket file name and TCP/IP port number:
+    </p><a id="idm45828981561904" class="indexterm"></a><a id="idm45828981560816" class="indexterm"></a><a id="idm45828981559728" class="indexterm"></a><a id="idm45828981558240" class="indexterm"></a><pre class="programlisting">$&gt; <strong class="userinput"><code>MYSQL_UNIX_PORT=/tmp/mysqld-new.sock</code></strong>
+$&gt; <strong class="userinput"><code>MYSQL_TCP_PORT=3307</code></strong>
+$&gt; <strong class="userinput"><code>export MYSQL_UNIX_PORT MYSQL_TCP_PORT</code></strong>
+$&gt; <strong class="userinput"><code>bin/mysqld --initialize --user=mysql</code></strong>
+$&gt; <strong class="userinput"><code>mysqld_safe --datadir=/path/to/datadir &amp;</code></strong>
+</pre><p>
+      This is a quick way of starting a second server to use for
+      testing. The nice thing about this method is that the environment
+      variable settings apply to any client programs that you invoke
+      from the same shell. Thus, connections for those clients are
+      automatically directed to the second server.
+    </p><p>
+      <a class="xref" href="environment-variables.html" title="4.9 Environment Variables">Section 4.9, “Environment Variables”</a>, includes a list of other
+      environment variables you can use to affect MySQL programs.
+    </p><p>
+      On Unix, the <a class="link" href="mysqld-multi.html" title="4.3.4 mysqld_multi — Manage Multiple MySQL Servers"><span class="command"><strong>mysqld_multi</strong></span></a> script provides
+      another way to start multiple servers. See
+      <a class="xref" href="mysqld-multi.html" title="4.3.4 mysqld_multi — Manage Multiple MySQL Servers">Section 4.3.4, “mysqld_multi — Manage Multiple MySQL Servers”</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="multiple-windows-services.html">Previous <span class="navHint"> Starting Multiple MySQL Instances as Windows Services </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="multiple-servers.html">Up <span class="navHint"> Running Multiple MySQL Instances on One Machine </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="multiple-server-clients.html">Next <span class="navHint"> Using Client Programs in a Multiple-Server Environment </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

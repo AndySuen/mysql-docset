@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.5.4 Troubleshooting Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-notes.html" title="17.5 Replication Notes and Tips" /><link rel="prev" href="replication-upgrade.html" title="17.5.3 Upgrading a Replication Topology" /><link rel="next" href="replication-bugs.html" title="17.5.5 How to Report Replication Bugs or Problems" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-problems.html#replication-problems">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-upgrade.html">Previous <span class="navHint"> Upgrading a Replication Topology </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-notes.html">Up <span class="navHint"> Replication Notes and Tips </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-bugs.html">Next <span class="navHint"> How to Report Replication Bugs or Problems </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="replication-problems"></a>17.5.4 Troubleshooting Replication</h3></div></div></div><a id="idm45828855724864" class="indexterm"></a><p>
+      If you have followed the instructions but your replication setup
+      is not working, the first thing to do is <span class="emphasis"><em>check the error
+      log for messages</em></span>. Many users have lost time by not
+      doing this soon enough after encountering problems.
+    </p><p>
+      If you cannot tell from the error log what the problem was, try
+      the following techniques:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Verify that the source has binary logging enabled by issuing a
+          <a class="link" href="show-master-status.html" title="13.7.7.23 SHOW MASTER STATUS Statement"><code class="literal">SHOW MASTER STATUS</code></a> statement.
+          Binary logging is enabled by default. If binary logging is
+          enabled, <code class="literal">Position</code> is nonzero. If binary
+          logging is not enabled, verify that you are not running the
+          source with any settings that disable binary logging, such as
+          the
+          <a class="link" href="replication-options-binary-log.html#option_mysqld_log-bin"><code class="option">--skip-log-bin</code></a>
+          option.
+        </p></li><li class="listitem"><p>
+          Verify that the <a class="link" href="replication-options.html#sysvar_server_id"><code class="literal">server_id</code></a>
+          system variable was set at startup on both the source and
+          replica and that the ID value is unique on each server.
+        </p></li><li class="listitem"><p>
+          Verify that the replica is running. Use
+          <a class="link" href="show-replica-status.html" title="13.7.7.35 SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+          REPLICA STATUS</code></a> to check whether the
+          <code class="literal">Replica_IO_Running</code> and
+          <code class="literal">Replica_SQL_Running</code> values are both
+          <code class="literal">Yes</code>. If not, verify the options that were
+          used when starting the replica server. For example, the
+          <a class="link" href="replication-options-replica.html#option_mysqld_skip-slave-start"><code class="option">--skip-slave-start</code></a> command line
+          option, or from MySQL 8.0.24, the
+          <a class="link" href="replication-options-replica.html#sysvar_skip_slave_start"><code class="literal">skip_slave_start</code></a> system
+          variable, prevents the replication threads from starting until
+          you issue a
+          <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+          REPLICA</code></a> statement.
+        </p></li><li class="listitem"><p>
+          If the replica is running, check whether it established a
+          connection to the source. Use <a class="link" href="show-processlist.html" title="13.7.7.29 SHOW PROCESSLIST Statement"><code class="literal">SHOW
+          PROCESSLIST</code></a>, find the I/O (receiver) and SQL
+          (applier) threads and check their <code class="literal">State</code>
+          column to see what they display. See
+          <a class="xref" href="replication-threads.html" title="17.2.3 Replication Threads">Section 17.2.3, “Replication Threads”</a>. If the
+          receiver thread state says <code class="literal">Connecting to
+          master</code>, check the following:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              Verify the privileges for the replication user on the
+              source.
+            </p></li><li class="listitem"><p>
+              Check that the host name of the source is correct and that
+              you are using the correct port to connect to the source.
+              The port used for replication is the same as used for
+              client network communication (the default is
+              <code class="literal">3306</code>). For the host name, ensure that
+              the name resolves to the correct IP address.
+            </p></li><li class="listitem"><p>
+              Check the configuration file to see whether the
+              <a class="link" href="server-system-variables.html#sysvar_skip_networking"><code class="literal">skip_networking</code></a> system
+              variable has been enabled on the source or replica to
+              disable networking. If so, comment the setting or remove
+              it.
+            </p></li><li class="listitem"><p>
+              If the source has a firewall or IP filtering
+              configuration, ensure that the network port being used for
+              MySQL is not being filtered.
+            </p></li><li class="listitem"><p>
+              Check that you can reach the source by using
+              <code class="literal">ping</code> or
+              <code class="literal">traceroute</code>/<code class="literal">tracert</code>
+              to reach the host.
+            </p></li></ul></div></li><li class="listitem"><p>
+          If the replica was running previously but has stopped, the
+          reason usually is that some statement that succeeded on the
+          source failed on the replica. This should never happen if you
+          have taken a proper snapshot of the source, and never modified
+          the data on the replica outside of the replication threads. If
+          the replica stops unexpectedly, it is a bug or you have
+          encountered one of the known replication limitations described
+          in <a class="xref" href="replication-features.html" title="17.5.1 Replication Features and Issues">Section 17.5.1, “Replication Features and Issues”</a>. If it is a bug, see
+          <a class="xref" href="replication-bugs.html" title="17.5.5 How to Report Replication Bugs or Problems">Section 17.5.5, “How to Report Replication Bugs or Problems”</a>, for instructions on how to
+          report it.
+        </p></li><li class="listitem"><p>
+          If a statement that succeeded on the source refuses to run on
+          the replica, try the following procedure if it is not feasible
+          to do a full database resynchronization by deleting the
+          replica's databases and copying a new snapshot from the
+          source:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              Determine whether the affected table on the replica is
+              different from the source table. Try to understand how
+              this happened. Then make the replica's table identical to
+              the source's and run
+              <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+              REPLICA</code></a>.
+            </p></li><li class="listitem"><p>
+              If the preceding step does not work or does not apply, try
+              to understand whether it would be safe to make the update
+              manually (if needed) and then ignore the next statement
+              from the source.
+            </p></li><li class="listitem"><p>
+              If you decide that the replica can skip the next statement
+              from the source, issue the following statements:
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET GLOBAL sql_slave_skip_counter = <em class="replaceable"><code>N</code></em>;</code></strong>
+mysql&gt; <strong class="userinput"><code>START SLAVE;</code></strong>
+
+Or from MySQL 8.0.26:
+mysql&gt; <strong class="userinput"><code>SET GLOBAL sql_replica_skip_counter = <em class="replaceable"><code>N</code></em>;</code></strong>
+mysql&gt; <strong class="userinput"><code>START REPLICA;</code></strong>
+</pre><p>
+              The value of <em class="replaceable"><code>N</code></em> should be 1 if
+              the next statement from the source does not use
+              <code class="literal">AUTO_INCREMENT</code> or
+              <a class="link" href="information-functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a>.
+              Otherwise, the value should be 2. The reason for using a
+              value of 2 for statements that use
+              <code class="literal">AUTO_INCREMENT</code> or
+              <a class="link" href="information-functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a> is that
+              they take two events in the binary log of the source.
+            </p><p>
+              See also
+              <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-5.7-en/set-global-sql-slave-skip-counter.html" target="_top">SET GLOBAL sql_slave_skip_counter Syntax</a>.
+            </p></li><li class="listitem"><p>
+              If you are sure that the replica started out perfectly
+              synchronized with the source, and that no one has updated
+              the tables involved outside of the replication threads,
+              then presumably the discrepancy is the result of a bug. If
+              you are running the most recent version of MySQL, please
+              report the problem. If you are running an older version,
+              try upgrading to the latest production release to
+              determine whether the problem persists.
+            </p></li></ol></div></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-upgrade.html">Previous <span class="navHint"> Upgrading a Replication Topology </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-notes.html">Up <span class="navHint"> Replication Notes and Tips </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-bugs.html">Next <span class="navHint"> How to Report Replication Bugs or Problems </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

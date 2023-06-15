@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>3.6.9 Using AUTO_INCREMENT</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="examples.html" title="3.6 Examples of Common Queries" /><link rel="prev" href="calculating-days.html" title="3.6.8 Calculating Visits Per Day" /><link rel="next" href="apache.html" title="3.7 Using MySQL with Apache" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="example-auto-increment.html#example-auto-increment">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="calculating-days.html">Previous <span class="navHint"> Calculating Visits Per Day </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="examples.html">Up <span class="navHint"> Examples of Common Queries </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="apache.html">Next <span class="navHint"> Using MySQL with Apache </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="example-auto-increment"></a>3.6.9 Using AUTO_INCREMENT</h3></div></div></div><a id="idm45829049614608" class="indexterm"></a><a id="idm45829049613536" class="indexterm"></a><a id="idm45829049612464" class="indexterm"></a><p>
+        The <code class="literal">AUTO_INCREMENT</code> attribute can be used to
+        generate a unique identity for new rows:
+      </p><pre class="programlisting">CREATE TABLE animals (
+     id MEDIUMINT NOT NULL AUTO_INCREMENT,
+     name CHAR(30) NOT NULL,
+     PRIMARY KEY (id)
+);
+
+INSERT INTO animals (name) VALUES
+    ('dog'),('cat'),('penguin'),
+    ('lax'),('whale'),('ostrich');
+
+SELECT * FROM animals;
+</pre><p>
+        Which returns:
+      </p><pre class="programlisting">+----+---------+
+| id | name    |
++----+---------+
+|  1 | dog     |
+|  2 | cat     |
+|  3 | penguin |
+|  4 | lax     |
+|  5 | whale   |
+|  6 | ostrich |
++----+---------+
+</pre><p>
+        No value was specified for the <code class="literal">AUTO_INCREMENT</code>
+        column, so MySQL assigned sequence numbers automatically. You
+        can also explicitly assign 0 to the column to generate sequence
+        numbers, unless the
+        <a class="link" href="sql-mode.html#sqlmode_no_auto_value_on_zero"><code class="literal">NO_AUTO_VALUE_ON_ZERO</code></a> SQL mode
+        is enabled. For example:
+      </p><pre class="programlisting">INSERT INTO animals (id,name) VALUES(0,'groundhog');
+</pre><p>
+        If the column is declared <code class="literal">NOT NULL</code>, it is
+        also possible to assign <code class="literal">NULL</code> to the column to
+        generate sequence numbers. For example:
+      </p><pre class="programlisting">INSERT INTO animals (id,name) VALUES(NULL,'squirrel');
+</pre><p>
+        When you insert any other value into an
+        <code class="literal">AUTO_INCREMENT</code> column, the column is set to
+        that value and the sequence is reset so that the next
+        automatically generated value follows sequentially from the
+        largest column value. For example:
+      </p><pre class="programlisting"><strong class="userinput"><code>INSERT INTO animals (id,name) VALUES(100,'rabbit');</code></strong>
+<strong class="userinput"><code>INSERT INTO animals (id,name) VALUES(NULL,'mouse');</code></strong>
+<strong class="userinput"><code>SELECT * FROM animals;</code></strong>
++-----+-----------+
+| id  | name      |
++-----+-----------+
+|   1 | dog       |
+|   2 | cat       |
+|   3 | penguin   |
+|   4 | lax       |
+|   5 | whale     |
+|   6 | ostrich   |
+|   7 | groundhog |
+|   8 | squirrel  |
+| 100 | rabbit    |
+| 101 | mouse     |
++-----+-----------+
+</pre><p>
+        Updating an existing <code class="literal">AUTO_INCREMENT</code> column
+        value also resets the <code class="literal">AUTO_INCREMENT</code>
+        sequence.
+      </p><p>
+        You can retrieve the most recent automatically generated
+        <code class="literal">AUTO_INCREMENT</code> value with the
+        <a class="link" href="information-functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a> SQL function or
+        the <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-insert-id.html" target="_top"><code class="literal">mysql_insert_id()</code></a> C API
+        function. These functions are connection-specific, so their
+        return values are not affected by another connection which is
+        also performing inserts.
+      </p><p>
+        Use the smallest integer data type for the
+        <code class="literal">AUTO_INCREMENT</code> column that is large enough to
+        hold the maximum sequence value you require. When the column
+        reaches the upper limit of the data type, the next attempt to
+        generate a sequence number fails. Use the
+        <code class="literal">UNSIGNED</code> attribute if possible to allow a
+        greater range. For example, if you use
+        <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">TINYINT</code></a>, the maximum permissible
+        sequence number is 127. For
+        <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">TINYINT
+        UNSIGNED</code></a>, the maximum is 255. See
+        <a class="xref" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT">Section 11.1.2, “Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT,
+        MEDIUMINT, BIGINT”</a> for the ranges of all the
+        integer types.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          For a multiple-row insert,
+          <a class="link" href="information-functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a> and
+          <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-insert-id.html" target="_top"><code class="literal">mysql_insert_id()</code></a> actually
+          return the <code class="literal">AUTO_INCREMENT</code> key from the
+          <span class="emphasis"><em>first</em></span> of the inserted rows. This enables
+          multiple-row inserts to be reproduced correctly on other
+          servers in a replication setup.
+        </p></div><p>
+        To start with an <code class="literal">AUTO_INCREMENT</code> value other
+        than 1, set that value with <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE
+        TABLE</code></a> or <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>,
+        like this:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER TABLE tbl AUTO_INCREMENT = 100;</code></strong>
+</pre><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="example-auto-increment-innodb-notes"></a>InnoDB Notes</h4></div></div></div><p>
+          For information about <code class="literal">AUTO_INCREMENT</code> usage
+          specific to <code class="literal">InnoDB</code>, see
+          <a class="xref" href="innodb-auto-increment-handling.html" title="15.6.1.6 AUTO_INCREMENT Handling in InnoDB">Section 15.6.1.6, “AUTO_INCREMENT Handling in InnoDB”</a>.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="example-auto-increment-myisam-notes"></a>MyISAM Notes</h4></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              For <code class="literal">MyISAM</code> tables, you can specify
+              <code class="literal">AUTO_INCREMENT</code> on a secondary column in
+              a multiple-column index. In this case, the generated value
+              for the <code class="literal">AUTO_INCREMENT</code> column is
+              calculated as
+              <a class="link" href="aggregate-functions.html#function_max"><code class="literal">MAX(<em class="replaceable"><code>auto_increment_column</code></em>)
+              + 1 WHERE
+              prefix=<em class="replaceable"><code>given-prefix</code></em></code></a>.
+              This is useful when you want to put data into ordered
+              groups.
+            </p><pre class="programlisting">CREATE TABLE animals (
+    grp ENUM('fish','mammal','bird') NOT NULL,
+    id MEDIUMINT NOT NULL AUTO_INCREMENT,
+    name CHAR(30) NOT NULL,
+    PRIMARY KEY (grp,id)
+) ENGINE=MyISAM;
+
+INSERT INTO animals (grp,name) VALUES
+    ('mammal','dog'),('mammal','cat'),
+    ('bird','penguin'),('fish','lax'),('mammal','whale'),
+    ('bird','ostrich');
+
+SELECT * FROM animals ORDER BY grp,id;
+</pre><p>
+              Which returns:
+            </p><pre class="programlisting">+--------+----+---------+
+| grp    | id | name    |
++--------+----+---------+
+| fish   |  1 | lax     |
+| mammal |  1 | dog     |
+| mammal |  2 | cat     |
+| mammal |  3 | whale   |
+| bird   |  1 | penguin |
+| bird   |  2 | ostrich |
++--------+----+---------+
+</pre><p>
+              In this case (when the <code class="literal">AUTO_INCREMENT</code>
+              column is part of a multiple-column index),
+              <code class="literal">AUTO_INCREMENT</code> values are reused if you
+              delete the row with the biggest
+              <code class="literal">AUTO_INCREMENT</code> value in any group. This
+              happens even for <code class="literal">MyISAM</code> tables, for
+              which <code class="literal">AUTO_INCREMENT</code> values normally
+              are not reused.
+            </p></li><li class="listitem"><p>
+              If the <code class="literal">AUTO_INCREMENT</code> column is part of
+              multiple indexes, MySQL generates sequence values using
+              the index that begins with the
+              <code class="literal">AUTO_INCREMENT</code> column, if there is one.
+              For example, if the <code class="literal">animals</code> table
+              contained indexes <code class="literal">PRIMARY KEY (grp, id)</code>
+              and <code class="literal">INDEX (id)</code>, MySQL would ignore the
+              <code class="literal">PRIMARY KEY</code> for generating sequence
+              values. As a result, the table would contain a single
+              sequence, not a sequence per <code class="literal">grp</code> value.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="example-auto-increment-further-reading"></a>Further Reading</h4></div></div></div><p>
+          More information about <code class="literal">AUTO_INCREMENT</code> is
+          available here:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              How to assign the <code class="literal">AUTO_INCREMENT</code>
+              attribute to a column: <a class="xref" href="create-table.html" title="13.1.20 CREATE TABLE Statement">Section 13.1.20, “CREATE TABLE Statement”</a>, and
+              <a class="xref" href="alter-table.html" title="13.1.9 ALTER TABLE Statement">Section 13.1.9, “ALTER TABLE Statement”</a>.
+            </p></li><li class="listitem"><p>
+              How <code class="literal">AUTO_INCREMENT</code> behaves depending on
+              the
+              <a class="link" href="sql-mode.html#sqlmode_no_auto_value_on_zero"><code class="literal">NO_AUTO_VALUE_ON_ZERO</code></a>
+              SQL mode: <a class="xref" href="sql-mode.html" title="5.1.11 Server SQL Modes">Section 5.1.11, “Server SQL Modes”</a>.
+            </p></li><li class="listitem"><p>
+              How to use the
+              <a class="link" href="information-functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a> function
+              to find the row that contains the most recent
+              <code class="literal">AUTO_INCREMENT</code> value:
+              <a class="xref" href="information-functions.html" title="12.15 Information Functions">Section 12.15, “Information Functions”</a>.
+            </p></li><li class="listitem"><p>
+              Setting the <code class="literal">AUTO_INCREMENT</code> value to be
+              used: <a class="xref" href="server-system-variables.html" title="5.1.8 Server System Variables">Section 5.1.8, “Server System Variables”</a>.
+            </p></li><li class="listitem"><p>
+              <a class="xref" href="innodb-auto-increment-handling.html" title="15.6.1.6 AUTO_INCREMENT Handling in InnoDB">Section 15.6.1.6, “AUTO_INCREMENT Handling in InnoDB”</a>
+            </p></li><li class="listitem"><p>
+              <code class="literal">AUTO_INCREMENT</code> and replication:
+              <a class="xref" href="replication-features-auto-increment.html" title="17.5.1.1 Replication and AUTO_INCREMENT">Section 17.5.1.1, “Replication and AUTO_INCREMENT”</a>.
+            </p></li><li class="listitem"><p>
+              Server-system variables related to
+              <code class="literal">AUTO_INCREMENT</code>
+              (<a class="link" href="replication-options-source.html#sysvar_auto_increment_increment"><code class="literal">auto_increment_increment</code></a>
+              and
+              <a class="link" href="replication-options-source.html#sysvar_auto_increment_offset"><code class="literal">auto_increment_offset</code></a>)
+              that can be used for replication:
+              <a class="xref" href="server-system-variables.html" title="5.1.8 Server System Variables">Section 5.1.8, “Server System Variables”</a>.
+            </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="calculating-days.html">Previous <span class="navHint"> Calculating Visits Per Day </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="examples.html">Up <span class="navHint"> Examples of Common Queries </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="apache.html">Next <span class="navHint"> Using MySQL with Apache </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

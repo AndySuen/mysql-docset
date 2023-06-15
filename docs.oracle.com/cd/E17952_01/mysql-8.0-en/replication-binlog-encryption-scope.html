@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.3.2.1 Scope of Binary Log Encryption</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-binlog-encryption.html" title="17.3.2 Encrypting Binary Log Files and Relay Log Files" /><link rel="prev" href="replication-binlog-encryption.html" title="17.3.2 Encrypting Binary Log Files and Relay Log Files" /><link rel="next" href="replication-binlog-encryption-encryption-keys.html" title="17.3.2.2 Binary Log Encryption Keys" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-binlog-encryption-scope.html#replication-binlog-encryption-scope">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-binlog-encryption.html">Previous <span class="navHint"> Encrypting Binary Log Files and Relay Log Files </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-binlog-encryption.html">Up <span class="navHint"> Encrypting Binary Log Files and Relay Log Files </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-binlog-encryption-encryption-keys.html">Next <span class="navHint"> Binary Log Encryption Keys </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-binlog-encryption-scope"></a>17.3.2.1 Scope of Binary Log Encryption</h4></div></div></div><p>
+        When binary log encryption is active for a MySQL server
+        instance, the encryption coverage is as follows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Data at rest that is written to the binary log files and
+            relay log files is encrypted from the point in time where
+            encryption is started, using the two tier encryption
+            architecture described above. Existing binary log files and
+            relay log files that were present on the server when you
+            started encryption are not encrypted. You can purge these
+            files when they are no longer needed.
+          </p></li><li class="listitem"><p>
+            Data in motion in the replication event stream, which is
+            sent to MySQL clients including
+            <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>, is decrypted for
+            transmission, and should therefore be protected in transit
+            by the use of connection encryption (see
+            <a class="xref" href="encrypted-connections.html" title="6.3 Using Encrypted Connections">Section 6.3, “Using Encrypted Connections”</a> and
+            <a class="xref" href="replication-encrypted-connections.html" title="17.3.1 Setting Up Replication to Use Encrypted Connections">Section 17.3.1, “Setting Up Replication to Use Encrypted Connections”</a>).
+          </p></li><li class="listitem"><p>
+            Data in use that is held in the binary log transaction and
+            statement caches during a transaction is in unencrypted
+            format in the memory buffer that stores the cache. The data
+            is written to a temporary file on disk if it exceeds the
+            space available in the memory buffer. From MySQL 8.0.17,
+            when binary log encryption is active on the server,
+            temporary files used to hold the binary log cache are
+            encrypted using AES-CTR (AES Counter mode) for stream
+            encryption. Because the temporary files are volatile and
+            tied to a single process, they are encrypted using
+            single-tier encryption, using a randomly generated file
+            password and initialization vector that exist only in memory
+            and are never stored on disk or in the keyring. After each
+            transaction is committed, the binary log cache is reset: the
+            memory buffer is cleared, any temporary file used to hold
+            the binary log cache is truncated, and a new file password
+            and initialization vector are randomly generated for use
+            with the next transaction. This reset also takes place when
+            the server is restarted after a normal shutdown or an
+            unexpected halt.
+          </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          If you use <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> when
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=STATEMENT</code></a> is
+          set, which is not recommended as the statement is considered
+          unsafe for statement-based replication, a temporary file
+          containing the data is created on the replica where the
+          changes are applied. These temporary files are not encrypted
+          when binary log encryption is active on the server. Use
+          row-based or mixed binary logging format instead, which do not
+          create the temporary files.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-binlog-encryption.html">Previous <span class="navHint"> Encrypting Binary Log Files and Relay Log Files </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-binlog-encryption.html">Up <span class="navHint"> Encrypting Binary Log Files and Relay Log Files </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-binlog-encryption-encryption-keys.html">Next <span class="navHint"> Binary Log Encryption Keys </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.8.4 Configuring Thread Concurrency for InnoDB</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-configuration.html" title="15.8 InnoDB Configuration" /><link rel="prev" href="innodb-buffer-pool-in-core-file.html" title="15.8.3.7 Excluding Buffer Pool Pages from Core Files" /><link rel="next" href="innodb-performance-multiple_io_threads.html" title="15.8.5 Configuring the Number of Background InnoDB I/O Threads" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-performance-thread_concurrency.html#innodb-performance-thread_concurrency">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-buffer-pool-in-core-file.html">Previous <span class="navHint"> Excluding Buffer Pool Pages from Core Files </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-configuration.html">Up <span class="navHint"> InnoDB Configuration </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-performance-multiple_io_threads.html">Next <span class="navHint"> Configuring the Number of Background InnoDB I/O Threads </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-performance-thread_concurrency"></a>15.8.4 Configuring Thread Concurrency for InnoDB</h3></div></div></div><a id="idm45828887823504" class="indexterm"></a><a id="idm45828887822464" class="indexterm"></a><a id="idm45828887821376" class="indexterm"></a><a id="idm45828887820288" class="indexterm"></a><p>
+      <code class="literal">InnoDB</code> uses operating system
+      <a class="link" href="glossary.html#glos_thread" title="thread">threads</a> to process requests
+      from user transactions. (Transactions may issue many requests to
+      <code class="literal">InnoDB</code> before they commit or roll back.) On
+      modern operating systems and servers with multi-core processors,
+      where context switching is efficient, most workloads run well
+      without any limit on the number of concurrent threads.
+    </p><p>
+      In situations where it is helpful to minimize context switching
+      between threads, <code class="literal">InnoDB</code> can use a number of
+      techniques to limit the number of concurrently executing operating
+      system threads (and thus the number of requests that are processed
+      at any one time). When <code class="literal">InnoDB</code> receives a new
+      request from a user session, if the number of threads concurrently
+      executing is at a pre-defined limit, the new request sleeps for a
+      short time before it tries again. A request that cannot be
+      rescheduled after the sleep is put in a first-in/first-out queue
+      and eventually is processed. Threads waiting for locks are not
+      counted in the number of concurrently executing threads.
+    </p><p>
+      You can limit the number of concurrent threads by setting the
+      configuration parameter
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_concurrency"><code class="literal">innodb_thread_concurrency</code></a>. Once
+      the number of executing threads reaches this limit, additional
+      threads sleep for a number of microseconds, set by the
+      configuration parameter
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_sleep_delay"><code class="literal">innodb_thread_sleep_delay</code></a>, before
+      being placed into the queue.
+    </p><p>
+      You can set the configuration option
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_adaptive_max_sleep_delay"><code class="literal">innodb_adaptive_max_sleep_delay</code></a>
+      to the highest value you would allow for
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_sleep_delay"><code class="literal">innodb_thread_sleep_delay</code></a>, and
+      <code class="literal">InnoDB</code> automatically adjusts
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_sleep_delay"><code class="literal">innodb_thread_sleep_delay</code></a> up or
+      down depending on the current thread-scheduling activity. This
+      dynamic adjustment helps the thread scheduling mechanism to work
+      smoothly during times when the system is lightly loaded and when
+      it is operating near full capacity.
+    </p><p>
+      The default value for
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_concurrency"><code class="literal">innodb_thread_concurrency</code></a> and the
+      implied default limit on the number of concurrent threads has been
+      changed in various releases of MySQL and
+      <code class="literal">InnoDB</code>. The default value of
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_concurrency"><code class="literal">innodb_thread_concurrency</code></a> is
+      <code class="literal">0</code>, so that by default there is no limit on the
+      number of concurrently executing threads.
+    </p><p>
+      <code class="literal">InnoDB</code> causes threads to sleep only when the
+      number of concurrent threads is limited. When there is no limit on
+      the number of threads, all contend equally to be scheduled. That
+      is, if <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_concurrency"><code class="literal">innodb_thread_concurrency</code></a>
+      is <code class="literal">0</code>, the value of
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_sleep_delay"><code class="literal">innodb_thread_sleep_delay</code></a> is
+      ignored.
+    </p><p>
+      When there is a limit on the number of threads (when
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_concurrency"><code class="literal">innodb_thread_concurrency</code></a> is &gt;
+      0), <code class="literal">InnoDB</code> reduces context switching overhead
+      by permitting multiple requests made during the execution of a
+      <span class="emphasis"><em>single SQL statement</em></span> to enter
+      <code class="literal">InnoDB</code> without observing the limit set by
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_concurrency"><code class="literal">innodb_thread_concurrency</code></a>. Since
+      an SQL statement (such as a join) may comprise multiple row
+      operations within <code class="literal">InnoDB</code>,
+      <code class="literal">InnoDB</code> assigns a specified number of
+      <span class="quote">“<span class="quote">tickets</span>”</span> that allow a thread to be scheduled
+      repeatedly with minimal overhead.
+    </p><p>
+      When a new SQL statement starts, a thread has no tickets, and it
+      must observe
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_concurrency"><code class="literal">innodb_thread_concurrency</code></a>. Once
+      the thread is entitled to enter <code class="literal">InnoDB</code>, it is
+      assigned a number of tickets that it can use for subsequently
+      entering <code class="literal">InnoDB</code> to perform row operations. If
+      the tickets run out, the thread is evicted, and
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_thread_concurrency"><code class="literal">innodb_thread_concurrency</code></a> is
+      observed again which may place the thread back into the
+      first-in/first-out queue of waiting threads. When the thread is
+      once again entitled to enter <code class="literal">InnoDB</code>, tickets
+      are assigned again. The number of tickets assigned is specified by
+      the global option
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_concurrency_tickets"><code class="literal">innodb_concurrency_tickets</code></a>, which
+      is 5000 by default. A thread that is waiting for a lock is given
+      one ticket once the lock becomes available.
+    </p><p>
+      The correct values of these variables depend on your environment
+      and workload. Try a range of different values to determine what
+      value works for your applications. Before limiting the number of
+      concurrently executing threads, review configuration options that
+      may improve the performance of <code class="literal">InnoDB</code> on
+      multi-core and multi-processor computers, such as
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_adaptive_hash_index"><code class="literal">innodb_adaptive_hash_index</code></a>.
+    </p><p>
+      For general performance information about MySQL thread handling,
+      see <a class="xref" href="connection-interfaces.html" title="5.1.12.1 Connection Interfaces">Section 5.1.12.1, “Connection Interfaces”</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-buffer-pool-in-core-file.html">Previous <span class="navHint"> Excluding Buffer Pool Pages from Core Files </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-configuration.html">Up <span class="navHint"> InnoDB Configuration </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-performance-multiple_io_threads.html">Next <span class="navHint"> Configuring the Number of Background InnoDB I/O Threads </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

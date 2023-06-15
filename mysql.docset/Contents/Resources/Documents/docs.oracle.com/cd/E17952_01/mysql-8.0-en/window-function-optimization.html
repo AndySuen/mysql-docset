@@ -1,0 +1,113 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4560"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.21%C2%A0Window%20Function%20Optimization"></a><title>8.2.1.21&nbsp;Window Function Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="function-optimization.html" title="8.2.1.20&nbsp;Function Call Optimization"/><link rel="next" href="row-constructor-optimization.html" title="8.2.1.22&nbsp;Row Constructor Expression Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="window-function-optimization.html#window-function-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="function-optimization.html">Previous <span class="navHint"> Function Call Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="row-constructor-optimization.html">Next <span class="navHint"> Row Constructor Expression Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-4559"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.21%C2%A0Window%20Function%20Optimization"></a><h4 class="title"><a id="window-function-optimization"></a>8.2.1.21&nbsp;Window Function Optimization</h4></div></div></div><a id="idm45828955348752" class="indexterm"></a><a id="idm45828955347264" class="indexterm"></a><p>
+          Window functions affect the strategies the optimizer
+          considers:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Derived table merging for a subquery is disabled if the
+              subquery has window functions. The subquery is always
+              materialized.
+            </p></li><li class="listitem"><p>
+              Semijoins are not applicable to window function
+              optimization because semijoins apply to subqueries in
+              <code class="literal">WHERE</code> and <code class="literal">JOIN ...
+              ON</code>, which cannot contain window functions.
+            </p></li><li class="listitem"><p>
+              The optimizer processes multiple windows that have the
+              same ordering requirements in sequence, so sorting can be
+              skipped for windows following the first one.
+            </p></li><li class="listitem"><p>
+              The optimizer makes no attempt to merge windows that could
+              be evaluated in a single step (for example, when multiple
+              <code class="literal">OVER</code> clauses contain identical window
+              definitions). The workaround is to define the window in a
+              <code class="literal">WINDOW</code> clause and refer to the window
+              name in the <code class="literal">OVER</code> clauses.
+            </p></li></ul></div><p>
+          An aggregate function not used as a window function is
+          aggregated in the outermost possible query. For example, in
+          this query, MySQL sees that <code class="literal">COUNT(t1.b)</code> is
+          something that cannot exist in the outer query because of its
+          placement in the <code class="literal">WHERE</code> clause:
+        </p><pre class="programlisting">SELECT * FROM t1 WHERE t1.a = (SELECT COUNT(t1.b) FROM t2);
+</pre><p>
+          Consequently, MySQL aggregates inside the subquery, treating
+          <code class="literal">t1.b</code> as a constant and returning the count
+          of rows of <code class="literal">t2</code>.
+        </p><p>
+          Replacing <code class="literal">WHERE</code> with
+          <code class="literal">HAVING</code> results in an error:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM t1 HAVING t1.a = (SELECT COUNT(t1.b) FROM t2);</code></strong>
+ERROR 1140 (42000): In aggregated query without GROUP BY, expression #1
+of SELECT list contains nonaggregated column &#39;test.t1.a&#39;; this is
+incompatible with sql_mode=only_full_group_by
+</pre><p>
+          The error occurs because <code class="literal">COUNT(t1.b)</code> can
+          exist in the <code class="literal">HAVING</code>, and so makes the outer
+          query aggregated.
+        </p><p>
+          Window functions (including aggregate functions used as window
+          functions) do not have the preceding complexity. They always
+          aggregate in the subquery where they are written, never in the
+          outer query.
+        </p><p>
+          Window function evaluation may be affected by the value of the
+          <a class="link" href="server-system-variables.html#sysvar_windowing_use_high_precision"><code class="literal">windowing_use_high_precision</code></a>
+          system variable, which determines whether to compute window
+          operations without loss of precision. By default,
+          <a class="link" href="server-system-variables.html#sysvar_windowing_use_high_precision"><code class="literal">windowing_use_high_precision</code></a>
+          is enabled.
+        </p><p>
+          For some moving frame aggregates, the inverse aggregate
+          function can be applied to remove values from the aggregate.
+          This can improve performance but possibly with a loss of
+          precision. For example, adding a very small floating-point
+          value to a very large value causes the very small value to be
+          <span class="quote">&ldquo;<span class="quote">hidden</span>&rdquo;</span> by the large value. When inverting the
+          large value later, the effect of the small value is lost.
+        </p><p>
+          Loss of precision due to inverse aggregation is a factor only
+          for operations on floating-point (approximate-value) data
+          types. For other types, inverse aggregation is safe; this
+          includes <a class="link" href="fixed-point-types.html" title="11.1.3&nbsp;Fixed-Point Types (Exact Value) - DECIMAL, NUMERIC"><code class="literal">DECIMAL</code></a>, which permits
+          a fractional part but is an exact-value type.
+        </p><p>
+          For faster execution, MySQL always uses inverse aggregation
+          when it is safe:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              For floating-point values, inverse aggregation is not
+              always safe and might result in loss of precision. The
+              default is to avoid inverse aggregation, which is slower
+              but preserves precision. If it is permissible to sacrifice
+              safety for speed,
+              <a class="link" href="server-system-variables.html#sysvar_windowing_use_high_precision"><code class="literal">windowing_use_high_precision</code></a>
+              can be disabled to permit inverse aggregation.
+            </p></li><li class="listitem"><p>
+              For nonfloating-point data types, inverse aggregation is
+              always safe and is used regardless of the
+              <a class="link" href="server-system-variables.html#sysvar_windowing_use_high_precision"><code class="literal">windowing_use_high_precision</code></a>
+              value.
+            </p></li><li class="listitem"><p>
+              <a class="link" href="server-system-variables.html#sysvar_windowing_use_high_precision"><code class="literal">windowing_use_high_precision</code></a>
+              has no effect on <a class="link" href="aggregate-functions.html#function_min"><code class="literal">MIN()</code></a> and
+              <a class="link" href="aggregate-functions.html#function_max"><code class="literal">MAX()</code></a>, which do not use
+              inverse aggregation in any case.
+            </p></li></ul></div><p>
+          For evaluation of the variance functions
+          <a class="link" href="aggregate-functions.html#function_stddev-pop"><code class="literal">STDDEV_POP()</code></a>,
+          <a class="link" href="aggregate-functions.html#function_stddev-samp"><code class="literal">STDDEV_SAMP()</code></a>,
+          <a class="link" href="aggregate-functions.html#function_var-pop"><code class="literal">VAR_POP()</code></a>,
+          <a class="link" href="aggregate-functions.html#function_var-samp"><code class="literal">VAR_SAMP()</code></a>, and their synonyms,
+          evaluation can occur in optimized mode or default mode.
+          Optimized mode may produce slightly different results in the
+          last significant digits. If such differences are permissible,
+          <a class="link" href="server-system-variables.html#sysvar_windowing_use_high_precision"><code class="literal">windowing_use_high_precision</code></a>
+          can be disabled to permit optimized mode.
+        </p><a id="idm45828955301936" class="indexterm"></a><a id="idm45828955300448" class="indexterm"></a><p>
+          For <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>, windowing
+          execution plan information is too extensive to display in
+          traditional output format. To see windowing information, use
+          <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN
+          FORMAT=JSON</code></a> and look for the
+          <code class="literal">windowing</code> element.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="function-optimization.html">Previous <span class="navHint"> Function Call Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="row-constructor-optimization.html">Next <span class="navHint"> Row Constructor Expression Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

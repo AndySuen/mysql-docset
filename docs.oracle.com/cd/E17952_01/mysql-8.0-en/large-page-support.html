@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.12.3.3 Enabling Large Page Support</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="optimizing-memory.html" title="8.12.3 Optimizing Memory Use" /><link rel="prev" href="monitor-mysql-memory-use.html" title="8.12.3.2 Monitoring MySQL Memory Usage" /><link rel="next" href="optimize-benchmarking.html" title="8.13 Measuring Performance (Benchmarking)" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="large-page-support.html#large-page-support">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="monitor-mysql-memory-use.html">Previous <span class="navHint"> Monitoring MySQL Memory Usage </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="optimizing-memory.html">Up <span class="navHint"> Optimizing Memory Use </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="optimize-benchmarking.html">Next <span class="navHint"> Measuring Performance (Benchmarking) </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="large-page-support"></a>8.12.3.3 Enabling Large Page Support</h4></div></div></div><a id="idm45828948939040" class="indexterm"></a><p>
+          Some hardware and operating system architectures support
+          memory pages greater than the default (usually 4KB). The
+          actual implementation of this support depends on the
+          underlying hardware and operating system. Applications that
+          perform a lot of memory accesses may obtain performance
+          improvements by using large pages due to reduced Translation
+          Lookaside Buffer (TLB) misses.
+        </p><p>
+          In MySQL, large pages can be used by
+          <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a>, to allocate memory for
+          its buffer pool and additional memory pool.
+        </p><p>
+          Standard use of large pages in MySQL attempts to use the
+          largest size supported, up to 4MB. Under Solaris, a
+          <span class="quote">“<span class="quote">super large pages</span>”</span> feature enables uses of pages
+          up to 256MB. This feature is available for recent SPARC
+          platforms. It can be enabled or disabled by using the
+          <a class="link" href="server-options.html#option_mysqld_super-large-pages"><code class="option">--super-large-pages</code></a> or
+          <a class="link" href="server-options.html#option_mysqld_super-large-pages"><code class="option">--skip-super-large-pages</code></a>
+          option.
+        </p><p>
+          MySQL also supports the Linux implementation of large page
+          support (which is called HugeTLB in Linux).
+        </p><p>
+          Before large pages can be used on Linux, the kernel must be
+          enabled to support them and it is necessary to configure the
+          HugeTLB memory pool. For reference, the HugeTBL API is
+          documented in the
+          <code class="filename">Documentation/vm/hugetlbpage.txt</code> file of
+          your Linux sources.
+        </p><p>
+          The kernels for some recent systems such as Red Hat Enterprise
+          Linux may have the large pages feature enabled by default. To
+          check whether this is true for your kernel, use the following
+          command and look for output lines containing
+          <span class="quote">“<span class="quote">huge</span>”</span>:
+        </p><pre class="programlisting">$&gt; <strong class="userinput"><code>grep -i huge /proc/meminfo</code></strong>
+AnonHugePages:   2658304 kB
+ShmemHugePages:        0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+</pre><p>
+          The nonempty command output indicates that large page support
+          is present, but the zero values indicate that no pages are
+          configured for use.
+        </p><p>
+          If your kernel needs to be reconfigured to support large
+          pages, consult the <code class="filename">hugetlbpage.txt</code> file
+          for instructions.
+        </p><p>
+          Assuming that your Linux kernel has large page support
+          enabled, configure it for use by MySQL using the following
+          steps:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              Determine the number of large pages needed. This is the
+              size of the InnoDB buffer pool divided by the large page
+              size, which we can calculate as
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_buffer_pool_size"><code class="literal">innodb_buffer_pool_size</code></a> /
+              <code class="literal">Hugepagesize</code>. Assuming the default
+              value for the buffer pool size and using the
+              <code class="literal">Hugepagesize</code> value obtained from
+              <code class="filename">/proc/meminfo</code>, this is 134217728 /
+              2048, or 65536 (64K). We call this value
+              <em class="replaceable"><code>P</code></em>.
+            </p></li><li class="listitem"><p>
+              As system root, open the file
+              <code class="filename">/etc/sysctl.conf</code> in a text editor,
+              and add the line shown here, where
+              <em class="replaceable"><code>P</code></em> is the number of large pages
+              obtained in the previous step:
+            </p><pre class="programlisting">vm.nr_hugepages=<em class="replaceable"><code>P</code></em>
+</pre><p>
+              Using the actual value obtained previously, the additional
+              line should look like this:
+            </p><pre class="programlisting">vm.nr_huge_pages=65536
+</pre><p>
+              Save the updated file.
+            </p></li><li class="listitem"><p>
+              As system root, run the following command:
+            </p><pre class="programlisting">$&gt; <strong class="userinput"><code>sudo sysctl -p</code></strong>
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+                On some systems the large pages file may be named
+                slightly differently; for example, some distributions
+                call it <code class="filename">nr_hugepages</code>. In the event
+                <span class="command"><strong>sysctl</strong></span> returns an error
+                relating to the file name, check the name of the
+                corresponding file in <code class="filename">/proc/sys/vm</code>
+                and use that instead.
+              </p></div><p>
+              To verify the large page configuration, check
+              <code class="filename">/proc/meminfo</code> again as described
+              previously. Now you should see some additional nonzero
+              values in the output, similar to this:
+            </p><pre class="programlisting">$&gt; <strong class="userinput"><code>grep -i huge /proc/meminfo</code></strong>
+AnonHugePages:   2686976 kB
+ShmemHugePages:        0 kB
+HugePages_Total:     233
+HugePages_Free:      233
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:          477184 kB
+</pre></li><li class="listitem"><p>
+              Optionally, you may wish to compact the Linux VM. You can
+              do this using a sequence of commands, possibly in a script
+              file, similar to what is shown here:
+            </p><pre class="programlisting">sync
+sync
+sync
+echo 3 &gt; /proc/sys/vm/drop_caches
+echo 1 &gt; /proc/sys/vm/compact_memory
+</pre><p>
+              See your operating platform documentation for more
+              information about how to do this.
+            </p></li><li class="listitem"><p>
+              Check any configuration files such as
+              <code class="filename">my.cnf</code> used by the server, and make
+              sure that
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_buffer_pool_chunk_size"><code class="literal">innodb_buffer_pool_chunk_size</code></a>
+              is set larger than the huge page size. The default for
+              this variable is 128M.
+            </p></li><li class="listitem"><p>
+              Large page support in the MySQL server is disabled by
+              default. To enable it, start the server with
+              <a class="link" href="server-options.html#option_mysqld_large-pages"><code class="option">--large-pages</code></a>. You can also
+              do so by adding the following line to the
+              <code class="literal">[mysqld]</code> section of the server
+              <code class="filename">my.cnf</code> file:
+            </p><pre class="programlisting">large-pages=ON
+</pre><p>
+              With this option enabled, <code class="literal">InnoDB</code> uses
+              large pages automatically for its buffer pool and
+              additional memory pool. If <code class="literal">InnoDB</code>
+              cannot do this, it falls back to use of traditional memory
+              and writes a warning to the error log: <span class="errortext">Warning:
+              Using conventional memory pool</span>.
+            </p></li></ol></div><p>
+          You can verify that MySQL is now using large pages by checking
+          <code class="filename">/proc/meminfo</code> again after restarting
+          <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, like this:
+        </p><pre class="programlisting">$&gt; <strong class="userinput"><code>grep -i huge /proc/meminfo</code></strong>
+AnonHugePages:   2516992 kB
+ShmemHugePages:        0 kB
+HugePages_Total:     233
+HugePages_Free:      222
+HugePages_Rsvd:       55
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:          477184 kB
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="monitor-mysql-memory-use.html">Previous <span class="navHint"> Monitoring MySQL Memory Usage </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimizing-memory.html">Up <span class="navHint"> Optimizing Memory Use </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="optimize-benchmarking.html">Next <span class="navHint"> Measuring Performance (Benchmarking) </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

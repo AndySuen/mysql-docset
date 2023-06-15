@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.3.8.3 Restrictions on XA Transactions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="xa.html" title="13.3.8 XA Transactions" /><link rel="prev" href="xa-states.html" title="13.3.8.2 XA Transaction States" /><link rel="next" href="sql-replication-statements.html" title="13.4 Replication Statements" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="xa-restrictions.html#xa-restrictions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="xa-states.html">Previous <span class="navHint"> XA Transaction States </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="xa.html">Up <span class="navHint"> XA Transactions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="sql-replication-statements.html">Next <span class="navHint"> Replication Statements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="xa-restrictions"></a>13.3.8.3 Restrictions on XA Transactions</h4></div></div></div><a id="idm45828904346896" class="indexterm"></a><a id="idm45828904345440" class="indexterm"></a><p>
+        XA transaction support is limited to the
+        <code class="literal">InnoDB</code> storage engine.
+      </p><p>
+        For <span class="quote">“<span class="quote">external XA,</span>”</span> a MySQL server acts as a
+        Resource Manager and client programs act as Transaction
+        Managers. For <span class="quote">“<span class="quote">Internal XA</span>”</span>, storage engines within
+        a MySQL server act as RMs, and the server itself acts as a TM.
+        Internal XA support is limited by the capabilities of individual
+        storage engines. Internal XA is required for handling XA
+        transactions that involve more than one storage engine. The
+        implementation of internal XA requires that a storage engine
+        support two-phase commit at the table handler level, and
+        currently this is true only for <code class="literal">InnoDB</code>.
+      </p><p>
+        For <a class="link" href="xa-statements.html" title="13.3.8.1 XA Transaction SQL Statements"><code class="literal">XA
+        START</code></a>, the <code class="literal">JOIN</code> and
+        <code class="literal">RESUME</code> clauses are recognized but have no
+        effect.
+      </p><p>
+        For <a class="link" href="xa-statements.html" title="13.3.8.1 XA Transaction SQL Statements"><code class="literal">XA
+        END</code></a> the <code class="literal">SUSPEND [FOR MIGRATE]</code>
+        clause is recognized but has no effect.
+      </p><p>
+        The requirement that the <em class="replaceable"><code>bqual</code></em> part
+        of the <em class="replaceable"><code>xid</code></em> value be different for
+        each XA transaction within a global transaction is a limitation
+        of the current MySQL XA implementation. It is not part of the XA
+        specification.
+      </p><p>
+        An XA transaction is written to the binary log in two parts.
+        When <code class="literal">XA PREPARE</code> is issued, the first part of
+        the transaction up to <code class="literal">XA PREPARE</code> is written
+        using an initial GTID. A <code class="literal">XA_prepare_log_event</code>
+        is used to identify such transactions in the binary log. When
+        <code class="literal">XA COMMIT</code> or <code class="literal">XA ROLLBACK</code>
+        is issued, a second part of the transaction containing only the
+        <code class="literal">XA COMMIT</code> or <code class="literal">XA ROLLBACK</code>
+        statement is written using a second GTID. Note that the initial
+        part of the transaction, identified by
+        <code class="literal">XA_prepare_log_event</code>, is not necessarily
+        followed by its <code class="literal">XA COMMIT</code> or <code class="literal">XA
+        ROLLBACK</code>, which can cause interleaved binary logging
+        of any two XA transactions. The two parts of the XA transaction
+        can even appear in different binary log files. This means that
+        an XA transaction in <code class="literal">PREPARED</code> state is now
+        persistent until an explicit <code class="literal">XA COMMIT</code> or
+        <code class="literal">XA ROLLBACK</code> statement is issued, ensuring
+        that XA transactions are compatible with replication.
+      </p><p>
+        On a replica, immediately after the XA transaction is prepared,
+        it is detached from the replication applier thread, and can be
+        committed or rolled back by any thread on the replica. This
+        means that the same XA transaction can appear in the
+        <a class="link" href="performance-schema-events-transactions-current-table.html" title="27.12.7.1 The events_transactions_current Table"><code class="literal">events_transactions_current</code></a> table
+        with different states on different threads. The
+        <a class="link" href="performance-schema-events-transactions-current-table.html" title="27.12.7.1 The events_transactions_current Table"><code class="literal">events_transactions_current</code></a> table
+        displays the current status of the most recent monitored
+        transaction event on the thread, and does not update this status
+        when the thread is idle. So the XA transaction can still be
+        displayed in the <code class="literal">PREPARED</code> state for the
+        original applier thread, after it has been processed by another
+        thread. To positively identify XA transactions that are still in
+        the <code class="literal">PREPARED</code> state and need to be recovered,
+        use the <a class="link" href="xa-statements.html" title="13.3.8.1 XA Transaction SQL Statements"><code class="literal">XA
+        RECOVER</code></a> statement rather than the Performance Schema
+        transaction tables.
+      </p><p>
+        The following restrictions exist for using XA transactions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Prior to MySQL 8.0.30, XA transactions are not fully
+            resilient to an unexpected halt with respect to the binary
+            log. If there is an unexpected halt while the server is in
+            the middle of executing an <code class="literal">XA PREPARE</code>,
+            <code class="literal">XA COMMIT</code>, <code class="literal">XA
+            ROLLBACK</code>, or <code class="literal">XA COMMIT ... ONE
+            PHASE</code> statement, the server might not be able to
+            recover to a correct state, leaving the server and the
+            binary log in an inconsistent state. In this situation, the
+            binary log might either contain extra XA transactions that
+            are not applied, or miss XA transactions that are applied.
+            Also, if GTIDs are enabled, after recovery
+            <code class="literal">@@GLOBAL.GTID_EXECUTED</code> might not
+            correctly describe the transactions that have been applied.
+            Note that if an unexpected halt occurs before <code class="literal">XA
+            PREPARE</code>, between <code class="literal">XA PREPARE</code> and
+            <code class="literal">XA COMMIT</code> (or <code class="literal">XA
+            ROLLBACK</code>), or after <code class="literal">XA COMMIT</code>
+            (or <code class="literal">XA ROLLBACK</code>), the server and binary
+            log are correctly recovered and taken to a consistent state.
+          </p><p>
+            Beginning with MySQL 8.0.30, this is no longer an issue; the
+            server implements <code class="literal">XA PREPARE</code> as a
+            two-phase operation, which maintains the state of the
+            prepare operation between the storage engine and the server,
+            and imposes order of execution between the storage engine
+            and the binary log, so that state is not broadcast before it
+            is consistent and persistent on the server node.
+          </p><p>
+            You should be aware that, when the same transaction XID is
+            used to execute XA transactions sequentially and a break
+            occurs during the processing of
+            <a class="link" href="xa-statements.html" title="13.3.8.1 XA Transaction SQL Statements"><code class="literal">XA COMMIT ...
+            ONE PHASE</code></a>, it may no longer be possible to
+            synchronize the state between the binary log and the storage
+            engine. This can occur if the series of events just
+            described takes place after this transaction has been
+            prepared in the storage engine, while the <code class="literal">XA
+            COMMIT</code> statement is still executing. This is a
+            known issue.
+          </p></li><li class="listitem"><p>
+            The use of replication filters or binary log filters in
+            combination with XA transactions is not supported. Filtering
+            of tables could cause an XA transaction to be empty on a
+            replica, and empty XA transactions are not supported. Also,
+            with the replica's connection metadata repository and
+            applier metadata repository stored in
+            <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> tables, which became the
+            default in MySQL 8.0, the internal state of the data engine
+            transaction is changed following a filtered XA transaction,
+            and can become inconsistent with the replication transaction
+            context state.
+          </p><p>
+            The error
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_xa_replication_filters" target="_top"><code class="literal">ER_XA_REPLICATION_FILTERS</code></a> is
+            logged whenever an XA transaction is impacted by a
+            replication filter, whether or not the transaction was empty
+            as a result. If the transaction is not empty, the replica is
+            able to continue running, but you should take steps to
+            discontinue the use of replication filters with XA
+            transactions in order to avoid potential issues. If the
+            transaction is empty, the replica stops. In that event, the
+            replica might be in an undetermined state in which the
+            consistency of the replication process might be compromised.
+            In particular, the <code class="literal">gtid_executed</code> set on a
+            replica of the replica might be inconsistent with that on
+            the source. To resolve this situation, isolate the source
+            and stop all replication, then check GTID consistency across
+            the replication topology. Undo the XA transaction that
+            generated the error message, then restart replication.
+          </p></li><li class="listitem"><p>
+            XA transactions are considered unsafe for statement-based
+            replication. If two XA transactions committed in parallel on
+            the source are being prepared on the replica in the inverse
+            order, locking dependencies can occur that cannot be safely
+            resolved, and it is possible for replication to fail with
+            deadlock on the replica. This situation can occur for a
+            single-threaded or multithreaded replica. When
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=STATEMENT</code></a> is
+            set, a warning is issued for DML statements inside XA
+            transactions. When
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=MIXED</code></a> or
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a> is set,
+            DML statements inside XA transactions are logged using
+            row-based replication, and the potential issue is not
+            present.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="xa-states.html">Previous <span class="navHint"> XA Transaction States </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="xa.html">Up <span class="navHint"> XA Transactions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="sql-replication-statements.html">Next <span class="navHint"> Replication Statements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

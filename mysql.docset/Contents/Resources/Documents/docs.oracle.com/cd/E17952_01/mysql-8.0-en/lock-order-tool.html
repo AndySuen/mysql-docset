@@ -1,0 +1,441 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1881"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/5.9.3%C2%A0The%20LOCK_ORDER%20Tool"></a><title>5.9.3&nbsp;The LOCK_ORDER Tool</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="debugging-mysql.html" title="5.9&nbsp;Debugging MySQL"/><link rel="prev" href="debugging-client.html" title="5.9.2&nbsp;Debugging a MySQL Client"/><link rel="next" href="dbug-package.html" title="5.9.4&nbsp;The DBUG Package"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="lock-order-tool.html#lock-order-tool">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="debugging-client.html">Previous <span class="navHint"> Debugging a MySQL Client </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="debugging-mysql.html">Up <span class="navHint"> Debugging MySQL </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="dbug-package.html">Next <span class="navHint"> The DBUG Package </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="lock-order-tool"></a>5.9.3&nbsp;The LOCK_ORDER Tool</h3></div></div></div><a id="idm45828981198144" class="indexterm"></a><p>
+      The MySQL server is a multithreaded application that uses numerous
+      internal locking and lock-related primitives, such as mutexes,
+      rwlocks (including prlocks and sxlocks), conditions, and files.
+      Within the server, the set of lock-related objects changes with
+      implementation of new features and code refactoring for
+      performance improvements. As with any multithreaded application
+      that uses locking primitives, there is always a risk of
+      encountering a deadlock during execution when multiple locks are
+      held at once. For MySQL, the effect of a deadlock is catastrophic,
+      causing a complete loss of service.
+    </p><p>
+      As of MySQL 8.0.17, to enable detection of lock-acquisition
+      deadlocks and enforcement that runtime execution is free of them,
+      MySQL supports <code class="literal">LOCK_ORDER</code> tooling. This enables
+      a lock-order dependency graph to be defined as part of server
+      design, and server runtime checking to ensure that lock
+      acquisition is acyclic and that execution paths comply with the
+      graph.
+    </p><p>
+      This section provides information about using the
+      <code class="literal">LOCK_ORDER</code> tool, but only at a basic level. For
+      complete details, see the Lock Order section of the MySQL Server
+      Doxygen documentation, available at
+      <a class="ulink" href="https://dev.mysql.com/doc/index-other.html" target="_top">https://dev.mysql.com/doc/index-other.html</a>.
+    </p><p>
+      The <code class="literal">LOCK_ORDER</code> tool is intended for debugging
+      the server, not for production use.
+    </p><p>
+      To use the <code class="literal">LOCK_ORDER</code> tool, follow this
+      procedure:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Build MySQL from source, configuring it with the
+          <a class="link" href="source-configuration-options.html#option_cmake_with_lock_order"><code class="option">-DWITH_LOCK_ORDER=ON</code></a>
+          <span class="command"><strong>CMake</strong></span> option so that the build includes
+          <code class="literal">LOCK_ORDER</code> tooling.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            With the <a class="link" href="source-configuration-options.html#option_cmake_with_lock_order"><code class="option">WITH_LOCK_ORDER</code></a>
+            option enabled, MySQL builds require the
+            <span class="command"><strong>flex</strong></span> program.
+          </p></div></li><li class="listitem"><p>
+          To run the server with the <code class="literal">LOCK_ORDER</code> tool
+          enabled, enable the
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order"><code class="literal">lock_order</code></a> system variable at
+          server startup. Several other system variables for
+          <code class="literal">LOCK_ORDER</code> configuration are available as
+          well.
+        </p></li><li class="listitem"><p>
+          For MySQL test suite operation,
+          <span class="command"><strong>mysql-test-run.pl</strong></span> has a
+          <code class="option">--lock-order</code> option that controls whether to
+          enable the <code class="literal">LOCK_ORDER</code> tool during test case
+          execution.
+        </p></li></ol></div><p>
+      The system variables described following configure operation of
+      the <code class="literal">LOCK_ORDER</code> tool, assuming that MySQL has
+      been built to include <code class="literal">LOCK_ORDER</code> tooling. The
+      primary variable is <a class="link" href="lock-order-tool.html#sysvar_lock_order"><code class="literal">lock_order</code></a>,
+      which indicates whether to enable the
+      <code class="literal">LOCK_ORDER</code> tool at runtime:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          If <a class="link" href="lock-order-tool.html#sysvar_lock_order"><code class="literal">lock_order</code></a> is disabled
+          (the default), no other <code class="literal">LOCK_ORDER</code> system
+          variables have any effect.
+        </p></li><li class="listitem"><p>
+          If <a class="link" href="lock-order-tool.html#sysvar_lock_order"><code class="literal">lock_order</code></a> is enabled, the
+          other system variables configure which
+          <code class="literal">LOCK_ORDER</code> features to enable.
+        </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        In general, it is intended that the
+        <code class="literal">LOCK_ORDER</code> tool be configured by executing
+        <span class="command"><strong>mysql-test-run.pl</strong></span> with the
+        <code class="option">--lock-order</code> option, and for
+        <span class="command"><strong>mysql-test-run.pl</strong></span> to set
+        <code class="literal">LOCK_ORDER</code> system variables to appropriate
+        values.
+      </p></div><p>
+      All <code class="literal">LOCK_ORDER</code> system variables must be set at
+      server startup. At runtime, their values are visible but cannot be
+      changed.
+    </p><p>
+      Some system variables exist in pairs, such as
+      <a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_loop"><code class="literal">lock_order_debug_loop</code></a> and
+      <a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_loop"><code class="literal">lock_order_trace_loop</code></a>. For such
+      pairs, the variables are distinguished as follows when the
+      condition occurs with which they are associated:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          If the <code class="literal">_debug_</code> variable is enabled, a debug
+          assertion is raised.
+        </p></li><li class="listitem"><p>
+          If the <code class="literal">_trace_</code> variable is enabled, an
+          error is printed to the logs.
+        </p></li></ul></div><div class="table"><a id="idm45828981154816"></a><p class="title"><strong>Table&nbsp;5.8&nbsp;LOCK_ORDER System Variable Summary</strong></p><div class="table-contents"><table frame="box" rules="all" summary="Reference for LOCK_ORDER system variables."><colgroup><col style="width: 40%"/><col style="width: 20%"/><col align="center" style="width: 20%"/></colgroup><thead><tr><th scope="col">Variable Name</th>
+<th scope="col">Variable Type</th>
+<th scope="col">Variable Scope</th>
+</tr></thead><tbody><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order">lock_order</a></th>
+<td>Boolean</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_loop">lock_order_debug_loop</a></th>
+<td>Boolean</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_missing_arc">lock_order_debug_missing_arc</a></th>
+<td>Boolean</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_missing_key">lock_order_debug_missing_key</a></th>
+<td>Boolean</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_missing_unlock">lock_order_debug_missing_unlock</a></th>
+<td>Boolean</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_dependencies">lock_order_dependencies</a></th>
+<td>File name</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_extra_dependencies">lock_order_extra_dependencies</a></th>
+<td>File name</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_output_directory">lock_order_output_directory</a></th>
+<td>Directory name</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_print_txt">lock_order_print_txt</a></th>
+<td>Boolean</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_loop">lock_order_trace_loop</a></th>
+<td>Boolean</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_missing_arc">lock_order_trace_missing_arc</a></th>
+<td>Boolean</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_missing_key">lock_order_trace_missing_key</a></th>
+<td>Boolean</td>
+<td>Global</td>
+</tr><tr><th scope="row"><a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_missing_unlock">lock_order_trace_missing_unlock</a></th>
+<td>Boolean</td>
+<td>Global</td>
+</tr></tbody></table></div></div><br class="table-break"/><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="sysvar_lock_order"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order"><code class="literal">lock_order</code></a>
+        </p><a id="idm45828981095168" class="indexterm"></a><a id="idm45828981094080" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order[={OFF|ON}]</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order">lock_order</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">OFF</code></td>
+</tr></tbody></table></div><p>
+          Whether to enable the <code class="literal">LOCK_ORDER</code> tool at
+          runtime. If <a class="link" href="lock-order-tool.html#sysvar_lock_order"><code class="literal">lock_order</code></a> is
+          disabled (the default), no other <code class="literal">LOCK_ORDER</code>
+          system variables have any effect. If
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order"><code class="literal">lock_order</code></a> is enabled, the
+          other system variables configure which
+          <code class="literal">LOCK_ORDER</code> features to enable.
+        </p><p>
+          If <a class="link" href="lock-order-tool.html#sysvar_lock_order"><code class="literal">lock_order</code></a> is enabled, an
+          error is raised if the server encounters a lock-acquisition
+          sequence that is not declared in the lock-order graph.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_debug_loop"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_loop"><code class="literal">lock_order_debug_loop</code></a>
+        </p><a id="idm45828981060912" class="indexterm"></a><a id="idm45828981059872" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_debug_loop"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-debug-loop[={OFF|ON}]</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_loop">lock_order_debug_loop</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">OFF</code></td>
+</tr></tbody></table></div><p>
+          Whether the <code class="literal">LOCK_ORDER</code> tool causes a debug
+          assertion failure when it encounters a dependency that is
+          flagged as a loop in the lock-order graph.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_debug_missing_arc"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_missing_arc"><code class="literal">lock_order_debug_missing_arc</code></a>
+        </p><a id="idm45828981032448" class="indexterm"></a><a id="idm45828981031344" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_debug_missing_arc"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-debug-missing-arc[={OFF|ON}]</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_missing_arc">lock_order_debug_missing_arc</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">OFF</code></td>
+</tr></tbody></table></div><p>
+          Whether the <code class="literal">LOCK_ORDER</code> tool causes a debug
+          assertion failure when it encounters a dependency that is not
+          declared in the lock-order graph.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_debug_missing_key"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_missing_key"><code class="literal">lock_order_debug_missing_key</code></a>
+        </p><a id="idm45828981003856" class="indexterm"></a><a id="idm45828981002752" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_debug_missing_key"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-debug-missing-key[={OFF|ON}]</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_missing_key">lock_order_debug_missing_key</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">OFF</code></td>
+</tr></tbody></table></div><p>
+          Whether the <code class="literal">LOCK_ORDER</code> tool causes a debug
+          assertion failure when it encounters an object that is not
+          properly instrumented with the Performance Schema.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_debug_missing_unlock"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_missing_unlock"><code class="literal">lock_order_debug_missing_unlock</code></a>
+        </p><a id="idm45828980975248" class="indexterm"></a><a id="idm45828980974144" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_debug_missing_unlock"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-debug-missing-unlock[={OFF|ON}]</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_debug_missing_unlock">lock_order_debug_missing_unlock</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">OFF</code></td>
+</tr></tbody></table></div><p>
+          Whether the <code class="literal">LOCK_ORDER</code> tool causes a debug
+          assertion failure when it encounters a lock that is destroyed
+          while still held.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_dependencies"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_dependencies"><code class="literal">lock_order_dependencies</code></a>
+        </p><a id="idm45828980946640" class="indexterm"></a><a id="idm45828980945600" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_dependencies"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-dependencies=file_name</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_dependencies">lock_order_dependencies</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>File name</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">empty string</code></td>
+</tr></tbody></table></div><p>
+          The path to the
+          <code class="filename">lock_order_dependencies.txt</code> file that
+          defines the server lock-order dependency graph.
+        </p><p>
+          It is permitted to specify no dependencies. An empty
+          dependency graph is used in this case.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_extra_dependencies"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_extra_dependencies"><code class="literal">lock_order_extra_dependencies</code></a>
+        </p><a id="idm45828980917648" class="indexterm"></a><a id="idm45828980916544" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_extra_dependencies"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-extra-dependencies=file_name</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_extra_dependencies">lock_order_extra_dependencies</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>File name</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">empty string</code></td>
+</tr></tbody></table></div><p>
+          The path to a file containing additional dependencies for the
+          lock-order dependency graph. This is useful to amend the
+          primary server dependency graph, defined in the
+          <code class="filename">lock_order_dependencies.txt</code> file, with
+          additional dependencies describing the behavior of third party
+          code. (The alternative is to modify
+          <code class="filename">lock_order_dependencies.txt</code> itself, which
+          is not encouraged.)
+        </p><p>
+          If this variable is not set, no secondary file is used.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_output_directory"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_output_directory"><code class="literal">lock_order_output_directory</code></a>
+        </p><a id="idm45828980887568" class="indexterm"></a><a id="idm45828980886464" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_output_directory"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-output-directory=dir_name</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_output_directory">lock_order_output_directory</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Directory name</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">empty string</code></td>
+</tr></tbody></table></div><p>
+          The directory where the <code class="literal">LOCK_ORDER</code> tool
+          writes its logs. If this variable is not set, the default is
+          the current directory.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_print_txt"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_print_txt"><code class="literal">lock_order_print_txt</code></a>
+        </p><a id="idm45828980858944" class="indexterm"></a><a id="idm45828980857904" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_print_txt"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-print-txt[={OFF|ON}]</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_print_txt">lock_order_print_txt</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">OFF</code></td>
+</tr></tbody></table></div><p>
+          Whether the <code class="literal">LOCK_ORDER</code> tool performs a
+          lock-order graph analysis and prints a textual report. The
+          report includes any lock-acquisition cycles detected.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_trace_loop"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_loop"><code class="literal">lock_order_trace_loop</code></a>
+        </p><a id="idm45828980830432" class="indexterm"></a><a id="idm45828980829392" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_trace_loop"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-trace-loop[={OFF|ON}]</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_loop">lock_order_trace_loop</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">OFF</code></td>
+</tr></tbody></table></div><p>
+          Whether the <code class="literal">LOCK_ORDER</code> tool prints a trace
+          in the log file when it encounters a dependency that is
+          flagged as a loop in the lock-order graph.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_trace_missing_arc"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_missing_arc"><code class="literal">lock_order_trace_missing_arc</code></a>
+        </p><a id="idm45828980801968" class="indexterm"></a><a id="idm45828980800864" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_trace_missing_arc"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-trace-missing-arc[={OFF|ON}]</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_missing_arc">lock_order_trace_missing_arc</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">ON</code></td>
+</tr></tbody></table></div><p>
+          Whether the <code class="literal">LOCK_ORDER</code> tool prints a trace
+          in the log file when it encounters a dependency that is not
+          declared in the lock-order graph.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_trace_missing_key"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_missing_key"><code class="literal">lock_order_trace_missing_key</code></a>
+        </p><a id="idm45828980773376" class="indexterm"></a><a id="idm45828980772272" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_trace_missing_key"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-trace-missing-key[={OFF|ON}]</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_missing_key">lock_order_trace_missing_key</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">OFF</code></td>
+</tr></tbody></table></div><p>
+          Whether the <code class="literal">LOCK_ORDER</code> tool prints a trace
+          in the log file when it encounters an object that is not
+          properly instrumented with the Performance Schema.
+        </p></li><li class="listitem"><p><a id="sysvar_lock_order_trace_missing_unlock"></a>
+          <a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_missing_unlock"><code class="literal">lock_order_trace_missing_unlock</code></a>
+        </p><a id="idm45828980744768" class="indexterm"></a><a id="idm45828980743664" class="indexterm"></a><div class="informaltable"><table frame="box" rules="all" summary="Properties for lock_order_trace_missing_unlock"><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><tbody><tr><th>Command-Line Format</th>
+<td><code class="literal">--lock-order-trace-missing-unlock[={OFF|ON}]</code></td>
+</tr><tr><th>Introduced</th>
+<td>8.0.17</td>
+</tr><tr><th>System Variable</th>
+<td><code class="literal"><a class="link" href="lock-order-tool.html#sysvar_lock_order_trace_missing_unlock">lock_order_trace_missing_unlock</a></code></td>
+</tr><tr><th>Scope</th>
+<td>Global</td>
+</tr><tr><th>Dynamic</th>
+<td>No</td>
+</tr><tr><th><a class="link" href="optimizer-hints.html#optimizer-hints-set-var" title="Variable-Setting Hint Syntax"><code class="literal">SET_VAR</code></a> Hint Applies</th>
+<td>No</td>
+</tr><tr><th>Type</th>
+<td>Boolean</td>
+</tr><tr><th>Default Value</th>
+<td><code class="literal">ON</code></td>
+</tr></tbody></table></div><p>
+          Whether the <code class="literal">LOCK_ORDER</code> tool prints a trace
+          in the log file when it encounters a lock that is destroyed
+          while still held.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="debugging-client.html">Previous <span class="navHint"> Debugging a MySQL Client </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="debugging-mysql.html">Up <span class="navHint"> Debugging MySQL </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="dbug-package.html">Next <span class="navHint"> The DBUG Package </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

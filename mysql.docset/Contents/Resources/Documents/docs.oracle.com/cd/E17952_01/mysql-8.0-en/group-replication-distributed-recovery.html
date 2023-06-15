@@ -1,0 +1,96 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1022"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.5.4%C2%A0Distributed%20Recovery"></a><title>18.5.4&nbsp;Distributed Recovery</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-operations.html" title="18.5&nbsp;Group Replication Operations"/><link rel="prev" href="group-replication-configuring-consistency-guarantees.html" title="18.5.3.2&nbsp;Configuring Transaction Consistency Guarantees"/><link rel="next" href="group-replication-distributed-recovery-connections.html" title="18.5.4.1&nbsp;Connections for Distributed Recovery"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-distributed-recovery.html#group-replication-distributed-recovery">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-configuring-consistency-guarantees.html">Previous <span class="navHint"> Configuring Transaction Consistency Guarantees </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-operations.html">Up <span class="navHint"> Group Replication Operations </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-distributed-recovery-connections.html">Next <span class="navHint"> Connections for Distributed Recovery </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-replication-distributed-recovery"></a>18.5.4&nbsp;Distributed Recovery</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="group-replication-distributed-recovery-connections.html">18.5.4.1 Connections for Distributed Recovery</a></span></li><li><span class="section"><a href="group-replication-cloning.html">18.5.4.2 Cloning for Distributed Recovery</a></span></li><li><span class="section"><a href="group-replication-tuning-recovery.html">18.5.4.3 Configuring Distributed Recovery</a></span></li><li><span class="section"><a href="group-replication-distributed-recovery-fault.html">18.5.4.4 Fault Tolerance for Distributed Recovery</a></span></li><li><span class="section"><a href="group-replication-view-changes.html">18.5.4.5 How Distributed Recovery Works</a></span></li></ul></div><a id="idm45828854137760" class="indexterm"></a><p>
+      Whenever a member joins or rejoins a replication group, it must
+      catch up with the transactions that were applied by the group
+      members before it joined, or while it was away. This process is
+      called distributed recovery.
+    </p><p>
+      The joining member begins by checking the relay log for its
+      <code class="literal">group_replication_applier</code> channel for any
+      transactions that it already received from the group but did not
+      yet apply. If the joining member was in the group previously, it
+      might find unapplied transactions from before it left, in which
+      case it applies these as a first step. A member that is new to the
+      group does not have anything to apply.
+    </p><p>
+      After this, the joining member connects to an online existing
+      member to carry out state transfer. The joining member transfers
+      all the transactions that took place in the group before it joined
+      or while it was away, which are provided by the existing member
+      (called the <span class="emphasis"><em>donor</em></span>). Next, the joining member
+      applies the transactions that took place in the group while this
+      state transfer was in progress. When this process is complete, the
+      joining member has caught up with the remaining servers in the
+      group, and it begins to participate normally in the group.
+    </p><p>
+      Group Replication uses a combination of these methods for state
+      transfer during distributed recovery:
+
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A remote cloning operation using the clone plugin&#39;s
+            function, which is available from MySQL 8.0.17. To enable
+            this method of state transfer, you must install the clone
+            plugin on the group members and the joining member. Group
+            Replication automatically configures the required clone
+            plugin settings and manages the remote cloning operation.
+          </p></li><li class="listitem"><p>
+            Replicating from a donor&#39;s binary log and applying the
+            transactions on the joining member. This method uses a
+            standard asynchronous replication channel named
+            <code class="literal">group_replication_recovery</code> that is
+            established between the donor and the joining member.
+          </p></li></ul></div><p>
+    </p><p>
+      Group Replication automatically selects the best combination of
+      these methods for state transfer after you issue
+      <a class="link" href="start-group-replication.html" title="13.4.3.1&nbsp;START GROUP_REPLICATION Statement"><code class="literal">START GROUP_REPLICATION</code></a> on the
+      joining member. To do this, Group Replication checks which
+      existing members are suitable as donors, how many transactions the
+      joining member needs from a donor, and whether any required
+      transactions are no longer present in the binary log files on any
+      group member. If the transaction gap between the joining member
+      and a suitable donor is large, or if some required transactions
+      are not in any donor&#39;s binary log files, Group Replication begins
+      distributed recovery with a remote cloning operation. If there is
+      not a large transaction gap, or if the clone plugin is not
+      installed, Group Replication proceeds directly to state transfer
+      from a donor&#39;s binary log.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          During a remote cloning operation, the existing data on the
+          joining member is removed, and replaced with a copy of the
+          donor&#39;s data. When the remote cloning operation is complete
+          and the joining member has restarted, state transfer from a
+          donor&#39;s binary log is carried out to get the transactions that
+          the group applied while the remote cloning operation was in
+          progress.
+        </p></li><li class="listitem"><p>
+          During state transfer from a donor&#39;s binary log, the joining
+          member replicates and applies the required transactions from
+          the donor&#39;s binary log, applying the transactions as they are
+          received, up to the point where the binary log records that
+          the joining member joined the group (a view change event).
+          While this is in progress, the joining member buffers the new
+          transactions that the group applies. When state transfer from
+          the binary log is complete, the joining member applies the
+          buffered transactions.
+        </p></li></ul></div><p>
+      When the joining member is up to date with all the group&#39;s
+      transactions, it is declared online and can participate in the
+      group as a normal member, and distributed recovery is complete.
+    </p><div class="tip" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Tip</div><p>
+        State transfer from the binary log is Group Replication&#39;s base
+        mechanism for distributed recovery, and if the donors and
+        joining members in your replication group are not set up to
+        support cloning, this is the only available option. As state
+        transfer from the binary log is based on classic asynchronous
+        replication, it might take a very long time if the server
+        joining the group does not have the group&#39;s data at all, or has
+        data taken from a very old backup image. In this situation, it
+        is therefore recommended that before adding a server to the
+        group, you should set it up with the group&#39;s data by
+        transferring a fairly recent snapshot of a server already in the
+        group. This minimizes the time taken for distributed recovery,
+        and reduces the impact on donor servers, since they have to
+        retain and transfer fewer binary log files.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-configuring-consistency-guarantees.html">Previous <span class="navHint"> Configuring Transaction Consistency Guarantees </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-operations.html">Up <span class="navHint"> Group Replication Operations </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-distributed-recovery-connections.html">Next <span class="navHint"> Connections for Distributed Recovery </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

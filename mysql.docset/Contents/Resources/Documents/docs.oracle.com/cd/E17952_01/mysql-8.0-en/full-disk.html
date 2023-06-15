@@ -1,0 +1,51 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-847"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/B.3.3.4%C2%A0How%20MySQL%20Handles%20a%20Full%20Disk"></a><title>B.3.3.4&nbsp;How MySQL Handles a Full Disk</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="administration-issues.html" title="B.3.3&nbsp;Administration-Related Issues"/><link rel="prev" href="crashing.html" title="B.3.3.3&nbsp;What to Do If MySQL Keeps Crashing"/><link rel="next" href="temporary-files.html" title="B.3.3.5&nbsp;Where MySQL Stores Temporary Files"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="full-disk.html#full-disk">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="crashing.html">Previous <span class="navHint"> What to Do If MySQL Keeps Crashing </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="administration-issues.html">Up <span class="navHint"> Administration-Related Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="temporary-files.html">Next <span class="navHint"> Where MySQL Stores Temporary Files </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-846"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/B.3.3.4%C2%A0How%20MySQL%20Handles%20a%20Full%20Disk"></a><h4 class="title"><a id="full-disk"></a>B.3.3.4&nbsp;How MySQL Handles a Full Disk</h4></div></div></div><a id="idm45828774770576" class="indexterm"></a><a id="idm45828774769536" class="indexterm"></a><p>
+          This section describes how MySQL responds to disk-full errors
+          (such as <span class="quote">&ldquo;<span class="quote">no space left on device</span>&rdquo;</span>), and to
+          quota-exceeded errors (such as <span class="quote">&ldquo;<span class="quote">write failed</span>&rdquo;</span> or
+          <span class="quote">&ldquo;<span class="quote">user block limit reached</span>&rdquo;</span>).
+        </p><p>
+          This section is relevant for writes to
+          <code class="literal">MyISAM</code> tables. It also applies for writes
+          to binary log files and binary log index file, except that
+          references to <span class="quote">&ldquo;<span class="quote">row</span>&rdquo;</span> and <span class="quote">&ldquo;<span class="quote">record</span>&rdquo;</span>
+          should be understood to mean <span class="quote">&ldquo;<span class="quote">event.</span>&rdquo;</span>
+        </p><p>
+          When a disk-full condition occurs, MySQL does the following:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              It checks once every minute to see whether there is enough
+              space to write the current row. If there is enough space,
+              it continues as if nothing had happened.
+            </p></li><li class="listitem"><p>
+              Every 10 minutes it writes an entry to the log file,
+              warning about the disk-full condition.
+            </p></li></ul></div><p>
+          To alleviate the problem, take the following actions:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              To continue, you only have to free enough disk space to
+              insert all records.
+            </p></li><li class="listitem"><p>
+              Alternatively, to abort the thread, use
+              <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin kill</strong></span></a>. The thread is aborted
+              the next time it checks the disk (in one minute).
+            </p></li><li class="listitem"><p>
+              Other threads might be waiting for the table that caused
+              the disk-full condition. If you have several
+              <span class="quote">&ldquo;<span class="quote">locked</span>&rdquo;</span> threads, killing the one thread that
+              is waiting on the disk-full condition enables the other
+              threads to continue.
+            </p></li></ul></div><p>
+          Exceptions to the preceding behavior are when you use
+          <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a> or
+          <a class="link" href="optimize-table.html" title="13.7.3.4&nbsp;OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> or when the
+          indexes are created in a batch after <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD
+          DATA</code></a> or after an <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER
+          TABLE</code></a> statement. All of these statements may create
+          large temporary files that, if left to themselves, would cause
+          big problems for the rest of the system. If the disk becomes
+          full while MySQL is doing any of these operations, it removes
+          the big temporary files and mark the table as crashed. The
+          exception is that for <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER
+          TABLE</code></a>, the old table is left unchanged.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="crashing.html">Previous <span class="navHint"> What to Do If MySQL Keeps Crashing </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="administration-issues.html">Up <span class="navHint"> Administration-Related Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="temporary-files.html">Next <span class="navHint"> Where MySQL Stores Temporary Files </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

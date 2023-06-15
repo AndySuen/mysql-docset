@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.7.10 NDB Cluster Replication: Bidirectional and Circular Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-replication.html" title="23.7 NDB Cluster Replication" /><link rel="prev" href="mysql-cluster-replication-pitr.html" title="23.7.9.2 Point-In-Time Recovery Using NDB Cluster Replication" /><link rel="next" href="mysql-cluster-replication-mta.html" title="23.7.11 NDB Cluster Replication Using the Multithreaded Applier" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-replication-multi-source.html#mysql-cluster-replication-multi-source">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-replication-pitr.html">Previous <span class="navHint"> Point-In-Time Recovery Using NDB Cluster Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-replication-mta.html">Next <span class="navHint"> NDB Cluster Replication Using the Multithreaded Applier </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-replication-multi-source"></a>23.7.10 NDB Cluster Replication: Bidirectional and Circular Replication</h3></div></div></div><a id="idm45828803492096" class="indexterm"></a><a id="idm45828803490672" class="indexterm"></a><a id="idm45828803489184" class="indexterm"></a><a id="idm45828803487680" class="indexterm"></a><p>
+      It is possible to use NDB Cluster for bidirectional replication
+      between two clusters, as well as for circular replication between
+      any number of clusters.
+    </p><p><strong>Circular replication example. </strong>
+        In the next few paragraphs we consider the example of a
+        replication setup involving three NDB Clusters numbered 1, 2,
+        and 3, in which Cluster 1 acts as the replication source for
+        Cluster 2, Cluster 2 acts as the source for Cluster 3, and
+        Cluster 3 acts as the source for Cluster 1. Each cluster has two
+        SQL nodes, with SQL nodes A and B belonging to Cluster 1, SQL
+        nodes C and D belonging to Cluster 2, and SQL nodes E and F
+        belonging to Cluster 3.
+      </p><p>
+      Circular replication using these clusters is supported as long as
+      the following conditions are met:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The SQL nodes on all sources and replicas are the same.
+        </p></li><li class="listitem"><p>
+          All SQL nodes acting as sources and replicas are started with
+          the system variable
+          <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="literal">log_replica_updates</code></a>
+          (beginning with NDB 8.0.26) or
+          <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="literal">log_slave_updates</code></a> (NDB 8.0.26
+          and earlier) enabled.
+        </p></li></ul></div><p>
+      This type of circular replication setup is shown in the following
+      diagram:
+    </p><div class="figure"><a id="fig-mysql-cluster-replication-circular-all-sources-as-replicas"></a><p class="title"><strong>Figure 23.15 NDB Cluster Circular Replication with All Sources As Replicas</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/cluster-circular-replication-1.png" width="557" height="883" alt="Some content is described in the surrounding text. The diagram shows three clusters, each with two nodes. Arrows connecting SQL nodes in different clusters illustrate that all sources are also replicas." /></div></div></div><br class="figure-break" /><p>
+      In this scenario, SQL node A in Cluster 1 replicates to SQL node C
+      in Cluster 2; SQL node C replicates to SQL node E in Cluster 3;
+      SQL node E replicates to SQL node A. In other words, the
+      replication line (indicated by the curved arrows in the diagram)
+      directly connects all SQL nodes used as replication sources and
+      replicas.
+    </p><p>
+      It is also possible to set up circular replication in such a way
+      that not all source SQL nodes are also replicas, as shown here:
+    </p><div class="figure"><a id="fig-mysql-cluster-replication-circular-not-all-sources-as-replicas"></a><p class="title"><strong>Figure 23.16 NDB Cluster Circular Replication Where Not All Sources Are Replicas</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/cluster-circular-replication-2.png" width="542" height="877" alt="Some content is described in the surrounding text. The diagram shows three clusters, each with two nodes. Arrows connecting SQL nodes in different clusters illustrate that not all sources are replicas." /></div></div></div><br class="figure-break" /><p>
+      In this case, different SQL nodes in each cluster are used as
+      replication sources and replicas. You must
+      <span class="emphasis"><em>not</em></span> start any of the SQL nodes with the
+      system variable
+      <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="literal">log_replica_updates</code></a> (NDB 8.0.26
+      and later) or <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="literal">log_slave_updates</code></a>
+      (prior to NDB 8.0.26) enabled. This type of circular replication
+      scheme for NDB Cluster, in which the line of replication (again
+      indicated by the curved arrows in the diagram) is discontinuous,
+      should be possible, but it should be noted that it has not yet
+      been thoroughly tested and must therefore still be considered
+      experimental.
+    </p><p><strong>Using NDB-native backup and restore to initialize a replica cluster. </strong>
+        <a id="idm45828803458032" class="indexterm"></a>
+
+        When setting up circular replication, it is possible to
+        initialize the replica cluster by using the management client
+        <a class="link" href="mysql-cluster-backup-using-management-client.html" title="23.6.8.2 Using The NDB Cluster Management Client to Create a Backup"><code class="literal">START BACKUP</code></a> command on one
+        NDB Cluster to create a backup and then applying this backup on
+        another NDB Cluster using <a class="link" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23 ndb_restore — Restore an NDB Cluster Backup"><span class="command"><strong>ndb_restore</strong></span></a>. This
+        does not automatically create binary logs on the second NDB
+        Cluster's SQL node acting as the replica; in order to cause
+        the binary logs to be created, you must issue a
+        <a class="link" href="show-tables.html" title="13.7.7.39 SHOW TABLES Statement"><code class="literal">SHOW TABLES</code></a> statement on that SQL
+        node; this should be done prior to running
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START REPLICA</code></a>. This is a known
+        issue.
+      </p><p><strong>Multi-source failover example. </strong>
+        In this section, we discuss failover in a multi-source NDB
+        Cluster replication setup with three NDB Clusters having server
+        IDs 1, 2, and 3. In this scenario, Cluster 1 replicates to
+        Clusters 2 and 3; Cluster 2 also replicates to Cluster 3. This
+        relationship is shown here:
+      </p><div class="figure"><a id="fig-mysql-cluster-replication-3-sources"></a><p class="title"><strong>Figure 23.17 NDB Cluster Multi-Master Replication With 3 Sources</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/cluster-replication-multi-source.png" width="366" height="235" alt="Multi-source NDB Cluster replication setup with three NDB Clusters having server IDs 1, 2, and 3; Cluster 1 replicates to Clusters 2 and 3; Cluster 2 also replicates to Cluster 3." /></div></div></div><br class="figure-break" /><p>
+      In other words, data replicates from Cluster 1 to Cluster 3
+      through 2 different routes: directly, and by way of Cluster 2.
+    </p><p>
+      Not all MySQL servers taking part in multi-source replication must
+      act as both source and replica, and a given NDB Cluster might use
+      different SQL nodes for different replication channels. Such a
+      case is shown here:
+    </p><div class="figure"><a id="fig-mysql-cluster-replication-mysql-servers"></a><p class="title"><strong>Figure 23.18 NDB Cluster Multi-Source Replication, With MySQL Servers</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/cluster-replication-multi-source-mysqlds.png" width="692" height="596" alt="Concepts are described in the surrounding text. Shows three nodes: SQL node A in Cluster 1 replicates to SQL node F in Cluster 3; SQL node B in Cluster 1 replicates to SQL node C in Cluster 2; SQL node E in Cluster 3 replicates to SQL node G in Cluster 3. SQL nodes A and B in cluster 1 have --log-slave-updates=0; SQL nodes C in Cluster 2, and SQL nodes F and G in Cluster 3 have --log-slave-updates=1; and SQL nodes D and E in Cluster 2 have --log-slave-updates=0." /></div></div></div><br class="figure-break" /><p>
+      MySQL servers acting as replicas must be run with the system
+      variable <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="literal">log_replica_updates</code></a>
+      (beginning with NDB 8.0.26) or
+      <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="literal">log_slave_updates</code></a> (NDB 8.0.26 and
+      earlier) enabled. Which <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> processes
+      require this option is also shown in the preceding diagram.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        Using the <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="literal">log_replica_updates</code></a>
+        or <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="literal">log_slave_updates</code></a> system
+        variable has no effect on servers not being run as replicas.
+      </p></div><p>
+      The need for failover arises when one of the replicating clusters
+      goes down. In this example, we consider the case where Cluster 1
+      is lost to service, and so Cluster 3 loses 2 sources of updates
+      from Cluster 1. Because replication between NDB Clusters is
+      asynchronous, there is no guarantee that Cluster 3's updates
+      originating directly from Cluster 1 are more recent than those
+      received through Cluster 2. You can handle this by ensuring that
+      Cluster 3 catches up to Cluster 2 with regard to updates from
+      Cluster 1. In terms of MySQL servers, this means that you need to
+      replicate any outstanding updates from MySQL server C to server F.
+    </p><p>
+      On server C, perform the following queries:
+    </p><pre class="programlisting">mysqlC&gt; SELECT @latest:=MAX(epoch)
+     -&gt;     FROM mysql.ndb_apply_status
+     -&gt;     WHERE server_id=1;
+
+mysqlC&gt; SELECT
+     -&gt;     @file:=SUBSTRING_INDEX(File, '/', -1),
+     -&gt;     @pos:=Position
+     -&gt;     FROM mysql.ndb_binlog_index
+     -&gt;     WHERE orig_epoch &gt;= @latest
+     -&gt;     AND orig_server_id = 1
+     -&gt;     ORDER BY epoch ASC LIMIT 1;
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        You can improve the performance of this query, and thus likely
+        speed up failover times significantly, by adding the appropriate
+        index to the <code class="literal">ndb_binlog_index</code> table. See
+        <a class="xref" href="mysql-cluster-replication-schema.html" title="23.7.4 NDB Cluster Replication Schema and Tables">Section 23.7.4, “NDB Cluster Replication Schema and Tables”</a>, for more
+        information.
+      </p></div><p>
+      Copy over the values for <em class="replaceable"><code>@file</code></em> and
+      <em class="replaceable"><code>@pos</code></em> manually from server C to server F
+      (or have your application perform the equivalent). Then, on server
+      F, execute the following <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION
+      SOURCE TO</code></a> statement (NDB 8.0.23 and later) or
+      <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement (prior
+      to NDB 8.0.23):
+    </p><pre class="programlisting">mysqlF&gt; CHANGE MASTER TO
+     -&gt;     MASTER_HOST = 'serverC'
+     -&gt;     MASTER_LOG_FILE='@file',
+     -&gt;     MASTER_LOG_POS=@pos;
+</pre><p>
+      Beginning with NDB 8.0.23, you can also use the following
+      statement:
+    </p><pre class="programlisting">mysqlF&gt; CHANGE REPLICATION SOURCE TO
+     -&gt;     SOURCE_HOST = 'serverC'
+     -&gt;     SOURCE_LOG_FILE='@file',
+     -&gt;     SOURCE_LOG_POS=@pos;
+</pre><p>
+      Once this has been done, you can issue a
+      <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START REPLICA</code></a> statement on MySQL
+      server F; this causes any missing updates originating from server
+      B to be replicated to server F.
+    </p><p>
+      The <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a> |
+      <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement also
+      supports an <code class="literal">IGNORE_SERVER_IDS</code> option which
+      takes a comma-separated list of server IDs and causes events
+      originating from the corresponding servers to be ignored. For more
+      information, see <a class="xref" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement">Section 13.4.2.1, “CHANGE MASTER TO Statement”</a>, and
+      <a class="xref" href="show-slave-status.html" title="13.7.7.36 SHOW SLAVE | REPLICA STATUS Statement">Section 13.7.7.36, “SHOW SLAVE | REPLICA STATUS Statement”</a>. For information about how
+      this option interacts with the
+      <a class="link" href="mysql-cluster-options-variables.html#sysvar_ndb_log_apply_status"><code class="literal">ndb_log_apply_status</code></a> variable,
+      see <a class="xref" href="mysql-cluster-replication-failover.html" title="23.7.8 Implementing Failover with NDB Cluster Replication">Section 23.7.8, “Implementing Failover with NDB Cluster Replication”</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-replication-pitr.html">Previous <span class="navHint"> Point-In-Time Recovery Using NDB Cluster Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-replication-mta.html">Next <span class="navHint"> NDB Cluster Replication Using the Multithreaded Applier </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

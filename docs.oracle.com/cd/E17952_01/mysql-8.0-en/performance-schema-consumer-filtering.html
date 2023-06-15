@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>27.4.7 Pre-Filtering by Consumer</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="performance-schema-runtime-configuration.html" title="27.4 Performance Schema Runtime Configuration" /><link rel="prev" href="performance-schema-thread-filtering.html" title="27.4.6 Pre-Filtering by Thread" /><link rel="next" href="performance-schema-consumer-configurations.html" title="27.4.8 Example Consumer Configurations" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-consumer-filtering.html#performance-schema-consumer-filtering">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="performance-schema-thread-filtering.html">Previous <span class="navHint"> Pre-Filtering by Thread </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="performance-schema-runtime-configuration.html">Up <span class="navHint"> Performance Schema Runtime Configuration </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="performance-schema-consumer-configurations.html">Next <span class="navHint"> Example Consumer Configurations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="performance-schema-consumer-filtering"></a>27.4.7 Pre-Filtering by Consumer</h3></div></div></div><p>
+        The <a class="link" href="performance-schema-setup-consumers-table.html" title="27.12.2.2 The setup_consumers Table"><code class="literal">setup_consumers</code></a> table lists the
+        available consumer types and which are enabled:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.setup_consumers;</code></strong>
++----------------------------------+---------+
+| NAME                             | ENABLED |
++----------------------------------+---------+
+| events_stages_current            | NO      |
+| events_stages_history            | NO      |
+| events_stages_history_long       | NO      |
+| events_statements_cpu            | NO      |
+| events_statements_current        | YES     |
+| events_statements_history        | YES     |
+| events_statements_history_long   | NO      |
+| events_transactions_current      | YES     |
+| events_transactions_history      | YES     |
+| events_transactions_history_long | NO      |
+| events_waits_current             | NO      |
+| events_waits_history             | NO      |
+| events_waits_history_long        | NO      |
+| global_instrumentation           | YES     |
+| thread_instrumentation           | YES     |
+| statements_digest                | YES     |
++----------------------------------+---------+
+</pre><p>
+        Modify the <a class="link" href="performance-schema-setup-consumers-table.html" title="27.12.2.2 The setup_consumers Table"><code class="literal">setup_consumers</code></a> table to
+        affect pre-filtering at the consumer stage and determine the
+        destinations to which events are sent. To enable or disable a
+        consumer, set its <code class="literal">ENABLED</code> value to
+        <code class="literal">YES</code> or <code class="literal">NO</code>.
+      </p><p>
+        Modifications to the
+        <a class="link" href="performance-schema-setup-consumers-table.html" title="27.12.2.2 The setup_consumers Table"><code class="literal">setup_consumers</code></a> table affect
+        monitoring immediately.
+      </p><p>
+        If you disable a consumer, the server does not spend time
+        maintaining destinations for that consumer. For example, if you
+        do not care about historical event information, disable the
+        history consumers:
+      </p><pre class="programlisting">UPDATE performance_schema.setup_consumers
+SET ENABLED = 'NO'
+WHERE NAME LIKE '%history%';
+</pre><p>
+        The consumer settings in the
+        <a class="link" href="performance-schema-setup-consumers-table.html" title="27.12.2.2 The setup_consumers Table"><code class="literal">setup_consumers</code></a> table form a
+        hierarchy from higher levels to lower. The following principles
+        apply:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Destinations associated with a consumer receive no events
+            unless the Performance Schema checks the consumer and the
+            consumer is enabled.
+          </p></li><li class="listitem"><p>
+            A consumer is checked only if all consumers it depends on
+            (if any) are enabled.
+          </p></li><li class="listitem"><p>
+            If a consumer is not checked, or is checked but is disabled,
+            other consumers that depend on it are not checked.
+          </p></li><li class="listitem"><p>
+            Dependent consumers may have their own dependent consumers.
+          </p></li><li class="listitem"><p>
+            If an event would not be sent to any destination, the
+            Performance Schema does not produce it.
+          </p></li></ul></div><p>
+        The following lists describe the available consumer values. For
+        discussion of several representative consumer configurations and
+        their effect on instrumentation, see
+        <a class="xref" href="performance-schema-consumer-configurations.html" title="27.4.8 Example Consumer Configurations">Section 27.4.8, “Example Consumer Configurations”</a>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="performance-schema-consumer-filtering.html#performance-schema-consumer-filtering-global-thread" title="Global and Thread Consumers">Global and Thread Consumers</a></p></li><li class="listitem"><p><a class="xref" href="performance-schema-consumer-filtering.html#performance-schema-consumer-filtering-wait-event" title="Wait Event Consumers">Wait Event Consumers</a></p></li><li class="listitem"><p><a class="xref" href="performance-schema-consumer-filtering.html#performance-schema-consumer-filtering-stage-event" title="Stage Event Consumers">Stage Event Consumers</a></p></li><li class="listitem"><p><a class="xref" href="performance-schema-consumer-filtering.html#performance-schema-consumer-filtering-statement-event" title="Statement Event Consumers">Statement Event Consumers</a></p></li><li class="listitem"><p><a class="xref" href="performance-schema-consumer-filtering.html#performance-schema-consumer-filtering-transaction-event" title="Transaction Event Consumers">Transaction Event Consumers</a></p></li><li class="listitem"><p><a class="xref" href="performance-schema-consumer-filtering.html#performance-schema-consumer-filtering-statement-digest" title="Statement Digest Consumer">Statement Digest Consumer</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="performance-schema-consumer-filtering-global-thread"></a>Global and Thread Consumers</h4></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">global_instrumentation</code> is the highest
+              level consumer. If
+              <code class="literal">global_instrumentation</code> is
+              <code class="literal">NO</code>, it disables global instrumentation.
+              All other settings are lower level and are not checked; it
+              does not matter what they are set to. No global or per
+              thread information is maintained and no individual events
+              are collected in the current-events or event-history
+              tables. If <code class="literal">global_instrumentation</code> is
+              <code class="literal">YES</code>, the Performance Schema maintains
+              information for global states and also checks the
+              <code class="literal">thread_instrumentation</code> consumer.
+            </p></li><li class="listitem"><p>
+              <code class="literal">thread_instrumentation</code> is checked only
+              if <code class="literal">global_instrumentation</code> is
+              <code class="literal">YES</code>. Otherwise, if
+              <code class="literal">thread_instrumentation</code> is
+              <code class="literal">NO</code>, it disables thread-specific
+              instrumentation and all lower-level settings are ignored.
+              No information is maintained per thread and no individual
+              events are collected in the current-events or
+              event-history tables. If
+              <code class="literal">thread_instrumentation</code> is
+              <code class="literal">YES</code>, the Performance Schema maintains
+              thread-specific information and also checks
+              <code class="literal">events_<em class="replaceable"><code>xxx</code></em>_current</code>
+              consumers.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="performance-schema-consumer-filtering-wait-event"></a>Wait Event Consumers</h4></div></div></div><p>
+          These consumers require both
+          <code class="literal">global_instrumentation</code> and
+          <code class="literal">thread_instrumentation</code> to be
+          <code class="literal">YES</code> or they are not checked. If checked,
+          they act as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">events_waits_current</code>, if
+              <code class="literal">NO</code>, disables collection of individual
+              wait events in the
+              <a class="link" href="performance-schema-events-waits-current-table.html" title="27.12.4.1 The events_waits_current Table"><code class="literal">events_waits_current</code></a> table.
+              If <code class="literal">YES</code>, it enables wait event
+              collection and the Performance Schema checks the
+              <code class="literal">events_waits_history</code> and
+              <code class="literal">events_waits_history_long</code> consumers.
+            </p></li><li class="listitem"><p>
+              <code class="literal">events_waits_history</code> is not checked if
+              <code class="literal">event_waits_current</code> is
+              <code class="literal">NO</code>. Otherwise, an
+              <code class="literal">events_waits_history</code> value of
+              <code class="literal">NO</code> or <code class="literal">YES</code> disables
+              or enables collection of wait events in the
+              <a class="link" href="performance-schema-events-waits-history-table.html" title="27.12.4.2 The events_waits_history Table"><code class="literal">events_waits_history</code></a> table.
+            </p></li><li class="listitem"><p>
+              <code class="literal">events_waits_history_long</code> is not
+              checked if <code class="literal">event_waits_current</code> is
+              <code class="literal">NO</code>. Otherwise, an
+              <code class="literal">events_waits_history_long</code> value of
+              <code class="literal">NO</code> or <code class="literal">YES</code> disables
+              or enables collection of wait events in the
+              <a class="link" href="performance-schema-events-waits-history-long-table.html" title="27.12.4.3 The events_waits_history_long Table"><code class="literal">events_waits_history_long</code></a>
+              table.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="performance-schema-consumer-filtering-stage-event"></a>Stage Event Consumers</h4></div></div></div><p>
+          These consumers require both
+          <code class="literal">global_instrumentation</code> and
+          <code class="literal">thread_instrumentation</code> to be
+          <code class="literal">YES</code> or they are not checked. If checked,
+          they act as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">events_stages_current</code>, if
+              <code class="literal">NO</code>, disables collection of individual
+              stage events in the
+              <a class="link" href="performance-schema-events-stages-current-table.html" title="27.12.5.1 The events_stages_current Table"><code class="literal">events_stages_current</code></a> table.
+              If <code class="literal">YES</code>, it enables stage event
+              collection and the Performance Schema checks the
+              <code class="literal">events_stages_history</code> and
+              <code class="literal">events_stages_history_long</code> consumers.
+            </p></li><li class="listitem"><p>
+              <code class="literal">events_stages_history</code> is not checked if
+              <code class="literal">event_stages_current</code> is
+              <code class="literal">NO</code>. Otherwise, an
+              <code class="literal">events_stages_history</code> value of
+              <code class="literal">NO</code> or <code class="literal">YES</code> disables
+              or enables collection of stage events in the
+              <a class="link" href="performance-schema-events-stages-history-table.html" title="27.12.5.2 The events_stages_history Table"><code class="literal">events_stages_history</code></a> table.
+            </p></li><li class="listitem"><p>
+              <code class="literal">events_stages_history_long</code> is not
+              checked if <code class="literal">event_stages_current</code> is
+              <code class="literal">NO</code>. Otherwise, an
+              <code class="literal">events_stages_history_long</code> value of
+              <code class="literal">NO</code> or <code class="literal">YES</code> disables
+              or enables collection of stage events in the
+              <a class="link" href="performance-schema-events-stages-history-long-table.html" title="27.12.5.3 The events_stages_history_long Table"><code class="literal">events_stages_history_long</code></a>
+              table.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="performance-schema-consumer-filtering-statement-event"></a>Statement Event Consumers</h4></div></div></div><p>
+          These consumers require both
+          <code class="literal">global_instrumentation</code> and
+          <code class="literal">thread_instrumentation</code> to be
+          <code class="literal">YES</code> or they are not checked. If checked,
+          they act as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">events_statements_cpu</code>, if
+              <code class="literal">NO</code>, disables measurement of
+              <code class="literal">CPU_TIME</code>. If <code class="literal">YES</code>,
+              and the instrumentation is enabled and timed,
+              <code class="literal">CPU_TIME</code> is measured.
+            </p></li><li class="listitem"><p>
+              <code class="literal">events_statements_current</code>, if
+              <code class="literal">NO</code>, disables collection of individual
+              statement events in the
+              <a class="link" href="performance-schema-events-statements-current-table.html" title="27.12.6.1 The events_statements_current Table"><code class="literal">events_statements_current</code></a>
+              table. If <code class="literal">YES</code>, it enables statement
+              event collection and the Performance Schema checks the
+              <code class="literal">events_statements_history</code> and
+              <code class="literal">events_statements_history_long</code>
+              consumers.
+            </p></li><li class="listitem"><p>
+              <code class="literal">events_statements_history</code> is not
+              checked if <code class="literal">events_statements_current</code> is
+              <code class="literal">NO</code>. Otherwise, an
+              <code class="literal">events_statements_history</code> value of
+              <code class="literal">NO</code> or <code class="literal">YES</code> disables
+              or enables collection of statement events in the
+              <a class="link" href="performance-schema-events-statements-history-table.html" title="27.12.6.2 The events_statements_history Table"><code class="literal">events_statements_history</code></a>
+              table.
+            </p></li><li class="listitem"><p>
+              <code class="literal">events_statements_history_long</code> is not
+              checked if <code class="literal">events_statements_current</code> is
+              <code class="literal">NO</code>. Otherwise, an
+              <code class="literal">events_statements_history_long</code> value of
+              <code class="literal">NO</code> or <code class="literal">YES</code> disables
+              or enables collection of statement events in the
+              <a class="link" href="performance-schema-events-statements-history-long-table.html" title="27.12.6.3 The events_statements_history_long Table"><code class="literal">events_statements_history_long</code></a>
+              table.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="performance-schema-consumer-filtering-transaction-event"></a>Transaction Event Consumers</h4></div></div></div><p>
+          These consumers require both
+          <code class="literal">global_instrumentation</code> and
+          <code class="literal">thread_instrumentation</code> to be
+          <code class="literal">YES</code> or they are not checked. If checked,
+          they act as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">events_transactions_current</code>, if
+              <code class="literal">NO</code>, disables collection of individual
+              transaction events in the
+              <a class="link" href="performance-schema-events-transactions-current-table.html" title="27.12.7.1 The events_transactions_current Table"><code class="literal">events_transactions_current</code></a>
+              table. If <code class="literal">YES</code>, it enables transaction
+              event collection and the Performance Schema checks the
+              <code class="literal">events_transactions_history</code> and
+              <code class="literal">events_transactions_history_long</code>
+              consumers.
+            </p></li><li class="listitem"><p>
+              <code class="literal">events_transactions_history</code> is not
+              checked if <code class="literal">events_transactions_current</code>
+              is <code class="literal">NO</code>. Otherwise, an
+              <code class="literal">events_transactions_history</code> value of
+              <code class="literal">NO</code> or <code class="literal">YES</code> disables
+              or enables collection of transaction events in the
+              <a class="link" href="performance-schema-events-transactions-history-table.html" title="27.12.7.2 The events_transactions_history Table"><code class="literal">events_transactions_history</code></a>
+              table.
+            </p></li><li class="listitem"><p>
+              <code class="literal">events_transactions_history_long</code> is not
+              checked if <code class="literal">events_transactions_current</code>
+              is <code class="literal">NO</code>. Otherwise, an
+              <code class="literal">events_transactions_history_long</code> value
+              of <code class="literal">NO</code> or <code class="literal">YES</code>
+              disables or enables collection of transaction events in
+              the
+              <a class="link" href="performance-schema-events-transactions-history-long-table.html" title="27.12.7.3 The events_transactions_history_long Table"><code class="literal">events_transactions_history_long</code></a>
+              table.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="performance-schema-consumer-filtering-statement-digest"></a>Statement Digest Consumer</h4></div></div></div><p>
+          The <code class="literal">statements_digest</code> consumer requires
+          <code class="literal">global_instrumentation</code> to be
+          <code class="literal">YES</code> or it is not checked. There is no
+          dependency on the statement event consumers, so you can obtain
+          statistics per digest without having to collect statistics in
+          <a class="link" href="performance-schema-events-statements-current-table.html" title="27.12.6.1 The events_statements_current Table"><code class="literal">events_statements_current</code></a>, which
+          is advantageous in terms of overhead. Conversely, you can get
+          detailed statements in
+          <a class="link" href="performance-schema-events-statements-current-table.html" title="27.12.6.1 The events_statements_current Table"><code class="literal">events_statements_current</code></a> without
+          digests (the <code class="literal">DIGEST</code> and
+          <code class="literal">DIGEST_TEXT</code> columns are
+          <code class="literal">NULL</code> in this case).
+        </p><p>
+          For more information about statement digesting, see
+          <a class="xref" href="performance-schema-statement-digests.html" title="27.10 Performance Schema Statement Digests and Sampling">Section 27.10, “Performance Schema Statement Digests and Sampling”</a>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="performance-schema-thread-filtering.html">Previous <span class="navHint"> Pre-Filtering by Thread </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="performance-schema-runtime-configuration.html">Up <span class="navHint"> Performance Schema Runtime Configuration </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-consumer-configurations.html">Next <span class="navHint"> Example Consumer Configurations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

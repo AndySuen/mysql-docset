@@ -1,0 +1,215 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1888"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/12.14%C2%A0Locking%20Functions"></a><title>12.14&nbsp;Locking Functions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="functions.html" title="Chapter&nbsp;12&nbsp;Functions and Operators"/><link rel="prev" href="encryption-functions.html" title="12.13&nbsp;Encryption and Compression Functions"/><link rel="next" href="information-functions.html" title="12.15&nbsp;Information Functions"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="locking-functions.html#locking-functions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="encryption-functions.html">Previous <span class="navHint"> Encryption and Compression Functions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="functions.html">Up <span class="navHint"> Functions and Operators </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="information-functions.html">Next <span class="navHint"> Information Functions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="locking-functions"></a>12.14&nbsp;Locking Functions</h2></div></div></div><a id="idm45828925521248" class="indexterm"></a><a id="idm45828925520176" class="indexterm"></a><p>
+      This section describes functions used to manipulate user-level
+      locks.
+    </p><div class="table"><a id="idm45828925518208"></a><p class="title"><strong>Table&nbsp;12.19&nbsp;Locking Functions</strong></p><div class="table-contents"><table frame="box" rules="all" summary="A reference that lists locking functions."><colgroup><col style="width: 28%"/><col style="width: 71%"/></colgroup><thead><tr><th>Name</th>
+<th>Description</th>
+</tr></thead><tbody><tr><td><a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a></td>
+<td>
+      Get a named lock
+    </td>
+</tr><tr><td><a class="link" href="locking-functions.html#function_is-free-lock"><code class="literal">IS_FREE_LOCK()</code></a></td>
+<td>
+      Whether the named lock is free
+    </td>
+</tr><tr><td><a class="link" href="locking-functions.html#function_is-used-lock"><code class="literal">IS_USED_LOCK()</code></a></td>
+<td>
+      Whether the named lock is in use; return connection identifier if
+      true
+    </td>
+</tr><tr><td><a class="link" href="locking-functions.html#function_release-all-locks"><code class="literal">RELEASE_ALL_LOCKS()</code></a></td>
+<td>
+      Release all current named locks
+    </td>
+</tr><tr><td><a class="link" href="locking-functions.html#function_release-lock"><code class="literal">RELEASE_LOCK()</code></a></td>
+<td>
+      Release the named lock
+    </td>
+</tr></tbody></table></div></div><br class="table-break"/><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><a id="function_get-lock"></a><p>
+          <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK(<em class="replaceable"><code>str</code></em>,<em class="replaceable"><code>timeout</code></em>)</code></a>
+        </p><a id="idm45828925491088" class="indexterm"></a><a id="idm45828925490016" class="indexterm"></a><p>
+          Tries to obtain a lock with a name given by the string
+          <em class="replaceable"><code>str</code></em>, using a timeout of
+          <em class="replaceable"><code>timeout</code></em> seconds. A negative
+          <em class="replaceable"><code>timeout</code></em> value means infinite
+          timeout. The lock is exclusive. While held by one session,
+          other sessions cannot obtain a lock of the same name.
+        </p><p>
+          Returns <code class="literal">1</code> if the lock was obtained
+          successfully, <code class="literal">0</code> if the attempt timed out
+          (for example, because another client has previously locked the
+          name), or <code class="literal">NULL</code> if an error occurred (such
+          as running out of memory or the thread was killed with
+          <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin kill</strong></span></a>).
+        </p><p>
+          A lock obtained with <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a>
+          is released explicitly by executing
+          <a class="link" href="locking-functions.html#function_release-lock"><code class="literal">RELEASE_LOCK()</code></a> or implicitly
+          when your session terminates (either normally or abnormally).
+          Locks obtained with <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a>
+          are not released when transactions commit or roll back.
+        </p><p>
+          <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> is implemented using
+          the metadata locking (MDL) subsystem. Multiple simultaneous
+          locks can be acquired and
+          <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> does not release any
+          existing locks. For example, suppose that you execute these
+          statements:
+        </p><pre class="programlisting">SELECT GET_LOCK(&#39;lock1&#39;,10);
+SELECT GET_LOCK(&#39;lock2&#39;,10);
+SELECT RELEASE_LOCK(&#39;lock2&#39;);
+SELECT RELEASE_LOCK(&#39;lock1&#39;);
+</pre><p>
+          The second <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> acquires
+          a second lock and both
+          <a class="link" href="locking-functions.html#function_release-lock"><code class="literal">RELEASE_LOCK()</code></a> calls return 1
+          (success).
+        </p><p>
+          It is even possible for a given session to acquire multiple
+          locks for the same name. Other sessions cannot acquire a lock
+          with that name until the acquiring session releases all its
+          locks for the name.
+        </p><p>
+          Uniquely named locks acquired with
+          <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> appear in the
+          Performance Schema <a class="link" href="performance-schema-metadata-locks-table.html" title="27.12.13.3&nbsp;The metadata_locks Table"><code class="literal">metadata_locks</code></a>
+          table. The <code class="literal">OBJECT_TYPE</code> column says
+          <code class="literal">USER LEVEL LOCK</code> and the
+          <code class="literal">OBJECT_NAME</code> column indicates the lock name.
+          In the case that multiple locks are acquired for the
+          <span class="emphasis"><em>same</em></span> name, only the first lock for the
+          name registers a row in the
+          <a class="link" href="performance-schema-metadata-locks-table.html" title="27.12.13.3&nbsp;The metadata_locks Table"><code class="literal">metadata_locks</code></a> table. Subsequent
+          locks for the name increment a counter in the lock but do not
+          acquire additional metadata locks. The
+          <a class="link" href="performance-schema-metadata-locks-table.html" title="27.12.13.3&nbsp;The metadata_locks Table"><code class="literal">metadata_locks</code></a> row for the lock
+          is deleted when the last lock instance on the name is
+          released.
+        </p><p>
+          The capability of acquiring multiple locks means there is the
+          possibility of deadlock among clients. When this happens, the
+          server chooses a caller and terminates its lock-acquisition
+          request with an
+          <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_user_lock_deadlock" target="_top"><code class="literal">ER_USER_LOCK_DEADLOCK</code></a> error.
+          This error does not cause transactions to roll back.
+        </p><p>
+          MySQL enforces a maximum length on lock names of 64
+          characters.
+        </p><p>
+          <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> can be used to
+          implement application locks or to simulate record locks. Names
+          are locked on a server-wide basis. If a name has been locked
+          within one session, <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a>
+          blocks any request by another session for a lock with the same
+          name. This enables clients that agree on a given lock name to
+          use the name to perform cooperative advisory locking. But be
+          aware that it also enables a client that is not among the set
+          of cooperating clients to lock a name, either inadvertently or
+          deliberately, and thus prevent any of the cooperating clients
+          from locking that name. One way to reduce the likelihood of
+          this is to use lock names that are database-specific or
+          application-specific. For example, use lock names of the form
+          <em class="replaceable"><code>db_name.str</code></em> or
+          <em class="replaceable"><code>app_name.str</code></em>.
+        </p><p>
+          If multiple clients are waiting for a lock, the order in which
+          they acquire it is undefined. Applications should not assume
+          that clients acquire the lock in the same order that they
+          issued the lock requests.
+        </p><p>
+          <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> is unsafe for
+          statement-based replication. A warning is logged if you use
+          this function when
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> is set to
+          <code class="literal">STATEMENT</code>.
+        </p><p>
+          Since <code class="literal">GET_LOCK()</code> establishes a lock only on
+          a single <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, it is not suitable for use
+          with NDB Cluster, which has no way of enforcing an SQL lock
+          across multiple MySQL servers. See
+          <a class="xref" href="mysql-cluster-limitations-multiple-nodes.html" title="23.2.7.10&nbsp;Limitations Relating to Multiple NDB Cluster Nodes">Section&nbsp;23.2.7.10, &ldquo;Limitations Relating to Multiple NDB Cluster Nodes&rdquo;</a>,
+          for more information.
+        </p><div class="caution" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Caution</div><p>
+            With the capability of acquiring multiple named locks, it is
+            possible for a single statement to acquire a large number of
+            locks. For example:
+          </p><pre class="programlisting">INSERT INTO ... SELECT GET_LOCK(t1.col_name) FROM t1;
+</pre><p>
+            These types of statements may have certain adverse effects.
+            For example, if the statement fails part way through and
+            rolls back, locks acquired up to the point of failure still
+            exist. If the intent is for there to be a correspondence
+            between rows inserted and locks acquired, that intent is not
+            satisfied. Also, if it is important that locks are granted
+            in a certain order, be aware that result set order may
+            differ depending on which execution plan the optimizer
+            chooses. For these reasons, it may be best to limit
+            applications to a single lock-acquisition call per
+            statement.
+          </p></div><p>
+          A different locking interface is available as either a plugin
+          service or a set of loadable functions. This interface
+          provides lock namespaces and distinct read and write locks,
+          unlike the interface provided by
+          <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> and related
+          functions. For details, see <a class="xref" href="locking-service.html" title="5.6.9.1&nbsp;The Locking Service">Section&nbsp;5.6.9.1, &ldquo;The Locking Service&rdquo;</a>.
+        </p></li><li class="listitem"><a id="function_is-free-lock"></a><p>
+          <a class="link" href="locking-functions.html#function_is-free-lock"><code class="literal">IS_FREE_LOCK(<em class="replaceable"><code>str</code></em>)</code></a>
+        </p><a id="idm45828925435664" class="indexterm"></a><p>
+          Checks whether the lock named <em class="replaceable"><code>str</code></em>
+          is free to use (that is, not locked). Returns
+          <code class="literal">1</code> if the lock is free (no one is using the
+          lock), <code class="literal">0</code> if the lock is in use, and
+          <code class="literal">NULL</code> if an error occurs (such as an
+          incorrect argument).
+        </p><p>
+          This function is unsafe for statement-based replication. A
+          warning is logged if you use this function when
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> is set to
+          <code class="literal">STATEMENT</code>.
+        </p></li><li class="listitem"><a id="function_is-used-lock"></a><p>
+          <a class="link" href="locking-functions.html#function_is-used-lock"><code class="literal">IS_USED_LOCK(<em class="replaceable"><code>str</code></em>)</code></a>
+        </p><a id="idm45828925422576" class="indexterm"></a><p>
+          Checks whether the lock named <em class="replaceable"><code>str</code></em>
+          is in use (that is, locked). If so, it returns the connection
+          identifier of the client session that holds the lock.
+          Otherwise, it returns <code class="literal">NULL</code>.
+        </p><p>
+          This function is unsafe for statement-based replication. A
+          warning is logged if you use this function when
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> is set to
+          <code class="literal">STATEMENT</code>.
+        </p></li><li class="listitem"><a id="function_release-all-locks"></a><p>
+          <a class="link" href="locking-functions.html#function_release-all-locks"><code class="literal">RELEASE_ALL_LOCKS()</code></a>
+        </p><a id="idm45828925411136" class="indexterm"></a><p>
+          Releases all named locks held by the current session and
+          returns the number of locks released (0 if there were none)
+        </p><p>
+          This function is unsafe for statement-based replication. A
+          warning is logged if you use this function when
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> is set to
+          <code class="literal">STATEMENT</code>.
+        </p></li><li class="listitem"><a id="function_release-lock"></a><p>
+          <a class="link" href="locking-functions.html#function_release-lock"><code class="literal">RELEASE_LOCK(<em class="replaceable"><code>str</code></em>)</code></a>
+        </p><a id="idm45828925400672" class="indexterm"></a><p>
+          Releases the lock named by the string
+          <em class="replaceable"><code>str</code></em> that was obtained with
+          <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a>. Returns
+          <code class="literal">1</code> if the lock was released,
+          <code class="literal">0</code> if the lock was not established by this
+          thread (in which case the lock is not released), and
+          <code class="literal">NULL</code> if the named lock did not exist. The
+          lock does not exist if it was never obtained by a call to
+          <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> or if it has
+          previously been released.
+        </p><p>
+          The <a class="link" href="do.html" title="13.2.3&nbsp;DO Statement"><code class="literal">DO</code></a> statement is convenient
+          to use with <a class="link" href="locking-functions.html#function_release-lock"><code class="literal">RELEASE_LOCK()</code></a>. See
+          <a class="xref" href="do.html" title="13.2.3&nbsp;DO Statement">Section&nbsp;13.2.3, &ldquo;DO Statement&rdquo;</a>.
+        </p><p>
+          This function is unsafe for statement-based replication. A
+          warning is logged if you use this function when
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> is set to
+          <code class="literal">STATEMENT</code>.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="encryption-functions.html">Previous <span class="navHint"> Encryption and Compression Functions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="functions.html">Up <span class="navHint"> Functions and Operators </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="information-functions.html">Next <span class="navHint"> Information Functions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

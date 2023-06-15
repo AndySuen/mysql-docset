@@ -1,0 +1,124 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2255"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.6.16.30%C2%A0The%20ndbinfo%20diskpagebuffer%20Table"></a><title>23.6.16.30&nbsp;The ndbinfo diskpagebuffer Table</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-ndbinfo.html" title="23.6.16&nbsp;ndbinfo: The NDB Cluster Information Database"/><link rel="prev" href="mysql-cluster-ndbinfo-disk-write-speed-aggregate-node.html" title="23.6.16.29&nbsp;The ndbinfo disk_write_speed_aggregate_node Table"/><link rel="next" href="mysql-cluster-ndbinfo-diskstat.html" title="23.6.16.31&nbsp;The ndbinfo diskstat Table"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-ndbinfo-diskpagebuffer.html#mysql-cluster-ndbinfo-diskpagebuffer">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-ndbinfo-disk-write-speed-aggregate-node.html">Previous <span class="navHint"> The ndbinfo disk_write_speed_aggregate_node Table </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-ndbinfo.html">Up <span class="navHint"> ndbinfo: The NDB Cluster Information Database </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-ndbinfo-diskstat.html">Next <span class="navHint"> The ndbinfo diskstat Table </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2256"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/23.6.16.30%C2%A0The%20ndbinfo%20diskpagebuffer%20Table"></a><h4 class="title"><a id="mysql-cluster-ndbinfo-diskpagebuffer"></a>23.6.16.30&nbsp;The ndbinfo diskpagebuffer Table</h4></div></div></div><a id="idm45828806910384" class="indexterm"></a><p>
+        The <code class="literal">diskpagebuffer</code> table provides statistics
+        about disk page buffer usage by NDB Cluster Disk Data tables.
+      </p><p>
+        The <code class="literal">diskpagebuffer</code> table contains the
+        following columns:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">node_id</code>
+          </p><p>
+            The data node ID
+          </p></li><li class="listitem"><p>
+            <code class="literal">block_instance</code>
+          </p><p>
+            Block instance
+          </p></li><li class="listitem"><p>
+            <code class="literal">pages_written</code>
+          </p><p>
+            Number of pages written to disk.
+          </p></li><li class="listitem"><p>
+            <code class="literal">pages_written_lcp</code>
+          </p><p>
+            Number of pages written by local checkpoints.
+          </p></li><li class="listitem"><p>
+            <code class="literal">pages_read</code>
+          </p><p>
+            Number of pages read from disk
+          </p></li><li class="listitem"><p>
+            <code class="literal">log_waits</code>
+          </p><p>
+            Number of page writes waiting for log to be written to disk
+          </p></li><li class="listitem"><p>
+            <code class="literal">page_requests_direct_return</code>
+          </p><p>
+            Number of requests for pages that were available in buffer
+          </p></li><li class="listitem"><p>
+            <code class="literal">page_requests_wait_queue</code>
+          </p><p>
+            Number of requests that had to wait for pages to become
+            available in buffer
+          </p></li><li class="listitem"><p>
+            <code class="literal">page_requests_wait_io</code>
+          </p><p>
+            Number of requests that had to be read from pages on disk
+            (pages were unavailable in buffer)
+          </p></li></ul></div><h5><a id="idm45828806888736"></a>Notes</h5><p>
+        You can use this table with NDB Cluster Disk Data tables to
+        determine whether
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-diskpagebuffermemory"><code class="literal">DiskPageBufferMemory</code></a> is
+        sufficiently large to allow data to be read from the buffer
+        rather from disk; minimizing disk seeks can help improve
+        performance of such tables.
+      </p><p>
+        You can determine the proportion of reads from
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-diskpagebuffermemory"><code class="literal">DiskPageBufferMemory</code></a> to
+        the total number of reads using a query such as this one, which
+        obtains this ratio as a percentage:
+      </p><pre class="programlisting">SELECT
+  node_id,
+  100 * page_requests_direct_return /
+    (page_requests_direct_return + page_requests_wait_io)
+      AS hit_ratio
+FROM ndbinfo.diskpagebuffer;
+</pre><p>
+        The result from this query should be similar to what is shown
+        here, with one row for each data node in the cluster (in this
+        example, the cluster has 4 data nodes):
+      </p><pre class="programlisting">+---------+-----------+
+| node_id | hit_ratio |
++---------+-----------+
+|       5 |   97.6744 |
+|       6 |   97.6879 |
+|       7 |   98.1776 |
+|       8 |   98.1343 |
++---------+-----------+
+4 rows in set (0.00 sec)
+</pre><p>
+        <code class="literal">hit_ratio</code> values approaching 100% indicate
+        that only a very small number of reads are being made from disk
+        rather than from the buffer, which means that Disk Data read
+        performance is approaching an optimum level. If any of these
+        values are less than 95%, this is a strong indicator that the
+        setting for
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-diskpagebuffermemory"><code class="literal">DiskPageBufferMemory</code></a>
+        needs to be increased in the <code class="filename">config.ini</code>
+        file.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          A change in
+          <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-diskpagebuffermemory"><code class="literal">DiskPageBufferMemory</code></a>
+          requires a rolling restart of all of the cluster&#39;s data
+          nodes before it takes effect.
+        </p></div><p>
+        <code class="literal">block_instance</code> refers to an instance of a
+        kernel block. Together with the block name, this number can be
+        used to look up a given instance in the
+        <a class="link" href="mysql-cluster-ndbinfo-threadblocks.html" title="23.6.16.61&nbsp;The ndbinfo threadblocks Table"><code class="literal">threadblocks</code></a> table. Using this
+        information, you can obtain information about disk page buffer
+        metrics relating to individual threads; an example query using
+        <code class="literal">LIMIT 1</code> to limit the output to a single
+        thread is shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+     &gt;   <strong class="userinput"><code>node_id, thr_no, block_name, thread_name, pages_written,</code></strong>
+     &gt;   <strong class="userinput"><code>pages_written_lcp, pages_read, log_waits,</code></strong>
+     &gt;   <strong class="userinput"><code>page_requests_direct_return, page_requests_wait_queue,</code></strong>
+     &gt;   <strong class="userinput"><code>page_requests_wait_io</code></strong>
+     &gt; <strong class="userinput"><code>FROM ndbinfo.diskpagebuffer</code></strong>
+     &gt;   <strong class="userinput"><code>INNER JOIN ndbinfo.threadblocks USING (node_id, block_instance)</code></strong>
+     &gt;   <strong class="userinput"><code>INNER JOIN ndbinfo.threads USING (node_id, thr_no)</code></strong>
+     &gt; <strong class="userinput"><code>WHERE block_name = &#39;PGMAN&#39; LIMIT 1\G</code></strong>
+*************************** 1. row ***************************
+                    node_id: 1
+                     thr_no: 1
+                 block_name: PGMAN
+                thread_name: rep
+              pages_written: 0
+          pages_written_lcp: 0
+                 pages_read: 1
+                  log_waits: 0
+page_requests_direct_return: 4
+   page_requests_wait_queue: 0
+      page_requests_wait_io: 1
+1 row in set (0.01 sec)
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-ndbinfo-disk-write-speed-aggregate-node.html">Previous <span class="navHint"> The ndbinfo disk_write_speed_aggregate_node Table </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-ndbinfo.html">Up <span class="navHint"> ndbinfo: The NDB Cluster Information Database </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-ndbinfo-diskstat.html">Next <span class="navHint"> The ndbinfo diskstat Table </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>16.7.2 MERGE Table Problems</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="merge-storage-engine.html" title="16.7 The MERGE Storage Engine" /><link rel="prev" href="merge-table-advantages.html" title="16.7.1 MERGE Table Advantages and Disadvantages" /><link rel="next" href="federated-storage-engine.html" title="16.8 The FEDERATED Storage Engine" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="merge-table-problems.html#merge-table-problems">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="merge-table-advantages.html">Previous <span class="navHint"> MERGE Table Advantages and Disadvantages </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="merge-storage-engine.html">Up <span class="navHint"> The MERGE Storage Engine </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="federated-storage-engine.html">Next <span class="navHint"> The FEDERATED Storage Engine </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="merge-table-problems"></a>16.7.2 MERGE Table Problems</h3></div></div></div><p>
+      The following are known problems with <code class="literal">MERGE</code>
+      tables:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          In versions of MySQL Server prior to 5.1.23, it was possible
+          to create temporary merge tables with nontemporary child
+          MyISAM tables.
+        </p><p>
+          From versions 5.1.23, MERGE children were locked through the
+          parent table. If the parent was temporary, it was not locked
+          and so the children were not locked either. Parallel use of
+          the MyISAM tables corrupted them.
+        </p></li><li class="listitem"><p>
+          If you use <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> to
+          change a <code class="literal">MERGE</code> table to another storage
+          engine, the mapping to the underlying tables is lost. Instead,
+          the rows from the underlying <code class="literal">MyISAM</code> tables
+          are copied into the altered table, which then uses the
+          specified storage engine.
+        </p></li><li class="listitem"><p>
+          The <code class="literal">INSERT_METHOD</code> table option for a
+          <code class="literal">MERGE</code> table indicates which underlying
+          <code class="literal">MyISAM</code> table to use for inserts into the
+          <code class="literal">MERGE</code> table. However, use of the
+          <code class="literal">AUTO_INCREMENT</code> table option for that
+          <code class="literal">MyISAM</code> table has no effect for inserts into
+          the <code class="literal">MERGE</code> table until at least one row has
+          been inserted directly into the <code class="literal">MyISAM</code>
+          table.
+        </p></li><li class="listitem"><p>
+          A <code class="literal">MERGE</code> table cannot maintain uniqueness
+          constraints over the entire table. When you perform an
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>, the data goes into the
+          first or last <code class="literal">MyISAM</code> table (as determined
+          by the <code class="literal">INSERT_METHOD</code> option). MySQL ensures
+          that unique key values remain unique within that
+          <code class="literal">MyISAM</code> table, but not over all the
+          underlying tables in the collection.
+        </p></li><li class="listitem"><p>
+          Because the <code class="literal">MERGE</code> engine cannot enforce
+          uniqueness over the set of underlying tables,
+          <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE</code></a> does not work as
+          expected. The two key facts are:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE</code></a> can detect unique
+              key violations only in the underlying table to which it is
+              going to write (which is determined by the
+              <code class="literal">INSERT_METHOD</code> option). This differs
+              from violations in the <code class="literal">MERGE</code> table
+              itself.
+            </p></li><li class="listitem"><p>
+              If <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE</code></a> detects a unique
+              key violation, it changes only the corresponding row in
+              the underlying table it is writing to; that is, the first
+              or last table, as determined by the
+              <code class="literal">INSERT_METHOD</code> option.
+            </p></li></ul></div><p>
+          Similar considerations apply for
+          <a class="link" href="insert-on-duplicate.html" title="13.2.7.2 INSERT ... ON DUPLICATE KEY UPDATE Statement"><code class="literal">INSERT
+          ... ON DUPLICATE KEY UPDATE</code></a>.
+        </p></li><li class="listitem"><p>
+          <code class="literal">MERGE</code> tables do not support partitioning.
+          That is, you cannot partition a <code class="literal">MERGE</code>
+          table, nor can any of a <code class="literal">MERGE</code> table's
+          underlying <code class="literal">MyISAM</code> tables be partitioned.
+        </p></li><li class="listitem"><p>
+          You should not use <a class="link" href="analyze-table.html" title="13.7.3.1 ANALYZE TABLE Statement"><code class="literal">ANALYZE
+          TABLE</code></a>, <a class="link" href="repair-table.html" title="13.7.3.5 REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a>,
+          <a class="link" href="optimize-table.html" title="13.7.3.4 OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a>,
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>,
+          <a class="link" href="drop-table.html" title="13.1.32 DROP TABLE Statement"><code class="literal">DROP TABLE</code></a>,
+          <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> without a
+          <code class="literal">WHERE</code> clause, or
+          <a class="link" href="truncate-table.html" title="13.1.37 TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a> on any of the
+          tables that are mapped into an open <code class="literal">MERGE</code>
+          table. If you do so, the <code class="literal">MERGE</code> table may
+          still refer to the original table and yield unexpected
+          results. To work around this problem, ensure that no
+          <code class="literal">MERGE</code> tables remain open by issuing a
+          <a class="link" href="flush.html#flush-tables"><code class="literal">FLUSH TABLES</code></a> statement prior to
+          performing any of the named operations.
+        </p><p>
+          The unexpected results include the possibility that the
+          operation on the <code class="literal">MERGE</code> table reports table
+          corruption. If this occurs after one of the named operations
+          on the underlying <code class="literal">MyISAM</code> tables, the
+          corruption message is spurious. To deal with this, issue a
+          <a class="link" href="flush.html#flush-tables"><code class="literal">FLUSH TABLES</code></a> statement after
+          modifying the <code class="literal">MyISAM</code> tables.
+        </p></li><li class="listitem"><p>
+          <a class="link" href="drop-table.html" title="13.1.32 DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> on a table that is
+          in use by a <code class="literal">MERGE</code> table does not work on
+          Windows because the <code class="literal">MERGE</code> storage engine's
+          table mapping is hidden from the upper layer of MySQL. Windows
+          does not permit open files to be deleted, so you first must
+          flush all <code class="literal">MERGE</code> tables (with
+          <a class="link" href="flush.html#flush-tables"><code class="literal">FLUSH TABLES</code></a>) or drop the
+          <code class="literal">MERGE</code> table before dropping the table.
+        </p></li><li class="listitem"><p>
+          The definition of the <code class="literal">MyISAM</code> tables and the
+          <code class="literal">MERGE</code> table are checked when the tables are
+          accessed (for example, as part of a
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> or
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement). The checks
+          ensure that the definitions of the tables and the parent
+          <code class="literal">MERGE</code> table definition match by comparing
+          column order, types, sizes and associated indexes. If there is
+          a difference between the tables, an error is returned and the
+          statement fails. Because these checks take place when the
+          tables are opened, any changes to the definition of a single
+          table, including column changes, column ordering, and engine
+          alterations cause the statement to fail.
+        </p></li><li class="listitem"><p>
+          The order of indexes in the <code class="literal">MERGE</code> table and
+          its underlying tables should be the same. If you use
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> to add a
+          <code class="literal">UNIQUE</code> index to a table used in a
+          <code class="literal">MERGE</code> table, and then use
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> to add a nonunique
+          index on the <code class="literal">MERGE</code> table, the index
+          ordering is different for the tables if there was already a
+          nonunique index in the underlying table. (This happens because
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> puts
+          <code class="literal">UNIQUE</code> indexes before nonunique indexes to
+          facilitate rapid detection of duplicate keys.) Consequently,
+          queries on tables with such indexes may return unexpected
+          results.
+        </p></li><li class="listitem"><p>
+          If you encounter an error message similar to <span class="errortext">ERROR
+          1017 (HY000): Can't find file:
+          '<em class="replaceable"><code>tbl_name</code></em>.MRG' (errno:
+          2)</span>, it generally indicates that some of the
+          underlying tables do not use the <code class="literal">MyISAM</code>
+          storage engine. Confirm that all of these tables are
+          <code class="literal">MyISAM</code>.
+        </p></li><li class="listitem"><p>
+          The maximum number of rows in a <code class="literal">MERGE</code> table
+          is 2<sup>64</sup> (~1.844E+19; the same as for
+          a <code class="literal">MyISAM</code> table). It is not possible to
+          merge multiple <code class="literal">MyISAM</code> tables into a single
+          <code class="literal">MERGE</code> table that would have more than this
+          number of rows.
+        </p></li><li class="listitem"><p>
+          Use of underlying <code class="literal">MyISAM</code> tables of
+          differing row formats with a parent <code class="literal">MERGE</code>
+          table is currently known to fail. See Bug #32364.
+        </p></li><li class="listitem"><p>
+          You cannot change the union list of a nontemporary
+          <code class="literal">MERGE</code> table when <a class="link" href="lock-tables.html" title="13.3.6 LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">LOCK
+          TABLES</code></a> is in effect. The following does
+          <span class="emphasis"><em>not</em></span> work:
+        </p><pre class="programlisting">CREATE TABLE m1 ... ENGINE=MRG_MYISAM ...;
+LOCK TABLES t1 WRITE, t2 WRITE, m1 WRITE;
+ALTER TABLE m1 ... UNION=(t1,t2) ...;
+</pre><p>
+          However, you can do this with a temporary
+          <code class="literal">MERGE</code> table.
+        </p></li><li class="listitem"><p>
+          You cannot create a <code class="literal">MERGE</code> table with
+          <code class="literal">CREATE ... SELECT</code>, neither as a temporary
+          <code class="literal">MERGE</code> table, nor as a nontemporary
+          <code class="literal">MERGE</code> table. For example:
+        </p><pre class="programlisting">CREATE TABLE m1 ... ENGINE=MRG_MYISAM ... SELECT ...;</pre><p>
+          Attempts to do this result in an error:
+          <em class="replaceable"><code>tbl_name</code></em> is not <code class="literal">BASE
+          TABLE</code>.
+        </p></li><li class="listitem"><p>
+          In some cases, differing <code class="literal">PACK_KEYS</code> table
+          option values among the <code class="literal">MERGE</code> and
+          underlying tables cause unexpected results if the underlying
+          tables contain <code class="literal">CHAR</code> or
+          <code class="literal">BINARY</code> columns. As a workaround, use
+          <code class="literal">ALTER TABLE</code> to ensure that all involved
+          tables have the same <code class="literal">PACK_KEYS</code> value. (Bug
+          #50646)
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="merge-table-advantages.html">Previous <span class="navHint"> MERGE Table Advantages and Disadvantages </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="merge-storage-engine.html">Up <span class="navHint"> The MERGE Storage Engine </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="federated-storage-engine.html">Next <span class="navHint"> The FEDERATED Storage Engine </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,66 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-351"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.11.3%C2%A0Concurrent%20Inserts"></a><title>8.11.3&nbsp;Concurrent Inserts</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="locking-issues.html" title="8.11&nbsp;Optimizing Locking Operations"/><link rel="prev" href="table-locking.html" title="8.11.2&nbsp;Table Locking Issues"/><link rel="next" href="metadata-locking.html" title="8.11.4&nbsp;Metadata Locking"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="concurrent-inserts.html#concurrent-inserts">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="table-locking.html">Previous <span class="navHint"> Table Locking Issues </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="locking-issues.html">Up <span class="navHint"> Optimizing Locking Operations </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="metadata-locking.html">Next <span class="navHint"> Metadata Locking </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="concurrent-inserts"></a>8.11.3&nbsp;Concurrent Inserts</h3></div></div></div><a id="idm45828949538352" class="indexterm"></a><a id="idm45828949537280" class="indexterm"></a><p>
+        The <code class="literal">MyISAM</code> storage engine supports concurrent
+        inserts to reduce contention between readers and writers for a
+        given table: If a <code class="literal">MyISAM</code> table has no holes
+        in the data file (deleted rows in the middle), an
+        <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> statement can be executed
+        to add rows to the end of the table at the same time that
+        <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statements are reading
+        rows from the table. If there are multiple
+        <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> statements, they are
+        queued and performed in sequence, concurrently with the
+        <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statements. The results of
+        a concurrent <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> may not be
+        visible immediately.
+      </p><p>
+        The <a class="link" href="server-system-variables.html#sysvar_concurrent_insert"><code class="literal">concurrent_insert</code></a> system
+        variable can be set to modify the concurrent-insert processing.
+        By default, the variable is set to <code class="literal">AUTO</code> (or
+        1) and concurrent inserts are handled as just described. If
+        <a class="link" href="server-system-variables.html#sysvar_concurrent_insert"><code class="literal">concurrent_insert</code></a> is set to
+        <code class="literal">NEVER</code> (or 0), concurrent inserts are
+        disabled. If the variable is set to <code class="literal">ALWAYS</code>
+        (or 2), concurrent inserts at the end of the table are permitted
+        even for tables that have deleted rows. See also the description
+        of the <a class="link" href="server-system-variables.html#sysvar_concurrent_insert"><code class="literal">concurrent_insert</code></a> system
+        variable.
+      </p><p>
+        If you are using the binary log, concurrent inserts are
+        converted to normal inserts for <code class="literal">CREATE ...
+        SELECT</code> or
+        <a class="link" href="insert-select.html" title="13.2.7.1&nbsp;INSERT ... SELECT Statement"><code class="literal">INSERT ...
+        SELECT</code></a> statements. This is done to ensure that you can
+        re-create an exact copy of your tables by applying the log
+        during a backup operation. See <a class="xref" href="binary-log.html" title="5.4.4&nbsp;The Binary Log">Section&nbsp;5.4.4, &ldquo;The Binary Log&rdquo;</a>. In
+        addition, for those statements a read lock is placed on the
+        selected-from table such that inserts into that table are
+        blocked. The effect is that concurrent inserts for that table
+        must wait as well.
+      </p><p>
+        With <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD DATA</code></a>, if you specify
+        <code class="literal">CONCURRENT</code> with a <code class="literal">MyISAM</code>
+        table that satisfies the condition for concurrent inserts (that
+        is, it contains no free blocks in the middle), other sessions
+        can retrieve data from the table while <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD
+        DATA</code></a> is executing. Use of the
+        <code class="literal">CONCURRENT</code> option affects the performance of
+        <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> a bit, even if no other
+        session is using the table at the same time.
+      </p><p>
+        If you specify <code class="literal">HIGH_PRIORITY</code>, it overrides
+        the effect of the
+        <a class="link" href="server-system-variables.html#sysvar_low_priority_updates"><code class="option">--low-priority-updates</code></a> option if
+        the server was started with that option. It also causes
+        concurrent inserts not to be used.
+      </p><p>
+        For <a class="link" href="lock-tables.html" title="13.3.6&nbsp;LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">LOCK
+        TABLE</code></a>, the difference between <code class="literal">READ
+        LOCAL</code> and <code class="literal">READ</code> is that
+        <code class="literal">READ LOCAL</code> permits nonconflicting
+        <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> statements (concurrent
+        inserts) to execute while the lock is held. However, this cannot
+        be used if you are going to manipulate the database using
+        processes external to the server while you hold the lock.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="table-locking.html">Previous <span class="navHint"> Table Locking Issues </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="locking-issues.html">Up <span class="navHint"> Optimizing Locking Operations </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="metadata-locking.html">Next <span class="navHint"> Metadata Locking </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

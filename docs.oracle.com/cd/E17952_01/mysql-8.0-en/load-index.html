@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.7.8.5 LOAD INDEX INTO CACHE Statement</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="other-administrative-statements.html" title="13.7.8 Other Administrative Statements" /><link rel="prev" href="kill.html" title="13.7.8.4 KILL Statement" /><link rel="next" href="reset.html" title="13.7.8.6 RESET Statement" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="load-index.html#load-index">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="kill.html">Previous <span class="navHint"> KILL Statement </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="other-administrative-statements.html">Up <span class="navHint"> Other Administrative Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="reset.html">Next <span class="navHint"> RESET Statement </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="load-index"></a>13.7.8.5 LOAD INDEX INTO CACHE Statement</h4></div></div></div><pre class="programlisting">LOAD INDEX INTO CACHE
+  <em class="replaceable"><code>tbl_index_list</code></em> [, <em class="replaceable"><code>tbl_index_list</code></em>] ...
+
+<em class="replaceable"><code>tbl_index_list</code></em>:
+  <em class="replaceable"><code>tbl_name</code></em>
+    [PARTITION (<em class="replaceable"><code>partition_list</code></em>)]
+    [{INDEX|KEY} (<em class="replaceable"><code>index_name</code></em>[, <em class="replaceable"><code>index_name</code></em>] ...)]
+    [IGNORE LEAVES]
+
+<em class="replaceable"><code>partition_list</code></em>: {
+    <em class="replaceable"><code>partition_name</code></em>[, <em class="replaceable"><code>partition_name</code></em>] ...
+  | ALL
+}
+</pre><p>
+        The <a class="link" href="load-index.html" title="13.7.8.5 LOAD INDEX INTO CACHE Statement"><code class="literal">LOAD INDEX INTO
+        CACHE</code></a> statement preloads a table index into the key
+        cache to which it has been assigned by an explicit
+        <a class="link" href="cache-index.html" title="13.7.8.2 CACHE INDEX Statement"><code class="literal">CACHE INDEX</code></a> statement, or into
+        the default key cache otherwise.
+      </p><p>
+        <a class="link" href="load-index.html" title="13.7.8.5 LOAD INDEX INTO CACHE Statement"><code class="literal">LOAD INDEX INTO
+        CACHE</code></a> applies only to <code class="literal">MyISAM</code>
+        tables, including partitioned <code class="literal">MyISAM</code> tables.
+        In addition, indexes on partitioned tables can be preloaded for
+        one, several, or all partitions.
+      </p><p>
+        The <code class="literal">IGNORE LEAVES</code> modifier causes only blocks
+        for the nonleaf nodes of the index to be preloaded.
+      </p><p>
+        <code class="literal">IGNORE LEAVES</code> is also supported for
+        partitioned <code class="literal">MyISAM</code> tables.
+      </p><p>
+        The following statement preloads nodes (index blocks) of indexes
+        for the tables <code class="literal">t1</code> and <code class="literal">t2</code>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>LOAD INDEX INTO CACHE t1, t2 IGNORE LEAVES;</code></strong>
++---------+--------------+----------+----------+
+| Table   | Op           | Msg_type | Msg_text |
++---------+--------------+----------+----------+
+| test.t1 | preload_keys | status   | OK       |
+| test.t2 | preload_keys | status   | OK       |
++---------+--------------+----------+----------+
+</pre><p>
+        This statement preloads all index blocks from
+        <code class="literal">t1</code>. It preloads only blocks for the nonleaf
+        nodes from <code class="literal">t2</code>.
+      </p><p>
+        The syntax of <a class="link" href="load-index.html" title="13.7.8.5 LOAD INDEX INTO CACHE Statement"><code class="literal">LOAD
+        INDEX INTO CACHE</code></a> enables you to specify that only
+        particular indexes from a table should be preloaded. However,
+        the implementation preloads all the table's indexes into the
+        cache, so there is no reason to specify anything other than the
+        table name.
+      </p><p>
+        It is possible to preload indexes on specific partitions of
+        partitioned <code class="literal">MyISAM</code> tables. For example, of
+        the following 2 statements, the first preloads indexes for
+        partition <code class="literal">p0</code> of a partitioned table
+        <code class="literal">pt</code>, while the second preloads the indexes for
+        partitions <code class="literal">p1</code> and <code class="literal">p3</code> of
+        the same table:
+      </p><pre class="programlisting">LOAD INDEX INTO CACHE pt PARTITION (p0);
+LOAD INDEX INTO CACHE pt PARTITION (p1, p3);
+</pre><p>
+        To preload the indexes for all partitions in table
+        <code class="literal">pt</code>, you can use either of the following two
+        statements:
+      </p><pre class="programlisting">LOAD INDEX INTO CACHE pt PARTITION (ALL);
+
+LOAD INDEX INTO CACHE pt;
+</pre><p>
+        The two statements just shown are equivalent, and issuing either
+        one has exactly the same effect. In other words, if you wish to
+        preload indexes for all partitions of a partitioned table, the
+        <code class="literal">PARTITION (ALL)</code> clause is optional.
+      </p><p>
+        When preloading indexes for multiple partitions, the partitions
+        need not be contiguous, and you need not list their names in any
+        particular order.
+      </p><p>
+        <a class="link" href="load-index.html" title="13.7.8.5 LOAD INDEX INTO CACHE Statement"><code class="literal">LOAD INDEX INTO
+        CACHE ... IGNORE LEAVES</code></a> fails unless all indexes in a
+        table have the same block size. To determine index block sizes
+        for a table, use <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk -dv</strong></span></a> and check the
+        <code class="literal">Blocksize</code> column.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="kill.html">Previous <span class="navHint"> KILL Statement </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="other-administrative-statements.html">Up <span class="navHint"> Other Administrative Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="reset.html">Next <span class="navHint"> RESET Statement </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

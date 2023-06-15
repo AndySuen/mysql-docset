@@ -1,0 +1,163 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3706"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.2.1.2%C2%A0Usage%20of%20Row-Based%20Logging%20and%20Replication"></a><title>17.2.1.2&nbsp;Usage of Row-Based Logging and Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-formats.html" title="17.2.1&nbsp;Replication Formats"/><link rel="prev" href="replication-sbr-rbr.html" title="17.2.1.1&nbsp;Advantages and Disadvantages of Statement-Based and Row-Based Replication"/><link rel="next" href="replication-rbr-safe-unsafe.html" title="17.2.1.3&nbsp;Determination of Safe and Unsafe Statements in Binary Logging"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-rbr-usage.html#replication-rbr-usage">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-sbr-rbr.html">Previous <span class="navHint"> Advantages and Disadvantages of Statement-Based and Row-Based
+        Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-formats.html">Up <span class="navHint"> Replication Formats </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-rbr-safe-unsafe.html">Next <span class="navHint"> Determination of Safe and Unsafe Statements in Binary Logging </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3698"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.2.1.2%C2%A0Usage%20of%20Row-Based%20Logging%20and%20Replication"></a><h4 class="title"><a id="replication-rbr-usage"></a>17.2.1.2&nbsp;Usage of Row-Based Logging and Replication</h4></div></div></div><p>
+        MySQL uses statement-based logging (SBL), row-based logging
+        (RBL) or mixed-format logging. The type of binary log used
+        impacts the size and efficiency of logging. Therefore the choice
+        between row-based replication (RBR) or statement-based
+        replication (SBR) depends on your application and environment.
+        This section describes known issues when using a row-based
+        format log, and describes some best practices using it in
+        replication.
+      </p><p>
+        For additional information, see
+        <a class="xref" href="replication-formats.html" title="17.2.1&nbsp;Replication Formats">Section&nbsp;17.2.1, &ldquo;Replication Formats&rdquo;</a>, and
+        <a class="xref" href="replication-sbr-rbr.html" title="17.2.1.1&nbsp;Advantages and Disadvantages of Statement-Based and Row-Based Replication">Section&nbsp;17.2.1.1, &ldquo;Advantages and Disadvantages of Statement-Based and Row-Based
+        Replication&rdquo;</a>.
+      </p><p>
+        For information about issues specific to NDB Cluster Replication
+        (which depends on row-based replication), see
+        <a class="xref" href="mysql-cluster-replication-issues.html" title="23.7.3&nbsp;Known Issues in NDB Cluster Replication">Section&nbsp;23.7.3, &ldquo;Known Issues in NDB Cluster Replication&rdquo;</a>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="replication-rbr-usage-temptables"></a><a class="dashingAutolink" name="autolink-3699"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Row-based%20logging%20of%20temporary%20tables."></a><strong>Row-based logging of temporary tables.&nbsp;</strong>
+              As noted in
+              <a class="xref" href="replication-features-temptables.html" title="17.5.1.31&nbsp;Replication and Temporary Tables">Section&nbsp;17.5.1.31, &ldquo;Replication and Temporary Tables&rdquo;</a>,
+              temporary tables are not replicated when using row-based
+              format or (from MySQL 8.0.4) mixed format. For more
+              information, see <a class="xref" href="replication-sbr-rbr.html" title="17.2.1.1&nbsp;Advantages and Disadvantages of Statement-Based and Row-Based Replication">Section&nbsp;17.2.1.1, &ldquo;Advantages and Disadvantages of Statement-Based and Row-Based
+        Replication&rdquo;</a>.
+            </p><p>
+            Temporary tables are not replicated when using row-based or
+            mixed format because there is no need. In addition, because
+            temporary tables can be read only from the thread which
+            created them, there is seldom if ever any benefit obtained
+            from replicating them, even when using statement-based
+            format.
+          </p><p>
+            You can switch from statement-based to row-based binary
+            logging format at runtime even when temporary tables have
+            been created. However, in MySQL 8.0, you cannot switch from
+            row-based or mixed format for binary logging to
+            statement-based format at runtime, due to any
+            <code class="literal">CREATE TEMPORARY TABLE</code> statements having
+            been omitted from the binary log in the previous mode.
+          </p><p>
+            The MySQL server tracks the logging mode that was in effect
+            when each temporary table was created. When a given client
+            session ends, the server logs a <code class="literal">DROP TEMPORARY
+            TABLE IF EXISTS</code> statement for each temporary table
+            that still exists and was created when statement-based
+            binary logging was in use. If row-based or mixed format
+            binary logging was in use when the table was created, the
+            <code class="literal">DROP TEMPORARY TABLE IF EXISTS</code> statement
+            is not logged. In releases before MySQL 8.0.4 and 5.7.25,
+            the <code class="literal">DROP TEMPORARY TABLE IF EXISTS</code>
+            statement was logged regardless of the logging mode that was
+            in effect.
+          </p><p>
+            Nontransactional DML statements involving temporary tables
+            are allowed when using
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a>, as long
+            as any nontransactional tables affected by the statements
+            are temporary tables (Bug #14272672).
+          </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3700"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/RBL%20and%20synchronization%20of%20nontransactional%20tables."></a><strong>RBL and synchronization of nontransactional tables.&nbsp;</strong>
+              When many rows are affected, the set of changes is split
+              into several events; when the statement commits, all of
+              these events are written to the binary log. When executing
+              on the replica, a table lock is taken on all tables
+              involved, and then the rows are applied in batch mode.
+              Depending on the engine used for the replica&#39;s copy of the
+              table, this may or may not be effective.
+
+              
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3701"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Latency%20and%20binary%20log%20size."></a><strong>Latency and binary log size.&nbsp;</strong>
+              RBL writes changes for each row to the binary log and so
+              its size can increase quite rapidly. This can
+              significantly increase the time required to make changes
+              on the replica that match those on the source. You should
+              be aware of the potential for this delay in your
+              applications.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3702"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Reading%20the%20binary%20log."></a><strong>Reading the binary log.&nbsp;</strong>
+              <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> displays row-based events
+              in the binary log using the
+              <a class="link" href="binlog.html" title="13.7.8.1&nbsp;BINLOG Statement"><code class="literal">BINLOG</code></a> statement. This
+              statement displays an event as a base 64-encoded string,
+              the meaning of which is not evident. When invoked with the
+              <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_base64-output"><code class="option">--base64-output=DECODE-ROWS</code></a>
+              and <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_verbose"><code class="option">--verbose</code></a> options,
+              <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> formats the contents of the
+              binary log to be human readable. When binary log events
+              were written in row-based format and you want to read or
+              recover from a replication or database failure you can use
+              this command to read contents of the binary log. For more
+              information, see <a class="xref" href="mysqlbinlog-row-events.html" title="4.6.9.2&nbsp;mysqlbinlog Row Event Display">Section&nbsp;4.6.9.2, &ldquo;mysqlbinlog Row Event Display&rdquo;</a>.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3703"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Binary%20log%20execution%20errors%20and%20replica%20execution%20mode."></a><strong>Binary log execution errors and replica execution mode.&nbsp;</strong>
+              Using
+              <a class="link" href="replication-options-replica.html#sysvar_slave_exec_mode"><code class="literal">slave_exec_mode=IDEMPOTENT</code></a>
+              is generally only useful with MySQL NDB Cluster
+              replication, for which <code class="literal">IDEMPOTENT</code> is
+              the default value. (See
+              <a class="xref" href="mysql-cluster-replication-multi-source.html" title="23.7.10&nbsp;NDB Cluster Replication: Bidirectional and Circular Replication">Section&nbsp;23.7.10, &ldquo;NDB Cluster Replication: Bidirectional and Circular Replication&rdquo;</a>).
+              When the system variable
+              <a class="link" href="replication-options-replica.html#sysvar_replica_exec_mode"><code class="literal">replica_exec_mode</code></a> or
+              <a class="link" href="replication-options-replica.html#sysvar_slave_exec_mode"><code class="literal">slave_exec_mode</code></a> is
+              <code class="literal">IDEMPOTENT</code>, a failure to apply changes
+              from RBL because the original row cannot be found does not
+              trigger an error or cause replication to fail. This means
+              that it is possible that updates are not applied on the
+              replica, so that the source and replica are no longer
+              synchronized. Latency issues and use of nontransactional
+              tables with RBR when
+              <a class="link" href="replication-options-replica.html#sysvar_replica_exec_mode"><code class="literal">replica_exec_mode</code></a> or
+              <a class="link" href="replication-options-replica.html#sysvar_slave_exec_mode"><code class="literal">slave_exec_mode</code></a> is
+              <code class="literal">IDEMPOTENT</code> can cause the source and
+              replica to diverge even further. For more information
+              about <a class="link" href="replication-options-replica.html#sysvar_replica_exec_mode"><code class="literal">replica_exec_mode</code></a>
+              and <a class="link" href="replication-options-replica.html#sysvar_slave_exec_mode"><code class="literal">slave_exec_mode</code></a>, see
+              <a class="xref" href="server-system-variables.html" title="5.1.8&nbsp;Server System Variables">Section&nbsp;5.1.8, &ldquo;Server System Variables&rdquo;</a>.
+            </p><p>
+            For other scenarios, setting
+            <a class="link" href="replication-options-replica.html#sysvar_replica_exec_mode"><code class="literal">replica_exec_mode</code></a> or
+            <a class="link" href="replication-options-replica.html#sysvar_slave_exec_mode"><code class="literal">slave_exec_mode</code></a> to
+            <code class="literal">STRICT</code> is normally sufficient; this is
+            the default value for storage engines other than
+            <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a>.
+          </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3704"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Filtering%20based%20on%20server%20ID%20not%20supported."></a><strong>Filtering based on server ID not supported.&nbsp;</strong>
+              You can filter based on server ID by using the
+              <code class="literal">IGNORE_SERVER_IDS</code> option for the
+              <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+              TO</code></a> statement (from MySQL 8.0.23) or
+              <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement
+              (before MySQL 8.0.23). This option works with
+              statement-based and row-based logging formats, but is
+              deprecated for use when
+              <a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">GTID_MODE=ON</code></a> is set.
+              Another method to filter out changes on some replicas is
+              to use a <code class="literal">WHERE</code> clause that includes the
+              relation <code class="literal">@@server_id &lt;&gt;
+              <em class="replaceable"><code>id_value</code></em></code> clause with
+              <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> and
+              <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> statements. For
+              example, <code class="literal">WHERE @@server_id &lt;&gt; 1</code>.
+              However, this does not work correctly with row-based
+              logging. To use the
+              <a class="link" href="replication-options.html#sysvar_server_id"><code class="literal">server_id</code></a> system variable
+              for statement filtering, use statement-based logging.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-3705"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/RBL%2C%20nontransactional%20tables%2C%20and%20stopped%20replicas."></a><strong>RBL, nontransactional tables, and stopped replicas.&nbsp;</strong>
+              When using row-based logging, if the replica server is
+              stopped while a replica thread is updating a
+              nontransactional table, the replica database can reach an
+              inconsistent state. For this reason, it is recommended
+              that you use a transactional storage engine such as
+              <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> for all tables
+              replicated using the row-based format. Use of
+              <a class="link" href="stop-replica.html" title="13.4.2.10&nbsp;STOP REPLICA Statement"><code class="literal">STOP
+              REPLICA</code></a> or
+              <a class="link" href="stop-replica.html" title="13.4.2.10&nbsp;STOP REPLICA Statement"><code class="literal">STOP REPLICA
+              SQL_THREAD</code></a> (or before MySQL 8.0.22, SLAVE
+              instead of REPLICA) prior to shutting down the replica
+              MySQL server helps prevent issues from occurring, and is
+              always recommended regardless of the logging format or
+              storage engine you use.
+            </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-sbr-rbr.html">Previous <span class="navHint"> Advantages and Disadvantages of Statement-Based and Row-Based
+        Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-formats.html">Up <span class="navHint"> Replication Formats </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-rbr-safe-unsafe.html">Next <span class="navHint"> Determination of Safe and Unsafe Statements in Binary Logging </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,133 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-327"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.3.5%C2%A0Column%20Indexes"></a><title>8.3.5&nbsp;Column Indexes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimization-indexes.html" title="8.3&nbsp;Optimization and Indexes"/><link rel="prev" href="foreign-key-optimization.html" title="8.3.4&nbsp;Foreign Key Optimization"/><link rel="next" href="multiple-column-indexes.html" title="8.3.6&nbsp;Multiple-Column Indexes"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="column-indexes.html#column-indexes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="foreign-key-optimization.html">Previous <span class="navHint"> Foreign Key Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="multiple-column-indexes.html">Next <span class="navHint"> Multiple-Column Indexes </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="column-indexes"></a>8.3.5&nbsp;Column Indexes</h3></div></div></div><a id="idm45828954280688" class="indexterm"></a><a id="idm45828954279200" class="indexterm"></a><a id="idm45828954277712" class="indexterm"></a><p>
+        The most common type of index involves a single column, storing
+        copies of the values from that column in a data structure,
+        allowing fast lookups for the rows with the corresponding column
+        values. The B-tree data structure lets the index quickly find a
+        specific value, a set of values, or a range of values,
+        corresponding to operators such as <code class="literal">=</code>,
+        <code class="literal">&gt;</code>, <code class="literal">&le;</code>,
+        <code class="literal">BETWEEN</code>, <code class="literal">IN</code>, and so on, in
+        a <code class="literal">WHERE</code> clause.
+      </p><p>
+        The maximum number of indexes per table and the maximum index
+        length is defined per storage engine. See
+        <a class="xref" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine">Chapter&nbsp;15, <em>The InnoDB Storage Engine</em></a>, and
+        <a class="xref" href="storage-engines.html" title="Chapter&nbsp;16&nbsp;Alternative Storage Engines">Chapter&nbsp;16, <em>Alternative Storage Engines</em></a>. All storage engines support
+        at least 16 indexes per table and a total index length of at
+        least 256 bytes. Most storage engines have higher limits.
+      </p><p>
+        For additional information about column indexes, see
+        <a class="xref" href="create-index.html" title="13.1.15&nbsp;CREATE INDEX Statement">Section&nbsp;13.1.15, &ldquo;CREATE INDEX Statement&rdquo;</a>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="column-indexes.html#column-indexes-prefix" title="Index Prefixes">Index Prefixes</a></p></li><li class="listitem"><p><a class="xref" href="column-indexes.html#column-indexes-fulltext" title="FULLTEXT Indexes">FULLTEXT Indexes</a></p></li><li class="listitem"><p><a class="xref" href="column-indexes.html#column-indexes-spatial" title="Spatial Indexes">Spatial Indexes</a></p></li><li class="listitem"><p><a class="xref" href="column-indexes.html#column-indexes-memory-storage-engine" title="Indexes in the MEMORY Storage Engine">Indexes in the MEMORY Storage Engine</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-323"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Index%20Prefixes"></a><h4 class="title"><a id="column-indexes-prefix"></a>Index Prefixes</h4></div></div></div><a id="idm45828954263008" class="indexterm"></a><a id="idm45828954261520" class="indexterm"></a><a id="idm45828954260032" class="indexterm"></a><a id="idm45828954258544" class="indexterm"></a><a id="idm45828954257056" class="indexterm"></a><p>
+          With
+          <code class="literal"><em class="replaceable"><code>col_name</code></em>(<em class="replaceable"><code>N</code></em>)</code>
+          syntax in an index specification for a string column, you can
+          create an index that uses only the first
+          <em class="replaceable"><code>N</code></em> characters of the column.
+          Indexing only a prefix of column values in this way can make
+          the index file much smaller. When you index a
+          <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">BLOB</code></a> or
+          <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">TEXT</code></a> column, you
+          <span class="emphasis"><em>must</em></span> specify a prefix length for the
+          index. For example:
+        </p><pre class="programlisting">CREATE TABLE test (blob_col BLOB, INDEX(blob_col(10)));
+</pre><p>
+          Prefixes can be up to 767 bytes long for
+          <code class="literal">InnoDB</code> tables that use the
+          <code class="literal"><a class="link" href="glossary.html#glos_redundant_row_format" title="redundant row format">REDUNDANT</a></code>
+          or
+          <code class="literal"><a class="link" href="glossary.html#glos_compact_row_format" title="compact row format">COMPACT</a></code>
+          row format. The prefix length limit is 3072 bytes for
+          <code class="literal">InnoDB</code> tables that use the
+          <code class="literal"><a class="link" href="glossary.html#glos_dynamic_row_format" title="dynamic row format">DYNAMIC</a></code>
+          or
+          <code class="literal"><a class="link" href="glossary.html#glos_compressed_row_format" title="compressed row format">COMPRESSED</a></code>
+          row format. For MyISAM tables, the prefix length limit is 1000
+          bytes.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            Prefix limits are measured in bytes, whereas the prefix
+            length in <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>,
+            <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>, and
+            <a class="link" href="create-index.html" title="13.1.15&nbsp;CREATE INDEX Statement"><code class="literal">CREATE INDEX</code></a> statements is
+            interpreted as number of characters for nonbinary string
+            types (<a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a>,
+            <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>,
+            <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">TEXT</code></a>) and number of bytes for
+            binary string types (<a class="link" href="binary-varbinary.html" title="11.3.3&nbsp;The BINARY and VARBINARY Types"><code class="literal">BINARY</code></a>,
+            <a class="link" href="binary-varbinary.html" title="11.3.3&nbsp;The BINARY and VARBINARY Types"><code class="literal">VARBINARY</code></a>,
+            <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">BLOB</code></a>). Take this into account
+            when specifying a prefix length for a nonbinary string
+            column that uses a multibyte character set.
+          </p></div><p>
+          If a search term exceeds the index prefix length, the index is
+          used to exclude non-matching rows, and the remaining rows are
+          examined for possible matches.
+        </p><p>
+          For additional information about index prefixes, see
+          <a class="xref" href="create-index.html" title="13.1.15&nbsp;CREATE INDEX Statement">Section&nbsp;13.1.15, &ldquo;CREATE INDEX Statement&rdquo;</a>.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-324"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/FULLTEXT%20Indexes"></a><h4 class="title"><a id="column-indexes-fulltext"></a>FULLTEXT Indexes</h4></div></div></div><a id="idm45828954226544" class="indexterm"></a><a id="idm45828954225056" class="indexterm"></a><p>
+          <code class="literal">FULLTEXT</code> indexes are used for full-text
+          searches. Only the <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> and
+          <a class="link" href="myisam-storage-engine.html" title="16.2&nbsp;The MyISAM Storage Engine"><code class="literal">MyISAM</code></a> storage engines support
+          <code class="literal">FULLTEXT</code> indexes and only for
+          <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a>,
+          <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>, and
+          <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">TEXT</code></a> columns. Indexing always
+          takes place over the entire column and column prefix indexing
+          is not supported. For details, see
+          <a class="xref" href="fulltext-search.html" title="12.9&nbsp;Full-Text Search Functions">Section&nbsp;12.9, &ldquo;Full-Text Search Functions&rdquo;</a>.
+        </p><p>
+          Optimizations are applied to certain kinds of
+          <code class="literal">FULLTEXT</code> queries against single
+          <code class="literal">InnoDB</code> tables. Queries with these
+          characteristics are particularly efficient:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              <code class="literal">FULLTEXT</code> queries that only return the
+              document ID, or the document ID and the search rank.
+            </p></li><li class="listitem"><p>
+              <code class="literal">FULLTEXT</code> queries that sort the matching
+              rows in descending order of score and apply a
+              <code class="literal">LIMIT</code> clause to take the top N matching
+              rows. For this optimization to apply, there must be no
+              <code class="literal">WHERE</code> clauses and only a single
+              <code class="literal">ORDER BY</code> clause in descending order.
+            </p></li><li class="listitem"><p>
+              <code class="literal">FULLTEXT</code> queries that retrieve only the
+              <code class="literal">COUNT(*)</code> value of rows matching a
+              search term, with no additional <code class="literal">WHERE</code>
+              clauses. Code the <code class="literal">WHERE</code> clause as
+              <code class="literal">WHERE MATCH(<em class="replaceable"><code>text</code></em>)
+              AGAINST
+              (&#39;<em class="replaceable"><code>other_text</code></em>&#39;)</code>,
+              without any <code class="literal">&gt; 0</code> comparison operator.
+            </p></li></ul></div><p>
+          For queries that contain full-text expressions, MySQL
+          evaluates those expressions during the optimization phase of
+          query execution. The optimizer does not just look at full-text
+          expressions and make estimates, it actually evaluates them in
+          the process of developing an execution plan.
+        </p><p>
+          An implication of this behavior is that
+          <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> for full-text queries
+          is typically slower than for non-full-text queries for which
+          no expression evaluation occurs during the optimization phase.
+        </p><p>
+          <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> for full-text queries
+          may show <code class="literal">Select tables optimized away</code> in
+          the <code class="literal">Extra</code> column due to matching occurring
+          during optimization; in this case, no table access need occur
+          during later execution.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-325"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Spatial%20Indexes"></a><h4 class="title"><a id="column-indexes-spatial"></a>Spatial Indexes</h4></div></div></div><a id="idm45828954193488" class="indexterm"></a><a id="idm45828954192000" class="indexterm"></a><p>
+          You can create indexes on spatial data types.
+          <code class="literal">MyISAM</code> and <code class="literal">InnoDB</code>
+          support R-tree indexes on spatial types. Other storage engines
+          use B-trees for indexing spatial types (except for
+          <code class="literal">ARCHIVE</code>, which does not support spatial
+          type indexing).
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-326"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Indexes%20in%20the%20MEMORY%20Storage%20Engine"></a><h4 class="title"><a id="column-indexes-memory-storage-engine"></a>Indexes in the MEMORY Storage Engine</h4></div></div></div><a id="idm45828954186496" class="indexterm"></a><a id="idm45828954185008" class="indexterm"></a><p>
+          The <code class="literal">MEMORY</code> storage engine uses
+          <code class="literal">HASH</code> indexes by default, but also supports
+          <code class="literal">BTREE</code> indexes.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="foreign-key-optimization.html">Previous <span class="navHint"> Foreign Key Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimization-indexes.html">Up <span class="navHint"> Optimization and Indexes </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="multiple-column-indexes.html">Next <span class="navHint"> Multiple-Column Indexes </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

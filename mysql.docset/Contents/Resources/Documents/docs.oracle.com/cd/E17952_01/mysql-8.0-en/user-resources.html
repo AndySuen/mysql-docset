@@ -1,0 +1,182 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4496"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/6.2.21%C2%A0Setting%20Account%20Resource%20Limits"></a><title>6.2.21&nbsp;Setting Account Resource Limits</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="access-control.html" title="6.2&nbsp;Access Control and Account Management"/><link rel="prev" href="account-locking.html" title="6.2.20&nbsp;Account Locking"/><link rel="next" href="problems-connecting.html" title="6.2.22&nbsp;Troubleshooting Problems Connecting to MySQL"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="user-resources.html#user-resources">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="account-locking.html">Previous <span class="navHint"> Account Locking </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="problems-connecting.html">Next <span class="navHint"> Troubleshooting Problems Connecting to MySQL </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="user-resources"></a>6.2.21&nbsp;Setting Account Resource Limits</h3></div></div></div><a id="idm45828975243744" class="indexterm"></a><a id="idm45828975242288" class="indexterm"></a><a id="idm45828975240800" class="indexterm"></a><a id="idm45828975239728" class="indexterm"></a><a id="idm45828975238656" class="indexterm"></a><a id="idm45828975237568" class="indexterm"></a><p>
+      One means of restricting client use of MySQL server resources is
+      to set the global
+      <a class="link" href="server-system-variables.html#sysvar_max_user_connections"><code class="literal">max_user_connections</code></a> system
+      variable to a nonzero value. This limits the number of
+      simultaneous connections that can be made by any given account,
+      but places no limits on what a client can do once connected. In
+      addition, setting
+      <a class="link" href="server-system-variables.html#sysvar_max_user_connections"><code class="literal">max_user_connections</code></a> does not
+      enable management of individual accounts. Both types of control
+      are of interest to MySQL administrators.
+    </p><p>
+      To address such concerns, MySQL permits limits for individual
+      accounts on use of these server resources:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The number of queries an account can issue per hour
+        </p></li><li class="listitem"><p>
+          The number of updates an account can issue per hour
+        </p></li><li class="listitem"><p>
+          The number of times an account can connect to the server per
+          hour
+        </p></li><li class="listitem"><p>
+          The number of simultaneous connections to the server by an
+          account
+        </p></li></ul></div><p>
+      Any statement that a client can issue counts against the query
+      limit. Only statements that modify databases or tables count
+      against the update limit.
+    </p><p>
+      An <span class="quote">&ldquo;<span class="quote">account</span>&rdquo;</span> in this context corresponds to a row in
+      the <code class="literal">mysql.user</code> system table. That is, a
+      connection is assessed against the <code class="literal">User</code> and
+      <code class="literal">Host</code> values in the <code class="literal">user</code>
+      table row that applies to the connection. For example, an account
+      <code class="literal">&#39;usera&#39;@&#39;%.example.com&#39;</code> corresponds to a row in
+      the <code class="literal">user</code> table that has <code class="literal">User</code>
+      and <code class="literal">Host</code> values of <code class="literal">usera</code> and
+      <code class="literal">%.example.com</code>, to permit
+      <code class="literal">usera</code> to connect from any host in the
+      <code class="literal">example.com</code> domain. In this case, the server
+      applies resource limits in this row collectively to all
+      connections by <code class="literal">usera</code> from any host in the
+      <code class="literal">example.com</code> domain because all such connections
+      use the same account.
+    </p><p>
+      Before MySQL 5.0, an <span class="quote">&ldquo;<span class="quote">account</span>&rdquo;</span> was assessed against
+      the actual host from which a user connects. This older method of
+      accounting may be selected by starting the server with the
+      <a class="link" href="server-options.html#option_mysqld_old-style-user-limits"><code class="option">--old-style-user-limits</code></a> option. In
+      this case, if <code class="literal">usera</code> connects simultaneously
+      from <code class="literal">host1.example.com</code> and
+      <code class="literal">host2.example.com</code>, the server applies the
+      account resource limits separately to each connection. If
+      <code class="literal">usera</code> connects again from
+      <code class="literal">host1.example.com</code>, the server applies the
+      limits for that connection together with the existing connection
+      from that host.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        The <a class="link" href="server-options.html#option_mysqld_old-style-user-limits"><code class="option">--old-style-user-limits</code></a>
+        option is deprecated in MySQL 8.0.30, and is subject to removal
+        in a future release of MySQL. Use of this option on the command
+        line or in an option file in MySQL 8.0.30 or later causes the
+        server to raise a warning.
+      </p></div><p>
+      To establish resource limits for an account at account-creation
+      time, use the <a class="link" href="create-user.html" title="13.7.1.3&nbsp;CREATE USER Statement"><code class="literal">CREATE USER</code></a>
+      statement. To modify the limits for an existing account, use
+      <a class="link" href="alter-user.html" title="13.7.1.1&nbsp;ALTER USER Statement"><code class="literal">ALTER USER</code></a>. Provide a
+      <code class="literal">WITH</code> clause that names each resource to be
+      limited. The default value for each limit is zero (no limit). For
+      example, to create a new account that can access the
+      <code class="literal">customer</code> database, but only in a limited
+      fashion, issue these statements:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE USER &#39;francis&#39;@&#39;localhost&#39; IDENTIFIED BY &#39;frank&#39;</code></strong>
+    -&gt; <strong class="userinput"><code>    WITH MAX_QUERIES_PER_HOUR 20</code></strong>
+    -&gt; <strong class="userinput"><code>         MAX_UPDATES_PER_HOUR 10</code></strong>
+    -&gt; <strong class="userinput"><code>         MAX_CONNECTIONS_PER_HOUR 5</code></strong>
+    -&gt; <strong class="userinput"><code>         MAX_USER_CONNECTIONS 2;</code></strong>
+</pre><p>
+      The limit types need not all be named in the
+      <code class="literal">WITH</code> clause, but those named can be present in
+      any order. The value for each per-hour limit should be an integer
+      representing a count per hour. For
+      <code class="literal">MAX_USER_CONNECTIONS</code>, the limit is an integer
+      representing the maximum number of simultaneous connections by the
+      account. If this limit is set to zero, the global
+      <a class="link" href="server-system-variables.html#sysvar_max_user_connections"><code class="literal">max_user_connections</code></a> system
+      variable value determines the number of simultaneous connections.
+      If <a class="link" href="server-system-variables.html#sysvar_max_user_connections"><code class="literal">max_user_connections</code></a> is also
+      zero, there is no limit for the account.
+    </p><p>
+      To modify limits for an existing account, use an
+      <a class="link" href="alter-user.html" title="13.7.1.1&nbsp;ALTER USER Statement"><code class="literal">ALTER USER</code></a> statement. The following
+      statement changes the query limit for <code class="literal">francis</code>
+      to 100:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER USER &#39;francis&#39;@&#39;localhost&#39; WITH MAX_QUERIES_PER_HOUR 100;</code></strong>
+</pre><p>
+      The statement modifies only the limit value specified and leaves
+      the account otherwise unchanged.
+    </p><p>
+      To remove a limit, set its value to zero. For example, to remove
+      the limit on how many times per hour <code class="literal">francis</code>
+      can connect, use this statement:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER USER &#39;francis&#39;@&#39;localhost&#39; WITH MAX_CONNECTIONS_PER_HOUR 0;</code></strong>
+</pre><p>
+      As mentioned previously, the simultaneous-connection limit for an
+      account is determined from the
+      <code class="literal">MAX_USER_CONNECTIONS</code> limit and the
+      <a class="link" href="server-system-variables.html#sysvar_max_user_connections"><code class="literal">max_user_connections</code></a> system
+      variable. Suppose that the global
+      <a class="link" href="server-system-variables.html#sysvar_max_user_connections"><code class="literal">max_user_connections</code></a> value is 10
+      and three accounts have individual resource limits specified as
+      follows:
+    </p><pre class="programlisting">ALTER USER &#39;user1&#39;@&#39;localhost&#39; WITH MAX_USER_CONNECTIONS 0;
+ALTER USER &#39;user2&#39;@&#39;localhost&#39; WITH MAX_USER_CONNECTIONS 5;
+ALTER USER &#39;user3&#39;@&#39;localhost&#39; WITH MAX_USER_CONNECTIONS 20;
+</pre><p>
+      <code class="literal">user1</code> has a connection limit of 10 (the global
+      <a class="link" href="server-system-variables.html#sysvar_max_user_connections"><code class="literal">max_user_connections</code></a> value)
+      because it has a <code class="literal">MAX_USER_CONNECTIONS</code> limit of
+      zero. <code class="literal">user2</code> and <code class="literal">user3</code> have
+      connection limits of 5 and 20, respectively, because they have
+      nonzero <code class="literal">MAX_USER_CONNECTIONS</code> limits.
+    </p><p>
+      The server stores resource limits for an account in the
+      <code class="literal">user</code> table row corresponding to the account.
+      The <code class="literal">max_questions</code>,
+      <code class="literal">max_updates</code>, and
+      <code class="literal">max_connections</code> columns store the per-hour
+      limits, and the <code class="literal">max_user_connections</code> column
+      stores the <code class="literal">MAX_USER_CONNECTIONS</code> limit. (See
+      <a class="xref" href="grant-tables.html" title="6.2.3&nbsp;Grant Tables">Section&nbsp;6.2.3, &ldquo;Grant Tables&rdquo;</a>.)
+    </p><p>
+      Resource-use counting takes place when any account has a nonzero
+      limit placed on its use of any of the resources.
+    </p><p>
+      As the server runs, it counts the number of times each account
+      uses resources. If an account reaches its limit on number of
+      connections within the last hour, the server rejects further
+      connections for the account until that hour is up. Similarly, if
+      the account reaches its limit on the number of queries or updates,
+      the server rejects further queries or updates until the hour is
+      up. In all such cases, the server issues appropriate error
+      messages.
+    </p><p>
+      Resource counting occurs per account, not per client. For example,
+      if your account has a query limit of 50, you cannot increase your
+      limit to 100 by making two simultaneous client connections to the
+      server. Queries issued on both connections are counted together.
+    </p><p>
+      The current per-hour resource-use counts can be reset globally for
+      all accounts, or individually for a given account:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          To reset the current counts to zero for all accounts, issue a
+          <a class="link" href="flush.html#flush-user-resources"><code class="literal">FLUSH USER_RESOURCES</code></a> statement.
+          The counts also can be reset by reloading the grant tables
+          (for example, with a <a class="link" href="flush.html#flush-privileges"><code class="literal">FLUSH
+          PRIVILEGES</code></a> statement or a <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin
+          reload</strong></span></a> command).
+        </p></li><li class="listitem"><p>
+          The counts for an individual account can be reset to zero by
+          setting any of its limits again. Specify a limit value equal
+          to the value currently assigned to the account.
+        </p></li></ul></div><p>
+      Per-hour counter resets do not affect the
+      <code class="literal">MAX_USER_CONNECTIONS</code> limit.
+    </p><p>
+      All counts begin at zero when the server starts. Counts do not
+      carry over through server restarts.
+    </p><p>
+      For the <code class="literal">MAX_USER_CONNECTIONS</code> limit, an edge
+      case can occur if the account currently has open the maximum
+      number of connections permitted to it: A disconnect followed
+      quickly by a connect can result in an error
+      (<a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_too_many_user_connections" target="_top"><code class="literal">ER_TOO_MANY_USER_CONNECTIONS</code></a> or
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_user_limit_reached" target="_top"><code class="literal">ER_USER_LIMIT_REACHED</code></a>) if the
+      server has not fully processed the disconnect by the time the
+      connect occurs. When the server finishes disconnect processing,
+      another connection is once more permitted.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="account-locking.html">Previous <span class="navHint"> Account Locking </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="problems-connecting.html">Next <span class="navHint"> Troubleshooting Problems Connecting to MySQL </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

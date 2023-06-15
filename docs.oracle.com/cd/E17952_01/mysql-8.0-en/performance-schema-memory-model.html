@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>27.17 The Performance Schema Memory-Allocation Model</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="performance-schema.html" title="Chapter 27 MySQL Performance Schema" /><link rel="prev" href="performance-schema-status-variables.html" title="27.16 Performance Schema Status Variables" /><link rel="next" href="performance-schema-and-plugins.html" title="27.18 Performance Schema and Plugins" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-memory-model.html#performance-schema-memory-model">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="performance-schema-status-variables.html">Previous <span class="navHint"> Performance Schema Status Variables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="performance-schema-and-plugins.html">Next <span class="navHint"> Performance Schema and Plugins </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="performance-schema-memory-model"></a>27.17 The Performance Schema Memory-Allocation Model</h2></div></div></div><p>
+      The Performance Schema uses this memory allocation model:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          May allocate memory at server startup
+        </p></li><li class="listitem"><p>
+          May allocate additional memory during server operation
+        </p></li><li class="listitem"><p>
+          Never free memory during server operation (although it might
+          be recycled)
+        </p></li><li class="listitem"><p>
+          Free all memory used at shutdown
+        </p></li></ul></div><p>
+      The result is to relax memory constraints so that the Performance
+      Schema can be used with less configuration, and to decrease the
+      memory footprint so that consumption scales with server load.
+      Memory used depends on the load actually seen, not the load
+      estimated or explicitly configured for.
+    </p><p>
+      Several Performance Schema sizing parameters are autoscaled and
+      need not be configured explicitly unless you want to establish an
+      explicit limit on memory allocation:
+    </p><pre class="programlisting">performance_schema_accounts_size
+performance_schema_hosts_size
+performance_schema_max_cond_instances
+performance_schema_max_file_instances
+performance_schema_max_index_stat
+performance_schema_max_metadata_locks
+performance_schema_max_mutex_instances
+performance_schema_max_prepared_statements_instances
+performance_schema_max_program_instances
+performance_schema_max_rwlock_instances
+performance_schema_max_socket_instances
+performance_schema_max_table_handles
+performance_schema_max_table_instances
+performance_schema_max_table_lock_stat
+performance_schema_max_thread_instances
+performance_schema_users_size
+</pre><p>
+      For an autoscaled parameter, configuration works like this:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          With the value set to -1 (the default), the parameter is
+          autoscaled:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              The corresponding internal buffer is empty initially and
+              no memory is allocated.
+            </p></li><li class="listitem"><p>
+              As the Performance Schema collects data, memory is
+              allocated in the corresponding buffer. The buffer size is
+              unbounded, and may grow with the load.
+            </p></li></ul></div></li><li class="listitem"><p>
+          With the value set to 0:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              The corresponding internal buffer is empty initially and
+              no memory is allocated.
+            </p></li></ul></div></li><li class="listitem"><p>
+          With the value set to <em class="replaceable"><code>N</code></em> &gt; 0:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              The corresponding internal buffer is empty initially and
+              no memory is allocated.
+            </p></li><li class="listitem"><p>
+              As the Performance Schema collects data, memory is
+              allocated in the corresponding buffer, until the buffer
+              size reaches <em class="replaceable"><code>N</code></em>.
+            </p></li><li class="listitem"><p>
+              Once the buffer size reaches <em class="replaceable"><code>N</code></em>,
+              no more memory is allocated. Data collected by the
+              Performance Schema for this buffer is lost, and any
+              corresponding <span class="quote">“<span class="quote">lost instance</span>”</span> counters are
+              incremented.
+            </p></li></ul></div></li></ul></div><p>
+      To see how much memory the Performance Schema is using, check the
+      instruments designed for that purpose. The Performance Schema
+      allocates memory internally and associates each buffer with a
+      dedicated instrument so that memory consumption can be traced to
+      individual buffers. Instruments named with the prefix
+      <code class="literal">memory/performance_schema/</code> expose how much
+      memory is allocated for these internal buffers. The buffers are
+      global to the server, so the instruments are displayed only in the
+      <a class="link" href="performance-schema-memory-summary-tables.html" title="27.12.20.10 Memory Summary Tables"><code class="literal">memory_summary_global_by_event_name</code></a>
+      table, and not in other
+      <code class="literal">memory_summary_by_<em class="replaceable"><code>xxx</code></em>_by_event_name</code>
+      tables.
+    </p><p>
+      This query shows the information associated with the memory
+      instruments:
+    </p><pre class="programlisting">SELECT * FROM performance_schema.memory_summary_global_by_event_name
+WHERE EVENT_NAME LIKE 'memory/performance_schema/%';
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="performance-schema-status-variables.html">Previous <span class="navHint"> Performance Schema Status Variables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-and-plugins.html">Next <span class="navHint"> Performance Schema and Plugins </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

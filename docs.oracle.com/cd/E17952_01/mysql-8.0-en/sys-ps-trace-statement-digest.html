@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>28.4.4.22 The ps_trace_statement_digest() Procedure</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="sys-schema-procedures.html" title="28.4.4 sys Schema Stored Procedures" /><link rel="prev" href="sys-ps-statement-avg-latency-histogram.html" title="28.4.4.21 The ps_statement_avg_latency_histogram() Procedure" /><link rel="next" href="sys-ps-trace-thread.html" title="28.4.4.23 The ps_trace_thread() Procedure" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="sys-ps-trace-statement-digest.html#sys-ps-trace-statement-digest">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="sys-ps-statement-avg-latency-histogram.html">Previous <span class="navHint"> The ps_statement_avg_latency_histogram() Procedure </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="sys-schema-procedures.html">Up <span class="navHint"> sys Schema Stored Procedures </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="sys-ps-trace-thread.html">Next <span class="navHint"> The ps_trace_thread() Procedure </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="sys-ps-trace-statement-digest"></a>28.4.4.22 The ps_trace_statement_digest() Procedure</h4></div></div></div><a id="idm45828778701152" class="indexterm"></a><a id="idm45828778699696" class="indexterm"></a><p>
+          Traces all Performance Schema instrumentation for a specific
+          statement digest.
+        </p><p>
+          If you find a statement of interest within the Performance
+          Schema
+          <a class="link" href="performance-schema-statement-summary-tables.html" title="27.12.20.3 Statement Summary Tables"><code class="literal">events_statements_summary_by_digest</code></a>
+          table, specify its <code class="literal">DIGEST</code> column MD5 value
+          to this procedure and indicate the polling duration and
+          interval. The result is a report of all statistics tracked
+          within Performance Schema for that digest for the interval.
+        </p><p>
+          The procedure also attempts to execute
+          <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> for the longest running
+          example of the digest during the interval. This attempt might
+          fail because the Performance Schema truncates long
+          <code class="literal">SQL_TEXT</code> values. Consequently,
+          <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> fails, due to parse
+          errors.
+        </p><p>
+          This procedure disables binary logging during its execution by
+          manipulating the session value of the
+          <a class="link" href="replication-options-binary-log.html#sysvar_sql_log_bin"><code class="literal">sql_log_bin</code></a> system variable.
+          That is a restricted operation, so the procedure requires
+          privileges sufficient to set restricted session variables. See
+          <a class="xref" href="system-variable-privileges.html" title="5.1.9.1 System Variable Privileges">Section 5.1.9.1, “System Variable Privileges”</a>.
+        </p><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="sys-ps-trace-statement-digest-parameters"></a>Parameters</h5></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                <code class="literal">in_digest VARCHAR(32)</code>: The statement
+                digest identifier to analyze.
+              </p></li><li class="listitem"><p>
+                <code class="literal">in_runtime INT</code>: How long to run the
+                analysis in seconds.
+              </p></li><li class="listitem"><p>
+                <code class="literal">in_interval DECIMAL(2,2)</code>: The
+                analysis interval in seconds (which can be fractional)
+                at which to try to take snapshots.
+              </p></li><li class="listitem"><p>
+                <code class="literal">in_start_fresh BOOLEAN</code>: Whether to
+                truncate the Performance Schema
+                <a class="link" href="performance-schema-events-statements-history-long-table.html" title="27.12.6.3 The events_statements_history_long Table"><code class="literal">events_statements_history_long</code></a>
+                and
+                <a class="link" href="performance-schema-events-stages-history-long-table.html" title="27.12.5.3 The events_stages_history_long Table"><code class="literal">events_stages_history_long</code></a>
+                tables before starting.
+              </p></li><li class="listitem"><p>
+                <code class="literal">in_auto_enable BOOLEAN</code>: Whether to
+                automatically enable required consumers.
+              </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="sys-ps-trace-statement-digest-example"></a>Example</h5></div></div></div><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CALL sys.ps_trace_statement_digest('891ec6860f98ba46d89dd20b0c03652c', 10, 0.1, TRUE, TRUE);</code></strong>
++--------------------+
+| SUMMARY STATISTICS |
++--------------------+
+| SUMMARY STATISTICS |
++--------------------+
+1 row in set (9.11 sec)
+
++------------+-----------+-----------+-----------+---------------+------------+------------+
+| executions | exec_time | lock_time | rows_sent | rows_examined | tmp_tables | full_scans |
++------------+-----------+-----------+-----------+---------------+------------+------------+
+|         21 | 4.11 ms   | 2.00 ms   |         0 |            21 |          0 |          0 |
++------------+-----------+-----------+-----------+---------------+------------+------------+
+1 row in set (9.11 sec)
+
++------------------------------------------+-------+-----------+
+| event_name                               | count | latency   |
++------------------------------------------+-------+-----------+
+| stage/sql/statistics                     |    16 | 546.92 us |
+| stage/sql/freeing items                  |    18 | 520.11 us |
+| stage/sql/init                           |    51 | 466.80 us |
+...
+| stage/sql/cleaning up                    |    18 | 11.92 us  |
+| stage/sql/executing                      |    16 | 6.95 us   |
++------------------------------------------+-------+-----------+
+17 rows in set (9.12 sec)
+
++---------------------------+
+| LONGEST RUNNING STATEMENT |
++---------------------------+
+| LONGEST RUNNING STATEMENT |
++---------------------------+
+1 row in set (9.16 sec)
+
++-----------+-----------+-----------+-----------+---------------+------------+-----------+
+| thread_id | exec_time | lock_time | rows_sent | rows_examined | tmp_tables | full_scan |
++-----------+-----------+-----------+-----------+---------------+------------+-----------+
+|    166646 | 618.43 us | 1.00 ms   |         0 |             1 |          0 |         0 |
++-----------+-----------+-----------+-----------+---------------+------------+-----------+
+1 row in set (9.16 sec)
+
+# Truncated for clarity...
++-----------------------------------------------------------------+
+| sql_text                                                        |
++-----------------------------------------------------------------+
+| select hibeventhe0_.id as id1382_, hibeventhe0_.createdTime ... |
++-----------------------------------------------------------------+
+1 row in set (9.17 sec)
+
++------------------------------------------+-----------+
+| event_name                               | latency   |
++------------------------------------------+-----------+
+| stage/sql/init                           | 8.61 us   |
+| stage/sql/init                           | 331.07 ns |
+...
+| stage/sql/freeing items                  | 30.46 us  |
+| stage/sql/cleaning up                    | 662.13 ns |
++------------------------------------------+-----------+
+18 rows in set (9.23 sec)
+
++----+-------------+--------------+-------+---------------+-----------+---------+-------------+------+-------+
+| id | select_type | table        | type  | possible_keys | key       | key_len | ref         | rows | Extra |
++----+-------------+--------------+-------+---------------+-----------+---------+-------------+------+-------+
+|  1 | SIMPLE      | hibeventhe0_ | const | fixedTime     | fixedTime | 775     | const,const |    1 | NULL  |
++----+-------------+--------------+-------+---------------+-----------+---------+-------------+------+-------+
+1 row in set (9.27 sec)
+
+Query OK, 0 rows affected (9.28 sec)
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="sys-ps-statement-avg-latency-histogram.html">Previous <span class="navHint"> The ps_statement_avg_latency_histogram() Procedure </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sys-schema-procedures.html">Up <span class="navHint"> sys Schema Stored Procedures </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="sys-ps-trace-thread.html">Next <span class="navHint"> The ps_trace_thread() Procedure </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,186 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-378"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/5.1.12.1%C2%A0Connection%20Interfaces"></a><title>5.1.12.1&nbsp;Connection Interfaces</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="connection-management.html" title="5.1.12&nbsp;Connection Management"/><link rel="prev" href="connection-management.html" title="5.1.12&nbsp;Connection Management"/><link rel="next" href="administrative-connection-interface.html" title="5.1.12.2&nbsp;Administrative Connection Management"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="connection-interfaces.html#connection-interfaces">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="connection-management.html">Previous <span class="navHint"> Connection Management </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="connection-management.html">Up <span class="navHint"> Connection Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="administrative-connection-interface.html">Next <span class="navHint"> Administrative Connection Management </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-377"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/5.1.12.1%C2%A0Connection%20Interfaces"></a><h4 class="title"><a id="connection-interfaces"></a>5.1.12.1&nbsp;Connection Interfaces</h4></div></div></div><a id="idm45828988595520" class="indexterm"></a><a id="idm45828988594032" class="indexterm"></a><a id="idm45828988592544" class="indexterm"></a><a id="idm45828988591456" class="indexterm"></a><a id="idm45828988590368" class="indexterm"></a><a id="idm45828988589296" class="indexterm"></a><a id="idm45828988588224" class="indexterm"></a><p>
+        This section describes aspects of how the MySQL server manages
+        client connections.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="connection-interfaces.html#connection-interfaces-interfaces" title="Network Interfaces and Connection Manager Threads">Network Interfaces and Connection Manager Threads</a></p></li><li class="listitem"><p><a class="xref" href="connection-interfaces.html#connection-interfaces-thread-management" title="Client Connection Thread Management">Client Connection Thread Management</a></p></li><li class="listitem"><p><a class="xref" href="connection-interfaces.html#connection-interfaces-volume-management" title="Connection Volume Management">Connection Volume Management</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="connection-interfaces-interfaces"></a>Network Interfaces and Connection Manager Threads</h5></div></div></div><p>
+          The server is capable of listening for client connections on
+          multiple network interfaces. Connection manager threads handle
+          client connection requests on the network interfaces that the
+          server listens to:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              On all platforms, one manager thread handles TCP/IP
+              connection requests.
+            </p></li><li class="listitem"><p>
+              On Unix, the same manager thread also handles Unix socket
+              file connection requests.
+            </p></li><li class="listitem"><p>
+              On Windows, one manager thread handles shared-memory
+              connection requests, and another handles named-pipe
+              connection requests.
+            </p></li><li class="listitem"><p>
+              On all platforms, an additional network interface may be
+              enabled to accept administrative TCP/IP connection
+              requests. This interface can use the manager thread that
+              handles <span class="quote">&ldquo;<span class="quote">ordinary</span>&rdquo;</span> TCP/IP requests, or a
+              separate thread.
+            </p></li></ul></div><p>
+          The server does not create threads to handle interfaces that
+          it does not listen to. For example, a Windows server that does
+          not have support for named-pipe connections enabled does not
+          create a thread to handle them.
+        </p><p>
+          Individual server plugins or components may implement their
+          own connection interface:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              X Plugin enables MySQL Server to communicate with clients
+              using X Protocol. See <a class="xref" href="x-plugin.html" title="20.5&nbsp;X Plugin">Section&nbsp;20.5, &ldquo;X Plugin&rdquo;</a>.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="connection-interfaces-thread-management"></a>Client Connection Thread Management</h5></div></div></div><p>
+          Connection manager threads associate each client connection
+          with a thread dedicated to it that handles authentication and
+          request processing for that connection. Manager threads create
+          a new thread when necessary but try to avoid doing so by
+          consulting the thread cache first to see whether it contains a
+          thread that can be used for the connection. When a connection
+          ends, its thread is returned to the thread cache if the cache
+          is not full.
+        </p><p>
+          In this connection thread model, there are as many threads as
+          there are clients currently connected, which has some
+          disadvantages when server workload must scale to handle large
+          numbers of connections. For example, thread creation and
+          disposal becomes expensive. Also, each thread requires server
+          and kernel resources, such as stack space. To accommodate a
+          large number of simultaneous connections, the stack size per
+          thread must be kept small, leading to a situation where it is
+          either too small or the server consumes large amounts of
+          memory. Exhaustion of other resources can occur as well, and
+          scheduling overhead can become significant.
+        </p><p>
+          MySQL Enterprise Edition includes a thread pool plugin that provides an
+          alternative thread-handling model designed to reduce overhead
+          and improve performance. It implements a thread pool that
+          increases server performance by efficiently managing statement
+          execution threads for large numbers of client connections. See
+          <a class="xref" href="thread-pool.html" title="5.6.3&nbsp;MySQL Enterprise Thread Pool">Section&nbsp;5.6.3, &ldquo;MySQL Enterprise Thread Pool&rdquo;</a>.
+        </p><p>
+          To control and monitor how the server manages threads that
+          handle client connections, several system and status variables
+          are relevant. (See <a class="xref" href="server-system-variables.html" title="5.1.8&nbsp;Server System Variables">Section&nbsp;5.1.8, &ldquo;Server System Variables&rdquo;</a>,
+          and <a class="xref" href="server-status-variables.html" title="5.1.10&nbsp;Server Status Variables">Section&nbsp;5.1.10, &ldquo;Server Status Variables&rdquo;</a>.)
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The <a class="link" href="server-system-variables.html#sysvar_thread_cache_size"><code class="literal">thread_cache_size</code></a>
+              system variable determines the thread cache size. By
+              default, the server autosizes the value at startup, but it
+              can be set explicitly to override this default. A value of
+              0 disables caching, which causes a thread to be set up for
+              each new connection and disposed of when the connection
+              terminates. To enable <em class="replaceable"><code>N</code></em>
+              inactive connection threads to be cached, set
+              <a class="link" href="server-system-variables.html#sysvar_thread_cache_size"><code class="literal">thread_cache_size</code></a> to
+              <em class="replaceable"><code>N</code></em> at server startup or at
+              runtime. A connection thread becomes inactive when the
+              client connection with which it was associated terminates.
+            </p></li><li class="listitem"><p>
+              To monitor the number of threads in the cache and how many
+              threads have been created because a thread could not be
+              taken from the cache, check the
+              <a class="link" href="server-status-variables.html#statvar_Threads_cached"><code class="literal">Threads_cached</code></a> and
+              <a class="link" href="server-status-variables.html#statvar_Threads_created"><code class="literal">Threads_created</code></a> status
+              variables.
+            </p></li><li class="listitem"><p>
+              When the thread stack is too small, this limits the
+              complexity of the SQL statements the server can handle,
+              the recursion depth of stored procedures, and other
+              memory-consuming actions. To set a stack size of
+              <em class="replaceable"><code>N</code></em> bytes for each thread, start
+              the server with
+              <a class="link" href="server-system-variables.html#sysvar_thread_stack"><code class="literal">thread_stack</code></a> set to
+              <em class="replaceable"><code>N</code></em>.
+            </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="connection-interfaces-volume-management"></a>Connection Volume Management</h5></div></div></div><p>
+          To control the maximum number of clients the server permits to
+          connect simultaneously, set the
+          <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a> system
+          variable at server startup or at runtime. It may be necessary
+          to increase <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a>
+          if more clients attempt to connect simultaneously then the
+          server is configured to handle (see
+          <a class="xref" href="too-many-connections.html" title="B.3.2.5&nbsp;Too many connections">Section&nbsp;B.3.2.5, &ldquo;Too many connections&rdquo;</a>). If the server refuses
+          a connection because the
+          <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a> limit is
+          reached, it increments the
+          <a class="link" href="server-status-variables.html#statvar_Connection_errors_max_connections"><code class="literal">Connection_errors_max_connections</code></a>
+          status variable.
+        </p><p>
+          <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> actually permits
+          <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a>
+          + 1 client connections. The extra connection is reserved for
+          use by accounts that have the
+          <a class="link" href="privileges-provided.html#priv_connection-admin"><code class="literal">CONNECTION_ADMIN</code></a> privilege (or
+          the deprecated <a class="link" href="privileges-provided.html#priv_super"><code class="literal">SUPER</code></a>
+          privilege). By granting the privilege to administrators and
+          not to normal users (who should not need it), an administrator
+          can connect to the server and use <a class="link" href="show-processlist.html" title="13.7.7.29&nbsp;SHOW PROCESSLIST Statement"><code class="literal">SHOW
+          PROCESSLIST</code></a> to diagnose problems even if the maximum
+          number of unprivileged clients are connected. See
+          <a class="xref" href="show-processlist.html" title="13.7.7.29&nbsp;SHOW PROCESSLIST Statement">Section&nbsp;13.7.7.29, &ldquo;SHOW PROCESSLIST Statement&rdquo;</a>.
+        </p><p>
+          As of MySQL 8.0.14, the server also permits administrative
+          connections on an administrative network interface, which you
+          can set up using a dedicated IP address and port. See
+          <a class="xref" href="administrative-connection-interface.html" title="5.1.12.2&nbsp;Administrative Connection Management">Section&nbsp;5.1.12.2, &ldquo;Administrative Connection Management&rdquo;</a>.
+        </p><p>
+          The Group Replication plugin interacts with MySQL Server using
+          internal sessions to perform SQL API operations. In releases
+          to MySQL 8.0.18, these sessions count towards the client
+          connections limit specified by the
+          <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a> server system
+          variable. In those releases, if the server has reached the
+          <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a> limit when
+          Group Replication is started or attempts to perform an
+          operation, the operation is unsuccessful and Group Replication
+          or the server itself might stop. From MySQL 8.0.19, Group
+          Replication&#39;s internal sessions are handled separately from
+          client connections, so they do not count towards the
+          <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a> limit and are
+          not refused if the server has reached this limit.
+        </p><p>
+          The maximum number of client connections MySQL supports (that
+          is, the maximum value to which
+          <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a> can be set)
+          depends on several factors:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The quality of the thread library on a given platform.
+            </p></li><li class="listitem"><p>
+              The amount of RAM available.
+            </p></li><li class="listitem"><p>
+              The amount of RAM is used for each connection.
+            </p></li><li class="listitem"><p>
+              The workload from each connection.
+            </p></li><li class="listitem"><p>
+              The desired response time.
+            </p></li><li class="listitem"><p>
+              The number of file descriptors available.
+            </p></li></ul></div><p>
+          Linux or Solaris should be able to support at least 500 to
+          1000 simultaneous connections routinely and as many as 10,000
+          connections if you have many gigabytes of RAM available and
+          the workload from each is low or the response time target
+          undemanding.
+        </p><p>
+          Increasing the
+          <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a> value
+          increases the number of file descriptors that
+          <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> requires. If the required number of
+          descriptors are not available, the server reduces the value of
+          <a class="link" href="server-system-variables.html#sysvar_max_connections"><code class="literal">max_connections</code></a>. For comments
+          on file descriptor limits, see <a class="xref" href="table-cache.html" title="8.4.3.1&nbsp;How MySQL Opens and Closes Tables">Section&nbsp;8.4.3.1, &ldquo;How MySQL Opens and Closes Tables&rdquo;</a>.
+        </p><p>
+          Increasing the
+          <a class="link" href="server-system-variables.html#sysvar_open_files_limit"><code class="literal">open_files_limit</code></a> system
+          variable may be necessary, which may also require raising the
+          operating system limit on how many file descriptors can be
+          used by MySQL. Consult your operating system documentation to
+          determine whether it is possible to increase the limit and how
+          to do so. See also <a class="xref" href="not-enough-file-handles.html" title="B.3.2.16&nbsp;File Not Found and Similar Errors">Section&nbsp;B.3.2.16, &ldquo;File Not Found and Similar Errors&rdquo;</a>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="connection-management.html">Previous <span class="navHint"> Connection Management </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="connection-management.html">Up <span class="navHint"> Connection Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="administrative-connection-interface.html">Next <span class="navHint"> Administrative Connection Management </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

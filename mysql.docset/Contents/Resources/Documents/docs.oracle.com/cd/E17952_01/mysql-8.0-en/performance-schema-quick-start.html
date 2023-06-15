@@ -1,0 +1,424 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3234"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/27.1%C2%A0Performance%20Schema%20Quick%20Start"></a><title>27.1&nbsp;Performance Schema Quick Start</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="performance-schema.html" title="Chapter&nbsp;27&nbsp;MySQL Performance Schema"/><link rel="prev" href="performance-schema.html" title="Chapter&nbsp;27&nbsp;MySQL Performance Schema"/><link rel="next" href="performance-schema-build-configuration.html" title="27.2&nbsp;Performance Schema Build Configuration"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-quick-start.html#performance-schema-quick-start">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="performance-schema.html">Previous <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="performance-schema-build-configuration.html">Next <span class="navHint"> Performance Schema Build Configuration </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="performance-schema-quick-start"></a>27.1&nbsp;Performance Schema Quick Start</h2></div></div></div><p>
+      This section briefly introduces the Performance Schema with
+      examples that show how to use it. For additional examples, see
+      <a class="xref" href="performance-schema-examples.html" title="27.19&nbsp;Using the Performance Schema to Diagnose Problems">Section&nbsp;27.19, &ldquo;Using the Performance Schema to Diagnose Problems&rdquo;</a>.
+    </p><p>
+      The Performance Schema is enabled by default. To enable or disable
+      it explicitly, start the server with the
+      <a class="link" href="performance-schema-system-variables.html#sysvar_performance_schema"><code class="literal">performance_schema</code></a> variable set
+      to an appropriate value. For example, use these lines in the
+      server <code class="filename">my.cnf</code> file:
+    </p><pre class="programlisting">[mysqld]
+performance_schema=ON
+</pre><p>
+      When the server starts, it sees
+      <a class="link" href="performance-schema-system-variables.html#sysvar_performance_schema"><code class="literal">performance_schema</code></a> and attempts
+      to initialize the Performance Schema. To verify successful
+      initialization, use this statement:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW VARIABLES LIKE &#39;performance_schema&#39;;</code></strong>
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| performance_schema | ON    |
++--------------------+-------+
+</pre><p>
+      A value of <code class="literal">ON</code> means that the Performance Schema
+      initialized successfully and is ready for use. A value of
+      <code class="literal">OFF</code> means that some error occurred. Check the
+      server error log for information about what went wrong.
+    </p><p>
+      The Performance Schema is implemented as a storage engine, so you
+      can see it listed in the output from the Information Schema
+      <a class="link" href="information-schema-engines-table.html" title="26.3.13&nbsp;The INFORMATION_SCHEMA ENGINES Table"><code class="literal">ENGINES</code></a> table or the
+      <a class="link" href="show-engines.html" title="13.7.7.16&nbsp;SHOW ENGINES Statement"><code class="literal">SHOW ENGINES</code></a> statement:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM INFORMATION_SCHEMA.ENGINES</code></strong>
+       <strong class="userinput"><code>WHERE ENGINE=&#39;PERFORMANCE_SCHEMA&#39;\G</code></strong>
+*************************** 1. row ***************************
+      ENGINE: PERFORMANCE_SCHEMA
+     SUPPORT: YES
+     COMMENT: Performance Schema
+TRANSACTIONS: NO
+          XA: NO
+  SAVEPOINTS: NO
+
+mysql&gt; <strong class="userinput"><code>SHOW ENGINES\G</code></strong>
+...
+      Engine: PERFORMANCE_SCHEMA
+     Support: YES
+     Comment: Performance Schema
+Transactions: NO
+          XA: NO
+  Savepoints: NO
+...
+</pre><p>
+      The <a class="link" href="performance-schema.html" title="Chapter&nbsp;27&nbsp;MySQL Performance Schema"><code class="literal">PERFORMANCE_SCHEMA</code></a> storage engine
+      operates on tables in the <code class="literal">performance_schema</code>
+      database. You can make <code class="literal">performance_schema</code> the
+      default database so that references to its tables need not be
+      qualified with the database name:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>USE performance_schema;</code></strong>
+</pre><p>
+      Performance Schema tables are stored in the
+      <code class="literal">performance_schema</code> database. Information about
+      the structure of this database and its tables can be obtained, as
+      for any other database, by selecting from the
+      <code class="literal">INFORMATION_SCHEMA</code> database or by using
+      <a class="link" href="show.html" title="13.7.7&nbsp;SHOW Statements"><code class="literal">SHOW</code></a> statements. For example, use
+      either of these statements to see what Performance Schema tables
+      exist:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES</code></strong>
+       <strong class="userinput"><code>WHERE TABLE_SCHEMA = &#39;performance_schema&#39;;</code></strong>
++------------------------------------------------------+
+| TABLE_NAME                                           |
++------------------------------------------------------+
+| accounts                                             |
+| cond_instances                                       |
+...
+| events_stages_current                                |
+| events_stages_history                                |
+| events_stages_history_long                           |
+| events_stages_summary_by_account_by_event_name       |
+| events_stages_summary_by_host_by_event_name          |
+| events_stages_summary_by_thread_by_event_name        |
+| events_stages_summary_by_user_by_event_name          |
+| events_stages_summary_global_by_event_name           |
+| events_statements_current                            |
+| events_statements_history                            |
+| events_statements_history_long                       |
+...
+| file_instances                                       |
+| file_summary_by_event_name                           |
+| file_summary_by_instance                             |
+| host_cache                                           |
+| hosts                                                |
+| memory_summary_by_account_by_event_name              |
+| memory_summary_by_host_by_event_name                 |
+| memory_summary_by_thread_by_event_name               |
+| memory_summary_by_user_by_event_name                 |
+| memory_summary_global_by_event_name                  |
+| metadata_locks                                       |
+| mutex_instances                                      |
+| objects_summary_global_by_type                       |
+| performance_timers                                   |
+| replication_connection_configuration                 |
+| replication_connection_status                        |
+| replication_applier_configuration                    |
+| replication_applier_status                           |
+| replication_applier_status_by_coordinator            |
+| replication_applier_status_by_worker                 |
+| rwlock_instances                                     |
+| session_account_connect_attrs                        |
+| session_connect_attrs                                |
+| setup_actors                                         |
+| setup_consumers                                      |
+| setup_instruments                                    |
+| setup_objects                                        |
+| socket_instances                                     |
+| socket_summary_by_event_name                         |
+| socket_summary_by_instance                           |
+| table_handles                                        |
+| table_io_waits_summary_by_index_usage                |
+| table_io_waits_summary_by_table                      |
+| table_lock_waits_summary_by_table                    |
+| threads                                              |
+| users                                                |
++------------------------------------------------------+
+
+mysql&gt; <strong class="userinput"><code>SHOW TABLES FROM performance_schema;</code></strong>
++------------------------------------------------------+
+| Tables_in_performance_schema                         |
++------------------------------------------------------+
+| accounts                                             |
+| cond_instances                                       |
+| events_stages_current                                |
+| events_stages_history                                |
+| events_stages_history_long                           |
+...
+</pre><p>
+      The number of Performance Schema tables increases over time as
+      implementation of additional instrumentation proceeds.
+    </p><p>
+      The name of the <code class="literal">performance_schema</code> database is
+      lowercase, as are the names of tables within it. Queries should
+      specify the names in lowercase.
+    </p><p>
+      To see the structure of individual tables, use
+      <a class="link" href="show-create-table.html" title="13.7.7.10&nbsp;SHOW CREATE TABLE Statement"><code class="literal">SHOW CREATE TABLE</code></a>:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW CREATE TABLE performance_schema.setup_consumers\G</code></strong>
+*************************** 1. row ***************************
+       Table: setup_consumers
+Create Table: CREATE TABLE `setup_consumers` (
+  `NAME` varchar(64) NOT NULL,
+  `ENABLED` enum(&#39;YES&#39;,&#39;NO&#39;) NOT NULL,
+  PRIMARY KEY (`NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+</pre><p>
+      Table structure is also available by selecting from tables such as
+      <a class="link" href="information-schema-columns-table.html" title="26.3.8&nbsp;The INFORMATION_SCHEMA COLUMNS Table"><code class="literal">INFORMATION_SCHEMA.COLUMNS</code></a> or by
+      using statements such as <a class="link" href="show-columns.html" title="13.7.7.5&nbsp;SHOW COLUMNS Statement"><code class="literal">SHOW
+      COLUMNS</code></a>.
+    </p><p>
+      Tables in the <code class="literal">performance_schema</code> database can
+      be grouped according to the type of information in them: Current
+      events, event histories and summaries, object instances, and setup
+      (configuration) information. The following examples illustrate a
+      few uses for these tables. For detailed information about the
+      tables in each group, see
+      <a class="xref" href="performance-schema-table-descriptions.html" title="27.12&nbsp;Performance Schema Table Descriptions">Section&nbsp;27.12, &ldquo;Performance Schema Table Descriptions&rdquo;</a>.
+    </p><p>
+      Initially, not all instruments and consumers are enabled, so the
+      performance schema does not collect all events. To turn all of
+      these on and enable event timing, execute two statements (the row
+      counts may differ depending on MySQL version):
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>SET ENABLED = &#39;YES&#39;, TIMED = &#39;YES&#39;;</code></strong>
+Query OK, 560 rows affected (0.04 sec)
+mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_consumers</code></strong>
+       <strong class="userinput"><code>SET ENABLED = &#39;YES&#39;;</code></strong>
+Query OK, 10 rows affected (0.00 sec)
+</pre><p>
+      To see what the server is doing at the moment, examine the
+      <a class="link" href="performance-schema-events-waits-current-table.html" title="27.12.4.1&nbsp;The events_waits_current Table"><code class="literal">events_waits_current</code></a> table. It
+      contains one row per thread showing each thread&#39;s most recent
+      monitored event:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+       <strong class="userinput"><code>FROM performance_schema.events_waits_current\G</code></strong>
+*************************** 1. row ***************************
+            THREAD_ID: 0
+             EVENT_ID: 5523
+         END_EVENT_ID: 5523
+           EVENT_NAME: wait/synch/mutex/mysys/THR_LOCK::mutex
+               SOURCE: thr_lock.c:525
+          TIMER_START: 201660494489586
+            TIMER_END: 201660494576112
+           TIMER_WAIT: 86526
+                SPINS: NULL
+        OBJECT_SCHEMA: NULL
+          OBJECT_NAME: NULL
+           INDEX_NAME: NULL
+          OBJECT_TYPE: NULL
+OBJECT_INSTANCE_BEGIN: 142270668
+     NESTING_EVENT_ID: NULL
+   NESTING_EVENT_TYPE: NULL
+            OPERATION: lock
+      NUMBER_OF_BYTES: NULL
+                FLAGS: 0
+...
+</pre><p>
+      This event indicates that thread 0 was waiting for 86,526
+      picoseconds to acquire a lock on
+      <code class="literal">THR_LOCK::mutex</code>, a mutex in the
+      <code class="literal">mysys</code> subsystem. The first few columns provide
+      the following information:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The ID columns indicate which thread the event comes from and
+          the event number.
+        </p></li><li class="listitem"><p>
+          <code class="literal">EVENT_NAME</code> indicates what was instrumented
+          and <code class="literal">SOURCE</code> indicates which source file
+          contains the instrumented code.
+        </p></li><li class="listitem"><p>
+          The timer columns show when the event started and stopped and
+          how long it took. If an event is still in progress, the
+          <code class="literal">TIMER_END</code> and <code class="literal">TIMER_WAIT</code>
+          values are <code class="literal">NULL</code>. Timer values are
+          approximate and expressed in picoseconds. For information
+          about timers and event time collection, see
+          <a class="xref" href="performance-schema-timing.html" title="27.4.1&nbsp;Performance Schema Event Timing">Section&nbsp;27.4.1, &ldquo;Performance Schema Event Timing&rdquo;</a>.
+        </p></li></ul></div><p>
+      The history tables contain the same kind of rows as the
+      current-events table but have more rows and show what the server
+      has been doing <span class="quote">&ldquo;<span class="quote">recently</span>&rdquo;</span> rather than
+      <span class="quote">&ldquo;<span class="quote">currently.</span>&rdquo;</span> The
+      <a class="link" href="performance-schema-events-waits-history-table.html" title="27.12.4.2&nbsp;The events_waits_history Table"><code class="literal">events_waits_history</code></a> and
+      <a class="link" href="performance-schema-events-waits-history-long-table.html" title="27.12.4.3&nbsp;The events_waits_history_long Table"><code class="literal">events_waits_history_long</code></a> tables
+      contain the most recent 10 events per thread and most recent
+      10,000 events, respectively. For example, to see information for
+      recent events produced by thread 13, do this:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT EVENT_ID, EVENT_NAME, TIMER_WAIT</code></strong>
+       <strong class="userinput"><code>FROM performance_schema.events_waits_history</code></strong>
+       <strong class="userinput"><code>WHERE THREAD_ID = 13</code></strong>
+       <strong class="userinput"><code>ORDER BY EVENT_ID;</code></strong>
++----------+-----------------------------------------+------------+
+| EVENT_ID | EVENT_NAME                              | TIMER_WAIT |
++----------+-----------------------------------------+------------+
+|       86 | wait/synch/mutex/mysys/THR_LOCK::mutex  |     686322 |
+|       87 | wait/synch/mutex/mysys/THR_LOCK_malloc  |     320535 |
+|       88 | wait/synch/mutex/mysys/THR_LOCK_malloc  |     339390 |
+|       89 | wait/synch/mutex/mysys/THR_LOCK_malloc  |     377100 |
+|       90 | wait/synch/mutex/sql/LOCK_plugin        |     614673 |
+|       91 | wait/synch/mutex/sql/LOCK_open          |     659925 |
+|       92 | wait/synch/mutex/sql/THD::LOCK_thd_data |     494001 |
+|       93 | wait/synch/mutex/mysys/THR_LOCK_malloc  |     222489 |
+|       94 | wait/synch/mutex/mysys/THR_LOCK_malloc  |     214947 |
+|       95 | wait/synch/mutex/mysys/LOCK_alarm       |     312993 |
++----------+-----------------------------------------+------------+
+</pre><p>
+      As new events are added to a history table, older events are
+      discarded if the table is full.
+    </p><p>
+      Summary tables provide aggregated information for all events over
+      time. The tables in this group summarize event data in different
+      ways. To see which instruments have been executed the most times
+      or have taken the most wait time, sort the
+      <a class="link" href="performance-schema-wait-summary-tables.html" title="27.12.20.1&nbsp;Wait Event Summary Tables"><code class="literal">events_waits_summary_global_by_event_name</code></a>
+      table on the <code class="literal">COUNT_STAR</code> or
+      <code class="literal">SUM_TIMER_WAIT</code> column, which correspond to a
+      <code class="literal">COUNT(*)</code> or <code class="literal">SUM(TIMER_WAIT)</code>
+      value, respectively, calculated over all events:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT EVENT_NAME, COUNT_STAR</code></strong>
+       <strong class="userinput"><code>FROM performance_schema.events_waits_summary_global_by_event_name</code></strong>
+       <strong class="userinput"><code>ORDER BY COUNT_STAR DESC LIMIT 10;</code></strong>
++---------------------------------------------------+------------+
+| EVENT_NAME                                        | COUNT_STAR |
++---------------------------------------------------+------------+
+| wait/synch/mutex/mysys/THR_LOCK_malloc            |       6419 |
+| wait/io/file/sql/FRM                              |        452 |
+| wait/synch/mutex/sql/LOCK_plugin                  |        337 |
+| wait/synch/mutex/mysys/THR_LOCK_open              |        187 |
+| wait/synch/mutex/mysys/LOCK_alarm                 |        147 |
+| wait/synch/mutex/sql/THD::LOCK_thd_data           |        115 |
+| wait/io/file/myisam/kfile                         |        102 |
+| wait/synch/mutex/sql/LOCK_global_system_variables |         89 |
+| wait/synch/mutex/mysys/THR_LOCK::mutex            |         89 |
+| wait/synch/mutex/sql/LOCK_open                    |         88 |
++---------------------------------------------------+------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT EVENT_NAME, SUM_TIMER_WAIT</code></strong>
+       <strong class="userinput"><code>FROM performance_schema.events_waits_summary_global_by_event_name</code></strong>
+       <strong class="userinput"><code>ORDER BY SUM_TIMER_WAIT DESC LIMIT 10;</code></strong>
++----------------------------------------+----------------+
+| EVENT_NAME                             | SUM_TIMER_WAIT |
++----------------------------------------+----------------+
+| wait/io/file/sql/MYSQL_LOG             |     1599816582 |
+| wait/synch/mutex/mysys/THR_LOCK_malloc |     1530083250 |
+| wait/io/file/sql/binlog_index          |     1385291934 |
+| wait/io/file/sql/FRM                   |     1292823243 |
+| wait/io/file/myisam/kfile              |      411193611 |
+| wait/io/file/myisam/dfile              |      322401645 |
+| wait/synch/mutex/mysys/LOCK_alarm      |      145126935 |
+| wait/io/file/sql/casetest              |      104324715 |
+| wait/synch/mutex/sql/LOCK_plugin       |       86027823 |
+| wait/io/file/sql/pid                   |       72591750 |
++----------------------------------------+----------------+
+</pre><p>
+      These results show that the <code class="literal">THR_LOCK_malloc</code>
+      mutex is <span class="quote">&ldquo;<span class="quote">hot,</span>&rdquo;</span> both in terms of how often it is used
+      and amount of time that threads wait attempting to acquire it.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        The <code class="literal">THR_LOCK_malloc</code> mutex is used only in
+        debug builds. In production builds it is not hot because it is
+        nonexistent.
+      </p></div><p>
+      Instance tables document what types of objects are instrumented.
+      An instrumented object, when used by the server, produces an
+      event. These tables provide event names and explanatory notes or
+      status information. For example, the
+      <a class="link" href="performance-schema-file-instances-table.html" title="27.12.3.2&nbsp;The file_instances Table"><code class="literal">file_instances</code></a> table lists instances
+      of instruments for file I/O operations and their associated files:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT *</code></strong>
+       <strong class="userinput"><code>FROM performance_schema.file_instances\G</code></strong>
+*************************** 1. row ***************************
+ FILE_NAME: /opt/mysql-log/60500/binlog.000007
+EVENT_NAME: wait/io/file/sql/binlog
+OPEN_COUNT: 0
+*************************** 2. row ***************************
+ FILE_NAME: /opt/mysql/60500/data/mysql/tables_priv.MYI
+EVENT_NAME: wait/io/file/myisam/kfile
+OPEN_COUNT: 1
+*************************** 3. row ***************************
+ FILE_NAME: /opt/mysql/60500/data/mysql/columns_priv.MYI
+EVENT_NAME: wait/io/file/myisam/kfile
+OPEN_COUNT: 1
+...
+</pre><p>
+      Setup tables are used to configure and display monitoring
+      characteristics. For example,
+      <a class="link" href="performance-schema-setup-instruments-table.html" title="27.12.2.3&nbsp;The setup_instruments Table"><code class="literal">setup_instruments</code></a> lists the set of
+      instruments for which events can be collected and shows which of
+      them are enabled:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT NAME, ENABLED, TIMED</code></strong>
+       <strong class="userinput"><code>FROM performance_schema.setup_instruments;</code></strong>
++---------------------------------------------------+---------+-------+
+| NAME                                              | ENABLED | TIMED |
++---------------------------------------------------+---------+-------+
+...
+| stage/sql/end                                     | NO      | NO    |
+| stage/sql/executing                               | NO      | NO    |
+| stage/sql/init                                    | NO      | NO    |
+| stage/sql/insert                                  | NO      | NO    |
+...
+| statement/sql/load                                | YES     | YES   |
+| statement/sql/grant                               | YES     | YES   |
+| statement/sql/check                               | YES     | YES   |
+| statement/sql/flush                               | YES     | YES   |
+...
+| wait/synch/mutex/sql/LOCK_global_read_lock        | YES     | YES   |
+| wait/synch/mutex/sql/LOCK_global_system_variables | YES     | YES   |
+| wait/synch/mutex/sql/LOCK_lock_db                 | YES     | YES   |
+| wait/synch/mutex/sql/LOCK_manager                 | YES     | YES   |
+...
+| wait/synch/rwlock/sql/LOCK_grant                  | YES     | YES   |
+| wait/synch/rwlock/sql/LOGGER::LOCK_logger         | YES     | YES   |
+| wait/synch/rwlock/sql/LOCK_sys_init_connect       | YES     | YES   |
+| wait/synch/rwlock/sql/LOCK_sys_init_slave         | YES     | YES   |
+...
+| wait/io/file/sql/binlog                           | YES     | YES   |
+| wait/io/file/sql/binlog_index                     | YES     | YES   |
+| wait/io/file/sql/casetest                         | YES     | YES   |
+| wait/io/file/sql/dbopt                            | YES     | YES   |
+...
+</pre><p>
+      To understand how to interpret instrument names, see
+      <a class="xref" href="performance-schema-instrument-naming.html" title="27.6&nbsp;Performance Schema Instrument Naming Conventions">Section&nbsp;27.6, &ldquo;Performance Schema Instrument Naming Conventions&rdquo;</a>.
+    </p><p>
+      To control whether events are collected for an instrument, set its
+      <code class="literal">ENABLED</code> value to <code class="literal">YES</code> or
+      <code class="literal">NO</code>. For example:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>SET ENABLED = &#39;NO&#39;</code></strong>
+       <strong class="userinput"><code>WHERE NAME = &#39;wait/synch/mutex/sql/LOCK_mysql_create_db&#39;;</code></strong>
+</pre><p>
+      The Performance Schema uses collected events to update tables in
+      the <code class="literal">performance_schema</code> database, which act as
+      <span class="quote">&ldquo;<span class="quote">consumers</span>&rdquo;</span> of event information. The
+      <a class="link" href="performance-schema-setup-consumers-table.html" title="27.12.2.2&nbsp;The setup_consumers Table"><code class="literal">setup_consumers</code></a> table lists the
+      available consumers and which are enabled:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.setup_consumers;</code></strong>
++----------------------------------+---------+
+| NAME                             | ENABLED |
++----------------------------------+---------+
+| events_stages_current            | NO      |
+| events_stages_history            | NO      |
+| events_stages_history_long       | NO      |
+| events_statements_cpu            | NO      |
+| events_statements_current        | YES     |
+| events_statements_history        | YES     |
+| events_statements_history_long   | NO      |
+| events_transactions_current      | YES     |
+| events_transactions_history      | YES     |
+| events_transactions_history_long | NO      |
+| events_waits_current             | NO      |
+| events_waits_history             | NO      |
+| events_waits_history_long        | NO      |
+| global_instrumentation           | YES     |
+| thread_instrumentation           | YES     |
+| statements_digest                | YES     |
++----------------------------------+---------+
+</pre><p>
+      To control whether the Performance Schema maintains a consumer as
+      a destination for event information, set its
+      <code class="literal">ENABLED</code> value.
+    </p><p>
+      For more information about the setup tables and how to use them to
+      control event collection, see
+      <a class="xref" href="performance-schema-filtering.html" title="27.4.2&nbsp;Performance Schema Event Filtering">Section&nbsp;27.4.2, &ldquo;Performance Schema Event Filtering&rdquo;</a>.
+    </p><p>
+      There are some miscellaneous tables that do not fall into any of
+      the previous groups. For example,
+      <a class="link" href="performance-schema-performance-timers-table.html" title="27.12.21.5&nbsp;The performance_timers Table"><code class="literal">performance_timers</code></a> lists the
+      available event timers and their characteristics. For information
+      about timers, see <a class="xref" href="performance-schema-timing.html" title="27.4.1&nbsp;Performance Schema Event Timing">Section&nbsp;27.4.1, &ldquo;Performance Schema Event Timing&rdquo;</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="performance-schema.html">Previous <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-build-configuration.html">Next <span class="navHint"> Performance Schema Build Configuration </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

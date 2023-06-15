@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.20.4 InnoDB memcached Multiple get and Range Query Support</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-memcached.html" title="15.20 InnoDB memcached Plugin" /><link rel="prev" href="innodb-memcached-setup.html" title="15.20.3 Setting Up the InnoDB memcached Plugin" /><link rel="next" href="innodb-memcached-security.html" title="15.20.5 Security Considerations for the InnoDB memcached Plugin" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-memcached-multiple-get-range-query.html#innodb-memcached-multiple-get-range-query">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-memcached-setup.html">Previous <span class="navHint"> Setting Up the InnoDB memcached Plugin </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-memcached.html">Up <span class="navHint"> InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-memcached-security.html">Next <span class="navHint"> Security Considerations for the InnoDB memcached Plugin </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-memcached-multiple-get-range-query"></a>15.20.4 InnoDB memcached Multiple get and Range Query Support</h3></div></div></div><p>
+      The <code class="literal">daemon_memcached</code> plugin supports multiple
+      get operations (fetching multiple key-value pairs in a single
+      <span class="command"><strong>memcached</strong></span> query) and range queries.
+    </p><h4><a id="idm45828872805008"></a>Multiple get Operations</h4><p>
+      The ability to fetch multiple key-value pairs in a single
+      <span class="command"><strong>memcached</strong></span> query improves read performance by
+      reducing communication traffic between the client and server. For
+      <code class="literal">InnoDB</code>, it means fewer transactions and
+      open-table operations.
+    </p><p>
+      The following example demonstrates multiple-get support. The
+      example uses the <code class="literal">test.city</code> table described in
+      <a class="xref" href="innodb-memcached-setup.html#innodb-memcached-new-table-setup" title="Creating a New Table and Column Mapping">Creating a New Table and Column Mapping</a>.
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>USE test;</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT * FROM test.city;</code></strong>
++---------+-----------+-------------+---------+-------+------+--------+
+| city_id | name      | state       | country | flags | cas  | expiry |
++---------+-----------+-------------+---------+-------+------+--------+
+| B       | BANGALORE | BANGALORE   | IN      |     0 |    1 |      0 |
+| C       | CHENNAI   | TAMIL NADU  | IN      |     0 |    0 |      0 |
+| D       | DELHI     | DELHI       | IN      |     0 |    0 |      0 |
+| H       | HYDERABAD | TELANGANA   | IN      |     0 |    0 |      0 |
+| M       | MUMBAI    | MAHARASHTRA | IN      |     0 |    0 |      0 |
++---------+-----------+-------------+---------+-------+------+--------+
+</pre><p>
+      Run a <code class="literal">get</code> command to retrieve all values from
+      the <code class="literal">city</code> table. The results are returned in a
+      key-value pair sequence.
+    </p><pre class="programlisting"><strong class="userinput"><code>telnet 127.0.0.1 11211</code></strong>
+Trying 127.0.0.1...
+Connected to 127.0.0.1.
+Escape character is '^]'.
+<strong class="userinput"><code>get B C D H M</code></strong>
+VALUE B 0 22
+BANGALORE|BANGALORE|IN
+VALUE C 0 21
+CHENNAI|TAMIL NADU|IN
+VALUE D 0 14
+DELHI|DELHI|IN
+VALUE H 0 22
+HYDERABAD|TELANGANA|IN
+VALUE M 0 21
+MUMBAI|MAHARASHTRA|IN
+END
+</pre><p>
+      When retrieving multiple values in a single <code class="literal">get</code>
+      command, you can switch tables (using
+      <code class="literal">@@<em class="replaceable"><code>containers.name</code></em></code>
+      notation) to retrieve the value for the first key, but you cannot
+      switch tables for subsequent keys. For example, the table switch
+      in this example is valid:
+    </p><pre class="programlisting"><strong class="userinput"><code>get @@aaa.AA BB</code></strong>
+VALUE @@aaa.AA 8 12
+HELLO, HELLO
+VALUE BB 10 16
+GOODBYE, GOODBYE
+END
+</pre><p>
+      Attempting to switch tables again in the same
+      <code class="literal">get</code> command to retrieve a key value from a
+      different table is not supported.
+    </p><p>
+      There is no limit the number of keys that can be retrieved by a
+      multiple get operation, but there is a 128MB memory limit for
+      storing the result.
+    </p><h4><a id="idm45828872787216"></a>Range Queries</h4><p>
+      For range queries, the <code class="literal">daemon_memcached</code> plugin
+      supports the following comparison operators:
+      <code class="literal">&lt;</code>, <code class="literal">&gt;</code>,
+      <code class="literal">&lt;=</code>, <code class="literal">&gt;=</code>. An operator
+      must be preceded by an <code class="literal">@</code> symbol. When a range
+      query finds multiple matching key-value pairs, results are
+      returned in a key-value pair sequence.
+    </p><p>
+      The following examples demonstrate range query support. The
+      examples use the <code class="literal">test.city</code> table described in
+      <a class="xref" href="innodb-memcached-setup.html#innodb-memcached-new-table-setup" title="Creating a New Table and Column Mapping">Creating a New Table and Column Mapping</a>.
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test.city;</code></strong>
++---------+-----------+-------------+---------+-------+------+--------+
+| city_id | name      | state       | country | flags | cas  | expiry |
++---------+-----------+-------------+---------+-------+------+--------+
+| B       | BANGALORE | BANGALORE   | IN      |     0 |    1 |      0 |
+| C       | CHENNAI   | TAMIL NADU  | IN      |     0 |    0 |      0 |
+| D       | DELHI     | DELHI       | IN      |     0 |    0 |      0 |
+| H       | HYDERABAD | TELANGANA   | IN      |     0 |    0 |      0 |
+| M       | MUMBAI    | MAHARASHTRA | IN      |     0 |    0 |      0 |
++---------+-----------+-------------+---------+-------+------+--------+
+</pre><p>
+      Open a telnet session:
+    </p><pre class="programlisting"><strong class="userinput"><code>telnet 127.0.0.1 11211</code></strong>
+Trying 127.0.0.1...
+Connected to 127.0.0.1.
+Escape character is '^]'.
+</pre><p>
+      To get all values greater than <code class="literal">B</code>, enter
+      <code class="literal">get @&gt;B</code>:
+    </p><pre class="programlisting"><strong class="userinput"><code>get @&gt;B</code></strong>
+VALUE C 0 21
+CHENNAI|TAMIL NADU|IN
+VALUE D 0 14
+DELHI|DELHI|IN
+VALUE H 0 22
+HYDERABAD|TELANGANA|IN
+VALUE M 0 21
+MUMBAI|MAHARASHTRA|IN
+END
+</pre><p>
+      To get all values less than <code class="literal">M</code>, enter
+      <code class="literal">get @&lt;M</code>:
+    </p><pre class="programlisting"><strong class="userinput"><code>get @&lt;M</code></strong>
+VALUE B 0 22
+BANGALORE|BANGALORE|IN
+VALUE C 0 21
+CHENNAI|TAMIL NADU|IN
+VALUE D 0 14
+DELHI|DELHI|IN
+VALUE H 0 22
+HYDERABAD|TELANGANA|IN
+END
+</pre><p>
+      To get all values less than and including <code class="literal">M</code>,
+      enter <code class="literal">get @&lt;=M</code>:
+    </p><pre class="programlisting"><strong class="userinput"><code>get @&lt;=M</code></strong>
+VALUE B 0 22
+BANGALORE|BANGALORE|IN
+VALUE C 0 21
+CHENNAI|TAMIL NADU|IN
+VALUE D 0 14
+DELHI|DELHI|IN
+VALUE H 0 22
+HYDERABAD|TELANGANA|IN
+VALUE M 0 21
+MUMBAI|MAHARASHTRA|IN
+</pre><p>
+      To get values greater than <code class="literal">B</code> but less than
+      <code class="literal">M</code>, enter <code class="literal">get @&gt;B@&lt;M</code>:
+    </p><pre class="programlisting"><strong class="userinput"><code>get @&gt;B@&lt;M</code></strong>
+VALUE C 0 21
+CHENNAI|TAMIL NADU|IN
+VALUE D 0 14
+DELHI|DELHI|IN
+VALUE H 0 22
+HYDERABAD|TELANGANA|IN
+END
+</pre><p>
+      A maximum of two comparison operators can be parsed, one being
+      either a 'less than' (<code class="literal">@&lt;</code>) or 'less than or
+      equal to' (<code class="literal">@&lt;=</code>) operator, and the other
+      being either a 'greater than' (<code class="literal">@&gt;</code>) or
+      'greater than or equal to' (<code class="literal">@&gt;=</code>) operator.
+      Any additional operators are assumed to be part of the key. For
+      example, if you issue a <code class="literal">get</code> command with three
+      operators, the third operator (<code class="literal">@&gt;C</code>) is
+      treated as part of the key, and the <code class="literal">get</code> command
+      searches for values smaller than <code class="literal">M</code> and greater
+      than <code class="literal">B@&gt;C</code>.
+    </p><pre class="programlisting"><strong class="userinput"><code>get @&lt;M@&gt;B@&gt;C</code></strong>
+VALUE C 0 21
+CHENNAI|TAMIL NADU|IN
+VALUE D 0 14
+DELHI|DELHI|IN
+VALUE H 0 22
+HYDERABAD|TELANGANA|IN
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-memcached-setup.html">Previous <span class="navHint"> Setting Up the InnoDB memcached Plugin </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-memcached.html">Up <span class="navHint"> InnoDB memcached Plugin </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-memcached-security.html">Next <span class="navHint"> Security Considerations for the InnoDB memcached Plugin </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

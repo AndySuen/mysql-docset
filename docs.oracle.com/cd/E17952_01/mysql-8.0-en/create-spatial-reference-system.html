@@ -1,0 +1,513 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.1.19 CREATE SPATIAL REFERENCE SYSTEM Statement</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="sql-data-definition-statements.html" title="13.1 Data Definition Statements" /><link rel="prev" href="create-server.html" title="13.1.18 CREATE SERVER Statement" /><link rel="next" href="create-table.html" title="13.1.20 CREATE TABLE Statement" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="create-spatial-reference-system.html#create-spatial-reference-system">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="create-server.html">Previous <span class="navHint"> CREATE SERVER Statement </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="sql-data-definition-statements.html">Up <span class="navHint"> Data Definition Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="create-table.html">Next <span class="navHint"> CREATE TABLE Statement </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="create-spatial-reference-system"></a>13.1.19 CREATE SPATIAL REFERENCE SYSTEM Statement</h3></div></div></div><a id="idm45828913494400" class="indexterm"></a><pre class="programlisting">CREATE OR REPLACE SPATIAL REFERENCE SYSTEM
+    <em class="replaceable"><code>srid</code></em> <em class="replaceable"><code>srs_attribute</code></em> ...
+
+CREATE SPATIAL REFERENCE SYSTEM
+    [IF NOT EXISTS]
+    <em class="replaceable"><code>srid</code></em> <em class="replaceable"><code>srs_attribute</code></em> ...
+
+<em class="replaceable"><code>srs_attribute</code></em>: {
+    NAME '<em class="replaceable"><code>srs_name</code></em>'
+  | DEFINITION '<em class="replaceable"><code>definition</code></em>'
+  | ORGANIZATION '<em class="replaceable"><code>org_name</code></em>' IDENTIFIED BY <em class="replaceable"><code>org_id</code></em>
+  | DESCRIPTION '<em class="replaceable"><code>description</code></em>'
+}
+
+<em class="replaceable"><code>srid</code></em>, <em class="replaceable"><code>org_id</code></em>: <em class="replaceable"><code>32-bit unsigned integer</code></em>
+</pre><p>
+      This statement creates a
+      <a class="link" href="spatial-reference-systems.html" title="11.4.5 Spatial Reference System Support">spatial reference
+      system</a> (SRS) definition and stores it in the data
+      dictionary. It requires the <a class="link" href="privileges-provided.html#priv_super"><code class="literal">SUPER</code></a>
+      privilege. The resulting data dictionary entry can be inspected
+      using the <code class="literal">INFORMATION_SCHEMA</code>
+      <a class="link" href="information-schema-st-spatial-reference-systems-table.html" title="26.3.36 The INFORMATION_SCHEMA ST_SPATIAL_REFERENCE_SYSTEMS Table"><code class="literal">ST_SPATIAL_REFERENCE_SYSTEMS</code></a> table.
+    </p><p>
+      SRID values must be unique, so if neither <code class="literal">OR
+      REPLACE</code> nor <code class="literal">IF NOT EXISTS</code> is
+      specified, an error occurs if an SRS definition with the given
+      <em class="replaceable"><code>srid</code></em> value already exists.
+    </p><p>
+      With <code class="literal">CREATE OR REPLACE</code> syntax, any existing SRS
+      definition with the same SRID value is replaced, unless the SRID
+      value is used by some column in an existing table. In that case,
+      an error occurs. For example:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 4326 ...;</code></strong>
+ERROR 3716 (SR005): Can't modify SRID 4326. There is at
+least one column depending on it.
+</pre><p>
+      To identify which column or columns use the SRID, use this query,
+      replacing 4326 with the SRID of the definition you are trying to
+      create:
+    </p><pre class="programlisting">SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS WHERE SRS_ID=4326;
+</pre><p>
+      With <code class="literal">CREATE ... IF NOT EXISTS</code> syntax, any
+      existing SRS definition with the same SRID value causes the new
+      definition to be ignored and a warning occurs.
+    </p><p>
+      SRID values must be in the range of 32-bit unsigned integers, with
+      these restrictions:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          SRID 0 is a valid SRID but cannot be used with
+          <a class="link" href="create-spatial-reference-system.html" title="13.1.19 CREATE SPATIAL REFERENCE SYSTEM Statement"><code class="literal">CREATE SPATIAL REFERENCE
+          SYSTEM</code></a>.
+        </p></li><li class="listitem"><p>
+          If the value is in a reserved SRID range, a warning occurs.
+          Reserved ranges are [0, 32767] (reserved by EPSG),
+          [60,000,000, 69,999,999] (reserved by EPSG), and
+          [2,000,000,000, 2,147,483,647] (reserved by MySQL). EPSG
+          stands for the <a class="ulink" href="http://epsg.org" target="_top">European Petroleum
+          Survey Group</a>.
+        </p></li><li class="listitem"><p>
+          Users should not create SRSs with SRIDs in the reserved
+          ranges. Doing so runs the risk of the SRIDs conflicting with
+          future SRS definitions distributed with MySQL, with the result
+          that the new system-provided SRSs are not installed for MySQL
+          upgrades or that the user-defined SRSs are overwritten.
+        </p></li></ul></div><p>
+      Attributes for the statement must satisfy these conditions:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Attributes can be given in any order, but no attribute can be
+          given more than once.
+        </p></li><li class="listitem"><p>
+          The <code class="literal">NAME</code> and <code class="literal">DEFINITION</code>
+          attributes are mandatory.
+        </p></li><li class="listitem"><p>
+          The <code class="literal">NAME</code>
+          <em class="replaceable"><code>srs_name</code></em> attribute value must be
+          unique. The combination of the <code class="literal">ORGANIZATION</code>
+          <em class="replaceable"><code>org_name</code></em> and
+          <em class="replaceable"><code>org_id</code></em> attribute values must be
+          unique.
+        </p></li><li class="listitem"><p>
+          The <code class="literal">NAME</code>
+          <em class="replaceable"><code>srs_name</code></em> attribute value and
+          <code class="literal">ORGANIZATION</code>
+          <em class="replaceable"><code>org_name</code></em> attribute value cannot be
+          empty or begin or end with whitespace.
+        </p></li><li class="listitem"><p>
+          String values in attribute specifications cannot contain
+          control characters, including newline.
+        </p></li><li class="listitem"><p>
+          The following table shows the maximum lengths for string
+          attribute values.
+        </p><div class="table"><a id="spatial-reference-system-attribute-length"></a><p class="title"><strong>Table 13.6 CREATE SPATIAL REFERENCE SYSTEM Attribute Lengths</strong></p><div class="table-contents"><table summary="Maximum string attribute lengths for CREATE SPATIAL REFERENCE SYSTEM"><col style="width: 25%" /><col style="width: 50%" /><thead><tr>
+              <th>Attribute</th>
+              <th>Maximum Length (characters)</th>
+            </tr></thead><tbody><tr>
+              <td><code class="literal">NAME</code></td>
+              <td>80</td>
+            </tr><tr>
+              <td><code class="literal">DEFINITION</code></td>
+              <td>4096</td>
+            </tr><tr>
+              <td><code class="literal">ORGANIZATION</code></td>
+              <td>256</td>
+            </tr><tr>
+              <td><code class="literal">DESCRIPTION</code></td>
+              <td>2048</td>
+            </tr></tbody></table></div></div><br class="table-break" /></li></ul></div><p>
+      Here is an example <a class="link" href="create-spatial-reference-system.html" title="13.1.19 CREATE SPATIAL REFERENCE SYSTEM Statement"><code class="literal">CREATE SPATIAL REFERENCE
+      SYSTEM</code></a> statement. The <code class="literal">DEFINITION</code>
+      value is reformatted across multiple lines for readability. (For
+      the statement to be legal, the value actually must be given on a
+      single line.)
+    </p><pre class="programlisting">CREATE SPATIAL REFERENCE SYSTEM 4120
+NAME 'Greek'
+ORGANIZATION 'EPSG' IDENTIFIED BY 4120
+DEFINITION
+  'GEOGCS["Greek",DATUM["Greek",SPHEROID["Bessel 1841",
+  6377397.155,299.1528128,AUTHORITY["EPSG","7004"]],
+  AUTHORITY["EPSG","6120"]],PRIMEM["Greenwich",0,
+  AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,
+  AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],
+  AUTHORITY["EPSG","4120"]]';
+</pre><p>
+      The grammar for SRS definitions is based on the grammar defined in
+      <em class="citetitle">OpenGIS Implementation Specification: Coordinate
+      Transformation Services</em>, Revision 1.00, OGC 01-009,
+      January 12, 2001, Section 7.2. This specification is available at
+      <a class="ulink" href="http://www.opengeospatial.org/standards/ct" target="_top">http://www.opengeospatial.org/standards/ct</a>.
+    </p><p>
+      MySQL incorporates these changes to the specification:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Only the <code class="literal">&lt;horz cs&gt;</code> production rule is
+          implemented (that is, geographic and projected SRSs).
+        </p></li><li class="listitem"><p>
+          There is an optional, nonstandard
+          <code class="literal">&lt;authority&gt;</code> clause for
+          <code class="literal">&lt;parameter&gt;</code>. This makes it possible
+          to recognize projection parameters by authority instead of
+          name.
+        </p></li><li class="listitem"><p>
+          The specification does not make <code class="literal">AXIS</code>
+          clauses mandatory in <code class="literal">GEOGCS</code> spatial
+          reference system definitions. However, if there are no
+          <code class="literal">AXIS</code> clauses, MySQL cannot determine
+          whether a definition has axes in latitude-longitude order or
+          longitude-latitude order. MySQL enforces the nonstandard
+          requirement that each <code class="literal">GEOGCS</code> definition
+          must include two <code class="literal">AXIS</code> clauses. One must be
+          <code class="literal">NORTH</code> or <code class="literal">SOUTH</code>, and the
+          other <code class="literal">EAST</code> or <code class="literal">WEST</code>. The
+          <code class="literal">AXIS</code> clause order determines whether the
+          definition has axes in latitude-longitude order or
+          longitude-latitude order.
+        </p></li><li class="listitem"><p>
+          SRS definitions may not contain newlines.
+        </p></li></ul></div><p>
+      If an SRS definition specifies an authority code for the
+      projection (which is recommended), an error occurs if the
+      definition is missing mandatory parameters. In this case, the
+      error message indicates what the problem is. The projection
+      methods and mandatory parameters that MySQL supports are shown in
+      <a class="xref" href="create-spatial-reference-system.html#supported-srs-projections-table" title="Table 13.7 Supported Spatial Reference System Projection Methods">Table 13.7, “Supported Spatial Reference System Projection Methods”</a> and
+      <a class="xref" href="create-spatial-reference-system.html#srs-projection-parameters-table" title="Table 13.8 Spatial Reference System Projection Parameters">Table 13.8, “Spatial Reference System Projection Parameters”</a>.
+    </p><p>
+      For additional information about writing SRS definitions for
+      MySQL, see
+      <a class="ulink" href="https://mysqlserverteam.com/geographic-spatial-reference-systems-in-mysql-8-0/" target="_top">Geographic
+      Spatial Reference Systems in MySQL 8.0</a> and
+      <a class="ulink" href="https://mysqlserverteam.com/projected-spatial-reference-systems-in-mysql-8-0/" target="_top">Projected
+      Spatial Reference Systems in MySQL 8.0</a>
+    </p><p>
+      The following table shows the projection methods that MySQL
+      supports. MySQL permits unknown projection methods but cannot
+      check the definition for mandatory parameters and cannot convert
+      spatial data to or from an unknown projection. For detailed
+      explanations of how each projection works, including formulas, see
+      <a class="ulink" href="http://www.epsg.org/Portals/0/373-07-2.pdf" target="_top">EPSG
+      Guidance Note 7-2</a>.
+    </p><div class="table"><a id="supported-srs-projections-table"></a><p class="title"><strong>Table 13.7 Supported Spatial Reference System Projection Methods</strong></p><div class="table-contents"><table summary="Supported spatial reference system projection codes, names, and mandatory EPSG parameters."><col style="width: 10%" /><col style="width: 45%" /><col style="width: 35%" /><thead><tr>
+          <th scope="col">EPSG Code</th>
+          <th scope="col">Projection Name</th>
+          <th scope="col">Mandatory Parameters (EPSG Codes)</th>
+        </tr></thead><tbody><tr>
+          <th scope="row">1024</th>
+          <td>Popular Visualisation Pseudo Mercator</td>
+          <td>8801, 8802, 8806, 8807</td>
+        </tr><tr>
+          <th scope="row">1027</th>
+          <td>Lambert Azimuthal Equal Area (Spherical)</td>
+          <td>8801, 8802, 8806, 8807</td>
+        </tr><tr>
+          <th scope="row">1028</th>
+          <td>Equidistant Cylindrical</td>
+          <td>8823, 8802, 8806, 8807</td>
+        </tr><tr>
+          <th scope="row">1029</th>
+          <th>Equidistant Cylindrical (Spherical)</th>
+          <th>8823, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">1041</th>
+          <th>Krovak (North Orientated)</th>
+          <th>8811, 8833, 1036, 8818, 8819, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">1042</th>
+          <th>Krovak Modified</th>
+          <th>8811, 8833, 1036, 8818, 8819, 8806, 8807, 8617, 8618, 1026, 1027, 1028,
+            1029, 1030, 1031, 1032, 1033, 1034, 1035</th>
+        </tr><tr>
+          <th scope="row">1043</th>
+          <th>Krovak Modified (North Orientated)</th>
+          <th>8811, 8833, 1036, 8818, 8819, 8806, 8807, 8617, 8618, 1026, 1027, 1028,
+            1029, 1030, 1031, 1032, 1033, 1034, 1035</th>
+        </tr><tr>
+          <th scope="row">1051</th>
+          <th>Lambert Conic Conformal (2SP Michigan)</th>
+          <th>8821, 8822, 8823, 8824, 8826, 8827, 1038</th>
+        </tr><tr>
+          <th scope="row">1052</th>
+          <th>Colombia Urban</th>
+          <th>8801, 8802, 8806, 8807, 1039</th>
+        </tr><tr>
+          <th scope="row">9801</th>
+          <th>Lambert Conic Conformal (1SP)</th>
+          <th>8801, 8802, 8805, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9802</th>
+          <th>Lambert Conic Conformal (2SP)</th>
+          <th>8821, 8822, 8823, 8824, 8826, 8827</th>
+        </tr><tr>
+          <th scope="row">9803</th>
+          <th>Lambert Conic Conformal (2SP Belgium)</th>
+          <th>8821, 8822, 8823, 8824, 8826, 8827</th>
+        </tr><tr>
+          <th scope="row">9804</th>
+          <th>Mercator (variant A)</th>
+          <th>8801, 8802, 8805, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9805</th>
+          <th>Mercator (variant B)</th>
+          <th>8823, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9806</th>
+          <th>Cassini-Soldner</th>
+          <th>8801, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9807</th>
+          <th>Transverse Mercator</th>
+          <th>8801, 8802, 8805, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9808</th>
+          <th>Transverse Mercator (South Orientated)</th>
+          <th>8801, 8802, 8805, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9809</th>
+          <th>Oblique Stereographic</th>
+          <th>8801, 8802, 8805, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9810</th>
+          <th>Polar Stereographic (variant A)</th>
+          <th>8801, 8802, 8805, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9811</th>
+          <th>New Zealand Map Grid</th>
+          <th>8801, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9812</th>
+          <th>Hotine Oblique Mercator (variant A)</th>
+          <th>8811, 8812, 8813, 8814, 8815, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9813</th>
+          <th>Laborde Oblique Mercator</th>
+          <th>8811, 8812, 8813, 8815, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9815</th>
+          <th>Hotine Oblique Mercator (variant B)</th>
+          <th>8811, 8812, 8813, 8814, 8815, 8816, 8817</th>
+        </tr><tr>
+          <th scope="row">9816</th>
+          <th>Tunisia Mining Grid</th>
+          <th>8821, 8822, 8826, 8827</th>
+        </tr><tr>
+          <th scope="row">9817</th>
+          <th>Lambert Conic Near-Conformal</th>
+          <th>8801, 8802, 8805, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9818</th>
+          <th>American Polyconic</th>
+          <th>8801, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9819</th>
+          <th>Krovak</th>
+          <th>8811, 8833, 1036, 8818, 8819, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9820</th>
+          <th>Lambert Azimuthal Equal Area</th>
+          <th>8801, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9822</th>
+          <th>Albers Equal Area</th>
+          <th>8821, 8822, 8823, 8824, 8826, 8827</th>
+        </tr><tr>
+          <th scope="row">9824</th>
+          <th>Transverse Mercator Zoned Grid System</th>
+          <th>8801, 8830, 8831, 8805, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9826</th>
+          <th>Lambert Conic Conformal (West Orientated)</th>
+          <th>8801, 8802, 8805, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9828</th>
+          <th>Bonne (South Orientated)</th>
+          <th>8801, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9829</th>
+          <th>Polar Stereographic (variant B)</th>
+          <th>8832, 8833, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9830</th>
+          <th>Polar Stereographic (variant C)</th>
+          <th>8832, 8833, 8826, 8827</th>
+        </tr><tr>
+          <th scope="row">9831</th>
+          <th>Guam Projection</th>
+          <th>8801, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9832</th>
+          <th>Modified Azimuthal Equidistant</th>
+          <th>8801, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9833</th>
+          <th>Hyperbolic Cassini-Soldner</th>
+          <th>8801, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9834</th>
+          <th>Lambert Cylindrical Equal Area (Spherical)</th>
+          <th>8823, 8802, 8806, 8807</th>
+        </tr><tr>
+          <th scope="row">9835</th>
+          <td>Lambert Cylindrical Equal Area</td>
+          <td>8823, 8802, 8806, 8807</td>
+        </tr></tbody></table></div></div><br class="table-break" /><p>
+      The following table shows the projection parameters that MySQL
+      recognizes. Recognition occurs primarily by authority code. If
+      there is no authority code, MySQL falls back to case-insensitive
+      string matching on the parameter name. For details about each
+      parameter, look it up by code in the
+      <a class="ulink" href="https://www.epsg-registry.org" target="_top">EPSG Online
+      Registry</a>.
+    </p><div class="table"><a id="srs-projection-parameters-table"></a><p class="title"><strong>Table 13.8 Spatial Reference System Projection Parameters</strong></p><div class="table-contents"><table summary="Spatial reference system projection codes, fallback names, and EPSG names."><col style="width: 10%" /><col style="width: 45%" /><col style="width: 35%" /><thead><tr>
+          <th scope="col">EPSG Code</th>
+          <th scope="col">Fallback Name (Recognized by MySQL)</th>
+          <th scope="col">EPSG Name</th>
+        </tr></thead><tbody><tr>
+          <th scope="row">1026</th>
+          <th>c1</th>
+          <th>C1</th>
+        </tr><tr>
+          <th scope="row">1027</th>
+          <th>c2</th>
+          <th>C2</th>
+        </tr><tr>
+          <th scope="row">1028</th>
+          <th>c3</th>
+          <th>C3</th>
+        </tr><tr>
+          <th scope="row">1029</th>
+          <th>c4</th>
+          <th>C4</th>
+        </tr><tr>
+          <th scope="row">1030</th>
+          <th>c5</th>
+          <th>C5</th>
+        </tr><tr>
+          <th scope="row">1031</th>
+          <th>c6</th>
+          <th>C6</th>
+        </tr><tr>
+          <th scope="row">1032</th>
+          <th>c7</th>
+          <th>C7</th>
+        </tr><tr>
+          <th scope="row">1033</th>
+          <th>c8</th>
+          <th>C8</th>
+        </tr><tr>
+          <th scope="row">1034</th>
+          <th>c9</th>
+          <th>C9</th>
+        </tr><tr>
+          <th scope="row">1035</th>
+          <th>c10</th>
+          <th>C10</th>
+        </tr><tr>
+          <th scope="row">1036</th>
+          <th>azimuth</th>
+          <th>Co-latitude of cone axis</th>
+        </tr><tr>
+          <th scope="row">1038</th>
+          <th>ellipsoid_scale_factor</th>
+          <th>Ellipsoid scaling factor</th>
+        </tr><tr>
+          <th scope="row">1039</th>
+          <th>projection_plane_height_at_origin</th>
+          <th>Projection plane origin height</th>
+        </tr><tr>
+          <th scope="row">8617</th>
+          <th>evaluation_point_ordinate_1</th>
+          <th>Ordinate 1 of evaluation point</th>
+        </tr><tr>
+          <th scope="row">8618</th>
+          <th>evaluation_point_ordinate_2</th>
+          <th>Ordinate 2 of evaluation point</th>
+        </tr><tr>
+          <th scope="row">8801</th>
+          <th>latitude_of_origin</th>
+          <th>Latitude of natural origin</th>
+        </tr><tr>
+          <th scope="row">8802</th>
+          <th>central_meridian</th>
+          <th>Longitude of natural origin</th>
+        </tr><tr>
+          <th scope="row">8805</th>
+          <th>scale_factor</th>
+          <th>Scale factor at natural origin</th>
+        </tr><tr>
+          <th scope="row">8806</th>
+          <th>false_easting</th>
+          <th>False easting</th>
+        </tr><tr>
+          <th scope="row">8807</th>
+          <th>false_northing</th>
+          <th>False northing</th>
+        </tr><tr>
+          <th scope="row">8811</th>
+          <th>latitude_of_center</th>
+          <th>Latitude of projection centre</th>
+        </tr><tr>
+          <th scope="row">8812</th>
+          <th>longitude_of_center</th>
+          <th>Longitude of projection centre</th>
+        </tr><tr>
+          <th scope="row">8813</th>
+          <th>azimuth</th>
+          <th>Azimuth of initial line</th>
+        </tr><tr>
+          <th scope="row">8814</th>
+          <th>rectified_grid_angle</th>
+          <th>Angle from Rectified to Skew Grid</th>
+        </tr><tr>
+          <th scope="row">8815</th>
+          <th>scale_factor</th>
+          <th>Scale factor on initial line</th>
+        </tr><tr>
+          <th scope="row">8816</th>
+          <th>false_easting</th>
+          <th>Easting at projection centre</th>
+        </tr><tr>
+          <th scope="row">8817</th>
+          <th>false_northing</th>
+          <th>Northing at projection centre</th>
+        </tr><tr>
+          <th scope="row">8818</th>
+          <th>pseudo_standard_parallel_1</th>
+          <th>Latitude of pseudo standard parallel</th>
+        </tr><tr>
+          <th scope="row">8819</th>
+          <th>scale_factor</th>
+          <th>Scale factor on pseudo standard parallel</th>
+        </tr><tr>
+          <th scope="row">8821</th>
+          <th>latitude_of_origin</th>
+          <th>Latitude of false origin</th>
+        </tr><tr>
+          <th scope="row">8822</th>
+          <th>central_meridian</th>
+          <th>Longitude of false origin</th>
+        </tr><tr>
+          <th scope="row">8823</th>
+          <th>standard_parallel_1, standard_parallel1</th>
+          <th>Latitude of 1st standard parallel</th>
+        </tr><tr>
+          <th scope="row">8824</th>
+          <th>standard_parallel_2, standard_parallel2</th>
+          <th>Latitude of 2nd standard parallel</th>
+        </tr><tr>
+          <th scope="row">8826</th>
+          <th>false_easting</th>
+          <th>Easting at false origin</th>
+        </tr><tr>
+          <th scope="row">8827</th>
+          <th>false_northing</th>
+          <th>Northing at false origin</th>
+        </tr><tr>
+          <th scope="row">8830</th>
+          <th>initial_longitude</th>
+          <th>Initial longitude</th>
+        </tr><tr>
+          <th scope="row">8831</th>
+          <th>zone_width</th>
+          <th>Zone width</th>
+        </tr><tr>
+          <th scope="row">8832</th>
+          <th>standard_parallel</th>
+          <th>Latitude of standard parallel</th>
+        </tr><tr>
+          <th scope="row">8833</th>
+          <td>longitude_of_center</td>
+          <td>Longitude of origin</td>
+        </tr></tbody></table></div></div><br class="table-break" /></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="create-server.html">Previous <span class="navHint"> CREATE SERVER Statement </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sql-data-definition-statements.html">Up <span class="navHint"> Data Definition Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="create-table.html">Next <span class="navHint"> CREATE TABLE Statement </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

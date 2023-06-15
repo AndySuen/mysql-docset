@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.16.1 Monitoring ALTER TABLE Progress for InnoDB Tables Using Performance Schema</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-performance-schema.html" title="15.16 InnoDB Integration with MySQL Performance Schema" /><link rel="prev" href="innodb-performance-schema.html" title="15.16 InnoDB Integration with MySQL Performance Schema" /><link rel="next" href="monitor-innodb-mutex-waits-performance-schema.html" title="15.16.2 Monitoring InnoDB Mutex Waits Using Performance Schema" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="monitor-alter-table-performance-schema.html#monitor-alter-table-performance-schema">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-performance-schema.html">Previous <span class="navHint"> InnoDB Integration with MySQL Performance Schema </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-performance-schema.html">Up <span class="navHint"> InnoDB Integration with MySQL Performance Schema </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="monitor-innodb-mutex-waits-performance-schema.html">Next <span class="navHint"> Monitoring InnoDB Mutex Waits Using Performance Schema </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="monitor-alter-table-performance-schema"></a>15.16.1 Monitoring ALTER TABLE Progress for InnoDB Tables Using Performance
+      Schema</h3></div></div></div><a id="idm45828873751680" class="indexterm"></a><a id="idm45828873750192" class="indexterm"></a><p>
+      You can monitor <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+      progress for <code class="literal">InnoDB</code> tables using
+      <a class="link" href="performance-schema.html" title="Chapter 27 MySQL Performance Schema">Performance Schema</a>.
+    </p><p>
+      There are seven stage events that represent different phases of
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>. Each stage event
+      reports a running total of <code class="literal">WORK_COMPLETED</code> and
+      <code class="literal">WORK_ESTIMATED</code> for the overall
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> operation as it
+      progresses through its different phases.
+      <code class="literal">WORK_ESTIMATED</code> is calculated using a formula
+      that takes into account all of the work that
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> performs, and may be
+      revised during <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+      processing. <code class="literal">WORK_COMPLETED</code> and
+      <code class="literal">WORK_ESTIMATED</code> values are an abstract
+      representation of all of the work performed by
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>.
+    </p><p>
+      In order of occurrence, <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>
+      stage events include:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">stage/innodb/alter table (read PK and internal
+          sort)</code>: This stage is active when
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> is in the
+          reading-primary-key phase. It starts with
+          <code class="literal">WORK_COMPLETED=0</code> and
+          <code class="literal">WORK_ESTIMATED</code> set to the estimated number
+          of pages in the primary key. When the stage is completed,
+          <code class="literal">WORK_ESTIMATED</code> is updated to the actual
+          number of pages in the primary key.
+        </p></li><li class="listitem"><p>
+          <code class="literal">stage/innodb/alter table (merge sort)</code>: This
+          stage is repeated for each index added by the
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> operation.
+        </p></li><li class="listitem"><p>
+          <code class="literal">stage/innodb/alter table (insert)</code>: This
+          stage is repeated for each index added by the
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> operation.
+        </p></li><li class="listitem"><p>
+          <code class="literal">stage/innodb/alter table (log apply index)</code>:
+          This stage includes the application of DML log generated while
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> was running.
+        </p></li><li class="listitem"><p>
+          <code class="literal">stage/innodb/alter table (flush)</code>: Before
+          this stage begins, <code class="literal">WORK_ESTIMATED</code> is
+          updated with a more accurate estimate, based on the length of
+          the flush list.
+        </p></li><li class="listitem"><p>
+          <code class="literal">stage/innodb/alter table (log apply table)</code>:
+          This stage includes the application of concurrent DML log
+          generated while <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> was
+          running. The duration of this phase depends on the extent of
+          table changes. This phase is instant if no concurrent DML was
+          run on the table.
+        </p></li><li class="listitem"><p>
+          <code class="literal">stage/innodb/alter table (end)</code>: Includes
+          any remaining work that appeared after the flush phase, such
+          as reapplying DML that was executed on the table while
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> was running.
+        </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        <code class="literal">InnoDB</code> <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+        TABLE</code></a> stage events do not currently account for the
+        addition of spatial indexes.
+      </p></div><h4><a id="idm45828873708832"></a>ALTER TABLE Monitoring Example Using Performance Schema</h4><p>
+      The following example demonstrates how to enable the
+      <code class="literal">stage/innodb/alter table%</code> stage event
+      instruments and related consumer tables to monitor
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> progress. For
+      information about Performance Schema stage event instruments and
+      related consumers, see
+      <a class="xref" href="performance-schema-stage-tables.html" title="27.12.5 Performance Schema Stage Event Tables">Section 27.12.5, “Performance Schema Stage Event Tables”</a>.
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Enable the <code class="literal">stage/innodb/alter%</code> instruments:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>SET ENABLED = 'YES'</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE 'stage/innodb/alter%';</code></strong>
+Query OK, 7 rows affected (0.00 sec)
+Rows matched: 7  Changed: 7  Warnings: 0
+</pre></li><li class="listitem"><p>
+          Enable the stage event consumer tables, which include
+          <a class="link" href="performance-schema-events-stages-current-table.html" title="27.12.5.1 The events_stages_current Table"><code class="literal">events_stages_current</code></a>,
+          <a class="link" href="performance-schema-events-stages-history-table.html" title="27.12.5.2 The events_stages_history Table"><code class="literal">events_stages_history</code></a>, and
+          <a class="link" href="performance-schema-events-stages-history-long-table.html" title="27.12.5.3 The events_stages_history_long Table"><code class="literal">events_stages_history_long</code></a>.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>UPDATE performance_schema.setup_consumers</code></strong>
+       <strong class="userinput"><code>SET ENABLED = 'YES'</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE '%stages%';</code></strong>
+Query OK, 3 rows affected (0.00 sec)
+Rows matched: 3  Changed: 3  Warnings: 0
+</pre></li><li class="listitem"><p>
+          Run an <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> operation.
+          In this example, a <code class="literal">middle_name</code> column is
+          added to the employees table of the employees sample database.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER TABLE employees.employees ADD COLUMN middle_name varchar(14) AFTER first_name;</code></strong>
+Query OK, 0 rows affected (9.27 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+</pre></li><li class="listitem"><p>
+          Check the progress of the <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+          TABLE</code></a> operation by querying the Performance Schema
+          <a class="link" href="performance-schema-events-stages-current-table.html" title="27.12.5.1 The events_stages_current Table"><code class="literal">events_stages_current</code></a> table. The
+          stage event shown differs depending on which
+          <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> phase is currently
+          in progress. The <code class="literal">WORK_COMPLETED</code> column
+          shows the work completed. The
+          <code class="literal">WORK_ESTIMATED</code> column provides an estimate
+          of the remaining work.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED</code></strong>
+       <strong class="userinput"><code>FROM performance_schema.events_stages_current;</code></strong>
++------------------------------------------------------+----------------+----------------+
+| EVENT_NAME                                           | WORK_COMPLETED | WORK_ESTIMATED |
++------------------------------------------------------+----------------+----------------+
+| stage/innodb/alter table (read PK and internal sort) |            280 |           1245 |
++------------------------------------------------------+----------------+----------------+
+1 row in set (0.01 sec)
+</pre><p>
+          The <a class="link" href="performance-schema-events-stages-current-table.html" title="27.12.5.1 The events_stages_current Table"><code class="literal">events_stages_current</code></a> table
+          returns an empty set if the <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+          TABLE</code></a> operation has completed. In this case, you can
+          check the <a class="link" href="performance-schema-events-stages-history-table.html" title="27.12.5.2 The events_stages_history Table"><code class="literal">events_stages_history</code></a>
+          table to view event data for the completed operation. For
+          example:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED</code></strong>
+       <strong class="userinput"><code>FROM performance_schema.events_stages_history;</code></strong>
++------------------------------------------------------+----------------+----------------+
+| EVENT_NAME                                           | WORK_COMPLETED | WORK_ESTIMATED |
++------------------------------------------------------+----------------+----------------+
+| stage/innodb/alter table (read PK and internal sort) |            886 |           1213 |
+| stage/innodb/alter table (flush)                     |           1213 |           1213 |
+| stage/innodb/alter table (log apply table)           |           1597 |           1597 |
+| stage/innodb/alter table (end)                       |           1597 |           1597 |
+| stage/innodb/alter table (log apply table)           |           1981 |           1981 |
++------------------------------------------------------+----------------+----------------+
+5 rows in set (0.00 sec)
+</pre><p>
+          As shown above, the <code class="literal">WORK_ESTIMATED</code> value
+          was revised during <code class="literal">ALTER TABLE</code> processing.
+          The estimated work after completion of the initial stage is
+          1213. When <code class="literal">ALTER TABLE</code> processing
+          completed, <code class="literal">WORK_ESTIMATED</code> was set to the
+          actual value, which is 1981.
+        </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-performance-schema.html">Previous <span class="navHint"> InnoDB Integration with MySQL Performance Schema </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-performance-schema.html">Up <span class="navHint"> InnoDB Integration with MySQL Performance Schema </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="monitor-innodb-mutex-waits-performance-schema.html">Next <span class="navHint"> Monitoring InnoDB Mutex Waits Using Performance Schema </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

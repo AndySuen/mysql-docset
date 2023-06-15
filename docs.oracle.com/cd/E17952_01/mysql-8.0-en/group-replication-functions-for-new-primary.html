@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.4.3.3 Function which Configures Group Replication Primary</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-statements-group.html" title="13.4.3 SQL Statements for Controlling Group Replication" /><link rel="prev" href="stop-group-replication.html" title="13.4.3.2 STOP GROUP_REPLICATION Statement" /><link rel="next" href="group-replication-functions-for-mode.html" title="13.4.3.4 Functions which Configure the Group Replication Mode" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-functions-for-new-primary.html#group-replication-functions-for-new-primary">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="stop-group-replication.html">Previous <span class="navHint"> STOP GROUP_REPLICATION Statement </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-statements-group.html">Up <span class="navHint"> SQL Statements for Controlling Group Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-functions-for-mode.html">Next <span class="navHint"> Functions which Configure the Group Replication Mode </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="group-replication-functions-for-new-primary"></a>13.4.3.3 Function which Configures Group Replication Primary</h4></div></div></div><p>
+        The following function enables you to set a member of a
+        single-primary replication group to take over as the primary.
+        The current primary becomes a read-only secondary, and the
+        specified group member becomes the read-write primary. The
+        function can be used on any member of a replication group
+        running in single-primary mode. This function replaces the usual
+        primary election process.
+        <a class="xref" href="group-replication-changing-primary-member.html" title="18.5.1.1 Changing a Group's Primary Member">Section 18.5.1.1, “Changing a Group's Primary Member”</a>
+        explains the MySQL Server version requirements for the new
+        primary member.
+      </p><p>
+        If a standard source to replica replication channel is running
+        on the existing primary member in addition to the Group
+        Replication channels, you must stop that replication channel
+        before you can change the primary member. You can identify the
+        current primary using the <code class="literal">MEMBER_ROLE</code> column
+        in the Performance Schema table
+        <a class="link" href="performance-schema-replication-group-members-table.html" title="27.12.11.11 The replication_group_members Table"><code class="literal">replication_group_members</code></a>, or the
+        <a class="link" href="server-status-variables.html#statvar_group_replication_primary_member"><code class="literal">group_replication_primary_member</code></a>
+        status variable.
+      </p><p>
+        Any uncommitted transactions that the group is waiting on must
+        be committed, rolled back, or terminated before the operation
+        can complete. Before MySQL 8.0.29, the function waits for all
+        active transactions on the existing primary to end, including
+        incoming transactions that are started after the function is
+        used. From MySQL 8.0.29, you can specify a timeout for
+        transactions that are running when you use the function. For the
+        timeout to work, all members of the group must be at MySQL
+        8.0.29 or higher.
+      </p><p>
+        When the timeout expires, for any transactions that did not yet
+        reach their commit phase, the client session is disconnected so
+        that the transaction does not proceed. Transactions that reached
+        their commit phase are allowed to complete. When you set a
+        timeout, it also prevents new transactions starting on the
+        primary from that point on. Explicitly defined transactions
+        (with a <code class="literal">START TRANSACTION</code> or
+        <code class="literal">BEGIN</code> statement) are subject to the timeout,
+        disconnection, and incoming transaction blocking even if they do
+        not modify any data. To allow inspection of the primary while
+        the function is operating, single statements that do not modify
+        data, as listed in
+        <a class="xref" href="group-replication-configuring-consistency-guarantees.html#group-replication-nonblocking" title="Permitted Queries Under Consistency Rules">Permitted Queries Under Consistency Rules</a>, are
+        permitted to proceed.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="function_group-replication-set-as-primary"></a>
+            <a class="link" href="group-replication-functions-for-new-primary.html#function_group-replication-set-as-primary"><code class="literal">group_replication_set_as_primary()</code></a>
+          </p><a id="idm45828902356944" class="indexterm"></a><a id="idm45828902355904" class="indexterm"></a><p>
+            Appoints a specific member of the group as the new primary,
+            overriding any election process.
+          </p><p>
+            Syntax:
+          </p><pre class="programlisting">STRING group_replication_set_as_primary(<em class="replaceable"><code>member_uuid</code></em>[, timeout])</pre><p>
+            Arguments:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <em class="replaceable"><code>member_uuid</code></em>: A string
+                containing the UUID of the member of the group that you
+                want to become the new primary.
+              </p></li><li class="listitem"><p>
+                <em class="replaceable"><code>timeout</code></em>: An integer
+                specifying a timeout in seconds for transactions that
+                are running on the existing primary when you use the
+                function. You can set a timeout from 0 seconds
+                (immediately) up to 3600 seconds (60 minutes). When you
+                set a timeout, new transactions cannot start on the
+                primary from that point on. There is no default setting
+                for the timeout, so if you do not set it, there is no
+                upper limit to the wait time, and new transactions can
+                start during that time. This option is available from
+                MySQL 8.0.29.
+              </p></li></ul></div><p>
+            Return value:
+          </p><p>
+            A string containing the result of the operation, for example
+            whether it was successful or not.
+          </p><p>
+            Example:
+          </p><pre class="programlisting">SELECT group_replication_set_as_primary(‘00371d66-3c45-11ea-804b-080027337932’, 300)</pre><p>
+            For more information, see
+            <a class="xref" href="group-replication-changing-primary-member.html" title="18.5.1.1 Changing a Group's Primary Member">Section 18.5.1.1, “Changing a Group's Primary Member”</a>.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="stop-group-replication.html">Previous <span class="navHint"> STOP GROUP_REPLICATION Statement </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-statements-group.html">Up <span class="navHint"> SQL Statements for Controlling Group Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-functions-for-mode.html">Next <span class="navHint"> Functions which Configure the Group Replication Mode </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

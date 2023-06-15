@@ -1,0 +1,80 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3577"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.5.1.27%C2%A0Replication%20and%20Row%20Searches"></a><title>17.5.1.27&nbsp;Replication and Row Searches</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-features.html" title="17.5.1&nbsp;Replication Features and Issues"/><link rel="prev" href="replication-features-reserved-words.html" title="17.5.1.26&nbsp;Replication and Reserved Words"/><link rel="next" href="replication-features-shutdowns.html" title="17.5.1.28&nbsp;Replication and Source or Replica Shutdowns"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-row-searches.html#replication-features-row-searches">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-features-reserved-words.html">Previous <span class="navHint"> Replication and Reserved Words </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-features-shutdowns.html">Next <span class="navHint"> Replication and Source or Replica Shutdowns </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3576"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.5.1.27%C2%A0Replication%20and%20Row%20Searches"></a><h4 class="title"><a id="replication-features-row-searches"></a>17.5.1.27&nbsp;Replication and Row Searches</h4></div></div></div><p>
+        When a replica using row-based replication format applies an
+        <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> or
+        <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> operation, it must search
+        the relevant table for the matching rows. The algorithm used to
+        carry out this process uses one of the table&#39;s indexes to carry
+        out the search as the first choice, and a hash table if there
+        are no suitable indexes.
+      </p><p>
+        The algorithm first assesses the available indexes in the table
+        definition to see if there is any suitable index to use, and if
+        there are multiple possibilities, which index is the best fit
+        for the operation. The algorithm ignores the following types of
+        index:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Fulltext indexes.
+          </p></li><li class="listitem"><p>
+            Hidden indexes.
+          </p></li><li class="listitem"><p>
+            Generated indexes.
+          </p></li><li class="listitem"><p>
+            Multi-valued indexes.
+          </p></li><li class="listitem"><p>
+            Any index where the before-image of the row event does not
+            contain all the columns of the index.
+          </p></li></ul></div><p>
+        If there are no suitable indexes after ruling out these index
+        types, the algorithm does not use an index for the search. If
+        there are suitable indexes, one index is selected from the
+        candidates, in the following priority order:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            A primary key.
+          </p></li><li class="listitem"><p>
+            A unique index where every column in the index has a NOT
+            NULL attribute. If more than one such index is available,
+            the algorithm chooses the leftmost of these indexes.
+          </p></li><li class="listitem"><p>
+            Any other index. If more than one such index is available,
+            the algorithm chooses the leftmost of these indexes.
+          </p></li></ol></div><p>
+        If the algorithm is able to select a primary key or a unique
+        index where every column in the index has a <code class="literal">NOT
+        NULL</code> attribute, it uses this index to iterate over the
+        rows in the <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> or
+        <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> operation. For each row in
+        the row event, the algorithm looks up the row in the index to
+        locate the table record to update. If no matching record is
+        found, it returns the error
+        <span class="errortext">ER_KEY_NOT_FOUND</span> and stops the
+        replication applier thread.
+      </p><p>
+        If the algorithm was not able to find a suitable index, or was
+        only able to find an index that was non-unique or contained
+        nulls, a hash table is used to assist in identifying the table
+        records. The algorithm creates a hash table containing the rows
+        in the <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> or
+        <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> operation, with the key as
+        the full before-image of the row. The algorithm then iterates
+        over all the records in the target table, using the selected
+        index if it found one, or else performing a full table scan. For
+        each record in the target table, it determines whether that row
+        exists in the hash table. If the row is found in the hash table,
+        the record in the target table is updated, and the row is
+        deleted from the hash table. When all the records in the target
+        table have been checked, the algorithm verifies whether the hash
+        table is now empty. If there are any unmatched rows remaining in
+        the hash table, the algorithm returns the error
+        <span class="errortext">ER_KEY_NOT_FOUND</span> and stops the
+        replication applier thread.
+      </p><p>
+        The
+        <a class="link" href="replication-options-replica.html#sysvar_slave_rows_search_algorithms"><code class="literal">slave_rows_search_algorithms</code></a>
+        system variable was previously used to control how rows are
+        searched for matches. The use of this system variable is now
+        deprecated, because the default setting, which uses an index
+        scan followed by a hash scan as described above, is optimal for
+        performance and works correctly in all scenarios.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-reserved-words.html">Previous <span class="navHint"> Replication and Reserved Words </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-shutdowns.html">Next <span class="navHint"> Replication and Source or Replica Shutdowns </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

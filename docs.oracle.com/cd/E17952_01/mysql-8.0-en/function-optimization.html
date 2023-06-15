@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.1.20 Function Call Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="select-optimization.html" title="8.2.1 Optimizing SELECT Statements" /><link rel="prev" href="limit-optimization.html" title="8.2.1.19 LIMIT Query Optimization" /><link rel="next" href="window-function-optimization.html" title="8.2.1.21 Window Function Optimization" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="function-optimization.html#function-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="limit-optimization.html">Previous <span class="navHint"> LIMIT Query Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="window-function-optimization.html">Next <span class="navHint"> Window Function Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="function-optimization"></a>8.2.1.20 Function Call Optimization</h4></div></div></div><a id="idm45828955400144" class="indexterm"></a><a id="idm45828955398672" class="indexterm"></a><a id="idm45828955397168" class="indexterm"></a><a id="idm45828955395664" class="indexterm"></a><p>
+          MySQL functions are tagged internally as deterministic or
+          nondeterministic. A function is nondeterministic if, given
+          fixed values for its arguments, it can return different
+          results for different invocations. Examples of
+          nondeterministic functions:
+          <a class="link" href="mathematical-functions.html#function_rand"><code class="literal">RAND()</code></a>,
+          <a class="link" href="miscellaneous-functions.html#function_uuid"><code class="literal">UUID()</code></a>.
+        </p><p>
+          If a function is tagged nondeterministic, a reference to it in
+          a <code class="literal">WHERE</code> clause is evaluated for every row
+          (when selecting from one table) or combination of rows (when
+          selecting from a multiple-table join).
+        </p><p>
+          MySQL also determines when to evaluate functions based on
+          types of arguments, whether the arguments are table columns or
+          constant values. A deterministic function that takes a table
+          column as argument must be evaluated whenever that column
+          changes value.
+        </p><p>
+          Nondeterministic functions may affect query performance. For
+          example, some optimizations may not be available, or more
+          locking might be required. The following discussion uses
+          <a class="link" href="mathematical-functions.html#function_rand"><code class="literal">RAND()</code></a> but applies to other
+          nondeterministic functions as well.
+        </p><p>
+          Suppose that a table <code class="literal">t</code> has this definition:
+        </p><pre class="programlisting">CREATE TABLE t (id INT NOT NULL PRIMARY KEY, col_a VARCHAR(100));
+</pre><p>
+          Consider these two queries:
+        </p><pre class="programlisting">SELECT * FROM t WHERE id = POW(1,2);
+SELECT * FROM t WHERE id = FLOOR(1 + RAND() * 49);
+</pre><p>
+          Both queries appear to use a primary key lookup because of the
+          equality comparison against the primary key, but that is true
+          only for the first of them:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The first query always produces a maximum of one row
+              because <a class="link" href="mathematical-functions.html#function_pow"><code class="literal">POW()</code></a> with constant
+              arguments is a constant value and is used for index
+              lookup.
+            </p></li><li class="listitem"><p>
+              The second query contains an expression that uses the
+              nondeterministic function
+              <a class="link" href="mathematical-functions.html#function_rand"><code class="literal">RAND()</code></a>, which is not
+              constant in the query but in fact has a new value for
+              every row of table <code class="literal">t</code>. Consequently, the
+              query reads every row of the table, evaluates the
+              predicate for each row, and outputs all rows for which the
+              primary key matches the random value. This might be zero,
+              one, or multiple rows, depending on the
+              <code class="literal">id</code> column values and the values in the
+              <a class="link" href="mathematical-functions.html#function_rand"><code class="literal">RAND()</code></a> sequence.
+            </p></li></ul></div><p>
+          The effects of nondeterminism are not limited to
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements. This
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> statement uses a
+          nondeterministic function to select rows to be modified:
+        </p><pre class="programlisting">UPDATE t SET col_a = <em class="replaceable"><code>some_expr</code></em> WHERE id = FLOOR(1 + RAND() * 49);
+</pre><p>
+          Presumably the intent is to update at most a single row for
+          which the primary key matches the expression. However, it
+          might update zero, one, or multiple rows, depending on the
+          <code class="literal">id</code> column values and the values in the
+          <a class="link" href="mathematical-functions.html#function_rand"><code class="literal">RAND()</code></a> sequence.
+        </p><p>
+          The behavior just described has implications for performance
+          and replication:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Because a nondeterministic function does not produce a
+              constant value, the optimizer cannot use strategies that
+              might otherwise be applicable, such as index lookups. The
+              result may be a table scan.
+            </p></li><li class="listitem"><p>
+              <code class="literal">InnoDB</code> might escalate to a range-key
+              lock rather than taking a single row lock for one matching
+              row.
+            </p></li><li class="listitem"><p>
+              Updates that do not execute deterministically are unsafe
+              for replication.
+            </p></li></ul></div><p>
+          The difficulties stem from the fact that the
+          <a class="link" href="mathematical-functions.html#function_rand"><code class="literal">RAND()</code></a> function is evaluated
+          once for every row of the table. To avoid multiple function
+          evaluations, use one of these techniques:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Move the expression containing the nondeterministic
+              function to a separate statement, saving the value in a
+              variable. In the original statement, replace the
+              expression with a reference to the variable, which the
+              optimizer can treat as a constant value:
+            </p><pre class="programlisting">SET @keyval = FLOOR(1 + RAND() * 49);
+UPDATE t SET col_a = <em class="replaceable"><code>some_expr</code></em> WHERE id = @keyval;
+</pre></li><li class="listitem"><p>
+              Assign the random value to a variable in a derived table.
+              This technique causes the variable to be assigned a value,
+              once, prior to its use in the comparison in the
+              <code class="literal">WHERE</code> clause:
+            </p><pre class="programlisting">UPDATE /*+ NO_MERGE(dt) */ t, (SELECT FLOOR(1 + RAND() * 49) AS r) AS dt
+SET col_a = <em class="replaceable"><code>some_expr</code></em> WHERE id = dt.r;
+</pre></li></ul></div><p>
+          As mentioned previously, a nondeterministic expression in the
+          <code class="literal">WHERE</code> clause might prevent optimizations
+          and result in a table scan. However, it may be possible to
+          partially optimize the <code class="literal">WHERE</code> clause if
+          other expressions are deterministic. For example:
+        </p><pre class="programlisting">SELECT * FROM t WHERE partial_key=5 AND some_column=RAND();
+</pre><p>
+          If the optimizer can use <code class="literal">partial_key</code> to
+          reduce the set of rows selected,
+          <a class="link" href="mathematical-functions.html#function_rand"><code class="literal">RAND()</code></a> is executed fewer times,
+          which diminishes the effect of nondeterminism on optimization.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="limit-optimization.html">Previous <span class="navHint"> LIMIT Query Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="window-function-optimization.html">Next <span class="navHint"> Window Function Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

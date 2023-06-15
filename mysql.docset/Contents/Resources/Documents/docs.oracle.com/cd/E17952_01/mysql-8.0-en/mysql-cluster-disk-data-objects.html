@@ -1,0 +1,449 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2041"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.6.11.1%C2%A0NDB%20Cluster%20Disk%20Data%20Objects"></a><title>23.6.11.1&nbsp;NDB Cluster Disk Data Objects</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-disk-data.html" title="23.6.11&nbsp;NDB Cluster Disk Data Tables"/><link rel="prev" href="mysql-cluster-disk-data.html" title="23.6.11&nbsp;NDB Cluster Disk Data Tables"/><link rel="next" href="mysql-cluster-disk-data-storage-requirements.html" title="23.6.11.2&nbsp;NDB Cluster Disk Data Storage Requirements"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-disk-data-objects.html#mysql-cluster-disk-data-objects">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-disk-data.html">Previous <span class="navHint"> NDB Cluster Disk Data Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-disk-data.html">Up <span class="navHint"> NDB Cluster Disk Data Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-disk-data-storage-requirements.html">Next <span class="navHint"> NDB Cluster Disk Data Storage Requirements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2040"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/23.6.11.1%C2%A0NDB%20Cluster%20Disk%20Data%20Objects"></a><h4 class="title"><a id="mysql-cluster-disk-data-objects"></a>23.6.11.1&nbsp;NDB Cluster Disk Data Objects</h4></div></div></div><p>
+        NDB Cluster Disk Data storage is implemented using the following
+        objects:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <span class="firstterm">Tablespace</span>: Acts as
+            containers for other Disk Data objects. A tablespace
+            contains one or more data files and one or more undo log
+            file groups.
+          </p></li><li class="listitem"><p>
+            <span class="firstterm">Data file</span>: Stores
+            column data. A data file is assigned directly to a
+            tablespace.
+          </p></li><li class="listitem"><p>
+            <span class="firstterm">Undo log file</span>:
+            Contains undo information required for rolling back
+            transactions. Assigned to an undo log file group.
+          </p></li><li class="listitem"><p>
+            <span class="firstterm">log file group</span>:
+            Contains one or more undo log files. Assigned to a
+            tablespace.
+          </p></li></ul></div><p>
+        Undo log files and data files are actual files in the file
+        system of each data node; by default they are placed in
+        <code class="literal">ndb_<em class="replaceable"><code>node_id</code></em>_fs</code> in
+        the <em class="replaceable"><code>DataDir</code></em> specified in the NDB
+        Cluster <code class="filename">config.ini</code> file, and where
+        <em class="replaceable"><code>node_id</code></em> is the data node&#39;s node
+        ID. It is possible to place these elsewhere by specifying either
+        an absolute or relative path as part of the filename when
+        creating the undo log or data file. Statements that create these
+        files are shown later in this section.
+      </p><p>
+        Undo log files are used only by Disk Data tables, and are not
+        needed or used by <code class="literal">NDB</code> tables that are stored
+        in memory only.
+      </p><p>
+        NDB Cluster tablespaces and log file groups are not implemented
+        as files.
+      </p><p>
+        Although not all Disk Data objects are implemented as files,
+        they all share the same namespace. This means that
+        <span class="emphasis"><em>each Disk Data object</em></span> must be uniquely
+        named (and not merely each Disk Data object of a given type).
+        For example, you cannot have a tablespace and a log file group
+        both named <code class="literal">dd1</code>.
+      </p><p>
+        Assuming that you have already set up an NDB Cluster with all
+        nodes (including management and SQL nodes), the basic steps for
+        creating an NDB Cluster table on disk are as follows:
+      </p><a id="idm45828809043904" class="indexterm"></a><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Create a log file group, and assign one or more undo log
+            files to it (an undo log file is also sometimes referred to
+            as an <span class="firstterm">undofile</span>).
+          </p></li><li class="listitem"><p>
+            Create a tablespace; assign the log file group, as well as
+            one or more data files, to the tablespace.
+          </p></li><li class="listitem"><p>
+            Create a Disk Data table that uses this tablespace for data
+            storage.
+          </p></li></ol></div><p>
+        Each of these tasks can be accomplished using SQL statements in
+        the <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client or other MySQL client
+        application, as shown in the example that follows.
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            <a id="idm45828809034144" class="indexterm"></a>
+
+            We create a log file group named <code class="literal">lg_1</code>
+            using <a class="link" href="create-logfile-group.html" title="13.1.16&nbsp;CREATE LOGFILE GROUP Statement"><code class="literal">CREATE LOGFILE GROUP</code></a>.
+            This log file group is to be made up of two undo log files,
+            which we name <code class="filename">undo_1.log</code> and
+            <code class="filename">undo_2.log</code>, whose initial sizes are 16
+            MB and 12 MB, respectively. (The default initial size for an
+            undo log file is 128 MB.) Optionally, you can also specify a
+            size for the log file group&#39;s undo buffer, or permit it
+            to assume the default value of 8 MB. In this example, we set
+            the UNDO buffer&#39;s size at 2 MB. A log file group must
+            be created with an undo log file; so we add
+            <code class="filename">undo_1.log</code> to <code class="literal">lg_1</code>
+            in this <a class="link" href="create-logfile-group.html" title="13.1.16&nbsp;CREATE LOGFILE GROUP Statement"><code class="literal">CREATE LOGFILE GROUP</code></a>
+            statement:
+          </p><pre class="programlisting">CREATE LOGFILE GROUP lg_1
+    ADD UNDOFILE &#39;undo_1.log&#39;
+    INITIAL_SIZE 16M
+    UNDO_BUFFER_SIZE 2M
+    ENGINE NDBCLUSTER;
+</pre><p>
+            To add <code class="filename">undo_2.log</code> to the log file
+            group, use the following <a class="link" href="alter-logfile-group.html" title="13.1.6&nbsp;ALTER LOGFILE GROUP Statement"><code class="literal">ALTER LOGFILE
+            GROUP</code></a> statement:
+          </p><pre class="programlisting">ALTER LOGFILE GROUP lg_1
+    ADD UNDOFILE &#39;undo_2.log&#39;
+    INITIAL_SIZE 12M
+    ENGINE NDBCLUSTER;
+</pre><p>
+            Some items of note:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                The <code class="filename">.log</code> file extension used here
+                is not required. We employ it merely to make the log
+                files easily recognizable.
+              </p></li><li class="listitem"><p>
+                Every <a class="link" href="create-logfile-group.html" title="13.1.16&nbsp;CREATE LOGFILE GROUP Statement"><code class="literal">CREATE LOGFILE
+                GROUP</code></a> and <a class="link" href="alter-logfile-group.html" title="13.1.6&nbsp;ALTER LOGFILE GROUP Statement"><code class="literal">ALTER LOGFILE
+                GROUP</code></a> statement must include an
+                <code class="literal">ENGINE</code> option. The only permitted
+                values for this option are
+                <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> and
+                <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a>.
+              </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+                  There can exist at most one log file group in the same
+                  NDB Cluster at any given time.
+                </p></div></li><li class="listitem"><p>
+                When you add an undo log file to a log file group using
+                <code class="literal">ADD UNDOFILE
+                &#39;<em class="replaceable"><code>filename</code></em>&#39;</code>, a file
+                with the name <em class="replaceable"><code>filename</code></em> is
+                created in the
+                <code class="literal">ndb_<em class="replaceable"><code>node_id</code></em>_fs</code>
+                directory within the
+                <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-datadir"><code class="literal">DataDir</code></a> of each
+                data node in the cluster, where
+                <em class="replaceable"><code>node_id</code></em> is the node ID of the
+                data node. Each undo log file is of the size specified
+                in the SQL statement. For example, if an NDB Cluster has
+                4 data nodes, then the <a class="link" href="alter-logfile-group.html" title="13.1.6&nbsp;ALTER LOGFILE GROUP Statement"><code class="literal">ALTER
+                LOGFILE GROUP</code></a> statement just shown creates 4
+                undo log files, 1 each on in the data directory of each
+                of the 4 data nodes; each of these files is named
+                <code class="filename">undo_2.log</code> and each file is 12 MB
+                in size.
+              </p></li><li class="listitem"><p>
+                <code class="literal">UNDO_BUFFER_SIZE</code> is limited by the
+                amount of system memory available.
+              </p></li><li class="listitem"><p>
+                See <a class="xref" href="create-logfile-group.html" title="13.1.16&nbsp;CREATE LOGFILE GROUP Statement">Section&nbsp;13.1.16, &ldquo;CREATE LOGFILE GROUP Statement&rdquo;</a>, and
+                <a class="xref" href="alter-logfile-group.html" title="13.1.6&nbsp;ALTER LOGFILE GROUP Statement">Section&nbsp;13.1.6, &ldquo;ALTER LOGFILE GROUP Statement&rdquo;</a>, for more
+                information about these statements.
+              </p></li></ul></div></li><li class="listitem"><p>
+            <a id="idm45828808999248" class="indexterm"></a>
+
+            Now we can create a tablespace&mdash;an abstract container
+            for files used by Disk Data tables to store data. A
+            tablespace is associated with a particular log file group;
+            when creating a new tablespace, you must specify the log
+            file group it uses for undo logging. You must also specify
+            at least one data file; you can add more data files to the
+            tablespace after the tablespace is created. It is also
+            possible to drop data files from a tablespace (see example
+            later in this section).
+          </p><p>
+            Assume that we wish to create a tablespace named
+            <code class="literal">ts_1</code> which uses <code class="literal">lg_1</code>
+            as its log file group. We want the tablespace to contain two
+            data files, named <code class="filename">data_1.dat</code> and
+            <code class="filename">data_2.dat</code>, whose initial sizes are 32
+            MB and 48 MB, respectively. (The default value for
+            <code class="literal">INITIAL_SIZE</code> is 128 MB.) We can do this
+            using two SQL statements, as shown here:
+          </p><pre class="programlisting">CREATE TABLESPACE ts_1
+    ADD DATAFILE &#39;data_1.dat&#39;
+    USE LOGFILE GROUP lg_1
+    INITIAL_SIZE 32M
+    ENGINE NDBCLUSTER;
+
+ALTER TABLESPACE ts_1
+    ADD DATAFILE &#39;data_2.dat&#39;
+    INITIAL_SIZE 48M;
+</pre><p>
+            The <a class="link" href="create-tablespace.html" title="13.1.21&nbsp;CREATE TABLESPACE Statement"><code class="literal">CREATE TABLESPACE</code></a>
+            statement creates a tablespace <code class="literal">ts_1</code> with
+            the data file <code class="filename">data_1.dat</code>, and
+            associates <code class="literal">ts_1</code> with log file group
+            <code class="literal">lg_1</code>. The <a class="link" href="alter-tablespace.html" title="13.1.10&nbsp;ALTER TABLESPACE Statement"><code class="literal">ALTER
+            TABLESPACE</code></a> adds the second data file
+            (<code class="filename">data_2.dat</code>).
+          </p><p>
+            Some items of note:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                As is the case with the <code class="filename">.log</code> file
+                extension used in this example for undo log files, there
+                is no special significance for the
+                <code class="filename">.dat</code> file extension; it is used
+                merely for easy recognition.
+              </p></li><li class="listitem"><p>
+                When you add a data file to a tablespace using
+                <code class="literal">ADD DATAFILE
+                &#39;<em class="replaceable"><code>filename</code></em>&#39;</code>, a file
+                with the name <em class="replaceable"><code>filename</code></em> is
+                created in the
+                <code class="literal">ndb_<em class="replaceable"><code>node_id</code></em>_fs</code>
+                directory within the
+                <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-datadir"><code class="literal">DataDir</code></a> of each
+                data node in the cluster, where
+                <em class="replaceable"><code>node_id</code></em> is the node ID of the
+                data node. Each data file is of the size specified in
+                the SQL statement. For example, if an NDB Cluster has 4
+                data nodes, then the <a class="link" href="alter-tablespace.html" title="13.1.10&nbsp;ALTER TABLESPACE Statement"><code class="literal">ALTER
+                TABLESPACE</code></a> statement just shown creates 4 data
+                files, 1 each in the data directory of each of the 4
+                data nodes; each of these files is named
+                <code class="filename">data_2.dat</code> and each file is 48 MB
+                in size.
+              </p></li><li class="listitem"><p>
+                <code class="literal">NDB</code> reserves 4% of each tablespace
+                for use during data node restarts. This space is not
+                available for storing data.
+              </p></li><li class="listitem"><p>
+                <a class="link" href="create-tablespace.html" title="13.1.21&nbsp;CREATE TABLESPACE Statement"><code class="literal">CREATE TABLESPACE</code></a>
+                statements must contain an <code class="literal">ENGINE</code>
+                clause; only tables using the same storage engine as the
+                tablespace can be created in the tablespace. For
+                <a class="link" href="alter-tablespace.html" title="13.1.10&nbsp;ALTER TABLESPACE Statement"><code class="literal">ALTER TABLESPACE</code></a>, an
+                <code class="literal">ENGINE</code> clause is accepted but is
+                deprecated and subject to removal in a future release.
+                For <code class="literal">NDB</code> tablespaces, the only
+                permitted values for this option are
+                <code class="literal">NDBCLUSTER</code> and
+                <code class="literal">NDB</code>.
+              </p></li><li class="listitem"><p>
+                In NDB 8.0.20 and later, allocation of extents is
+                performed in round-robin fashion among all data files
+                used by a given tablespace.
+              </p></li><li class="listitem"><p>
+                For more information about the
+                <a class="link" href="create-tablespace.html" title="13.1.21&nbsp;CREATE TABLESPACE Statement"><code class="literal">CREATE TABLESPACE</code></a> and
+                <a class="link" href="alter-tablespace.html" title="13.1.10&nbsp;ALTER TABLESPACE Statement"><code class="literal">ALTER TABLESPACE</code></a>
+                statements, see <a class="xref" href="create-tablespace.html" title="13.1.21&nbsp;CREATE TABLESPACE Statement">Section&nbsp;13.1.21, &ldquo;CREATE TABLESPACE Statement&rdquo;</a>, and
+                <a class="xref" href="alter-tablespace.html" title="13.1.10&nbsp;ALTER TABLESPACE Statement">Section&nbsp;13.1.10, &ldquo;ALTER TABLESPACE Statement&rdquo;</a>.
+              </p></li></ul></div></li><li class="listitem"><p>
+            <a id="idm45828808958800" class="indexterm"></a>
+
+            Now it is possible to create a table whose unindexed columns
+            are stored on disk using files in tablespace
+            <code class="literal">ts_1</code>:
+          </p><pre class="programlisting">CREATE TABLE dt_1 (
+    member_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    last_name VARCHAR(50) NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    dob DATE NOT NULL,
+    joined DATE NOT NULL,
+    INDEX(last_name, first_name)
+    )
+    TABLESPACE ts_1 STORAGE DISK
+    ENGINE NDBCLUSTER;
+</pre><p>
+            <code class="literal">TABLESPACE ts_1 STORAGE DISK</code> tells the
+            <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> storage engine to use
+            tablespace <code class="literal">ts_1</code> for data storage on disk.
+          </p><p>
+            Once table <code class="literal">ts_1</code> has been created as
+            shown, you can perform
+            <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a>,
+            <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>,
+            <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a>, and
+            <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> statements on it just
+            as you would with any other MySQL table.
+          </p><p>
+            It is also possible to specify whether an individual column
+            is stored on disk or in memory by using a
+            <code class="literal">STORAGE</code> clause as part of the
+            column&#39;s definition in a <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE
+            TABLE</code></a> or <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER
+            TABLE</code></a> statement. <code class="literal">STORAGE DISK</code>
+            causes the column to be stored on disk, and <code class="literal">STORAGE
+            MEMORY</code> causes in-memory storage to be used. See
+            <a class="xref" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement">Section&nbsp;13.1.20, &ldquo;CREATE TABLE Statement&rdquo;</a>, for more information.
+          </p></li></ol></div><p>
+        You can obtain information about the <code class="literal">NDB</code> disk
+        data files and undo log files just created by querying the
+        <a class="link" href="information-schema-files-table.html" title="26.3.15&nbsp;The INFORMATION_SCHEMA FILES Table"><code class="literal">FILES</code></a> table in the
+        <code class="literal">INFORMATION_SCHEMA</code> database, as shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+              <strong class="userinput"><code>FILE_NAME AS File, FILE_TYPE AS Type,</code></strong>
+              <strong class="userinput"><code>TABLESPACE_NAME AS Tablespace, TABLE_NAME AS Name,</code></strong>
+              <strong class="userinput"><code>LOGFILE_GROUP_NAME AS &#39;File group&#39;,</code></strong>
+              <strong class="userinput"><code>FREE_EXTENTS AS Free, TOTAL_EXTENTS AS Total</code></strong>
+          <strong class="userinput"><code>FROM INFORMATION_SCHEMA.FILES</code></strong>
+          <strong class="userinput"><code>WHERE ENGINE=&#39;ndbcluster&#39;;</code></strong>
++--------------+----------+------------+------+------------+------+---------+
+| File         | Type     | Tablespace | Name | File group | Free | Total   |
++--------------+----------+------------+------+------------+------+---------+
+| ./undo_1.log | UNDO LOG | lg_1       | NULL | lg_1       |    0 | 4194304 |
+| ./undo_2.log | UNDO LOG | lg_1       | NULL | lg_1       |    0 | 3145728 |
+| ./data_1.dat | DATAFILE | ts_1       | NULL | lg_1       |   32 |      32 |
+| ./data_2.dat | DATAFILE | ts_1       | NULL | lg_1       |   48 |      48 |
++--------------+----------+------------+------+------------+------+---------+
+4 rows in set (0.00 sec)
+</pre><p>
+        For more information and examples, see
+        <a class="xref" href="information-schema-files-table.html" title="26.3.15&nbsp;The INFORMATION_SCHEMA FILES Table">Section&nbsp;26.3.15, &ldquo;The INFORMATION_SCHEMA FILES Table&rdquo;</a>.
+      </p><p><strong>Indexing of columns implicitly stored on disk.&nbsp;</strong>
+          For table <code class="literal">dt_1</code> as defined in the example
+          just shown, only the <code class="literal">dob</code> and
+          <code class="literal">joined</code> columns are stored on disk. This is
+          because there are indexes on the <code class="literal">id</code>,
+          <code class="literal">last_name</code>, and
+          <code class="literal">first_name</code> columns, and so data belonging
+          to these columns is stored in RAM. Only nonindexed columns can
+          be held on disk; indexes and indexed column data continue to
+          be stored in memory. This tradeoff between the use of indexes
+          and conservation of RAM is something you must keep in mind as
+          you design Disk Data tables.
+        </p><p>
+        You cannot add an index to a column that has been explicitly
+        declared <code class="literal">STORAGE DISK</code>, without first changing
+        its storage type to <code class="literal">MEMORY</code>; any attempt to do
+        so fails with an error. A column which
+        <span class="emphasis"><em>implicitly</em></span> uses disk storage can be
+        indexed; when this is done, the column&#39;s storage type is
+        changed to <code class="literal">MEMORY</code> automatically. By
+        <span class="quote">&ldquo;<span class="quote">implicitly</span>&rdquo;</span>, we mean a column whose storage type
+        is not declared, but which is which inherited from the parent
+        table. In the following CREATE TABLE statement (using the
+        tablespace <code class="literal">ts_1</code> defined previously), columns
+        <code class="literal">c2</code> and <code class="literal">c3</code> use disk storage
+        implicitly:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE ti (</code></strong>
+    -&gt;     <strong class="userinput"><code>c1 INT PRIMARY KEY,</code></strong>
+    -&gt;     <strong class="userinput"><code>c2 INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>c3 INT,</code></strong>
+    -&gt;     <strong class="userinput"><code>c4 INT</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt;     <strong class="userinput"><code>STORAGE DISK</code></strong>
+    -&gt;     <strong class="userinput"><code>TABLESPACE ts_1</code></strong>
+    -&gt;     <strong class="userinput"><code>ENGINE NDBCLUSTER;</code></strong>
+Query OK, 0 rows affected (1.31 sec)
+</pre><p>
+        Because <code class="literal">c2</code>, <code class="literal">c3</code>, and
+        <code class="literal">c4</code> are themselves not declared with
+        <code class="literal">STORAGE DISK</code>, it is possible to index them.
+        Here, we add indexes to <code class="literal">c2</code> and
+        <code class="literal">c3</code>, using, respectively, <code class="literal">CREATE
+        INDEX</code> and <code class="literal">ALTER TABLE</code>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE INDEX i1 ON ti(c2);</code></strong>
+Query OK, 0 rows affected (2.72 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>ALTER TABLE ti ADD INDEX i2(c3);</code></strong>
+Query OK, 0 rows affected (0.92 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+</pre><p>
+        <a class="link" href="show-create-table.html" title="13.7.7.10&nbsp;SHOW CREATE TABLE Statement"><code class="literal">SHOW CREATE TABLE</code></a> confirms that
+        the indexes were added.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW CREATE TABLE ti\G</code></strong>
+*************************** 1. row ***************************
+       Table: ti
+Create Table: CREATE TABLE `ti` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `i1` (`c2`),
+  KEY `i2` (`c3`)
+) /*!50100 TABLESPACE `ts_1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+1 row in set (0.00 sec)
+</pre><p>
+        You can see using <a class="link" href="mysql-cluster-programs-ndb-desc.html" title="23.5.9&nbsp;ndb_desc &mdash; Describe NDB Tables"><span class="command"><strong>ndb_desc</strong></span></a> that the indexed
+        columns (emphasized text) now use in-memory rather than on-disk
+        storage:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>./ndb_desc -d test t1</code></strong>
+-- t1 --
+Version: 33554433
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 1
+Length of frm data: 317
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+c1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+<span class="emphasis"><em>c2 Int NULL AT=FIXED ST=MEMORY
+c3 Int NULL AT=FIXED ST=MEMORY</em></span>
+c4 Int NULL AT=FIXED ST=DISK
+-- Indexes --
+PRIMARY KEY(c1) - UniqueHashIndex
+i2(c3) - OrderedIndex
+PRIMARY(c1) - OrderedIndex
+i1(c2) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+</pre><p><strong>Performance note.&nbsp;</strong>
+          The performance of a cluster using Disk Data storage is
+          greatly improved if Disk Data files are kept on a separate
+          physical disk from the data node file system. This must be
+          done for each data node in the cluster to derive any
+          noticeable benefit.
+        </p><p>
+        You can use absolute and relative file system paths with
+        <code class="literal">ADD UNDOFILE</code> and <code class="literal">ADD
+        DATAFILE</code>; relative paths are calculated with respect
+        to the data node&#39;s data directory.
+      </p><p>
+        A log file group, a tablespace, and any Disk Data tables using
+        these must be created in a particular order. This is also true
+        for dropping these objects, subject to the following
+        constraints:
+      </p><a id="idm45828808888016" class="indexterm"></a><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A log file group cannot be dropped as long as any
+            tablespaces use it.
+          </p></li><li class="listitem"><p>
+            A tablespace cannot be dropped as long as it contains any
+            data files.
+          </p></li><li class="listitem"><p>
+            You cannot drop any data files from a tablespace as long as
+            there remain any tables which are using the tablespace.
+          </p></li><li class="listitem"><p>
+            It is not possible to drop files created in association with
+            a different tablespace other than the one with which the
+            files were created.
+          </p></li></ul></div><p>
+        For example, to drop all the objects created so far in this
+        section, you can use the following statements:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>DROP TABLE dt_1;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>ALTER TABLESPACE ts_1</code></strong>
+    -&gt; <strong class="userinput"><code>DROP DATAFILE &#39;data_2.dat&#39;</code></strong>
+    -&gt; <strong class="userinput"><code>ENGINE NDBCLUSTER;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>ALTER TABLESPACE ts_1</code></strong>
+    -&gt; <strong class="userinput"><code>DROP DATAFILE &#39;data_1.dat&#39;</code></strong>
+    -&gt; <strong class="userinput"><code>ENGINE NDBCLUSTER;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>DROP TABLESPACE ts_1</code></strong>
+    -&gt; <strong class="userinput"><code>ENGINE NDBCLUSTER;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>DROP LOGFILE GROUP lg_1</code></strong>
+    -&gt; <strong class="userinput"><code>ENGINE NDBCLUSTER;</code></strong>
+</pre><p>
+        These statements must be performed in the order shown, except
+        that the two <code class="literal">ALTER TABLESPACE ... DROP
+        DATAFILE</code> statements may be executed in either order.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-disk-data.html">Previous <span class="navHint"> NDB Cluster Disk Data Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-disk-data.html">Up <span class="navHint"> NDB Cluster Disk Data Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-disk-data-storage-requirements.html">Next <span class="navHint"> NDB Cluster Disk Data Storage Requirements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

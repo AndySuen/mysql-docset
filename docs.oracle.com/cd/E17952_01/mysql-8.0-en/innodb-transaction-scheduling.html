@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.7.6 Transaction Scheduling</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-locking-transaction-model.html" title="15.7 InnoDB Locking and Transaction Model" /><link rel="prev" href="innodb-deadlocks-handling.html" title="15.7.5.3 How to Minimize and Handle Deadlocks" /><link rel="next" href="innodb-configuration.html" title="15.8 InnoDB Configuration" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-transaction-scheduling.html#innodb-transaction-scheduling">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-deadlocks-handling.html">Previous <span class="navHint"> How to Minimize and Handle Deadlocks </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-locking-transaction-model.html">Up <span class="navHint"> InnoDB Locking and Transaction Model </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-configuration.html">Next <span class="navHint"> InnoDB Configuration </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-transaction-scheduling"></a>15.7.6 Transaction Scheduling</h3></div></div></div><p>
+      <code class="literal">InnoDB</code> uses the Contention-Aware Transaction
+      Scheduling (CATS) algorithm to prioritize transactions that are
+      waiting for locks. When multiple transactions are waiting for a
+      lock on the same object, the CATS algorithm determines which
+      transaction receives the lock first.
+    </p><p>
+      The CATS algorithm prioritizes waiting transactions by assigning a
+      scheduling weight, which is computed based on the number of
+      transactions that a transaction blocks. For example, if two
+      transactions are waiting for a lock on the same object, the
+      transaction that blocks the most transactions is assigned a
+      greater scheduling weight. If weights are equal, priority is given
+      to the longest waiting transaction.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        Prior to MySQL 8.0.20, <code class="literal">InnoDB</code> also uses a
+        First In First Out (FIFO) algorithm to schedule transactions,
+        and the CATS algorithm is used under heavy lock contention only.
+        CATS algorithm enhancements in MySQL 8.0.20 rendered the FIFO
+        algorithm redundant, permitting its removal. Transaction
+        scheduling previously performed by the FIFO algorithm is
+        performed by the CATS algorithm as of MySQL 8.0.20. In some
+        cases, this change may affect the order in which transactions
+        are granted locks.
+      </p></div><p>
+      You can view transaction scheduling weights by querying the
+      <code class="literal">TRX_SCHEDULE_WEIGHT</code> column in the Information
+      Schema <a class="link" href="information-schema-innodb-trx-table.html" title="26.4.28 The INFORMATION_SCHEMA INNODB_TRX Table"><code class="literal">INNODB_TRX</code></a> table. Weights are
+      computed for waiting transactions only. Waiting transactions are
+      those in a <code class="literal">LOCK WAIT</code> transaction execution
+      state, as reported by the <code class="literal">TRX_STATE</code> column. A
+      transaction that is not waiting for a lock reports a NULL
+      <code class="literal">TRX_SCHEDULE_WEIGHT</code> value.
+    </p><p>
+      <a class="link" href="information-schema-innodb-metrics-table.html" title="26.4.21 The INFORMATION_SCHEMA INNODB_METRICS Table"><code class="literal">INNODB_METRICS</code></a> counters are provided
+      for monitoring of code-level transaction scheduling events. For
+      information about using
+      <a class="link" href="information-schema-innodb-metrics-table.html" title="26.4.21 The INFORMATION_SCHEMA INNODB_METRICS Table"><code class="literal">INNODB_METRICS</code></a> counters, see
+      <a class="xref" href="innodb-information-schema-metrics-table.html" title="15.15.6 InnoDB INFORMATION_SCHEMA Metrics Table">Section 15.15.6, “InnoDB INFORMATION_SCHEMA Metrics Table”</a>.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">lock_rec_release_attempts</code>
+        </p><p>
+          The number of attempts to release record locks. A single
+          attempt may lead to zero or more record locks being released,
+          as there may be zero or more record locks in a single
+          structure.
+        </p></li><li class="listitem"><p>
+          <code class="literal">lock_rec_grant_attempts</code>
+        </p><p>
+          The number of attempts to grant record locks. A single attempt
+          may result in zero or more record locks being granted.
+        </p></li><li class="listitem"><p>
+          <code class="literal">lock_schedule_refreshes</code>
+        </p><p>
+          The number of times the wait-for graph was analyzed to update
+          the scheduled transaction weights.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-deadlocks-handling.html">Previous <span class="navHint"> How to Minimize and Handle Deadlocks </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-locking-transaction-model.html">Up <span class="navHint"> InnoDB Locking and Transaction Model </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-configuration.html">Next <span class="navHint"> InnoDB Configuration </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

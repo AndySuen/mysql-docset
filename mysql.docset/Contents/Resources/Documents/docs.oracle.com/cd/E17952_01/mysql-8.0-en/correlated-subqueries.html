@@ -1,0 +1,159 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-418"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/13.2.15.7%C2%A0Correlated%20Subqueries"></a><title>13.2.15.7&nbsp;Correlated Subqueries</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="subqueries.html" title="13.2.15&nbsp;Subqueries"/><link rel="prev" href="exists-and-not-exists-subqueries.html" title="13.2.15.6&nbsp;Subqueries with EXISTS or NOT EXISTS"/><link rel="next" href="derived-tables.html" title="13.2.15.8&nbsp;Derived Tables"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="correlated-subqueries.html#correlated-subqueries">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="exists-and-not-exists-subqueries.html">Previous <span class="navHint"> Subqueries with EXISTS or NOT EXISTS </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="derived-tables.html">Next <span class="navHint"> Derived Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-417"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/13.2.15.7%C2%A0Correlated%20Subqueries"></a><h4 class="title"><a id="correlated-subqueries"></a>13.2.15.7&nbsp;Correlated Subqueries</h4></div></div></div><a id="idm45828906281600" class="indexterm"></a><a id="idm45828906280528" class="indexterm"></a><p>
+        A <span class="emphasis"><em>correlated subquery</em></span> is a subquery that
+        contains a reference to a table that also appears in the outer
+        query. For example:
+      </p><pre class="programlisting">SELECT * FROM t1
+  WHERE column1 = ANY (SELECT column1 FROM t2
+                       WHERE t2.column2 = t1.column2);
+</pre><p>
+        Notice that the subquery contains a reference to a column of
+        <code class="literal">t1</code>, even though the subquery&#39;s
+        <code class="literal">FROM</code> clause does not mention a table
+        <code class="literal">t1</code>. So, MySQL looks outside the subquery, and
+        finds <code class="literal">t1</code> in the outer query.
+      </p><p>
+        Suppose that table <code class="literal">t1</code> contains a row where
+        <code class="literal">column1 = 5</code> and <code class="literal">column2 =
+        6</code>; meanwhile, table <code class="literal">t2</code> contains a
+        row where <code class="literal">column1 = 5</code> and <code class="literal">column2 =
+        7</code>. The simple expression <code class="literal">... WHERE column1 =
+        ANY (SELECT column1 FROM t2)</code> would be
+        <code class="literal">TRUE</code>, but in this example, the
+        <code class="literal">WHERE</code> clause within the subquery is
+        <code class="literal">FALSE</code> (because <code class="literal">(5,6)</code> is
+        not equal to <code class="literal">(5,7)</code>), so the expression as a
+        whole is <code class="literal">FALSE</code>.
+      </p><p>
+        <span class="bold"><strong>Scoping rule:</strong></span> MySQL evaluates
+        from inside to outside. For example:
+      </p><pre class="programlisting">SELECT column1 FROM t1 AS x
+  WHERE x.column1 = (SELECT column1 FROM t2 AS x
+    WHERE x.column1 = (SELECT column1 FROM t3
+      WHERE x.column2 = t3.column1));
+</pre><p>
+        In this statement, <code class="literal">x.column2</code> must be a column
+        in table <code class="literal">t2</code> because <code class="literal">SELECT column1
+        FROM t2 AS x ...</code> renames <code class="literal">t2</code>. It is
+        not a column in table <code class="literal">t1</code> because
+        <code class="literal">SELECT column1 FROM t1 ...</code> is an outer query
+        that is <span class="emphasis"><em>farther out</em></span>.
+      </p><p>
+        Beginning with MySQL 8.0.24, the optimizer can transform a
+        correlated scalar subquery to a derived table when the
+        <a class="link" href="switchable-optimizations.html#optflag_subquery-to-derived"><code class="literal">subquery_to_derived</code></a> flag of
+        the <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a> variable
+        is enabled. Consider the query shown here:
+      </p><pre xml:lang="sql" class="programlisting" lang="sql">SELECT * FROM t1 
+    WHERE ( SELECT a FROM t2 
+              WHERE t2.a=t1.a ) &gt; 0;
+</pre><p>
+        To avoid materializing several times for a given derived table,
+        we can instead materialize&mdash;once&mdash;a derived table
+        which adds a grouping on the join column from the table
+        referenced in the inner query (<code class="literal">t2.a</code>) and then
+        an outer join on the lifted predicate (<code class="literal">t1.a =
+        derived.a</code>) in order to select the correct group to
+        match up with the outer row. (If the subquery already has an
+        explicit grouping, the extra grouping is added to the end of the
+        grouping list.) The query previously shown can thus be rewritten
+        like this:
+      </p><pre xml:lang="sql" class="programlisting" lang="sql">SELECT t1.* FROM t1 
+    LEFT OUTER JOIN
+        (SELECT a, COUNT(*) AS ct FROM t2 GROUP BY a) AS derived
+    ON  t1.a = derived.a 
+        AND 
+        REJECT_IF(
+            (ct &gt; 1),
+            &#34;ERROR 1242 (21000): Subquery returns more than 1 row&#34;
+            )
+    WHERE derived.a &gt; 0;
+</pre><p>
+        In the rewritten query, <code class="literal">REJECT_IF()</code>
+        represents an internal function which tests a given condition
+        (here, the comparison <code class="literal">ct &gt; 1</code>) and raises a
+        given error (in this case,
+        <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-errors-8.0-en/server-error-reference.html#error_er_subquery_no_1_row" target="_top"><code class="literal">ER_SUBQUERY_NO_1_ROW</code></a>) if the
+        condition is true. This reflects the cardinality check that the
+        optimizer performs as part of evaluating the
+        <code class="literal">JOIN</code> or <code class="literal">WHERE</code> clause,
+        prior to evaluating any lifted predicate, which is done only if
+        the subquery does not return more than one row.
+      </p><p>
+        This type of transformation can be performed, provided the
+        following conditions are met:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The subquery can be part of a
+            <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> list,
+            <code class="literal">WHERE</code> condition, or
+            <code class="literal">HAVING</code> condition, but cannot be part of a
+            <a class="link" href="join.html" title="13.2.13.2&nbsp;JOIN Clause"><code class="literal">JOIN</code></a> condition, and cannot
+            contain a <code class="literal">LIMIT</code> or
+            <code class="literal">OFFSET</code> clause. In addition, the subquery
+            cannot contain any set operations such as
+            <a class="link" href="union.html" title="13.2.18&nbsp;UNION Clause"><code class="literal">UNION</code></a>.
+          </p></li><li class="listitem"><p>
+            The <code class="literal">WHERE</code> clause may contain one or more
+            predicates, combined with <code class="literal">AND</code>. If the
+            <code class="literal">WHERE</code> clause contains an
+            <code class="literal">OR</code> clause, it cannot be transformed. At
+            least one of the <code class="literal">WHERE</code> clause predicates
+            must be eligible for transformation, and none of them may
+            reject transformation.
+          </p></li><li class="listitem"><p>
+            To be eligible for transformation, a
+            <code class="literal">WHERE</code> clause predicate must be an
+            equality predicate in which each operand should be a simple
+            column reference. No other predicates&mdash;including other
+            comparison predicates&mdash;are eligible for transformation.
+            The predicate must employ the equality operator
+            <a class="link" href="comparison-operators.html#operator_equal"><code class="literal">=</code></a> for making
+            the comparison; the null-safe
+            <a class="link" href="comparison-operators.html#operator_equal-to"><code class="literal">≪=&gt;</code></a>
+            operator is not supported in this context.
+          </p></li><li class="listitem"><p>
+            A <code class="literal">WHERE</code> clause predicate that contains
+            only inner references is not eligible for transformation,
+            since it can be evaluated before the grouping. A
+            <code class="literal">WHERE</code> clause predicate that contains only
+            outer references is eligible for transformation, even though
+            it can be lifted up to the outer query block. This is made
+            possible by adding a cardinality check without grouping in
+            the derived table.
+          </p></li><li class="listitem"><p>
+            To be eligible, a <code class="literal">WHERE</code> clause predicate
+            must have one operand that contains only inner references
+            and one operand that contains only outer references. If the
+            predicate is not eligible due to this rule, transformation
+            of the query is rejected.
+          </p></li><li class="listitem"><p>
+            A correlated column can be present only in the
+            subquery&#39;s <code class="literal">WHERE</code> clause (and not in
+            the <code class="literal">SELECT</code> list, a
+            <code class="literal">JOIN</code> or <code class="literal">ORDER BY</code>
+            clause, a <code class="literal">GROUP BY</code> list, or a
+            <code class="literal">HAVING</code> clause). Nor can there be any
+            correlated column inside a derived table in the
+            subquery&#39;s <code class="literal">FROM</code> list.
+          </p></li><li class="listitem"><p>
+            A correlated column can not be contained in an aggregate
+            function&#39;s list of arguments.
+          </p></li><li class="listitem"><p>
+            A correlated column must be resolved in the query block
+            directly containing the subquery being considered for
+            transformation.
+          </p></li><li class="listitem"><p>
+            A correlated column cannot be present in a nested scalar
+            subquery in the <code class="literal">WHERE</code> clause.
+          </p></li><li class="listitem"><p>
+            The subquery cannot contain any window functions, and must
+            not contain any aggregate function which aggregates in a
+            query block outer to the subquery. A
+            <a class="link" href="aggregate-functions.html#function_count"><code class="literal">COUNT()</code></a> aggregate function,
+            if contained in the <code class="literal">SELECT</code> list element
+            of the subquery, must be at the topmost level, and cannot be
+            part of an expression.
+          </p></li></ul></div><p>
+        See also <a class="xref" href="derived-tables.html" title="13.2.15.8&nbsp;Derived Tables">Section&nbsp;13.2.15.8, &ldquo;Derived Tables&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="exists-and-not-exists-subqueries.html">Previous <span class="navHint"> Subqueries with EXISTS or NOT EXISTS </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="derived-tables.html">Next <span class="navHint"> Derived Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

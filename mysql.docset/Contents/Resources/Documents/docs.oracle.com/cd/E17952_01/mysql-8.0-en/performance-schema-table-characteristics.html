@@ -1,0 +1,61 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3326"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/27.11%C2%A0Performance%20Schema%20General%20Table%20Characteristics"></a><title>27.11&nbsp;Performance Schema General Table Characteristics</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="performance-schema.html" title="Chapter&nbsp;27&nbsp;MySQL Performance Schema"/><link rel="prev" href="performance-schema-statement-digests.html" title="27.10&nbsp;Performance Schema Statement Digests and Sampling"/><link rel="next" href="performance-schema-table-descriptions.html" title="27.12&nbsp;Performance Schema Table Descriptions"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-table-characteristics.html#performance-schema-table-characteristics">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="performance-schema-statement-digests.html">Previous <span class="navHint"> Performance Schema Statement Digests and Sampling </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="performance-schema-table-descriptions.html">Next <span class="navHint"> Performance Schema Table Descriptions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="performance-schema-table-characteristics"></a>27.11&nbsp;Performance Schema General Table Characteristics</h2></div></div></div><p>
+      The name of the <code class="literal">performance_schema</code> database is
+      lowercase, as are the names of tables within it. Queries should
+      specify the names in lowercase.
+    </p><a id="idm45828791829168" class="indexterm"></a><a id="idm45828791827664" class="indexterm"></a><p>
+      Many tables in the <code class="literal">performance_schema</code> database
+      are read only and cannot be modified:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>TRUNCATE TABLE performance_schema.setup_instruments;</code></strong>
+ERROR 1683 (HY000): Invalid performance_schema usage.
+</pre><p>
+      Some of the setup tables have columns that can be modified to
+      affect Performance Schema operation; some also permit rows to be
+      inserted or deleted. Truncation is permitted to clear collected
+      events, so <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE TABLE</code></a> can be
+      used on tables containing those kinds of information, such as
+      tables named with a prefix of <code class="literal">events_waits_</code>.
+    </p><p>
+      Summary tables can be truncated with <a class="link" href="truncate-table.html" title="13.1.37&nbsp;TRUNCATE TABLE Statement"><code class="literal">TRUNCATE
+      TABLE</code></a>. Generally, the effect is to reset the summary
+      columns to 0 or <code class="literal">NULL</code>, not to remove rows. This
+      enables you to clear collected values and restart aggregation.
+      That might be useful, for example, after you have made a runtime
+      configuration change. Exceptions to this truncation behavior are
+      noted in individual summary table sections.
+    </p><p>
+      Privileges are as for other databases and tables:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          To retrieve from <code class="literal">performance_schema</code> tables,
+          you must have the <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a>
+          privilege.
+        </p></li><li class="listitem"><p>
+          To change those columns that can be modified, you must have
+          the <a class="link" href="privileges-provided.html#priv_update"><code class="literal">UPDATE</code></a> privilege.
+        </p></li><li class="listitem"><p>
+          To truncate tables that can be truncated, you must have the
+          <a class="link" href="privileges-provided.html#priv_drop"><code class="literal">DROP</code></a> privilege.
+        </p></li></ul></div><p>
+      Because only a limited set of privileges apply to Performance
+      Schema tables, attempts to use <code class="literal">GRANT ALL</code> as
+      shorthand for granting privileges at the database or table level
+      fail with an error:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>GRANT ALL ON performance_schema.*</code></strong>
+       <strong class="userinput"><code>TO &#39;u1&#39;@&#39;localhost&#39;;</code></strong>
+ERROR 1044 (42000): Access denied for user &#39;root&#39;@&#39;localhost&#39;
+to database &#39;performance_schema&#39;
+mysql&gt; <strong class="userinput"><code>GRANT ALL ON performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>TO &#39;u2&#39;@&#39;localhost&#39;;</code></strong>
+ERROR 1044 (42000): Access denied for user &#39;root&#39;@&#39;localhost&#39;
+to database &#39;performance_schema&#39;
+</pre><p>
+      Instead, grant exactly the desired privileges:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>GRANT SELECT ON performance_schema.*</code></strong>
+       <strong class="userinput"><code>TO &#39;u1&#39;@&#39;localhost&#39;;</code></strong>
+Query OK, 0 rows affected (0.03 sec)
+
+mysql&gt; <strong class="userinput"><code>GRANT SELECT, UPDATE ON performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>TO &#39;u2&#39;@&#39;localhost&#39;;</code></strong>
+Query OK, 0 rows affected (0.02 sec)
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="performance-schema-statement-digests.html">Previous <span class="navHint"> Performance Schema Statement Digests and Sampling </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-table-descriptions.html">Next <span class="navHint"> Performance Schema Table Descriptions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

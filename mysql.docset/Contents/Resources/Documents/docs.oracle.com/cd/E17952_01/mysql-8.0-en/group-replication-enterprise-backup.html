@@ -1,0 +1,449 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1026"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.5.6%C2%A0Using%20MySQL%20Enterprise%20Backup%20with%20Group%20Replication"></a><title>18.5.6&nbsp;Using MySQL Enterprise Backup with Group Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication-operations.html" title="18.5&nbsp;Group Replication Operations"/><link rel="prev" href="group-replication-ipv6.html" title="18.5.5&nbsp;Support For IPv6 And For Mixed IPv6 And IPv4 Groups"/><link rel="next" href="group-replication-security.html" title="18.6&nbsp;Group Replication Security"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-enterprise-backup.html#group-replication-enterprise-backup">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication-ipv6.html">Previous <span class="navHint"> Support For IPv6 And For Mixed IPv6 And IPv4 Groups </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication-operations.html">Up <span class="navHint"> Group Replication Operations </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-security.html">Next <span class="navHint"> Group Replication Security </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-replication-enterprise-backup"></a>18.5.6&nbsp;Using MySQL Enterprise Backup with Group Replication</h3></div></div></div><a id="idm45828853758976" class="indexterm"></a><a id="idm45828853757488" class="indexterm"></a><p>
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/" target="_top">MySQL
+      Enterprise Backup</a> is a commercially-licensed backup utility
+      for MySQL Server, available with
+      <a class="ulink" href="https://www.mysql.com/products/enterprise/" target="_top">MySQL
+      Enterprise Edition</a>. This section explains how to back up
+      and subsequently restore a Group Replication member using MySQL Enterprise Backup.
+      The same technique can be used to quickly add a new member to a
+      group.
+    </p><a class="dashingAutolink" name="autolink-1023"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Backing%20up%20a%20Group%20Replication%20Member%20Using%20MySQL%20Enterprise%20Backup"></a><h4><a id="idm45828853753840"></a>Backing up a Group Replication Member Using MySQL Enterprise Backup</h4><p>
+      Backing up a Group Replication member is similar to backing up a
+      stand-alone MySQL instance. The following instructions assume that
+      you are already familiar with how to use MySQL Enterprise Backup to perform a
+      backup; if that is not the case, please review the
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/" target="_top">MySQL
+      Enterprise Backup 8.0 User&#39;s Guide</a>, especially
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/backing-up.html" target="_top">Backing Up a Database Server</a>. Also note the requirements described
+      in <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/mysqlbackup.privileges.html" target="_top">Grant MySQL Privileges to Backup Administrator</a> and
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/meb-group-replication.html" target="_top">Using MySQL Enterprise Backup with Group Replication</a>.
+    </p><p>
+      Consider the following group with three members,
+      <code class="literal">s1</code>, <code class="literal">s2</code>, and
+      <code class="literal">s3</code>, running on hosts with the same names:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT member_host, member_port, member_state FROM performance_schema.replication_group_members;</code></strong>
++-------------+-------------+--------------+
+| member_host | member_port | member_state |
++-------------+-------------+--------------+
+| s1          |        3306 | ONLINE       |
+| s2          |        3306 | ONLINE       |
+| s3          |        3306 | ONLINE       |
++-------------+-------------+--------------+
+</pre><p>
+      Using MySQL Enterprise Backup, create a backup of <code class="literal">s2</code> by issuing
+      on its host, for example, the following command:
+    </p><pre class="programlisting">s2&gt; <strong class="userinput"><code>mysqlbackup --defaults-file=/etc/my.cnf --backup-image=/backups/my.mbi_`date +%d%m_%H%M` \
+		      --backup-dir=/backups/backup_`date +%d%m_%H%M` --user=root -p \
+		      --host=127.0.0.1 backup-to-image</code></strong></pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Notes</div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <span class="emphasis"><em>For MySQL Enterprise Backup 8.0.18 and earlier,</em></span> If the
+            system variable
+            <a class="link" href="server-system-variables.html#sysvar_sql_require_primary_key"><code class="literal">sql_require_primary_key</code></a> is
+            set to <code class="literal">ON</code> for the group, MySQL Enterprise Backup is not
+            able to log the backup progress on the servers. This is
+            because the <code class="literal">backup_progress</code> table on the
+            server is a CSV table, for which primary keys are not
+            supported. In that case, <span class="command"><strong>mysqlbackup</strong></span>
+            issues the following warnings during the backup operation:
+          </p><pre class="programlisting">181011 11:17:06 MAIN WARNING: MySQL query &#39;CREATE TABLE IF NOT EXISTS
+mysql.backup_progress( `backup_id` BIGINT NOT NULL, `tool_name` VARCHAR(4096)
+NOT NULL, `error_code` INT NOT NULL, `error_message` VARCHAR(4096) NOT NULL,
+`current_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP               ON
+UPDATE CURRENT_TIMESTAMP,`current_state` VARCHAR(200) NOT NULL ) ENGINE=CSV
+DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin&#39;: 3750, Unable to create a table
+without PK, when system variable &#39;sql_require_primary_key&#39; is set. Add a PK
+to the table or unset this variable to avoid this message. Note that tables
+without PK can cause performance problems in row-based replication, so please
+consult your DBA before changing this setting.
+181011 11:17:06 MAIN WARNING: This backup operation&#39;s progress info cannot be
+logged.
+</pre><p>
+            This does not prevent <span class="command"><strong>mysqlbackup</strong></span> from
+            finishing the backup.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>For MySQL Enterprise Backup 8.0.20 and earlier</em></span>, when
+            backing up a secondary member, as MySQL Enterprise Backup cannot write backup
+            status and metadata to a read-only server instance, it might
+            issue warnings similar to the following one during the
+            backup operation:
+          </p><pre class="programlisting">181113 21:31:08 MAIN WARNING: This backup operation cannot write to backup
+progress. The MySQL server is running with the --super-read-only option.</pre><p>
+            You can avoid the warning by using the
+            <code class="option">--no-history-logging</code> option with your
+            backup command. This is not an issue for MySQL Enterprise Backup 8.0.21 and
+            higher&mdash;see <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/meb-group-replication.html" target="_top">Using MySQL Enterprise Backup with Group Replication</a> for
+            details.
+          </p></li></ul></div></div><a class="dashingAutolink" name="autolink-1024"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Restoring%20a%20Failed%20Member"></a><h4><a id="group-replication-restore-failed-member"></a>Restoring a Failed Member</h4><p>
+      Assume one of the members (<code class="literal">s3</code> in the following
+      example) is irreconcilably corrupted. The most recent backup of
+      group member <code class="literal">s2</code> can be used to restore
+      <code class="literal">s3</code>. Here are the steps for performing the
+      restore:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          <span class="emphasis"><em>Copy the backup of s2 onto the host for
+          s3.</em></span> The exact way to copy the backup depends on the
+          operating system and tools available to you. In this example,
+          we assume the hosts are both Linux servers and use SCP to copy
+          the files between them:
+        </p><pre class="programlisting">s2/backups&gt; <strong class="userinput"><code>scp my.mbi_2206_1429 s3:/backups</code></strong></pre></li><li class="listitem"><p>
+          <span class="emphasis"><em>Restore the backup.</em></span> Connect to the target
+          host (the host for <code class="literal">s3</code> in this case), and
+          restore the backup using MySQL Enterprise Backup. Here are the steps:
+        </p><div class="orderedlist"><ol class="orderedlist" type="a"><li class="listitem"><p>
+              Stop the corrupted server, if it is still running. For
+              example, on Linux distributions that use systemd:
+            </p><pre class="programlisting">s3&gt; systemctl stop mysqld</pre></li><li class="listitem"><p>
+              Preserve the two configuration files in the corrupted
+              server&#39;s data directory, <code class="filename">auto.cnf</code> and
+              <code class="filename">mysqld-auto.cnf</code> (if it exists), by
+              copying them to a safe location outside of the data
+              directory. This is for preserving the
+              <a class="link" href="replication-options.html#sysvar_server_uuid">server&#39;s UUID</a>
+              and <a class="xref" href="persisted-system-variables.html" title="5.1.9.3&nbsp;Persisted System Variables">Section&nbsp;5.1.9.3, &ldquo;Persisted System Variables&rdquo;</a> (if
+              used), which are needed in the steps below.
+            </p></li><li class="listitem"><p>
+              Delete all contents in the data directory of
+              <code class="literal">s3</code>. For example:
+            </p><pre class="programlisting">s3&gt; rm -rf /var/lib/mysql/*</pre><p>
+              If the system variables
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a>,
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_log_group_home_dir"><code class="literal">innodb_log_group_home_dir</code></a>,
+              and <a class="link" href="innodb-parameters.html#sysvar_innodb_undo_directory"><code class="literal">innodb_undo_directory</code></a>
+              point to any directories other than the data directory,
+              they should also be made empty; otherwise, the restore
+              operation fails.
+            </p></li><li class="listitem"><p>
+              Restore backup of <code class="literal">s2</code> onto the host for
+              <code class="literal">s3</code>:
+            </p><pre class="programlisting">s3&gt; <strong class="userinput"><code>mysqlbackup --defaults-file=/etc/my.cnf \
+  --datadir=/var/lib/mysql \
+  --backup-image=/backups/my.mbi_2206_1429  \
+  --backup-dir=/tmp/restore_`date +%d%m_%H%M` copy-back-and-apply-log</code></strong></pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+                The command above assumes that the binary logs and relay
+                logs on <code class="literal">s2</code> and <code class="literal">s3</code>
+                have the same base name and are at the same location on
+                the two servers. If these conditions are not met, you
+                should use the <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/server-repository-options.html#option_meb_log-bin" target="_top"><code class="option">--log-bin</code></a> and
+                <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/server-repository-options.html#option_meb_relay-log" target="_top"><code class="option">--relay-log</code></a> options to
+                restore the binary log and relay log to their original
+                file paths on <code class="literal">s3</code>. For example, if you
+                know that on <code class="literal">s3</code> the binary log&#39;s base
+                name is <code class="literal">s3-bin</code> and the relay-log&#39;s
+                base name is <code class="literal">s3-relay-bin</code>, your
+                restore command should look like:
+              </p><pre class="programlisting"><strong class="userinput"><code>mysqlbackup --defaults-file=/etc/my.cnf \
+  --datadir=/var/lib/mysql \
+  --backup-image=/backups/my.mbi_2206_1429  \
+  --log-bin=s3-bin --relay-log=s3-relay-bin \
+  --backup-dir=/tmp/restore_`date +%d%m_%H%M` copy-back-and-apply-log</code></strong></pre><p>
+                Being able to restore the binary log and relay log to
+                the right file paths makes the restore process easier;
+                if that is impossible for some reason, see
+                <a class="xref" href="group-replication-enterprise-backup.html#group-replication-rebuild-member" title="Rebuild the Failed Member to Rejoin as a New Member">Rebuild the Failed Member to Rejoin as a New Member</a>.
+              </p></div></li></ol></div></li><li class="listitem"><p>
+          <span class="emphasis"><em>Restore the <code class="filename">auto.cnf</code> file for
+          s3.</em></span> To rejoin the replication group, the restored
+          member <span class="emphasis"><em>must</em></span> have the same
+          <a class="link" href="replication-options.html#sysvar_server_uuid"><code class="literal">server_uuid</code></a> it used to join
+          the group before. Supply the old server UUID by copying the
+          <code class="filename">auto.cnf</code> file preserved in step 2 above
+          into the data directory of the restored member.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            If you cannot supply the failed member&#39;s original
+            <a class="link" href="replication-options.html#sysvar_server_uuid"><code class="literal">server_uuid</code></a> to the restored
+            member by restoring its old <code class="filename">auto.cnf</code>
+            file, you must let the restored member join the group as a
+            new member; see instructions in
+            <a class="xref" href="group-replication-enterprise-backup.html#group-replication-rebuild-member" title="Rebuild the Failed Member to Rejoin as a New Member">Rebuild the Failed Member to Rejoin as a New Member</a> below on
+            how to do that.
+          </p></div></li><li class="listitem"><p>
+          <span class="emphasis"><em>Restore the <code class="filename">mysqld-auto.cnf</code>
+          file for s3 (only required if s3 used persistent system
+          variables).</em></span> The settings for the
+          <a class="xref" href="persisted-system-variables.html" title="5.1.9.3&nbsp;Persisted System Variables">Section&nbsp;5.1.9.3, &ldquo;Persisted System Variables&rdquo;</a> that were used to
+          configure the failed member must be provided to the restored
+          member. These settings are to be found in the
+          <code class="filename">mysqld-auto.cnf</code> file of the failed
+          server, which you should have preserved in step 2 above.
+          Restore the file to the data directory of the restored server.
+          See
+          <a class="xref" href="group-replication-enterprise-backup.html#group-replication-meb-restore-persisted-variables" title="Restoring Persisted System Variables">Restoring Persisted System Variables</a>
+          on what to do if you do not have a copy of the file.
+        </p></li><li class="listitem"><p>
+          <span class="emphasis"><em>Start the restored server.</em></span> For example,
+          on Linux distributions that use systemd:
+        </p><pre class="programlisting">systemctl start mysqld</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            If the server you are restoring is a primary member, perform
+            the steps described in
+            <a class="xref" href="group-replication-enterprise-backup.html#group-replication-meb-restore-primary" title="Restoring a Primary Member">Restoring a Primary Member</a>
+            <span class="emphasis"><em>before starting the restored server</em></span>.
+          </p></div></li><li class="listitem"><p>
+          <span class="emphasis"><em>Restart Group Replication.</em></span> Connect to the
+          restarted <code class="literal">s3</code> using, for example, a
+          <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client, and issue the following
+          command:
+        </p><pre class="programlisting">mysql&gt; START GROUP_REPLICATION;</pre><p>
+          Before the restored instance can become an online member of
+          the group, it needs to apply any transactions that have
+          happened to the group after the backup was taken; this is
+          achieved using Group Replication&#39;s
+          <a class="link" href="group-replication-distributed-recovery.html" title="18.5.4&nbsp;Distributed Recovery">distributed
+          recovery</a> mechanism, and the process starts after the
+          <a class="link" href="start-group-replication.html" title="13.4.3.1&nbsp;START GROUP_REPLICATION Statement">START
+          GROUP_REPLICATION</a> statement has been issued. To check
+          the member status of the restored instance, issue:
+        </p><pre class="programlisting">mysql&gt; SELECT member_host, member_port, member_state FROM performance_schema.replication_group_members;
++-------------+-------------+--------------+
+| member_host | member_port | member_state |
++-------------+-------------+--------------+
+| s1          |        3306 | ONLINE       |
+| s2          |        3306 | ONLINE       |
+| s3          |        3306 | RECOVERING   |
++-------------+-------------+--------------+
+</pre><p>
+          This shows that <code class="literal">s3</code> is applying transactions
+          to catch up with the group. Once it has caught up with the
+          rest of the group, its <code class="literal">member_state</code> changes
+          to <code class="literal">ONLINE</code>:
+        </p><pre class="programlisting">mysql&gt; SELECT member_host, member_port, member_state FROM performance_schema.replication_group_members;
++-------------+-------------+--------------+
+| member_host | member_port | member_state |
++-------------+-------------+--------------+
+| s1          |        3306 | ONLINE       |
+| s2          |        3306 | ONLINE       |
+| s3          |        3306 | ONLINE       |
++-------------+-------------+--------------+
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            If the server you are restoring is a primary member, once it
+            has gained synchrony with the group and become
+            <code class="literal">ONLINE</code>, perform the steps described at
+            the end of
+            <a class="xref" href="group-replication-enterprise-backup.html#group-replication-meb-restore-primary" title="Restoring a Primary Member">Restoring a Primary Member</a> to
+            revert the configuration changes you had made to the server
+            before you started it.
+          </p></div></li></ol></div><p>
+      The member has now been fully restored from the backup and
+      functions as a regular member of the group.
+    </p><a class="dashingAutolink" name="autolink-1025"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Rebuild%20the%20Failed%20Member%20to%20Rejoin%20as%20a%20New%20Member"></a><h4><a id="group-replication-rebuild-member"></a>Rebuild the Failed Member to Rejoin as a New Member</h4><p>
+      Sometimes, the steps outlined above in
+      <a class="xref" href="group-replication-enterprise-backup.html#group-replication-restore-failed-member" title="Restoring a Failed Member">Restoring a Failed Member</a> cannot
+      be carried out because, for example, the binary log or relay log
+      is corrupted, or it is just missing from the backup. In such a
+      situation, use the backup to rebuild the member, and then add it
+      to the group as a new member. In the steps below, we assume the
+      rebuilt member is named <code class="literal">s3</code>, like the failed
+      member, and that it runs on the same host as
+      <code class="literal">s3</code>:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          <span class="emphasis"><em>Copy the backup of s2 onto the host for s3
+          .</em></span> The exact way to copy the backup depends on the
+          operating system and tools available to you. In this example
+          we assume the hosts are both Linux servers and use SCP to copy
+          the files between them:
+        </p><pre class="programlisting">s2/backups&gt; <strong class="userinput"><code>scp my.mbi_2206_1429 s3:/backups</code></strong></pre></li><li class="listitem"><p>
+          <span class="emphasis"><em>Restore the backup.</em></span> Connect to the target
+          host (the host for <code class="literal">s3</code> in this case), and
+          restore the backup using MySQL Enterprise Backup. Here are the steps:
+        </p><div class="orderedlist"><ol class="orderedlist" type="a"><li class="listitem"><p>
+              Stop the corrupted server, if it is still running. For
+              example, on Linux distributions that use systemd:
+            </p><pre class="programlisting">s3&gt; systemctl stop mysqld</pre></li><li class="listitem"><p>
+              Preserve the configuration file
+              <code class="filename">mysqld-auto.cnf</code>, if it is found in
+              the corrupted server&#39;s data directory, by copying it to a
+              safe location outside of the data directory. This is for
+              preserving the server&#39;s
+              <a class="xref" href="persisted-system-variables.html" title="5.1.9.3&nbsp;Persisted System Variables">Section&nbsp;5.1.9.3, &ldquo;Persisted System Variables&rdquo;</a>, which are
+              needed later.
+            </p></li><li class="listitem"><p>
+              Delete all contents in the data directory of
+              <code class="literal">s3</code>. For example:
+            </p><pre class="programlisting">s3&gt; rm -rf /var/lib/mysql/*</pre><p>
+              If the system variables
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_data_home_dir"><code class="literal">innodb_data_home_dir</code></a>,
+              <a class="link" href="innodb-parameters.html#sysvar_innodb_log_group_home_dir"><code class="literal">innodb_log_group_home_dir</code></a>,
+              and <a class="link" href="innodb-parameters.html#sysvar_innodb_undo_directory"><code class="literal">innodb_undo_directory</code></a>
+              point to any directories other than the data directory,
+              they should also be made empty; otherwise, the restore
+              operation fails.
+            </p></li><li class="listitem"><p>
+              Restore the backup of <code class="literal">s2</code> onto the host
+              of <code class="literal">s3</code>. With this approach, we are
+              rebuilding <code class="literal"><code class="literal">s3</code></code> as a
+              new member, for which we do not need or do not want to use
+              the old binary and relay logs in the backup; therefore, if
+              these logs have been included in your backup, exclude them
+              using the <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/backup-capacity-options.html#option_meb_skip-binlog" target="_top"><code class="option">--skip-binlog</code></a> and
+              <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/mysql-enterprise-backup-8.0-en/backup-capacity-options.html#option_meb_skip-relaylog" target="_top"><code class="option">--skip-relaylog</code></a> options:
+            </p><pre class="programlisting">s3&gt; <strong class="userinput"><code>mysqlbackup --defaults-file=/etc/my.cnf \
+  --datadir=/var/lib/mysql \
+  --backup-image=/backups/my.mbi_2206_1429  \
+  --backup-dir=/tmp/restore_`date +%d%m_%H%M` \
+  --skip-binlog --skip-relaylog \
+  copy-back-and-apply-log</code></strong></pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+                If you have healthy binary log and relay logs in the
+                backup that you can transfer onto the target host with
+                no issues, you are recommended to follow the easier
+                procedure as described in
+                <a class="xref" href="group-replication-enterprise-backup.html#group-replication-restore-failed-member" title="Restoring a Failed Member">Restoring a Failed Member</a>
+                above.
+              </p></div></li></ol></div></li><li class="listitem"><p>
+          <span class="emphasis"><em>Restore the <code class="filename">mysqld-auto.cnf</code>
+          file for s3 (only required if s3 used persistent system
+          variables).</em></span> The settings for the
+          <a class="xref" href="persisted-system-variables.html" title="5.1.9.3&nbsp;Persisted System Variables">Section&nbsp;5.1.9.3, &ldquo;Persisted System Variables&rdquo;</a> that were used to
+          configure the failed member must be provided to the restored
+          server. These settings are to be found in the
+          <code class="filename">mysqld-auto.cnf</code> file of the failed
+          server, which you should have preserved in step 2 above.
+          Restore the file to the data directory of the restored server.
+          See
+          <a class="xref" href="group-replication-enterprise-backup.html#group-replication-meb-restore-persisted-variables" title="Restoring Persisted System Variables">Restoring Persisted System Variables</a>
+          on what to do if you do not have a copy of the file.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            Do NOT restore the corrupted server&#39;s
+            <code class="filename">auto.cnf</code> file to the data directory of
+            the new member&mdash;when the rebuilt <code class="literal">s3</code>
+            joins the group as a new member, it is going to be assigned
+            a new server UUID.
+          </p></div></li><li class="listitem"><p>
+          <span class="emphasis"><em>Start the restored server.</em></span> For example,
+          on Linux distributions that use systemd:
+        </p><pre class="programlisting">systemctl start mysqld</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            If the server you are restoring is a primary member, perform
+            the steps described in
+            <a class="xref" href="group-replication-enterprise-backup.html#group-replication-meb-restore-primary" title="Restoring a Primary Member">Restoring a Primary Member</a>
+            <span class="emphasis"><em>before starting the restored server</em></span>.
+          </p></div></li><li class="listitem"><p>
+          <span class="emphasis"><em>Reconfigure the restored member to join Group
+          Replication.</em></span> Connect to the restored server with a
+          <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client and reset the source and
+          replica information with the following commands:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>RESET MASTER;</code></strong></pre><pre class="programlisting">mysql&gt; <strong class="userinput"><code>RESET SLAVE ALL;</code></strong>
+Or from MySQL 8.0.22:
+mysql&gt; <strong class="userinput"><code>RESET REPLICA ALL;</code></strong>
+</pre><p>
+          For the restored server to be able to recover automatically
+          using Group Replication&#39;s built-in mechanism for
+          <a class="link" href="group-replication-distributed-recovery.html" title="18.5.4&nbsp;Distributed Recovery">distributed
+          recovery</a>, configure the server&#39;s
+          <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a> variable. To do
+          this, use the <code class="filename">backup_gtid_executed.sql</code>
+          file included in the backup of <code class="literal">s2</code>, which is
+          usually restored under the restored member&#39;s data directory.
+          Disable binary logging, use the
+          <code class="filename">backup_gtid_executed.sql</code> file to
+          configure <a class="link" href="replication-options-gtids.html#sysvar_gtid_executed"><code class="literal">gtid_executed</code></a>, and
+          then re-enable binary logging by issuing the following
+          statements with your <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET SQL_LOG_BIN=OFF;</code></strong>
+mysql&gt; <strong class="userinput"><code>SOURCE <em class="replaceable"><code>datadir</code></em>/backup_gtid_executed.sql</code></strong>
+mysql&gt; <strong class="userinput"><code>SET SQL_LOG_BIN=ON;</code></strong>
+</pre><p>
+          Then, configure the
+          <a class="link" href="group-replication-user-credentials.html" title="18.2.1.3&nbsp;User Credentials For Distributed Recovery">Group
+          Replication user credentials</a> on the member:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CHANGE MASTER TO MASTER_USER=&#39;<em class="replaceable"><code>rpl_user</code></em>&#39;, MASTER_PASSWORD=&#39;<em class="replaceable"><code>password</code></em>&#39; /
+		FOR CHANNEL &#39;group_replication_recovery&#39;;</code></strong>
+
+Or from MySQL 8.0.23:
+mysql&gt; <strong class="userinput"><code>CHANGE REPLICATION SOURCE TO SOURCE_USER=&#39;<em class="replaceable"><code>rpl_user</code></em>&#39;, SOURCE_PASSWORD=&#39;<em class="replaceable"><code>password</code></em>&#39; /
+		FOR CHANNEL &#39;group_replication_recovery&#39;;</code></strong>
+</pre></li><li class="listitem"><p>
+          <span class="emphasis"><em>Restart Group Replication.</em></span> Issue the
+          following command to the restored server with your
+          <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>START GROUP_REPLICATION;</code></strong></pre><p>
+          Before the restored instance can become an online member of
+          the group, it needs to apply any transactions that have
+          happened to the group after the backup was taken; this is
+          achieved using Group Replication&#39;s
+          <a class="link" href="group-replication-distributed-recovery.html" title="18.5.4&nbsp;Distributed Recovery">distributed
+          recovery</a> mechanism, and the process starts after the
+          <a class="link" href="start-group-replication.html" title="13.4.3.1&nbsp;START GROUP_REPLICATION Statement">START
+          GROUP_REPLICATION</a> statement has been issued. To check
+          the member status of the restored instance, issue:
+        </p><pre class="programlisting">mysql&gt; SELECT member_host, member_port, member_state FROM performance_schema.replication_group_members;
++-------------+-------------+--------------+
+| member_host | member_port | member_state |
++-------------+-------------+--------------+
+| s3          |        3306 | RECOVERING   |
+| s2          |        3306 | ONLINE       |
+| s1          |        3306 | ONLINE       |
++-------------+-------------+--------------+
+</pre><p>
+          This shows that <code class="literal">s3</code> is applying transactions
+          to catch up with the group. Once it has caught up with the
+          rest of the group, its <code class="literal">member_state</code> changes
+          to <code class="literal">ONLINE</code>:
+        </p><pre class="programlisting">mysql&gt; SELECT member_host, member_port, member_state FROM performance_schema.replication_group_members;
++-------------+-------------+--------------+
+| member_host | member_port | member_state |
++-------------+-------------+--------------+
+| s3          |        3306 | ONLINE       |
+| s2          |        3306 | ONLINE       |
+| s1          |        3306 | ONLINE       |
++-------------+-------------+--------------+
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            If the server you are restoring is a primary member, once it
+            has gained synchrony with the group and become
+            <code class="literal">ONLINE</code>, perform the steps described at
+            the end of
+            <a class="xref" href="group-replication-enterprise-backup.html#group-replication-meb-restore-primary" title="Restoring a Primary Member">Restoring a Primary Member</a> to
+            revert the configuration changes you had made to the server
+            before you started it.
+          </p></div></li></ol></div><p>
+      The member has now been restored to the group as a new member.
+    </p><p><a id="group-replication-meb-restore-persisted-variables"></a><strong>Restoring Persisted System Variables.&nbsp;</strong>
+        <span class="command"><strong>mysqlbackup</strong></span> does not provide support for
+        backing up or preserving
+        <a class="xref" href="persisted-system-variables.html" title="5.1.9.3&nbsp;Persisted System Variables">Section&nbsp;5.1.9.3, &ldquo;Persisted System Variables&rdquo;</a>&mdash;the file
+        <code class="filename">mysqld-auto.cnf</code> is not included in a
+        backup. To start the restored member with its persisted variable
+        settings, you need to do one of the following:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Preserve a copy of the <code class="filename">mysqld-auto.cnf</code>
+          file from the corrupted server, and copy it to the restored
+          server&#39;s data directory.
+        </p></li><li class="listitem"><p>
+          Copy the <code class="filename">mysqld-auto.cnf</code> file from
+          another member of the group into the restored server&#39;s data
+          directory, if that member has the same persisted system
+          variable settings as the corrupted member.
+        </p></li><li class="listitem"><p>
+          After the restored server is started and before you restart
+          Group Replication, set all the system variables manually to
+          their persisted values through a <a class="link" href="mysql.html" title="4.5.1&nbsp;mysql &mdash; The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a>
+          client.
+        </p></li></ul></div><p><a id="group-replication-meb-restore-primary"></a><strong>Restoring a Primary Member.&nbsp;</strong>
+        If the restored member is a primary in the group, care must be
+        taken to prevent writes to the restored database during the
+        Group Replication distributed recovery process. Depending on how
+        the group is accessed by clients, there is a possibility of DML
+        statements being executed on the restored member once it becomes
+        accessible on the network, prior to the member finishing its
+        catch-up on the activities it has missed while off the group. To
+        avoid this, <span class="emphasis"><em>before starting the restored
+        server</em></span>, configure the following system variables in
+        the server option file:
+      </p><pre class="programlisting">group_replication_start_on_boot=OFF
+super_read_only=ON
+event_scheduler=OFF
+</pre><p>
+      These settings ensure that the member becomes read-only at startup
+      and that the event scheduler is turned off while the member is
+      catching up with the group during the distributed recovery
+      process. Adequate error handling must also be configured on the
+      clients, as they are prevented temporarily from performing DML
+      operations during this period on the restored member. Once the
+      restore process is fully completed and the restored member is
+      in-sync with the rest of the group, revert those changes; restart
+      the event scheduler:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET global event_scheduler=ON;</code></strong>
+</pre><p>
+      Edit the following system variables in the member&#39;s option
+      file, so things are correctly configured for the next startup:
+    </p><pre class="programlisting">group_replication_start_on_boot=ON
+super_read_only=OFF
+event_scheduler=ON</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-ipv6.html">Previous <span class="navHint"> Support For IPv6 And For Mixed IPv6 And IPv4 Groups </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-operations.html">Up <span class="navHint"> Group Replication Operations </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-security.html">Next <span class="navHint"> Group Replication Security </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

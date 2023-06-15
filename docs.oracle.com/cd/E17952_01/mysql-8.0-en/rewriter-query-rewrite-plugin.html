@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.6.4 The Rewriter Query Rewrite Plugin</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="server-plugins.html" title="5.6 MySQL Server Plugins" /><link rel="prev" href="thread-pool-tuning.html" title="5.6.3.4 Thread Pool Tuning" /><link rel="next" href="rewriter-query-rewrite-plugin-installation.html" title="5.6.4.1 Installing or Uninstalling the Rewriter Query Rewrite Plugin" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="rewriter-query-rewrite-plugin.html#rewriter-query-rewrite-plugin">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="thread-pool-tuning.html">Previous <span class="navHint"> Thread Pool Tuning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="server-plugins.html">Up <span class="navHint"> MySQL Server Plugins </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="rewriter-query-rewrite-plugin-installation.html">Next <span class="navHint"> Installing or Uninstalling the Rewriter Query Rewrite Plugin </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="rewriter-query-rewrite-plugin"></a>5.6.4 The Rewriter Query Rewrite Plugin</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="rewriter-query-rewrite-plugin-installation.html">5.6.4.1 Installing or Uninstalling the Rewriter Query Rewrite Plugin</a></span></li><li><span class="section"><a href="rewriter-query-rewrite-plugin-usage.html">5.6.4.2 Using the Rewriter Query Rewrite Plugin</a></span></li><li><span class="section"><a href="rewriter-query-rewrite-plugin-reference.html">5.6.4.3 Rewriter Query Rewrite Plugin Reference</a></span></li></ul></div><a id="idm45828984268704" class="indexterm"></a><a id="idm45828984267696" class="indexterm"></a><p>
+      MySQL supports query rewrite plugins that can examine and possibly
+      modify SQL statements received by the server before the server
+      executes them. See <a class="ulink" href="https://dev.mysql.com/doc/extending-mysql/8.0/en/plugin-types.html#query-rewrite-plugin-type" target="_top">Query Rewrite Plugins</a>.
+    </p><p>
+      MySQL distributions include a postparse query rewrite plugin named
+      <code class="literal">Rewriter</code> and scripts for installing the plugin
+      and its associated elements. These elements work together to
+      provide statement-rewriting capability:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          A server-side plugin named <code class="literal">Rewriter</code>
+          examines statements and may rewrite them, based on its
+          in-memory cache of rewrite rules.
+        </p></li><li class="listitem"><p>
+          These statements are subject to rewriting:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              As of MySQL 8.0.12: <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a>,
+              <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>,
+              <a class="link" href="replace.html" title="13.2.12 REPLACE Statement"><code class="literal">REPLACE</code></a>,
+              <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>, and
+              <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a>.
+            </p></li><li class="listitem"><p>
+              Prior to MySQL 8.0.12:
+              <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> only.
+            </p></li></ul></div><p>
+          Standalone statements and prepared statements are subject to
+          rewriting. Statements occurring within view definitions or
+          stored programs are not subject to rewriting.
+        </p></li><li class="listitem"><p>
+          The <code class="literal">Rewriter</code> plugin uses a database named
+          <code class="literal">query_rewrite</code> containing a table named
+          <code class="literal">rewrite_rules</code>. The table provides
+          persistent storage for the rules that the plugin uses to
+          decide whether to rewrite statements. Users communicate with
+          the plugin by modifying the set of rules stored in this table.
+          The plugin communicates with users by setting the
+          <code class="literal">message</code> column of table rows.
+        </p></li><li class="listitem"><p>
+          The <code class="literal">query_rewrite</code> database contains a
+          stored procedure named
+          <code class="literal">flush_rewrite_rules()</code> that loads the
+          contents of the rules table into the plugin.
+        </p></li><li class="listitem"><p>
+          A loadable function named
+          <a class="link" href="rewriter-query-rewrite-plugin-reference.html#function_load-rewrite-rules"><code class="literal">load_rewrite_rules()</code></a> is used by
+          the <code class="literal">flush_rewrite_rules()</code> stored procedure.
+        </p></li><li class="listitem"><p>
+          The <code class="literal">Rewriter</code> plugin exposes system
+          variables that enable plugin configuration and status
+          variables that provide runtime operational information. In
+          MySQL 8.0.31 and later, this plugin also supports a privilege
+          (<a class="link" href="privileges-provided.html#priv_skip-query-rewrite"><code class="literal">SKIP_QUERY_REWRITE</code></a>) that
+          protects a given user's queries from being rewritten.
+        </p></li></ul></div><p>
+      The following sections describe how to install and use the
+      <code class="literal">Rewriter</code> plugin, and provide reference
+      information for its associated elements.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="thread-pool-tuning.html">Previous <span class="navHint"> Thread Pool Tuning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="server-plugins.html">Up <span class="navHint"> MySQL Server Plugins </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="rewriter-query-rewrite-plugin-installation.html">Next <span class="navHint"> Installing or Uninstalling the Rewriter Query Rewrite Plugin </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

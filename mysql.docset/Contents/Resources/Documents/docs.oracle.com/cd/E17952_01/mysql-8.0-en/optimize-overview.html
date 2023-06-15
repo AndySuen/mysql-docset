@@ -1,0 +1,114 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2974"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.1%C2%A0Optimization%20Overview"></a><title>8.1&nbsp;Optimization Overview</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimization.html" title="Chapter&nbsp;8&nbsp;Optimization"/><link rel="prev" href="optimization.html" title="Chapter&nbsp;8&nbsp;Optimization"/><link rel="next" href="statement-optimization.html" title="8.2&nbsp;Optimizing SQL Statements"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="optimize-overview.html#optimize-overview">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="optimization.html">Previous <span class="navHint"> Optimization </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimization.html">Up <span class="navHint"> Optimization </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="statement-optimization.html">Next <span class="navHint"> Optimizing SQL Statements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="optimize-overview"></a>8.1&nbsp;Optimization Overview</h2></div></div></div><p>
+      Database performance depends on several factors at the database
+      level, such as tables, queries, and configuration settings. These
+      software constructs result in CPU and I/O operations at the
+      hardware level, which you must minimize and make as efficient as
+      possible. As you work on database performance, you start by
+      learning the high-level rules and guidelines for the software
+      side, and measuring performance using wall-clock time. As you
+      become an expert, you learn more about what happens internally,
+      and start measuring things such as CPU cycles and I/O operations.
+    </p><p>
+      Typical users aim to get the best database performance out of
+      their existing software and hardware configurations. Advanced
+      users look for opportunities to improve the MySQL software itself,
+      or develop their own storage engines and hardware appliances to
+      expand the MySQL ecosystem.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="optimize-overview.html#optimize-database-level" title="Optimizing at the Database Level">Optimizing at the Database Level</a></p></li><li class="listitem"><p><a class="xref" href="optimize-overview.html#optimize-hardware-level" title="Optimizing at the Hardware Level">Optimizing at the Hardware Level</a></p></li><li class="listitem"><p><a class="xref" href="optimize-overview.html#optimize-portability-performance" title="Balancing Portability and Performance">Balancing Portability and Performance</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h3 class="title"><a id="optimize-database-level"></a>Optimizing at the Database Level</h3></div></div></div><p>
+        The most important factor in making a database application fast
+        is its basic design:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Are the tables structured properly? In particular, do the
+            columns have the right data types, and does each table have
+            the appropriate columns for the type of work? For example,
+            applications that perform frequent updates often have many
+            tables with few columns, while applications that analyze
+            large amounts of data often have few tables with many
+            columns.
+          </p></li><li class="listitem"><p>
+            Are the right
+            <a class="link" href="optimization-indexes.html" title="8.3&nbsp;Optimization and Indexes">indexes</a> in place
+            to make queries efficient?
+          </p></li><li class="listitem"><p>
+            Are you using the appropriate storage engine for each table,
+            and taking advantage of the strengths and features of each
+            storage engine you use? In particular, the choice of a
+            transactional storage engine such as
+            <code class="literal"><a class="link" href="optimizing-innodb.html" title="8.5&nbsp;Optimizing for InnoDB Tables">InnoDB</a></code>
+            or a nontransactional one such as
+            <code class="literal"><a class="link" href="optimizing-myisam.html" title="8.6&nbsp;Optimizing for MyISAM Tables">MyISAM</a></code>
+            can be very important for performance and scalability.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              <code class="literal">InnoDB</code> is the default storage engine
+              for new tables. In practice, the advanced
+              <code class="literal">InnoDB</code> performance features mean that
+              <code class="literal">InnoDB</code> tables often outperform the
+              simpler <code class="literal">MyISAM</code> tables, especially for a
+              busy database.
+            </p></div></li><li class="listitem"><p>
+            Does each table use an appropriate row format? This choice
+            also depends on the storage engine used for the table. In
+            particular, compressed tables use less disk space and so
+            require less disk I/O to read and write the data.
+            Compression is available for all kinds of workloads with
+            <code class="literal">InnoDB</code> tables, and for read-only
+            <code class="literal">MyISAM</code> tables.
+          </p></li><li class="listitem"><p>
+            Does the application use an appropriate
+            <a class="link" href="locking-issues.html" title="8.11&nbsp;Optimizing Locking Operations">locking strategy</a>? For
+            example, by allowing shared access when possible so that
+            database operations can run concurrently, and requesting
+            exclusive access when appropriate so that critical
+            operations get top priority. Again, the choice of storage
+            engine is significant. The <code class="literal">InnoDB</code> storage
+            engine handles most locking issues without involvement from
+            you, allowing for better concurrency in the database and
+            reducing the amount of experimentation and tuning for your
+            code.
+          </p></li><li class="listitem"><p>
+            Are all <a class="link" href="buffering-caching.html" title="8.10&nbsp;Buffering and Caching">memory areas used
+            for caching</a> sized correctly? That is, large enough to
+            hold frequently accessed data, but not so large that they
+            overload physical memory and cause paging. The main memory
+            areas to configure are the <code class="literal">InnoDB</code> buffer
+            pool and the <code class="literal">MyISAM</code> key cache.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h3 class="title"><a id="optimize-hardware-level"></a>Optimizing at the Hardware Level</h3></div></div></div><p>
+        Any database application eventually hits hardware limits as the
+        database becomes more and more busy. A DBA must evaluate whether
+        it is possible to tune the application or reconfigure the server
+        to avoid these
+        <a class="link" href="glossary.html#glos_bottleneck" title="bottleneck">bottlenecks</a>, or whether
+        more hardware resources are required. System bottlenecks
+        typically arise from these sources:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Disk seeks. It takes time for the disk to find a piece of
+            data. With modern disks, the mean time for this is usually
+            lower than 10ms, so we can in theory do about 100 seeks a
+            second. This time improves slowly with new disks and is very
+            hard to optimize for a single table. The way to optimize
+            seek time is to distribute the data onto more than one disk.
+          </p></li><li class="listitem"><p>
+            Disk reading and writing. When the disk is at the correct
+            position, we need to read or write the data. With modern
+            disks, one disk delivers at least 10&ndash;20MB/s
+            throughput. This is easier to optimize than seeks because
+            you can read in parallel from multiple disks.
+          </p></li><li class="listitem"><p>
+            CPU cycles. When the data is in main memory, we must process
+            it to get our result. Having large tables compared to the
+            amount of memory is the most common limiting factor. But
+            with small tables, speed is usually not the problem.
+          </p></li><li class="listitem"><p>
+            Memory bandwidth. When the CPU needs more data than can fit
+            in the CPU cache, main memory bandwidth becomes a
+            bottleneck. This is an uncommon bottleneck for most systems,
+            but one to be aware of.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h3 class="title"><a id="optimize-portability-performance"></a>Balancing Portability and Performance</h3></div></div></div><a id="idm45828957257424" class="indexterm"></a><p>
+        To use performance-oriented SQL extensions in a portable MySQL
+        program, you can wrap MySQL-specific keywords in a statement
+        within <code class="literal">/*! */</code> comment delimiters. Other SQL
+        servers ignore the commented keywords. For information about
+        writing comments, see <a class="xref" href="comments.html" title="9.7&nbsp;Comments">Section&nbsp;9.7, &ldquo;Comments&rdquo;</a>.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimization.html">Previous <span class="navHint"> Optimization </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimization.html">Up <span class="navHint"> Optimization </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="statement-optimization.html">Next <span class="navHint"> Optimizing SQL Statements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

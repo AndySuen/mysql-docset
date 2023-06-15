@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.2.5 How Servers Evaluate Replication Filtering Rules</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-implementation.html" title="17.2 Replication Implementation" /><link rel="prev" href="replica-logs-status.html" title="17.2.4.2 Replication Metadata Repositories" /><link rel="next" href="replication-rules-db-options.html" title="17.2.5.1 Evaluation of Database-Level Replication and Binary Logging Options" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-rules.html#replication-rules">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replica-logs-status.html">Previous <span class="navHint"> Replication Metadata Repositories </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-implementation.html">Up <span class="navHint"> Replication Implementation </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-rules-db-options.html">Next <span class="navHint"> Evaluation of Database-Level Replication and Binary Logging Options </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="replication-rules"></a>17.2.5 How Servers Evaluate Replication Filtering Rules</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="replication-rules-db-options.html">17.2.5.1 Evaluation of Database-Level Replication and Binary Logging Options</a></span></li><li><span class="section"><a href="replication-rules-table-options.html">17.2.5.2 Evaluation of Table-Level Replication Options</a></span></li><li><span class="section"><a href="replication-rules-examples.html">17.2.5.3 Interactions Between Replication Filtering Options</a></span></li><li><span class="section"><a href="replication-rules-channel-based-filters.html">17.2.5.4 Replication Channel Based Filters</a></span></li></ul></div><p>
+      If a replication source server does not write a statement to its
+      binary log, the statement is not replicated. If the server does
+      log the statement, the statement is sent to all replicas and each
+      replica determines whether to execute it or ignore it.
+    </p><p>
+      On the source, you can control which databases to log changes for
+      by using the <a class="link" href="replication-options-binary-log.html#option_mysqld_binlog-do-db"><code class="option">--binlog-do-db</code></a> and
+      <a class="link" href="replication-options-binary-log.html#option_mysqld_binlog-ignore-db"><code class="option">--binlog-ignore-db</code></a> options to
+      control binary logging. For a description of the rules that
+      servers use in evaluating these options, see
+      <a class="xref" href="replication-rules-db-options.html" title="17.2.5.1 Evaluation of Database-Level Replication and Binary Logging Options">Section 17.2.5.1, “Evaluation of Database-Level Replication and Binary Logging Options”</a>. You should not use
+      these options to control which databases and tables are
+      replicated. Instead, use filtering on the replica to control the
+      events that are executed on the replica.
+    </p><p>
+      On the replica side, decisions about whether to execute or ignore
+      statements received from the source are made according to the
+      <code class="option">--replicate-*</code> options that the replica was
+      started with. (See <a class="xref" href="replication-options.html" title="17.1.6 Replication and Binary Logging Options and Variables">Section 17.1.6, “Replication and Binary Logging Options and Variables”</a>.) The
+      filters governed by these options can also be set dynamically
+      using the <code class="literal">CHANGE REPLICATION FILTER</code> statement.
+      The rules governing such filters are the same whether they are
+      created on startup using <code class="option">--replicate-*</code> options or
+      while the replica server is running by <code class="literal">CHANGE REPLICATION
+      FILTER</code>. Note that replication filters cannot be used on
+      Group Replication-specific channels on a MySQL server instance
+      that is configured for Group Replication, because filtering
+      transactions on some servers would make the group unable to reach
+      agreement on a consistent state.
+    </p><p>
+      In the simplest case, when there are no
+      <code class="option">--replicate-*</code> options, the replica executes all
+      statements that it receives from the source. Otherwise, the result
+      depends on the particular options given.
+    </p><p>
+      Database-level options
+      (<a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-db"><code class="option">--replicate-do-db</code></a>,
+      <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-db"><code class="option">--replicate-ignore-db</code></a>) are checked
+      first; see <a class="xref" href="replication-rules-db-options.html" title="17.2.5.1 Evaluation of Database-Level Replication and Binary Logging Options">Section 17.2.5.1, “Evaluation of Database-Level Replication and Binary Logging Options”</a>, for a
+      description of this process. If no database-level options are
+      used, option checking proceeds to any table-level options that may
+      be in use (see <a class="xref" href="replication-rules-table-options.html" title="17.2.5.2 Evaluation of Table-Level Replication Options">Section 17.2.5.2, “Evaluation of Table-Level Replication Options”</a>,
+      for a discussion of these). If one or more database-level options
+      are used but none are matched, the statement is not replicated.
+    </p><p>
+      For statements affecting databases only (that is,
+      <a class="link" href="create-database.html" title="13.1.12 CREATE DATABASE Statement"><code class="literal">CREATE DATABASE</code></a>,
+      <a class="link" href="drop-database.html" title="13.1.24 DROP DATABASE Statement"><code class="literal">DROP DATABASE</code></a>, and
+      <a class="link" href="alter-database.html" title="13.1.2 ALTER DATABASE Statement"><code class="literal">ALTER DATABASE</code></a>), database-level
+      options always take precedence over any
+      <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-do-table"><code class="option">--replicate-wild-do-table</code></a> options.
+      In other words, for such statements,
+      <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-do-table"><code class="option">--replicate-wild-do-table</code></a> options
+      are checked if and only if there are no database-level options
+      that apply.
+    </p><p>
+      To make it easier to determine what effect a given set of options
+      has, it is recommended that you avoid mixing <code class="option">do-*</code>
+      and <code class="option">ignore-*</code> options, or options containing
+      wildcards with options which do not.
+    </p><p>
+      If any <a class="link" href="replication-options-replica.html#option_mysqld_replicate-rewrite-db"><code class="option">--replicate-rewrite-db</code></a>
+      options were specified, they are applied before the
+      <code class="option">--replicate-*</code> filtering rules are tested.
+    </p><a id="idm45828858808224" class="indexterm"></a><a id="idm45828858806720" class="indexterm"></a><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        All replication filtering options follow the same rules for case
+        sensitivity that apply to names of databases and tables
+        elsewhere in the MySQL server, including the effects of the
+        <a class="link" href="server-system-variables.html#sysvar_lower_case_table_names"><code class="literal">lower_case_table_names</code></a> system
+        variable.
+      </p></div><p>
+      Beginning with MySQL 8.0.31, filtering rules are applied before
+      performing any privilege checks; if a transaction is filtered out,
+      no privilege check is performed for that transaction, and thus no
+      error can be raised by it. See
+      <a class="xref" href="replication-features-errors.html" title="17.5.1.29 Replica Errors During Replication">Section 17.5.1.29, “Replica Errors During Replication”</a>, for more
+      information.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replica-logs-status.html">Previous <span class="navHint"> Replication Metadata Repositories </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-implementation.html">Up <span class="navHint"> Replication Implementation </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-rules-db-options.html">Next <span class="navHint"> Evaluation of Database-Level Replication and Binary Logging Options </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

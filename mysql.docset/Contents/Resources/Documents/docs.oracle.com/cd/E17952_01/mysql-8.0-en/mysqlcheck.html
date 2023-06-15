@@ -1,0 +1,964 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2868"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/4.5.3%C2%A0mysqlcheck%20%E2%80%94%20A%20Table%20Maintenance%20Program"></a><title>4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="programs-client.html" title="4.5&nbsp;Client Programs"/><link rel="prev" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"/><link rel="next" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysqlcheck.html#mysqlcheck">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysqladmin.html">Previous <span class="navHint"> mysqladmin &mdash; A MySQL Server Administration Program </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="programs-client.html">Up <span class="navHint"> Client Programs </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysqldump.html">Next <span class="navHint"> mysqldump &mdash; A Database Backup Program </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysqlcheck"></a>4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program</h3></div></div></div><a id="idm45829042086512" class="indexterm"></a><a id="idm45829042085600" class="indexterm"></a><a id="idm45829042084240" class="indexterm"></a><a id="idm45829042082880" class="indexterm"></a><a id="idm45829042081520" class="indexterm"></a><p>
+        The <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> client performs table
+        maintenance: It checks, repairs, optimizes, or analyzes tables.
+      </p><p>
+        Each table is locked and therefore unavailable to other sessions
+        while it is being processed, although for check operations, the
+        table is locked with a <code class="literal">READ</code> lock only (see
+        <a class="xref" href="lock-tables.html" title="13.3.6&nbsp;LOCK TABLES and UNLOCK TABLES Statements">Section&nbsp;13.3.6, &ldquo;LOCK TABLES and UNLOCK TABLES Statements&rdquo;</a>, for more information about
+        <code class="literal">READ</code> and <code class="literal">WRITE</code> locks).
+        Table maintenance operations can be time-consuming, particularly
+        for large tables. If you use the
+        <a class="link" href="mysqlcheck.html#option_mysqlcheck_databases"><code class="option">--databases</code></a> or
+        <a class="link" href="mysqlcheck.html#option_mysqlcheck_all-databases"><code class="option">--all-databases</code></a> option to
+        process all tables in one or more databases, an invocation of
+        <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> might take a long time. (This is
+        also true for the MySQL upgrade procedure if it determines that
+        table checking is needed because it processes tables the same
+        way.)
+      </p><p>
+        <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> must be used when the
+        <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> server is running, which means that
+        you do not have to stop the server to perform table maintenance.
+      </p><p>
+        <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> uses the SQL statements
+        <a class="link" href="check-table.html" title="13.7.3.2&nbsp;CHECK TABLE Statement"><code class="literal">CHECK TABLE</code></a>,
+        <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a>,
+        <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a>, and
+        <a class="link" href="optimize-table.html" title="13.7.3.4&nbsp;OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> in a convenient
+        way for the user. It determines which statements to use for the
+        operation you want to perform, and then sends the statements to
+        the server to be executed. For details about which storage
+        engines each statement works with, see the descriptions for
+        those statements in
+        <a class="xref" href="table-maintenance-statements.html" title="13.7.3&nbsp;Table Maintenance Statements">Section&nbsp;13.7.3, &ldquo;Table Maintenance Statements&rdquo;</a>.
+      </p><p>
+        All storage engines do not necessarily support all four
+        maintenance operations. In such cases, an error message is
+        displayed. For example, if <code class="literal">test.t</code> is an
+        <code class="literal">MEMORY</code> table, an attempt to check it produces
+        this result:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlcheck test t</code></strong>
+test.t
+note     : The storage engine for the table doesn&#39;t support check
+</pre><p>
+        If <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> is unable to repair a table,
+        see <a class="xref" href="rebuilding-tables.html" title="2.10.13&nbsp;Rebuilding or Repairing Tables or Indexes">Section&nbsp;2.10.13, &ldquo;Rebuilding or Repairing Tables or Indexes&rdquo;</a> for manual table repair
+        strategies. This is the case, for example, for
+        <code class="literal">InnoDB</code> tables, which can be checked with
+        <a class="link" href="check-table.html" title="13.7.3.2&nbsp;CHECK TABLE Statement"><code class="literal">CHECK TABLE</code></a>, but not repaired
+        with <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a>.
+      </p><div class="caution" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Caution</div><p>
+          It is best to make a backup of a table before performing a
+          table repair operation; under some circumstances the operation
+          might cause data loss. Possible causes include but are not
+          limited to file system errors.
+        </p></div><p>
+        There are three general ways to invoke
+        <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a>:
+      </p><pre class="programlisting">mysqlcheck [<em class="replaceable"><code>options</code></em>] <em class="replaceable"><code>db_name</code></em> [<em class="replaceable"><code>tbl_name</code></em> ...]
+mysqlcheck [<em class="replaceable"><code>options</code></em>] --databases <em class="replaceable"><code>db_name</code></em> ...
+mysqlcheck [<em class="replaceable"><code>options</code></em>] --all-databases
+</pre><p>
+        If you do not name any tables following
+        <em class="replaceable"><code>db_name</code></em> or if you use the
+        <a class="link" href="mysqlcheck.html#option_mysqlcheck_databases"><code class="option">--databases</code></a> or
+        <a class="link" href="mysqlcheck.html#option_mysqlcheck_all-databases"><code class="option">--all-databases</code></a> option,
+        entire databases are checked.
+      </p><p>
+        <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> has a special feature compared to
+        other client programs. The default behavior of checking tables
+        (<a class="link" href="mysqlcheck.html#option_mysqlcheck_check"><code class="option">--check</code></a>) can be changed by
+        renaming the binary. If you want to have a tool that repairs
+        tables by default, you should just make a copy of
+        <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> named
+        <span class="command"><strong>mysqlrepair</strong></span>, or make a symbolic link to
+        <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> named
+        <span class="command"><strong>mysqlrepair</strong></span>. If you invoke
+        <span class="command"><strong>mysqlrepair</strong></span>, it repairs tables.
+      </p><p>
+        The names shown in the following table can be used to change
+        <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> default behavior.
+      </p><div class="informaltable"><table summary="Command names that can be used to change mysqlcheck default behavior."><colgroup><col style="width: 25%"/><col style="width: 75%"/></colgroup><thead><tr>
+            <th>Command</th>
+            <th>Meaning</th>
+          </tr></thead><tbody><tr>
+            <td><span class="command"><strong>mysqlrepair</strong></span></td>
+            <td>The default option is <a class="link" href="mysqlcheck.html#option_mysqlcheck_repair"><code class="option">--repair</code></a></td>
+          </tr><tr>
+            <td><span class="command"><strong>mysqlanalyze</strong></span></td>
+            <td>The default option is <a class="link" href="mysqlcheck.html#option_mysqlcheck_analyze"><code class="option">--analyze</code></a></td>
+          </tr><tr>
+            <td><span class="command"><strong>mysqloptimize</strong></span></td>
+            <td>The default option is <a class="link" href="mysqlcheck.html#option_mysqlcheck_optimize"><code class="option">--optimize</code></a></td>
+          </tr></tbody></table></div><p>
+        <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> supports the following options,
+        which can be specified on the command line or in the
+        <code class="literal">[mysqlcheck]</code> and <code class="literal">[client]</code>
+        groups of an option file. For information about option files
+        used by MySQL programs, see <a class="xref" href="option-files.html" title="4.2.2.2&nbsp;Using Option Files">Section&nbsp;4.2.2.2, &ldquo;Using Option Files&rdquo;</a>.
+      </p><div class="table"><a id="idm45829042012832"></a><p class="title"><strong>Table&nbsp;4.13&nbsp;mysqlcheck Options</strong></p><div class="table-contents"><table frame="box" rules="all" summary="Command-line options available for mysqlcheck."><colgroup><col style="width: 27%"/><col style="width: 50%"/><col style="width: 11%"/><col style="width: 11%"/></colgroup><thead><tr><th scope="col">Option Name</th>
+<th scope="col">Description</th>
+<th scope="col">Introduced</th>
+<th scope="col">Deprecated</th>
+</tr></thead><tbody><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_all-databases">--all-databases</a></th>
+<td>Check all tables in all databases</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_all-in-1">--all-in-1</a></th>
+<td>Execute a single statement for each database that names all the tables from that database</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_analyze">--analyze</a></th>
+<td>Analyze the tables</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_auto-repair">--auto-repair</a></th>
+<td>If a checked table is corrupted, automatically fix it</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_bind-address">--bind-address</a></th>
+<td>Use specified network interface to connect to MySQL Server</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_character-sets-dir">--character-sets-dir</a></th>
+<td>Directory where character sets are installed</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_check">--check</a></th>
+<td>Check the tables for errors</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_check-only-changed">--check-only-changed</a></th>
+<td>Check only tables that have changed since the last check</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_check-upgrade">--check-upgrade</a></th>
+<td>Invoke CHECK TABLE with the FOR UPGRADE option</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_compress">--compress</a></th>
+<td>Compress all information sent between client and server</td>
+<td></td>
+<td>8.0.18</td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_compression-algorithms">--compression-algorithms</a></th>
+<td>Permitted compression algorithms for connections to server</td>
+<td>8.0.18</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_databases">--databases</a></th>
+<td>Interpret all arguments as database names</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_debug">--debug</a></th>
+<td>Write debugging log</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_debug-check">--debug-check</a></th>
+<td>Print debugging information when program exits</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_debug-info">--debug-info</a></th>
+<td>Print debugging information, memory, and CPU statistics when program exits</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_default-auth">--default-auth</a></th>
+<td>Authentication plugin to use</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_default-character-set">--default-character-set</a></th>
+<td>Specify default character set</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_defaults-extra-file">--defaults-extra-file</a></th>
+<td>Read named option file in addition to usual option files</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_defaults-file">--defaults-file</a></th>
+<td>Read only named option file</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_defaults-group-suffix">--defaults-group-suffix</a></th>
+<td>Option group suffix value</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_enable-cleartext-plugin">--enable-cleartext-plugin</a></th>
+<td>Enable cleartext authentication plugin</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_extended">--extended</a></th>
+<td>Check and repair tables</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_fast">--fast</a></th>
+<td>Check only tables that have not been closed properly</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_force">--force</a></th>
+<td>Continue even if an SQL error occurs</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_get-server-public-key">--get-server-public-key</a></th>
+<td>Request RSA public key from server</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_help">--help</a></th>
+<td>Display help message and exit</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_host">--host</a></th>
+<td>Host on which MySQL server is located</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_login-path">--login-path</a></th>
+<td>Read login path options from .mylogin.cnf</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_medium-check">--medium-check</a></th>
+<td>Do a check that is faster than an --extended operation</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_no-defaults">--no-defaults</a></th>
+<td>Read no option files</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_optimize">--optimize</a></th>
+<td>Optimize the tables</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_password">--password</a></th>
+<td>Password to use when connecting to server</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_password1">--password1</a></th>
+<td>First multifactor authentication password to use when connecting to server</td>
+<td>8.0.27</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_password2">--password2</a></th>
+<td>Second multifactor authentication password to use when connecting to server</td>
+<td>8.0.27</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_password3">--password3</a></th>
+<td>Third multifactor authentication password to use when connecting to server</td>
+<td>8.0.27</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_pipe">--pipe</a></th>
+<td>Connect to server using named pipe (Windows only)</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_plugin-dir">--plugin-dir</a></th>
+<td>Directory where plugins are installed</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_port">--port</a></th>
+<td>TCP/IP port number for connection</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_print-defaults">--print-defaults</a></th>
+<td>Print default options</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_protocol">--protocol</a></th>
+<td>Transport protocol to use</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_quick">--quick</a></th>
+<td>The fastest method of checking</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_repair">--repair</a></th>
+<td>Perform a repair that can fix almost anything except unique keys that are not unique</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_server-public-key-path">--server-public-key-path</a></th>
+<td>Path name to file containing RSA public key</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_shared-memory-base-name">--shared-memory-base-name</a></th>
+<td>Shared-memory name for shared-memory connections (Windows only)</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_silent">--silent</a></th>
+<td>Silent mode</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_skip-database">--skip-database</a></th>
+<td>Omit this database from performed operations</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_socket">--socket</a></th>
+<td>Unix socket file or Windows named pipe to use</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl">--ssl-ca</a></th>
+<td>File that contains list of trusted SSL Certificate Authorities</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl">--ssl-capath</a></th>
+<td>Directory that contains trusted SSL Certificate Authority certificate files</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl">--ssl-cert</a></th>
+<td>File that contains X.509 certificate</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl">--ssl-cipher</a></th>
+<td>Permissible ciphers for connection encryption</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl">--ssl-crl</a></th>
+<td>File that contains certificate revocation lists</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl">--ssl-crlpath</a></th>
+<td>Directory that contains certificate revocation-list files</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl-fips-mode">--ssl-fips-mode</a></th>
+<td>Whether to enable FIPS mode on client side</td>
+<td></td>
+<td>8.0.34</td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl">--ssl-key</a></th>
+<td>File that contains X.509 key</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl">--ssl-mode</a></th>
+<td>Desired security state of connection to server</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl">--ssl-session-data</a></th>
+<td>File that contains SSL session data</td>
+<td>8.0.29</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl">--ssl-session-data-continue-on-failed-reuse</a></th>
+<td>Whether to establish connections if session reuse fails</td>
+<td>8.0.29</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_tables">--tables</a></th>
+<td>Overrides the --databases or -B option</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_tls-ciphersuites">--tls-ciphersuites</a></th>
+<td>Permissible TLSv1.3 ciphersuites for encrypted connections</td>
+<td>8.0.16</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_tls-version">--tls-version</a></th>
+<td>Permissible TLS protocols for encrypted connections</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_use-frm">--use-frm</a></th>
+<td>For repair operations on MyISAM tables</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_user">--user</a></th>
+<td>MySQL user name to use when connecting to server</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_verbose">--verbose</a></th>
+<td>Verbose mode</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_version">--version</a></th>
+<td>Display version information and exit</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_write-binlog">--write-binlog</a></th>
+<td>Log ANALYZE, OPTIMIZE, REPAIR statements to binary log. --skip-write-binlog adds NO_WRITE_TO_BINLOG to these statements</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlcheck.html#option_mysqlcheck_zstd-compression-level">--zstd-compression-level</a></th>
+<td>Compression level for connections to server that use zstd compression</td>
+<td>8.0.18</td>
+<td></td>
+</tr></tbody></table></div></div><br class="table-break"/><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="option_mysqlcheck_help"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_help"><code class="option">--help</code></a>,
+            <code class="option">-?</code>
+          </p><a id="idm45829041701456" class="indexterm"></a><a id="idm45829041699968" class="indexterm"></a><p>
+            Display a help message and exit.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_all-databases"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_all-databases"><code class="option">--all-databases</code></a>,
+            <code class="option">-A</code>
+          </p><a id="idm45829041695424" class="indexterm"></a><a id="idm45829041693936" class="indexterm"></a><p>
+            Check all tables in all databases. This is the same as using
+            the <a class="link" href="mysqlcheck.html#option_mysqlcheck_databases"><code class="option">--databases</code></a> option
+            and naming all the databases on the command line, except
+            that the <code class="literal">INFORMATION_SCHEMA</code> and
+            <code class="literal">performance_schema</code> databases are not
+            checked. They can be checked by explicitly naming them with
+            the <a class="link" href="mysqlcheck.html#option_mysqlcheck_databases"><code class="option">--databases</code></a> option.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_all-in-1"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_all-in-1"><code class="option">--all-in-1</code></a>,
+            <code class="option">-1</code>
+          </p><a id="idm45829041685808" class="indexterm"></a><a id="idm45829041684320" class="indexterm"></a><p>
+            Instead of issuing a statement for each table, execute a
+            single statement for each database that names all the tables
+            from that database to be processed.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_analyze"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_analyze"><code class="option">--analyze</code></a>,
+            <code class="option">-a</code>
+          </p><a id="idm45829041679616" class="indexterm"></a><a id="idm45829041678128" class="indexterm"></a><p>
+            Analyze the tables.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_auto-repair"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_auto-repair"><code class="option">--auto-repair</code></a>
+          </p><a id="idm45829041674016" class="indexterm"></a><a id="idm45829041672528" class="indexterm"></a><p>
+            If a checked table is corrupted, automatically fix it. Any
+            necessary repairs are done after all tables have been
+            checked.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_bind-address"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_bind-address"><code class="option">--bind-address=<em class="replaceable"><code>ip_address</code></em></code></a>
+          </p><a id="idm45829041667984" class="indexterm"></a><a id="idm45829041666496" class="indexterm"></a><p>
+            On a computer having multiple network interfaces, use this
+            option to select which interface to use for connecting to
+            the MySQL server.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_character-sets-dir"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_character-sets-dir"><code class="option">--character-sets-dir=<em class="replaceable"><code>dir_name</code></em></code></a>
+          </p><a id="idm45829041662016" class="indexterm"></a><a id="idm45829041660560" class="indexterm"></a><p>
+            The directory where character sets are installed. See
+            <a class="xref" href="charset-configuration.html" title="10.15&nbsp;Character Set Configuration">Section&nbsp;10.15, &ldquo;Character Set Configuration&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_check"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_check"><code class="option">--check</code></a>,
+            <code class="option">-c</code>
+          </p><a id="idm45829041655424" class="indexterm"></a><a id="idm45829041653936" class="indexterm"></a><p>
+            Check the tables for errors. This is the default operation.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_check-only-changed"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_check-only-changed"><code class="option">--check-only-changed</code></a>,
+            <code class="option">-C</code>
+          </p><a id="idm45829041649376" class="indexterm"></a><a id="idm45829041647920" class="indexterm"></a><p>
+            Check only tables that have changed since the last check or
+            that have not been closed properly.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_check-upgrade"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_check-upgrade"><code class="option">--check-upgrade</code></a>,
+            <code class="option">-g</code>
+          </p><a id="idm45829041643232" class="indexterm"></a><a id="idm45829041641744" class="indexterm"></a><p>
+            Invoke <a class="link" href="check-table.html" title="13.7.3.2&nbsp;CHECK TABLE Statement"><code class="literal">CHECK TABLE</code></a> with the
+            <code class="literal">FOR UPGRADE</code> option to check tables for
+            incompatibilities with the current version of the server.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_compress"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_compress"><code class="option">--compress</code></a>
+          </p><a id="idm45829041635600" class="indexterm"></a><a id="idm45829041634112" class="indexterm"></a><p>
+            Compress all information sent between the client and the
+            server if possible. See
+            <a class="xref" href="connection-compression-control.html" title="4.2.8&nbsp;Connection Compression Control">Section&nbsp;4.2.8, &ldquo;Connection Compression Control&rdquo;</a>.
+          </p><p>
+            As of MySQL 8.0.18, this option is deprecated. Expect it to
+            be removed in a future version of MySQL. See
+            <a class="xref" href="connection-compression-control.html#connection-compression-legacy-configuration" title="Configuring Legacy Connection Compression">Configuring Legacy Connection Compression</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_compression-algorithms"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_compression-algorithms"><code class="option">--compression-algorithms=<em class="replaceable"><code>value</code></em></code></a>
+          </p><a id="idm45829041627616" class="indexterm"></a><a id="idm45829041626112" class="indexterm"></a><p>
+            The permitted compression algorithms for connections to the
+            server. The available algorithms are the same as for the
+            <a class="link" href="server-system-variables.html#sysvar_protocol_compression_algorithms"><code class="literal">protocol_compression_algorithms</code></a>
+            system variable. The default value is
+            <code class="literal">uncompressed</code>.
+          </p><p>
+            For more information, see
+            <a class="xref" href="connection-compression-control.html" title="4.2.8&nbsp;Connection Compression Control">Section&nbsp;4.2.8, &ldquo;Connection Compression Control&rdquo;</a>.
+          </p><p>
+            This option was added in MySQL 8.0.18.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_databases"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_databases"><code class="option">--databases</code></a>,
+            <code class="option">-B</code>
+          </p><a id="idm45829041617792" class="indexterm"></a><a id="idm45829041616304" class="indexterm"></a><p>
+            Process all tables in the named databases. Normally,
+            <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> treats the first name argument
+            on the command line as a database name and any following
+            names as table names. With this option, it treats all name
+            arguments as database names.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_debug"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_debug"><code class="option">--debug[=<em class="replaceable"><code>debug_options</code></em>]</code></a>,
+            <code class="option">-#
+            [<em class="replaceable"><code>debug_options</code></em>]</code>
+          </p><a id="idm45829041609536" class="indexterm"></a><a id="idm45829041608048" class="indexterm"></a><p>
+            Write a debugging log. A typical
+            <em class="replaceable"><code>debug_options</code></em> string is
+            <code class="literal">d:t:o,<em class="replaceable"><code>file_name</code></em></code>.
+            The default is <code class="literal">d:t:o</code>.
+          </p><p>
+            This option is available only if MySQL was built using
+            <a class="link" href="source-configuration-options.html#option_cmake_with_debug"><code class="option">WITH_DEBUG</code></a>. MySQL release
+            binaries provided by Oracle are <span class="emphasis"><em>not</em></span>
+            built using this option.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_debug-check"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_debug-check"><code class="option">--debug-check</code></a>
+          </p><a id="idm45829041599728" class="indexterm"></a><a id="idm45829041598240" class="indexterm"></a><p>
+            Print some debugging information when the program exits.
+          </p><p>
+            This option is available only if MySQL was built using
+            <a class="link" href="source-configuration-options.html#option_cmake_with_debug"><code class="option">WITH_DEBUG</code></a>. MySQL release
+            binaries provided by Oracle are <span class="emphasis"><em>not</em></span>
+            built using this option.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_debug-info"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_debug-info"><code class="option">--debug-info</code></a>
+          </p><a id="idm45829041592208" class="indexterm"></a><a id="idm45829041590720" class="indexterm"></a><p>
+            Print debugging information and memory and CPU usage
+            statistics when the program exits.
+          </p><p>
+            This option is available only if MySQL was built using
+            <a class="link" href="source-configuration-options.html#option_cmake_with_debug"><code class="option">WITH_DEBUG</code></a>. MySQL release
+            binaries provided by Oracle are <span class="emphasis"><em>not</em></span>
+            built using this option.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_default-character-set"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_default-character-set"><code class="option">--default-character-set=<em class="replaceable"><code>charset_name</code></em></code></a>
+          </p><a id="idm45829041584384" class="indexterm"></a><a id="idm45829041582880" class="indexterm"></a><p>
+            Use <em class="replaceable"><code>charset_name</code></em> as the default
+            character set. See <a class="xref" href="charset-configuration.html" title="10.15&nbsp;Character Set Configuration">Section&nbsp;10.15, &ldquo;Character Set Configuration&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_defaults-extra-file"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_defaults-extra-file"><code class="option">--defaults-extra-file=<em class="replaceable"><code>file_name</code></em></code></a>
+          </p><a id="idm45829041577344" class="indexterm"></a><a id="idm45829041575888" class="indexterm"></a><p>
+            Read this option file after the global option file but (on
+            Unix) before the user option file. If the file does not
+            exist or is otherwise inaccessible, an error occurs. If
+            <em class="replaceable"><code>file_name</code></em> is not an absolute path
+            name, it is interpreted relative to the current directory.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_defaults-file"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_defaults-file"><code class="option">--defaults-file=<em class="replaceable"><code>file_name</code></em></code></a>
+          </p><a id="idm45829041569584" class="indexterm"></a><a id="idm45829041568096" class="indexterm"></a><p>
+            Use only the given option file. If the file does not exist
+            or is otherwise inaccessible, an error occurs. If
+            <em class="replaceable"><code>file_name</code></em> is not an absolute path
+            name, it is interpreted relative to the current directory.
+          </p><p>
+            Exception: Even with
+            <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a>, client
+            programs read <code class="filename">.mylogin.cnf</code>.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_defaults-group-suffix"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_defaults-group-suffix"><code class="option">--defaults-group-suffix=<em class="replaceable"><code>str</code></em></code></a>
+          </p><a id="idm45829041559824" class="indexterm"></a><a id="idm45829041558320" class="indexterm"></a><p>
+            Read not only the usual option groups, but also groups with
+            the usual names and a suffix of
+            <em class="replaceable"><code>str</code></em>. For example,
+            <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> normally reads the
+            <code class="literal">[client]</code> and
+            <code class="literal">[mysqlcheck]</code> groups. If this option is
+            given as
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_defaults-group-suffix"><code class="option">--defaults-group-suffix=_other</code></a>,
+            <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> also reads the
+            <code class="literal">[client_other]</code> and
+            <code class="literal">[mysqlcheck_other]</code> groups.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_extended"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_extended"><code class="option">--extended</code></a>,
+            <code class="option">-e</code>
+          </p><a id="idm45829041545600" class="indexterm"></a><a id="idm45829041544112" class="indexterm"></a><p>
+            If you are using this option to check tables, it ensures
+            that they are 100% consistent but takes a long time.
+          </p><p>
+            If you are using this option to repair tables, it runs an
+            extended repair that may not only take a long time to
+            execute, but may produce a lot of garbage rows also!
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_default-auth"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_default-auth"><code class="option">--default-auth=<em class="replaceable"><code>plugin</code></em></code></a>
+          </p><a id="idm45829041539056" class="indexterm"></a><a id="idm45829041537568" class="indexterm"></a><p>
+            A hint about which client-side authentication plugin to use.
+            See <a class="xref" href="pluggable-authentication.html" title="6.2.17&nbsp;Pluggable Authentication">Section&nbsp;6.2.17, &ldquo;Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_enable-cleartext-plugin"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_enable-cleartext-plugin"><code class="option">--enable-cleartext-plugin</code></a>
+          </p><a id="idm45829041532656" class="indexterm"></a><a id="idm45829041531152" class="indexterm"></a><p>
+            Enable the <code class="literal">mysql_clear_password</code> cleartext
+            authentication plugin. (See
+            <a class="xref" href="cleartext-pluggable-authentication.html" title="6.4.1.4&nbsp;Client-Side Cleartext Pluggable Authentication">Section&nbsp;6.4.1.4, &ldquo;Client-Side Cleartext Pluggable Authentication&rdquo;</a>.)
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_fast"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_fast"><code class="option">--fast</code></a>,
+            <code class="option">-F</code>
+          </p><a id="idm45829041525328" class="indexterm"></a><a id="idm45829041523840" class="indexterm"></a><p>
+            Check only tables that have not been closed properly.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_force"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_force"><code class="option">--force</code></a>,
+            <code class="option">-f</code>
+          </p><a id="idm45829041519392" class="indexterm"></a><a id="idm45829041517904" class="indexterm"></a><p>
+            Continue even if an SQL error occurs.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_get-server-public-key"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_get-server-public-key"><code class="option">--get-server-public-key</code></a>
+          </p><a id="idm45829041513712" class="indexterm"></a><a id="idm45829041512256" class="indexterm"></a><p>
+            Request from the server the public key required for RSA key
+            pair-based password exchange. This option applies to clients
+            that authenticate with the
+            <code class="literal">caching_sha2_password</code> authentication
+            plugin. For that plugin, the server does not send the public
+            key unless requested. This option is ignored for accounts
+            that do not authenticate with that plugin. It is also
+            ignored if RSA-based password exchange is not used, as is
+            the case when the client connects to the server using a
+            secure connection.
+          </p><p>
+            If
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_server-public-key-path"><code class="option">--server-public-key-path=<em class="replaceable"><code>file_name</code></em></code></a>
+            is given and specifies a valid public key file, it takes
+            precedence over
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_get-server-public-key"><code class="option">--get-server-public-key</code></a>.
+          </p><p>
+            For information about the
+            <code class="literal">caching_sha2_password</code> plugin, see
+            <a class="xref" href="caching-sha2-pluggable-authentication.html" title="6.4.1.2&nbsp;Caching SHA-2 Pluggable Authentication">Section&nbsp;6.4.1.2, &ldquo;Caching SHA-2 Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_host"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_host"><code class="option">--host=<em class="replaceable"><code>host_name</code></em></code></a>,
+            <code class="option">-h <em class="replaceable"><code>host_name</code></em></code>
+          </p><a id="idm45829041501264" class="indexterm"></a><a id="idm45829041499776" class="indexterm"></a><p>
+            Connect to the MySQL server on the given host.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_login-path"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_login-path"><code class="option">--login-path=<em class="replaceable"><code>name</code></em></code></a>
+          </p><a id="idm45829041495296" class="indexterm"></a><a id="idm45829041493808" class="indexterm"></a><p>
+            Read options from the named login path in the
+            <code class="filename">.mylogin.cnf</code> login path file. A
+            <span class="quote">&ldquo;<span class="quote">login path</span>&rdquo;</span> is an option group containing
+            options that specify which MySQL server to connect to and
+            which account to authenticate as. To create or modify a
+            login path file, use the
+            <a class="link" href="mysql-config-editor.html" title="4.6.7&nbsp;mysql_config_editor &mdash; MySQL Configuration Utility"><span class="command"><strong>mysql_config_editor</strong></span></a> utility. See
+            <a class="xref" href="mysql-config-editor.html" title="4.6.7&nbsp;mysql_config_editor &mdash; MySQL Configuration Utility">Section&nbsp;4.6.7, &ldquo;mysql_config_editor &mdash; MySQL Configuration Utility&rdquo;</a>.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_medium-check"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_medium-check"><code class="option">--medium-check</code></a>,
+            <code class="option">-m</code>
+          </p><a id="idm45829041484832" class="indexterm"></a><a id="idm45829041483344" class="indexterm"></a><p>
+            Do a check that is faster than an
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_extended"><code class="option">--extended</code></a> operation.
+            This finds only 99.99% of all errors, which should be good
+            enough in most cases.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_no-defaults"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_no-defaults"><code class="option">--no-defaults</code></a>
+          </p><a id="idm45829041478112" class="indexterm"></a><a id="idm45829041476624" class="indexterm"></a><p>
+            Do not read any option files. If program startup fails due
+            to reading unknown options from an option file,
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_no-defaults"><code class="option">--no-defaults</code></a> can be used
+            to prevent them from being read.
+          </p><p>
+            The exception is that the <code class="filename">.mylogin.cnf</code>
+            file is read in all cases, if it exists. This permits
+            passwords to be specified in a safer way than on the command
+            line even when
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_no-defaults"><code class="option">--no-defaults</code></a> is used. To
+            create <code class="filename">.mylogin.cnf</code>, use the
+            <a class="link" href="mysql-config-editor.html" title="4.6.7&nbsp;mysql_config_editor &mdash; MySQL Configuration Utility"><span class="command"><strong>mysql_config_editor</strong></span></a> utility. See
+            <a class="xref" href="mysql-config-editor.html" title="4.6.7&nbsp;mysql_config_editor &mdash; MySQL Configuration Utility">Section&nbsp;4.6.7, &ldquo;mysql_config_editor &mdash; MySQL Configuration Utility&rdquo;</a>.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_optimize"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_optimize"><code class="option">--optimize</code></a>,
+            <code class="option">-o</code>
+          </p><a id="idm45829041464880" class="indexterm"></a><a id="idm45829041463392" class="indexterm"></a><p>
+            Optimize the tables.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_password"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password"><code class="option">--password[=<em class="replaceable"><code>password</code></em>]</code></a>,
+            <code class="option">-p[<em class="replaceable"><code>password</code></em>]</code>
+          </p><a id="idm45829041458080" class="indexterm"></a><a id="idm45829041456592" class="indexterm"></a><p>
+            The password of the MySQL account used for connecting to the
+            server. The password value is optional. If not given,
+            <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> prompts for one. If given,
+            there must be <span class="emphasis"><em>no space</em></span> between
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password"><code class="option">--password=</code></a> or
+            <code class="option">-p</code> and the password following it. If no
+            password option is specified, the default is to send no
+            password.
+          </p><p>
+            Specifying a password on the command line should be
+            considered insecure. To avoid giving the password on the
+            command line, use an option file. See
+            <a class="xref" href="password-security-user.html" title="6.1.2.1&nbsp;End-User Guidelines for Password Security">Section&nbsp;6.1.2.1, &ldquo;End-User Guidelines for Password Security&rdquo;</a>.
+          </p><p>
+            To explicitly specify that there is no password and that
+            <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> should not prompt for one, use
+            the
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password"><code class="option">--skip-password</code></a>
+            option.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_password1"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password1"><code class="option">--password1[=<em class="replaceable"><code>pass_val</code></em>]</code></a>
+          </p><a id="idm45829041444720" class="indexterm"></a><p>
+            The password for multifactor authentication factor 1 of the
+            MySQL account used for connecting to the server. The
+            password value is optional. If not given,
+            <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> prompts for one. If given,
+            there must be <span class="emphasis"><em>no space</em></span> between
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password1"><code class="option">--password1=</code></a> and the
+            password following it. If no password option is specified,
+            the default is to send no password.
+          </p><p>
+            Specifying a password on the command line should be
+            considered insecure. To avoid giving the password on the
+            command line, use an option file. See
+            <a class="xref" href="password-security-user.html" title="6.1.2.1&nbsp;End-User Guidelines for Password Security">Section&nbsp;6.1.2.1, &ldquo;End-User Guidelines for Password Security&rdquo;</a>.
+          </p><p>
+            To explicitly specify that there is no password and that
+            <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> should not prompt for one, use
+            the
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password1"><code class="option">--skip-password1</code></a>
+            option.
+          </p><p>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password1"><code class="option">--password1</code></a> and
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password"><code class="option">--password</code></a> are
+            synonymous, as are
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password1"><code class="option">--skip-password1</code></a>
+            and
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password"><code class="option">--skip-password</code></a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_password2"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password2"><code class="option">--password2[=<em class="replaceable"><code>pass_val</code></em>]</code></a>
+          </p><a id="idm45829041429168" class="indexterm"></a><p>
+            The password for multifactor authentication factor 2 of the
+            MySQL account used for connecting to the server. The
+            semantics of this option are similar to the semantics for
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password1"><code class="option">--password1</code></a>; see the
+            description of that option for details.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_password3"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password3"><code class="option">--password3[=<em class="replaceable"><code>pass_val</code></em>]</code></a>
+          </p><a id="idm45829041423872" class="indexterm"></a><p>
+            The password for multifactor authentication factor 3 of the
+            MySQL account used for connecting to the server. The
+            semantics of this option are similar to the semantics for
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_password1"><code class="option">--password1</code></a>; see the
+            description of that option for details.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_pipe"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_pipe"><code class="option">--pipe</code></a>,
+            <code class="option">-W</code>
+          </p><a id="idm45829041418624" class="indexterm"></a><a id="idm45829041417136" class="indexterm"></a><p>
+            On Windows, connect to the server using a named pipe. This
+            option applies only if the server was started with the
+            <a class="link" href="server-system-variables.html#sysvar_named_pipe"><code class="literal">named_pipe</code></a> system variable
+            enabled to support named-pipe connections. In addition, the
+            user making the connection must be a member of the Windows
+            group specified by the
+            <a class="link" href="server-system-variables.html#sysvar_named_pipe_full_access_group"><code class="literal">named_pipe_full_access_group</code></a>
+            system variable.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_plugin-dir"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_plugin-dir"><code class="option">--plugin-dir=<em class="replaceable"><code>dir_name</code></em></code></a>
+          </p><a id="idm45829041409904" class="indexterm"></a><a id="idm45829041408416" class="indexterm"></a><p>
+            The directory in which to look for plugins. Specify this
+            option if the
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_default-auth"><code class="option">--default-auth</code></a> option is
+            used to specify an authentication plugin but
+            <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> does not find it. See
+            <a class="xref" href="pluggable-authentication.html" title="6.2.17&nbsp;Pluggable Authentication">Section&nbsp;6.2.17, &ldquo;Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_port"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_port"><code class="option">--port=<em class="replaceable"><code>port_num</code></em></code></a>,
+            <code class="option">-P <em class="replaceable"><code>port_num</code></em></code>
+          </p><a id="idm45829041400336" class="indexterm"></a><a id="idm45829041398848" class="indexterm"></a><p>
+            For TCP/IP connections, the port number to use.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_print-defaults"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_print-defaults"><code class="option">--print-defaults</code></a>
+          </p><a id="idm45829041394720" class="indexterm"></a><a id="idm45829041393232" class="indexterm"></a><p>
+            Print the program name and all options that it gets from
+            option files.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_protocol"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_protocol"><code class="option">--protocol={TCP|SOCKET|PIPE|MEMORY}</code></a>
+          </p><a id="idm45829041387968" class="indexterm"></a><a id="idm45829041386480" class="indexterm"></a><p>
+            The transport protocol to use for connecting to the server.
+            It is useful when the other connection parameters normally
+            result in use of a protocol other than the one you want. For
+            details on the permissible values, see
+            <a class="xref" href="transport-protocols.html" title="4.2.7&nbsp;Connection Transport Protocols">Section&nbsp;4.2.7, &ldquo;Connection Transport Protocols&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_quick"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_quick"><code class="option">--quick</code></a>,
+            <code class="option">-q</code>
+          </p><a id="idm45829041381088" class="indexterm"></a><a id="idm45829041379600" class="indexterm"></a><p>
+            If you are using this option to check tables, it prevents
+            the check from scanning the rows to check for incorrect
+            links. This is the fastest check method.
+          </p><p>
+            If you are using this option to repair tables, it tries to
+            repair only the index tree. This is the fastest repair
+            method.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_repair"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_repair"><code class="option">--repair</code></a>,
+            <code class="option">-r</code>
+          </p><a id="idm45829041374272" class="indexterm"></a><a id="idm45829041372784" class="indexterm"></a><p>
+            Perform a repair that can fix almost anything except unique
+            keys that are not unique.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_server-public-key-path"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_server-public-key-path"><code class="option">--server-public-key-path=<em class="replaceable"><code>file_name</code></em></code></a>
+          </p><a id="idm45829041368256" class="indexterm"></a><a id="idm45829041366752" class="indexterm"></a><p>
+            The path name to a file in PEM format containing a
+            client-side copy of the public key required by the server
+            for RSA key pair-based password exchange. This option
+            applies to clients that authenticate with the
+            <code class="literal">sha256_password</code> or
+            <code class="literal">caching_sha2_password</code> authentication
+            plugin. This option is ignored for accounts that do not
+            authenticate with one of those plugins. It is also ignored
+            if RSA-based password exchange is not used, as is the case
+            when the client connects to the server using a secure
+            connection.
+          </p><p>
+            If
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_server-public-key-path"><code class="option">--server-public-key-path=<em class="replaceable"><code>file_name</code></em></code></a>
+            is given and specifies a valid public key file, it takes
+            precedence over
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_get-server-public-key"><code class="option">--get-server-public-key</code></a>.
+          </p><p>
+            For <code class="literal">sha256_password</code>, this option applies
+            only if MySQL was built using OpenSSL.
+          </p><p>
+            For information about the <code class="literal">sha256_password</code>
+            and <code class="literal">caching_sha2_password</code> plugins, see
+            <a class="xref" href="sha256-pluggable-authentication.html" title="6.4.1.3&nbsp;SHA-256 Pluggable Authentication">Section&nbsp;6.4.1.3, &ldquo;SHA-256 Pluggable Authentication&rdquo;</a>, and
+            <a class="xref" href="caching-sha2-pluggable-authentication.html" title="6.4.1.2&nbsp;Caching SHA-2 Pluggable Authentication">Section&nbsp;6.4.1.2, &ldquo;Caching SHA-2 Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_shared-memory-base-name"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_shared-memory-base-name"><code class="option">--shared-memory-base-name=<em class="replaceable"><code>name</code></em></code></a>
+          </p><a id="idm45829041352992" class="indexterm"></a><a id="idm45829041351488" class="indexterm"></a><p>
+            On Windows, the shared-memory name to use for connections
+            made using shared memory to a local server. The default
+            value is <code class="literal">MYSQL</code>. The shared-memory name is
+            case-sensitive.
+          </p><p>
+            This option applies only if the server was started with the
+            <a class="link" href="server-system-variables.html#sysvar_shared_memory"><code class="literal">shared_memory</code></a> system
+            variable enabled to support shared-memory connections.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_silent"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_silent"><code class="option">--silent</code></a>,
+            <code class="option">-s</code>
+          </p><a id="idm45829041344288" class="indexterm"></a><a id="idm45829041342800" class="indexterm"></a><p>
+            Silent mode. Print only error messages.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_skip-database"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_skip-database"><code class="option">--skip-database=<em class="replaceable"><code>db_name</code></em></code></a>
+          </p><a id="idm45829041338432" class="indexterm"></a><a id="idm45829041336944" class="indexterm"></a><p>
+            Do not include the named database (case-sensitive) in the
+            operations performed by <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_socket"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_socket"><code class="option">--socket=<em class="replaceable"><code>path</code></em></code></a>,
+            <code class="option">-S <em class="replaceable"><code>path</code></em></code>
+          </p><a id="idm45829041330592" class="indexterm"></a><a id="idm45829041329104" class="indexterm"></a><p>
+            For connections to <code class="literal">localhost</code>, the Unix
+            socket file to use, or, on Windows, the name of the named
+            pipe to use.
+          </p><p>
+            On Windows, this option applies only if the server was
+            started with the <a class="link" href="server-system-variables.html#sysvar_named_pipe"><code class="literal">named_pipe</code></a>
+            system variable enabled to support named-pipe connections.
+            In addition, the user making the connection must be a member
+            of the Windows group specified by the
+            <a class="link" href="server-system-variables.html#sysvar_named_pipe_full_access_group"><code class="literal">named_pipe_full_access_group</code></a>
+            system variable.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_ssl"></a>
+            <code class="option">--ssl*</code>
+          </p><a id="idm45829041321632" class="indexterm"></a><a id="idm45829041320144" class="indexterm"></a><p>
+            Options that begin with <code class="option">--ssl</code> specify
+            whether to connect to the server using encryption and
+            indicate where to find SSL keys and certificates. See
+            <a class="xref" href="connection-options.html#encrypted-connection-options" title="Command Options for Encrypted Connections">Command Options for Encrypted Connections</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_ssl-fips-mode"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl-fips-mode"><code class="option">--ssl-fips-mode={OFF|ON|STRICT}</code></a>
+          </p><a id="idm45829041314784" class="indexterm"></a><a id="idm45829041313296" class="indexterm"></a><p>
+            Controls whether to enable FIPS mode on the client side. The
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl-fips-mode"><code class="option">--ssl-fips-mode</code></a> option
+            differs from other
+            <code class="option">--ssl-<em class="replaceable"><code>xxx</code></em></code>
+            options in that it is not used to establish encrypted
+            connections, but rather to affect which cryptographic
+            operations to permit. See <a class="xref" href="fips-mode.html" title="6.8&nbsp;FIPS Support">Section&nbsp;6.8, &ldquo;FIPS Support&rdquo;</a>.
+          </p><p>
+            These <a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl-fips-mode"><code class="option">--ssl-fips-mode</code></a>
+            values are permitted:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <code class="literal">OFF</code>: Disable FIPS mode.
+              </p></li><li class="listitem"><p>
+                <code class="literal">ON</code>: Enable FIPS mode.
+              </p></li><li class="listitem"><p>
+                <code class="literal">STRICT</code>: Enable <span class="quote">&ldquo;<span class="quote">strict</span>&rdquo;</span>
+                FIPS mode.
+              </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              If the OpenSSL FIPS Object Module is not available, the
+              only permitted value for
+              <a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl-fips-mode"><code class="option">--ssl-fips-mode</code></a> is
+              <code class="literal">OFF</code>. In this case, setting
+              <a class="link" href="mysqlcheck.html#option_mysqlcheck_ssl-fips-mode"><code class="option">--ssl-fips-mode</code></a> to
+              <code class="literal">ON</code> or <code class="literal">STRICT</code> causes
+              the client to produce a warning at startup and to operate
+              in non-FIPS mode.
+            </p></div><p>
+            As of MySQL 8.0.34, this option is deprecated. Expect it to
+            be removed in a future version of MySQL.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_tables"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_tables"><code class="option">--tables</code></a>
+          </p><a id="idm45829041294192" class="indexterm"></a><a id="idm45829041292704" class="indexterm"></a><p>
+            Override the <a class="link" href="mysqlcheck.html#option_mysqlcheck_databases"><code class="option">--databases</code></a>
+            or <code class="option">-B</code> option. All name arguments following
+            the option are regarded as table names.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_tls-ciphersuites"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_tls-ciphersuites"><code class="option">--tls-ciphersuites=<em class="replaceable"><code>ciphersuite_list</code></em></code></a>
+          </p><a id="idm45829041286880" class="indexterm"></a><a id="idm45829041285392" class="indexterm"></a><p>
+            The permissible ciphersuites for encrypted connections that
+            use TLSv1.3. The value is a list of one or more
+            colon-separated ciphersuite names. The ciphersuites that can
+            be named for this option depend on the SSL library used to
+            compile MySQL. For details, see
+            <a class="xref" href="encrypted-connection-protocols-ciphers.html" title="6.3.2&nbsp;Encrypted Connection TLS Protocols and Ciphers">Section&nbsp;6.3.2, &ldquo;Encrypted Connection TLS Protocols and Ciphers&rdquo;</a>.
+          </p><p>
+            This option was added in MySQL 8.0.16.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_tls-version"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_tls-version"><code class="option">--tls-version=<em class="replaceable"><code>protocol_list</code></em></code></a>
+          </p><a id="idm45829041279520" class="indexterm"></a><a id="idm45829041278032" class="indexterm"></a><p>
+            The permissible TLS protocols for encrypted connections. The
+            value is a list of one or more comma-separated protocol
+            names. The protocols that can be named for this option
+            depend on the SSL library used to compile MySQL. For
+            details, see
+            <a class="xref" href="encrypted-connection-protocols-ciphers.html" title="6.3.2&nbsp;Encrypted Connection TLS Protocols and Ciphers">Section&nbsp;6.3.2, &ldquo;Encrypted Connection TLS Protocols and Ciphers&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_use-frm"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_use-frm"><code class="option">--use-frm</code></a>
+          </p><a id="idm45829041273008" class="indexterm"></a><a id="idm45829041271520" class="indexterm"></a><p>
+            For repair operations on <code class="literal">MyISAM</code> tables,
+            get the table structure from the data dictionary so that the
+            table can be repaired even if the <code class="filename">.MYI</code>
+            header is corrupted.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_user"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_user"><code class="option">--user=<em class="replaceable"><code>user_name</code></em></code></a>,
+            <code class="option">-u <em class="replaceable"><code>user_name</code></em></code>
+          </p><a id="idm45829041265008" class="indexterm"></a><a id="idm45829041263520" class="indexterm"></a><p>
+            The user name of the MySQL account to use for connecting to
+            the server.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_verbose"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_verbose"><code class="option">--verbose</code></a>,
+            <code class="option">-v</code>
+          </p><a id="idm45829041258928" class="indexterm"></a><a id="idm45829041257440" class="indexterm"></a><p>
+            Verbose mode. Print information about the various stages of
+            program operation.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_version"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_version"><code class="option">--version</code></a>,
+            <code class="option">-V</code>
+          </p><a id="idm45829041252896" class="indexterm"></a><a id="idm45829041251408" class="indexterm"></a><p>
+            Display version information and exit.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_write-binlog"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_write-binlog"><code class="option">--write-binlog</code></a>
+          </p><a id="idm45829041247328" class="indexterm"></a><a id="idm45829041245840" class="indexterm"></a><p>
+            This option is enabled by default, so that
+            <a class="link" href="analyze-table.html" title="13.7.3.1&nbsp;ANALYZE TABLE Statement"><code class="literal">ANALYZE TABLE</code></a>,
+            <a class="link" href="optimize-table.html" title="13.7.3.4&nbsp;OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a>, and
+            <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a> statements
+            generated by <a class="link" href="mysqlcheck.html" title="4.5.3&nbsp;mysqlcheck &mdash; A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a> are written to
+            the binary log. Use
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_write-binlog"><code class="option">--skip-write-binlog</code></a>
+            to cause <code class="literal">NO_WRITE_TO_BINLOG</code> to be added
+            to the statements so that they are not logged. Use the
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_write-binlog"><code class="option">--skip-write-binlog</code></a>
+            when these statements should not be sent to replicas or run
+            when using the binary logs for recovery from backup.
+          </p></li><li class="listitem"><p><a id="option_mysqlcheck_zstd-compression-level"></a>
+            <a class="link" href="mysqlcheck.html#option_mysqlcheck_zstd-compression-level"><code class="option">--zstd-compression-level=<em class="replaceable"><code>level</code></em></code></a>
+          </p><a id="idm45829041233472" class="indexterm"></a><a id="idm45829041231968" class="indexterm"></a><p>
+            The compression level to use for connections to the server
+            that use the <code class="literal">zstd</code> compression algorithm.
+            The permitted levels are from 1 to 22, with larger values
+            indicating increasing levels of compression. The default
+            <code class="literal">zstd</code> compression level is 3. The
+            compression level setting has no effect on connections that
+            do not use <code class="literal">zstd</code> compression.
+          </p><p>
+            For more information, see
+            <a class="xref" href="connection-compression-control.html" title="4.2.8&nbsp;Connection Compression Control">Section&nbsp;4.2.8, &ldquo;Connection Compression Control&rdquo;</a>.
+          </p><p>
+            This option was added in MySQL 8.0.18.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysqladmin.html">Previous <span class="navHint"> mysqladmin &mdash; A MySQL Server Administration Program </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="programs-client.html">Up <span class="navHint"> Client Programs </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysqldump.html">Next <span class="navHint"> mysqldump &mdash; A Database Backup Program </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

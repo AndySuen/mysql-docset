@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>12.9.1 Natural Language Full-Text Searches</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="fulltext-search.html" title="12.9 Full-Text Search Functions" /><link rel="prev" href="fulltext-search.html" title="12.9 Full-Text Search Functions" /><link rel="next" href="fulltext-boolean.html" title="12.9.2 Boolean Full-Text Searches" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="fulltext-natural-language.html#fulltext-natural-language">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="fulltext-search.html">Previous <span class="navHint"> Full-Text Search Functions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="fulltext-search.html">Up <span class="navHint"> Full-Text Search Functions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="fulltext-boolean.html">Next <span class="navHint"> Boolean Full-Text Searches </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="fulltext-natural-language"></a>12.9.1 Natural Language Full-Text Searches</h3></div></div></div><p>
+        By default or with the <code class="literal">IN NATURAL LANGUAGE
+        MODE</code> modifier, the
+        <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()</code></a> function performs a
+        natural language search for a string against a
+        <span class="firstterm">text collection</span>. A
+        collection is a set of one or more columns included in a
+        <code class="literal">FULLTEXT</code> index. The search string is given as
+        the argument to <code class="literal">AGAINST()</code>. For each row in
+        the table, <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()</code></a> returns a
+        relevance value; that is, a similarity measure between the
+        search string and the text in that row in the columns named in
+        the <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()</code></a> list.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE articles (</code></strong>
+    -&gt;   <strong class="userinput"><code>id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,</code></strong>
+    -&gt;   <strong class="userinput"><code>title VARCHAR(200),</code></strong>
+    -&gt;   <strong class="userinput"><code>body TEXT,</code></strong>
+    -&gt;   <strong class="userinput"><code>FULLTEXT (title,body)</code></strong>
+    -&gt; <strong class="userinput"><code>) ENGINE=InnoDB;</code></strong>
+Query OK, 0 rows affected (0.08 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO articles (title,body) VALUES</code></strong>
+    -&gt;   <strong class="userinput"><code>('MySQL Tutorial','DBMS stands for DataBase ...'),</code></strong>
+    -&gt;   <strong class="userinput"><code>('How To Use MySQL Well','After you went through a ...'),</code></strong>
+    -&gt;   <strong class="userinput"><code>('Optimizing MySQL','In this tutorial, we show ...'),</code></strong>
+    -&gt;   <strong class="userinput"><code>('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),</code></strong>
+    -&gt;   <strong class="userinput"><code>('MySQL vs. YourSQL','In the following database comparison ...'),</code></strong>
+    -&gt;   <strong class="userinput"><code>('MySQL Security','When configured properly, MySQL ...');</code></strong>
+Query OK, 6 rows affected (0.01 sec)
+Records: 6  Duplicates: 0  Warnings: 0
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM articles</code></strong>
+    -&gt; <strong class="userinput"><code>WHERE MATCH (title,body)</code></strong>
+    -&gt; <strong class="userinput"><code>AGAINST ('database' IN NATURAL LANGUAGE MODE);</code></strong>
++----+-------------------+------------------------------------------+
+| id | title             | body                                     |
++----+-------------------+------------------------------------------+
+|  1 | MySQL Tutorial    | DBMS stands for DataBase ...             |
+|  5 | MySQL vs. YourSQL | In the following database comparison ... |
++----+-------------------+------------------------------------------+
+2 rows in set (0.00 sec)
+</pre><p>
+        By default, the search is performed in case-insensitive fashion.
+        To perform a case-sensitive full-text search, use a
+        case-sensitive or binary collation for the indexed columns. For
+        example, a column that uses the <code class="literal">utf8mb4</code>
+        character set of can be assigned a collation of
+        <code class="literal">utf8mb4_0900_as_cs</code> or
+        <code class="literal">utf8mb4_bin</code> to make it case-sensitive for
+        full-text searches.
+      </p><p>
+        When <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()</code></a> is used in a
+        <code class="literal">WHERE</code> clause, as in the example shown
+        earlier, the rows returned are automatically sorted with the
+        highest relevance first as long as the following conditions are
+        met:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            There must be no explicit <code class="literal">ORDER BY</code>
+            clause.
+          </p></li><li class="listitem"><p>
+            The search must be performed using a full-text index scan
+            rather than a table scan.
+          </p></li><li class="listitem"><p>
+            If the query joins tables, the full-text index scan must be
+            the leftmost non-constant table in the join.
+          </p></li></ul></div><p>
+        Given the conditions just listed, it is usually less effort to
+        specify using <code class="literal">ORDER BY</code> an explicit sort order
+        when one is necessary or desired.
+      </p><p>
+        Relevance values are nonnegative floating-point numbers. Zero
+        relevance means no similarity. Relevance is computed based on
+        the number of words in the row (document), the number of unique
+        words in the row, the total number of words in the collection,
+        and the number of rows that contain a particular word.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          The term <span class="quote">“<span class="quote">document</span>”</span> may be used interchangeably
+          with the term <span class="quote">“<span class="quote">row</span>”</span>, and both terms refer to the
+          indexed part of the row. The term <span class="quote">“<span class="quote">collection</span>”</span>
+          refers to the indexed columns and encompasses all rows.
+        </p></div><p>
+        To simply count matches, you could use a query like this:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT COUNT(*) FROM articles</code></strong>
+    -&gt; <strong class="userinput"><code>WHERE MATCH (title,body)</code></strong>
+    -&gt; <strong class="userinput"><code>AGAINST ('database' IN NATURAL LANGUAGE MODE);</code></strong>
++----------+
+| COUNT(*) |
++----------+
+|        2 |
++----------+
+1 row in set (0.00 sec)
+</pre><p>
+        You might find it quicker to rewrite the query as follows:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+    -&gt; <strong class="userinput"><code>COUNT(IF(MATCH (title,body) AGAINST ('database' IN NATURAL LANGUAGE MODE), 1, NULL))</code></strong>
+    -&gt; <strong class="userinput"><code>AS count</code></strong>
+    -&gt; <strong class="userinput"><code>FROM articles;</code></strong>
++-------+
+| count |
++-------+
+|     2 |
++-------+
+1 row in set (0.03 sec)
+</pre><p>
+        The first query does some extra work (sorting the results by
+        relevance) but also can use an index lookup based on the
+        <code class="literal">WHERE</code> clause. The index lookup might make the
+        first query faster if the search matches few rows. The second
+        query performs a full table scan, which might be faster than the
+        index lookup if the search term was present in most rows.
+      </p><p>
+        For natural-language full-text searches, the columns named in
+        the <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()</code></a> function must be the
+        same columns included in some <code class="literal">FULLTEXT</code> index
+        in your table. For the preceding query, note that the columns
+        named in the <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()</code></a> function
+        (<code class="literal">title</code> and <code class="literal">body</code>) are the
+        same as those named in the definition of the
+        <code class="literal">article</code> table's <code class="literal">FULLTEXT</code>
+        index. To search the <code class="literal">title</code> or
+        <code class="literal">body</code> separately, you would create separate
+        <code class="literal">FULLTEXT</code> indexes for each column.
+      </p><p>
+        You can also perform a boolean search or a search with query
+        expansion. These search types are described in
+        <a class="xref" href="fulltext-boolean.html" title="12.9.2 Boolean Full-Text Searches">Section 12.9.2, “Boolean Full-Text Searches”</a>, and
+        <a class="xref" href="fulltext-query-expansion.html" title="12.9.3 Full-Text Searches with Query Expansion">Section 12.9.3, “Full-Text Searches with Query Expansion”</a>.
+      </p><p>
+        A full-text search that uses an index can name columns only from
+        a single table in the <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()</code></a>
+        clause because an index cannot span multiple tables. For
+        <code class="literal">MyISAM</code> tables, a boolean search can be done
+        in the absence of an index (albeit more slowly), in which case
+        it is possible to name columns from multiple tables.
+      </p><p>
+        The preceding example is a basic illustration that shows how to
+        use the <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()</code></a> function where
+        rows are returned in order of decreasing relevance. The next
+        example shows how to retrieve the relevance values explicitly.
+        Returned rows are not ordered because the
+        <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statement includes neither
+        <code class="literal">WHERE</code> nor <code class="literal">ORDER BY</code>
+        clauses:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT id, MATCH (title,body)</code></strong>
+    -&gt; <strong class="userinput"><code>AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) AS score</code></strong>
+    -&gt; <strong class="userinput"><code>FROM articles;</code></strong>
++----+---------------------+
+| id | score               |
++----+---------------------+
+|  1 | 0.22764469683170319 |
+|  2 |                   0 |
+|  3 | 0.22764469683170319 |
+|  4 |                   0 |
+|  5 |                   0 |
+|  6 |                   0 |
++----+---------------------+
+6 rows in set (0.00 sec)
+</pre><p>
+        The following example is more complex. The query returns the
+        relevance values and it also sorts the rows in order of
+        decreasing relevance. To achieve this result, specify
+        <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()</code></a> twice: once in the
+        <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> list and once in the
+        <code class="literal">WHERE</code> clause. This causes no additional
+        overhead, because the MySQL optimizer notices that the two
+        <a class="link" href="fulltext-search.html#function_match"><code class="literal">MATCH()</code></a> calls are identical and
+        invokes the full-text search code only once.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT id, body, MATCH (title,body)</code></strong>
+    -&gt;   <strong class="userinput"><code>AGAINST ('Security implications of running MySQL as root'</code></strong>
+    -&gt;   <strong class="userinput"><code>IN NATURAL LANGUAGE MODE) AS score</code></strong>
+    -&gt; <strong class="userinput"><code>FROM articles</code></strong>
+    -&gt;   <strong class="userinput"><code>WHERE MATCH (title,body)</code></strong> 
+    -&gt;   <strong class="userinput"><code>AGAINST('Security implications of running MySQL as root'</code></strong>
+    -&gt;   <strong class="userinput"><code>IN NATURAL LANGUAGE MODE);</code></strong>
++----+-------------------------------------+-----------------+
+| id | body                                | score           |
++----+-------------------------------------+-----------------+
+|  4 | 1. Never run mysqld as root. 2. ... | 1.5219271183014 |
+|  6 | When configured properly, MySQL ... | 1.3114095926285 |
++----+-------------------------------------+-----------------+
+2 rows in set (0.00 sec)
+</pre><p>
+        A phrase that is enclosed within double quote
+        (<code class="literal">"</code>) characters matches only rows that contain
+        the phrase <span class="emphasis"><em>literally, as it was typed</em></span>. The
+        full-text engine splits the phrase into words and performs a
+        search in the <code class="literal">FULLTEXT</code> index for the words.
+        Nonword characters need not be matched exactly: Phrase searching
+        requires only that matches contain exactly the same words as the
+        phrase and in the same order. For example, <code class="literal">"test
+        phrase"</code> matches <code class="literal">"test, phrase"</code>. If
+        the phrase contains no words that are in the index, the result
+        is empty. For example, if all words are either stopwords or
+        shorter than the minimum length of indexed words, the result is
+        empty.
+      </p><p>
+        The MySQL <code class="literal">FULLTEXT</code> implementation regards any
+        sequence of true word characters (letters, digits, and
+        underscores) as a word. That sequence may also contain
+        apostrophes (<code class="literal">'</code>), but not more than one in a
+        row. This means that <code class="literal">aaa'bbb</code> is regarded as
+        one word, but <code class="literal">aaa''bbb</code> is regarded as two
+        words. Apostrophes at the beginning or the end of a word are
+        stripped by the <code class="literal">FULLTEXT</code> parser;
+        <code class="literal">'aaa'bbb'</code> would be parsed as
+        <code class="literal">aaa'bbb</code>.
+      </p><p>
+        The built-in <code class="literal">FULLTEXT</code> parser determines where
+        words start and end by looking for certain delimiter characters;
+        for example, <code class="literal"> </code> (space),
+        <code class="literal">,</code> (comma), and <code class="literal">.</code> (period).
+        If words are not separated by delimiters (as in, for example,
+        Chinese), the built-in <code class="literal">FULLTEXT</code> parser cannot
+        determine where a word begins or ends. To be able to add words
+        or other indexed terms in such languages to a
+        <code class="literal">FULLTEXT</code> index that uses the built-in
+        <code class="literal">FULLTEXT</code> parser, you must preprocess them so
+        that they are separated by some arbitrary delimiter.
+        Alternatively, you can create <code class="literal">FULLTEXT</code>
+        indexes using the ngram parser plugin (for Chinese, Japanese, or
+        Korean) or the MeCab parser plugin (for Japanese).
+      </p><p>
+        It is possible to write a plugin that replaces the built-in
+        full-text parser. For details, see <a class="ulink" href="https://dev.mysql.com/doc/extending-mysql/8.0/en/plugin-api.html" target="_top">The MySQL Plugin API</a>.
+        For example parser plugin source code, see the
+        <code class="filename">plugin/fulltext</code> directory of a MySQL source
+        distribution.
+      </p><p>
+        Some words are ignored in full-text searches:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Any word that is too short is ignored. The default minimum
+            length of words that are found by full-text searches is
+            three characters for <code class="literal">InnoDB</code> search
+            indexes, or four characters for <code class="literal">MyISAM</code>.
+            You can control the cutoff by setting a configuration option
+            before creating the index:
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_ft_min_token_size"><code class="literal">innodb_ft_min_token_size</code></a>
+            configuration option for <code class="literal">InnoDB</code> search
+            indexes, or <a class="link" href="server-system-variables.html#sysvar_ft_min_word_len"><code class="literal">ft_min_word_len</code></a>
+            for <code class="literal">MyISAM</code>.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              This behavior does not apply to
+              <code class="literal">FULLTEXT</code> indexes that use the ngram
+              parser. For the ngram parser, token length is defined by
+              the <a class="link" href="server-system-variables.html#sysvar_ngram_token_size"><code class="literal">ngram_token_size</code></a>
+              option.
+            </p></div></li><li class="listitem"><p>
+            Words in the stopword list are ignored. A stopword is a word
+            such as <span class="quote">“<span class="quote">the</span>”</span> or <span class="quote">“<span class="quote">some</span>”</span> that is so
+            common that it is considered to have zero semantic value.
+            There is a built-in stopword list, but it can be overridden
+            by a user-defined list. The stopword lists and related
+            configuration options are different for
+            <code class="literal">InnoDB</code> search indexes and
+            <code class="literal">MyISAM</code> ones. Stopword processing is
+            controlled by the configuration options
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_ft_enable_stopword"><code class="literal">innodb_ft_enable_stopword</code></a>,
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_ft_server_stopword_table"><code class="literal">innodb_ft_server_stopword_table</code></a>,
+            and
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_ft_user_stopword_table"><code class="literal">innodb_ft_user_stopword_table</code></a>
+            for <code class="literal">InnoDB</code> search indexes, and
+            <a class="link" href="server-system-variables.html#sysvar_ft_stopword_file"><code class="literal">ft_stopword_file</code></a> for
+            <code class="literal">MyISAM</code> ones.
+          </p></li></ul></div><p>
+        See <a class="xref" href="fulltext-stopwords.html" title="12.9.4 Full-Text Stopwords">Section 12.9.4, “Full-Text Stopwords”</a> to view default
+        stopword lists and how to change them. The default minimum word
+        length can be changed as described in
+        <a class="xref" href="fulltext-fine-tuning.html" title="12.9.6 Fine-Tuning MySQL Full-Text Search">Section 12.9.6, “Fine-Tuning MySQL Full-Text Search”</a>.
+      </p><p>
+        Every correct word in the collection and in the query is
+        weighted according to its significance in the collection or
+        query. Thus, a word that is present in many documents has a
+        lower weight, because it has lower semantic value in this
+        particular collection. Conversely, if the word is rare, it
+        receives a higher weight. The weights of the words are combined
+        to compute the relevance of the row. This technique works best
+        with large collections.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">MyISAM Limitation</div><p>
+          For very small tables, word distribution does not adequately
+          reflect their semantic value, and this model may sometimes
+          produce bizarre results for search indexes on
+          <code class="literal">MyISAM</code> tables. For example, although the
+          word <span class="quote">“<span class="quote">MySQL</span>”</span> is present in every row of the
+          <code class="literal">articles</code> table shown earlier, a search for
+          the word in a <code class="literal">MyISAM</code> search index produces
+          no results:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM articles</code></strong>
+    -&gt; <strong class="userinput"><code>WHERE MATCH (title,body)</code></strong>
+    -&gt; <strong class="userinput"><code>AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);</code></strong>
+Empty set (0.00 sec)
+</pre><p>
+          The search result is empty because the word
+          <span class="quote">“<span class="quote">MySQL</span>”</span> is present in at least 50% of the rows,
+          and so is effectively treated as a stopword. This filtering
+          technique is more suitable for large data sets, where you
+          might not want the result set to return every second row from
+          a 1GB table, than for small data sets where it might cause
+          poor results for popular terms.
+        </p><p>
+          The 50% threshold can surprise you when you first try
+          full-text searching to see how it works, and makes
+          <code class="literal">InnoDB</code> tables more suited to
+          experimentation with full-text searches. If you create a
+          <code class="literal">MyISAM</code> table and insert only one or two
+          rows of text into it, every word in the text occurs in at
+          least 50% of the rows. As a result, no search returns any
+          results until the table contains more rows. Users who need to
+          bypass the 50% limitation can build search indexes on
+          <code class="literal">InnoDB</code> tables, or use the boolean search
+          mode explained in <a class="xref" href="fulltext-boolean.html" title="12.9.2 Boolean Full-Text Searches">Section 12.9.2, “Boolean Full-Text Searches”</a>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="fulltext-search.html">Previous <span class="navHint"> Full-Text Search Functions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="fulltext-search.html">Up <span class="navHint"> Full-Text Search Functions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="fulltext-boolean.html">Next <span class="navHint"> Boolean Full-Text Searches </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

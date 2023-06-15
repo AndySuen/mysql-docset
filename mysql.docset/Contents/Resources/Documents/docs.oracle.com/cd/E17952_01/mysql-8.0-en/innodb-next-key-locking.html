@@ -1,0 +1,68 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1581"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.7.4%C2%A0Phantom%20Rows"></a><title>15.7.4&nbsp;Phantom Rows</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-locking-transaction-model.html" title="15.7&nbsp;InnoDB Locking and Transaction Model"/><link rel="prev" href="innodb-locks-set.html" title="15.7.3&nbsp;Locks Set by Different SQL Statements in InnoDB"/><link rel="next" href="innodb-deadlocks.html" title="15.7.5&nbsp;Deadlocks in InnoDB"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-next-key-locking.html#innodb-next-key-locking">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-locks-set.html">Previous <span class="navHint"> Locks Set by Different SQL Statements in InnoDB </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-locking-transaction-model.html">Up <span class="navHint"> InnoDB Locking and Transaction Model </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-deadlocks.html">Next <span class="navHint"> Deadlocks in InnoDB </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-next-key-locking"></a>15.7.4&nbsp;Phantom Rows</h3></div></div></div><a id="idm45828888929056" class="indexterm"></a><a id="idm45828888927984" class="indexterm"></a><a id="idm45828888926496" class="indexterm"></a><a id="idm45828888925008" class="indexterm"></a><a id="idm45828888923520" class="indexterm"></a><a id="idm45828888922032" class="indexterm"></a><a id="idm45828888920544" class="indexterm"></a><a id="idm45828888919056" class="indexterm"></a><a id="idm45828888917568" class="indexterm"></a><p>
+      The so-called <span class="firstterm">phantom</span>
+      problem occurs within a transaction when the same query produces
+      different sets of rows at different times. For example, if a
+      <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> is executed twice, but
+      returns a row the second time that was not returned the first
+      time, the row is a <span class="quote">&ldquo;<span class="quote">phantom</span>&rdquo;</span> row.
+    </p><p>
+      Suppose that there is an index on the <code class="literal">id</code> column
+      of the <code class="literal">child</code> table and that you want to read
+      and lock all rows from the table having an identifier value larger
+      than 100, with the intention of updating some column in the
+      selected rows later:
+    </p><pre class="programlisting">SELECT * FROM child WHERE id &gt; 100 FOR UPDATE;
+</pre><p>
+      The query scans the index starting from the first record where
+      <code class="literal">id</code> is bigger than 100. Let the table contain
+      rows having <code class="literal">id</code> values of 90 and 102. If the
+      locks set on the index records in the scanned range do not lock
+      out inserts made in the gaps (in this case, the gap between 90 and
+      102), another session can insert a new row into the table with an
+      <code class="literal">id</code> of 101. If you were to execute the same
+      <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> within the same transaction,
+      you would see a new row with an <code class="literal">id</code> of 101 (a
+      <span class="quote">&ldquo;<span class="quote">phantom</span>&rdquo;</span>) in the result set returned by the query.
+      If we regard a set of rows as a data item, the new phantom child
+      would violate the isolation principle of transactions that a
+      transaction should be able to run so that the data it has read
+      does not change during the transaction.
+    </p><p>
+      To prevent phantoms, <code class="literal">InnoDB</code> uses an algorithm
+      called <span class="firstterm">next-key locking</span> that
+      combines index-row locking with gap locking.
+      <code class="literal">InnoDB</code> performs row-level locking in such a way
+      that when it searches or scans a table index, it sets shared or
+      exclusive locks on the index records it encounters. Thus, the
+      row-level locks are actually index-record locks. In addition, a
+      next-key lock on an index record also affects the
+      <span class="quote">&ldquo;<span class="quote">gap</span>&rdquo;</span> before the index record. That is, a next-key
+      lock is an index-record lock plus a gap lock on the gap preceding
+      the index record. If one session has a shared or exclusive lock on
+      record <code class="literal">R</code> in an index, another session cannot
+      insert a new index record in the gap immediately before
+      <code class="literal">R</code> in the index order.
+    </p><p>
+      When <code class="literal">InnoDB</code> scans an index, it can also lock
+      the gap after the last record in the index. Just that happens in
+      the preceding example: To prevent any insert into the table where
+      <code class="literal">id</code> would be bigger than 100, the locks set by
+      <code class="literal">InnoDB</code> include a lock on the gap following
+      <code class="literal">id</code> value 102.
+    </p><p>
+      You can use next-key locking to implement a uniqueness check in
+      your application: If you read your data in share mode and do not
+      see a duplicate for a row you are going to insert, then you can
+      safely insert your row and know that the next-key lock set on the
+      successor of your row during the read prevents anyone meanwhile
+      inserting a duplicate for your row. Thus, the next-key locking
+      enables you to <span class="quote">&ldquo;<span class="quote">lock</span>&rdquo;</span> the nonexistence of something
+      in your table.
+    </p><p>
+      Gap locking can be disabled as discussed in
+      <a class="xref" href="innodb-locking.html" title="15.7.1&nbsp;InnoDB Locking">Section&nbsp;15.7.1, &ldquo;InnoDB Locking&rdquo;</a>. This may cause phantom problems
+      because other sessions can insert new rows into the gaps when gap
+      locking is disabled.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-locks-set.html">Previous <span class="navHint"> Locks Set by Different SQL Statements in InnoDB </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-locking-transaction-model.html">Up <span class="navHint"> InnoDB Locking and Transaction Model </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-deadlocks.html">Next <span class="navHint"> Deadlocks in InnoDB </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

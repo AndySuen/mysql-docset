@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.9.1.7 Making a Test Case If You Experience Table Corruption</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="debugging-server.html" title="5.9.1 Debugging a MySQL Server" /><link rel="prev" href="using-log-files.html" title="5.9.1.6 Using Server Logs to Find Causes of Errors in mysqld" /><link rel="next" href="debugging-client.html" title="5.9.2 Debugging a MySQL Client" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="reproducible-test-case.html#reproducible-test-case">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="using-log-files.html">Previous <span class="navHint"> Using Server Logs to Find Causes of Errors in mysqld </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="debugging-server.html">Up <span class="navHint"> Debugging a MySQL Server </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="debugging-client.html">Next <span class="navHint"> Debugging a MySQL Client </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="reproducible-test-case"></a>5.9.1.7 Making a Test Case If You Experience Table Corruption</h4></div></div></div><p>
+        The following procedure applies to
+        <a class="link" href="myisam-storage-engine.html" title="16.2 The MyISAM Storage Engine"><code class="literal">MyISAM</code></a> tables. For information
+        about steps to take when encountering <code class="literal">InnoDB</code>
+        table corruption, see <a class="xref" href="bug-reports.html" title="1.5 How to Report Bugs or Problems">Section 1.5, “How to Report Bugs or Problems”</a>.
+      </p><p>
+        If you encounter corrupted <a class="link" href="myisam-storage-engine.html" title="16.2 The MyISAM Storage Engine"><code class="literal">MyISAM</code></a>
+        tables or if <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> always fails after some
+        update statements, you can test whether the issue is
+        reproducible by doing the following:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Stop the MySQL daemon with <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin
+            shutdown</strong></span></a>.
+          </p></li><li class="listitem"><p>
+            Make a backup of the tables to guard against the very
+            unlikely case that the repair does something bad.
+          </p></li><li class="listitem"><p>
+            Check all tables with <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk -s
+            database/*.MYI</strong></span></a>. Repair any corrupted tables with
+            <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk -r
+            database/<em class="replaceable"><code>table</code></em>.MYI</strong></span></a>.
+          </p></li><li class="listitem"><p>
+            Make a second backup of the tables.
+          </p></li><li class="listitem"><p>
+            Remove (or move away) any old log files from the MySQL data
+            directory if you need more space.
+          </p></li><li class="listitem"><p>
+            Start <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> with the binary log enabled.
+            If you want to find a statement that crashes
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, you should start the server with
+            the general query log enabled as well. See
+            <a class="xref" href="query-log.html" title="5.4.3 The General Query Log">Section 5.4.3, “The General Query Log”</a>, and
+            <a class="xref" href="binary-log.html" title="5.4.4 The Binary Log">Section 5.4.4, “The Binary Log”</a>.
+          </p></li><li class="listitem"><p>
+            When you have gotten a crashed table, stop the
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> server.
+          </p></li><li class="listitem"><p>
+            Restore the backup.
+          </p></li><li class="listitem"><p>
+            Restart the <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> server
+            <span class="emphasis"><em>without</em></span> the binary log enabled.
+          </p></li><li class="listitem"><p>
+            Re-execute the statements with <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog
+            binary-log-file | mysql</strong></span></a>. The binary log is saved
+            in the MySQL database directory with the name
+            <code class="literal">hostname-bin.<em class="replaceable"><code>NNNNNN</code></em></code>.
+          </p></li><li class="listitem"><p>
+            If the tables are corrupted again or you can get
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> to die with the above command, you
+            have found a reproducible bug. FTP the tables and the binary
+            log to our bugs database using the instructions given in
+            <a class="xref" href="bug-reports.html" title="1.5 How to Report Bugs or Problems">Section 1.5, “How to Report Bugs or Problems”</a>. If you are a support
+            customer, you can use the MySQL Customer Support Center
+            (<a class="ulink" href="https://www.mysql.com/support/" target="_top">https://www.mysql.com/support/</a>) to alert the MySQL team
+            about the problem and have it fixed as soon as possible.
+          </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="using-log-files.html">Previous <span class="navHint"> Using Server Logs to Find Causes of Errors in mysqld </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="debugging-server.html">Up <span class="navHint"> Debugging a MySQL Server </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="debugging-client.html">Next <span class="navHint"> Debugging a MySQL Client </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

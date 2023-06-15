@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>10.14.4.1 Defining a UCA Collation Using LDML Syntax</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="adding-collation-unicode-uca.html" title="10.14.4 Adding a UCA Collation to a Unicode Character Set" /><link rel="prev" href="adding-collation-unicode-uca.html" title="10.14.4 Adding a UCA Collation to a Unicode Character Set" /><link rel="next" href="ldml-rules.html" title="10.14.4.2 LDML Syntax Supported in MySQL" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="ldml-collation-example.html#ldml-collation-example">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="adding-collation-unicode-uca.html">Previous <span class="navHint"> Adding a UCA Collation to a Unicode Character Set </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="adding-collation-unicode-uca.html">Up <span class="navHint"> Adding a UCA Collation to a Unicode Character Set </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="ldml-rules.html">Next <span class="navHint"> LDML Syntax Supported in MySQL </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="ldml-collation-example"></a>10.14.4.1 Defining a UCA Collation Using LDML Syntax</h4></div></div></div><p>
+          To add a UCA collation for a Unicode character set without
+          recompiling MySQL, use the following procedure. If you are
+          unfamiliar with the LDML rules used to describe the
+          collation's sort characteristics, see
+          <a class="xref" href="ldml-rules.html" title="10.14.4.2 LDML Syntax Supported in MySQL">Section 10.14.4.2, “LDML Syntax Supported in MySQL”</a>.
+        </p><p>
+          The example adds a collation named
+          <code class="literal">utf8mb4_phone_ci</code> to the
+          <code class="literal">utf8mb4</code> character set. The collation is
+          designed for a scenario involving a Web application for which
+          users post their names and phone numbers. Phone numbers can be
+          given in very different formats:
+        </p><pre class="programlisting">+7-12345-67
++7-12-345-67
++7 12 345 67
++7 (12) 345 67
++71234567
+</pre><p>
+          The problem raised by dealing with these kinds of values is
+          that the varying permissible formats make searching for a
+          specific phone number very difficult. The solution is to
+          define a new collation that reorders punctuation characters,
+          making them ignorable.
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              Choose a collation ID, as shown in
+              <a class="xref" href="adding-collation-choosing-id.html" title="10.14.2 Choosing a Collation ID">Section 10.14.2, “Choosing a Collation ID”</a>. The
+              following steps use an ID of 1029.
+            </p></li><li class="listitem"><p>
+              To modify the <code class="literal">Index.xml</code> configuration
+              file. This file is located in the directory named by the
+              <a class="link" href="server-system-variables.html#sysvar_character_sets_dir"><code class="literal">character_sets_dir</code></a> system
+              variable. You can check the variable value as follows,
+              although the path name might be different on your system:
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW VARIABLES LIKE 'character_sets_dir';</code></strong>
++--------------------+-----------------------------------------+
+| Variable_name      | Value                                   |
++--------------------+-----------------------------------------+
+| character_sets_dir | /user/local/mysql/share/mysql/charsets/ |
++--------------------+-----------------------------------------+
+</pre></li><li class="listitem"><p>
+              Choose a name for the collation and list it in the
+              <code class="filename">Index.xml</code> file. In addition, you'll
+              need to provide the collation ordering rules. Find the
+              <code class="literal">&lt;charset&gt;</code> element for the
+              character set to which the collation is being added, and
+              add a <code class="literal">&lt;collation&gt;</code> element that
+              indicates the collation name and ID, to associate the name
+              with the ID. Within the
+              <code class="literal">&lt;collation&gt;</code> element, provide a
+              <code class="literal">&lt;rules&gt;</code> element containing the
+              ordering rules:
+            </p><pre class="programlisting">&lt;charset name="utf8mb4"&gt;
+  ...
+  &lt;collation name="utf8mb4_phone_ci" id="1029"&gt;
+    &lt;rules&gt;
+      &lt;reset&gt;\u0000&lt;/reset&gt;
+      &lt;i&gt;\u0020&lt;/i&gt; &lt;!-- space --&gt;
+      &lt;i&gt;\u0028&lt;/i&gt; &lt;!-- left parenthesis --&gt;
+      &lt;i&gt;\u0029&lt;/i&gt; &lt;!-- right parenthesis --&gt;
+      &lt;i&gt;\u002B&lt;/i&gt; &lt;!-- plus --&gt;
+      &lt;i&gt;\u002D&lt;/i&gt; &lt;!-- hyphen --&gt;
+    &lt;/rules&gt;
+  &lt;/collation&gt;
+  ...
+&lt;/charset&gt;
+</pre></li><li class="listitem"><p>
+              If you want a similar collation for other Unicode
+              character sets, add other
+              <code class="literal">&lt;collation&gt;</code> elements. For
+              example, to define <code class="literal">ucs2_phone_ci</code>, add a
+              <code class="literal">&lt;collation&gt;</code> element to the
+              <code class="literal">&lt;charset name="ucs2"&gt;</code> element.
+              Remember that each collation must have its own unique ID.
+            </p></li><li class="listitem"><p>
+              Restart the server and use this statement to verify that
+              the collation is present:
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW COLLATION WHERE Collation = 'utf8mb4_phone_ci';</code></strong>
++------------------+---------+------+---------+----------+---------+
+| Collation        | Charset | Id   | Default | Compiled | Sortlen |
++------------------+---------+------+---------+----------+---------+
+| utf8mb4_phone_ci | utf8mb4 | 1029 |         |          |       8 |
++------------------+---------+------+---------+----------+---------+
+</pre></li></ol></div><p>
+          Now test the collation to make sure that it has the desired
+          properties.
+        </p><p>
+          Create a table containing some sample phone numbers using the
+          new collation:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE phonebook (</code></strong>
+       <strong class="userinput"><code>  name VARCHAR(64),</code></strong>
+       <strong class="userinput"><code>  phone VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_phone_ci</code></strong>
+       <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.09 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO phonebook VALUES ('Svoj','+7 912 800 80 02');</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO phonebook VALUES ('Hf','+7 (912) 800 80 04');</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO phonebook VALUES ('Bar','+7-912-800-80-01');</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO phonebook VALUES ('Ramil','(7912) 800 80 03');</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO phonebook VALUES ('Sanja','+380 (912) 8008005');</code></strong>
+Query OK, 1 row affected (0.00 sec)
+</pre><p>
+          Run some queries to see whether the ignored punctuation
+          characters are in fact ignored for comparison and sorting:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM phonebook ORDER BY phone;</code></strong>
++-------+--------------------+
+| name  | phone              |
++-------+--------------------+
+| Sanja | +380 (912) 8008005 |
+| Bar   | +7-912-800-80-01   |
+| Svoj  | +7 912 800 80 02   |
+| Ramil | (7912) 800 80 03   |
+| Hf    | +7 (912) 800 80 04 |
++-------+--------------------+
+5 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM phonebook WHERE phone='+7(912)800-80-01';</code></strong>
++------+------------------+
+| name | phone            |
++------+------------------+
+| Bar  | +7-912-800-80-01 |
++------+------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM phonebook WHERE phone='79128008001';</code></strong>
++------+------------------+
+| name | phone            |
++------+------------------+
+| Bar  | +7-912-800-80-01 |
++------+------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM phonebook WHERE phone='7 9 1 2 8 0 0 8 0 0 1';</code></strong>
++------+------------------+
+| name | phone            |
++------+------------------+
+| Bar  | +7-912-800-80-01 |
++------+------------------+
+1 row in set (0.00 sec)
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="adding-collation-unicode-uca.html">Previous <span class="navHint"> Adding a UCA Collation to a Unicode Character Set </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="adding-collation-unicode-uca.html">Up <span class="navHint"> Adding a UCA Collation to a Unicode Character Set </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="ldml-rules.html">Next <span class="navHint"> LDML Syntax Supported in MySQL </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,65 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-986"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/18.1%C2%A0Group%20Replication%20Background"></a><title>18.1&nbsp;Group Replication Background</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="group-replication.html" title="Chapter&nbsp;18&nbsp;Group Replication"/><link rel="prev" href="group-replication.html" title="Chapter&nbsp;18&nbsp;Group Replication"/><link rel="next" href="group-replication-replication-technologies.html" title="18.1.1&nbsp;Replication Technologies"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-background.html#group-replication-background">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="group-replication.html">Previous <span class="navHint"> Group Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="group-replication.html">Up <span class="navHint"> Group Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="group-replication-replication-technologies.html">Next <span class="navHint"> Replication Technologies </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="group-replication-background"></a>18.1&nbsp;Group Replication Background</h2></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="group-replication-replication-technologies.html">18.1.1 Replication Technologies</a></span></li><li><span class="section"><a href="group-replication-use-cases.html">18.1.2 Group Replication Use Cases</a></span></li><li><span class="section"><a href="group-replication-deploying-in-multi-primary-or-single-primary-mode.html">18.1.3 Multi-Primary and Single-Primary Modes</a></span></li><li><span class="section"><a href="group-replication-details.html">18.1.4 Group Replication Services</a></span></li><li><span class="section"><a href="group-replication-plugin-architecture.html">18.1.5 Group Replication Plugin Architecture</a></span></li></ul></div><a id="idm45828855611824" class="indexterm"></a><p>
+    This section provides background information on MySQL Group
+    Replication.
+
+    
+  </p><p>
+    The most common way to create a fault-tolerant system is to resort
+    to making components redundant, in other words the component can be
+    removed and the system should continue to operate as expected. This
+    creates a set of challenges that raise complexity of such systems to
+    a whole different level. Specifically, replicated databases have to
+    deal with the fact that they require maintenance and administration
+    of several servers instead of just one. Moreover, as servers are
+    cooperating together to create the group several other classic
+    distributed systems problems have to be dealt with, such as network
+    partitioning or split brain scenarios.
+  </p><p>
+    Therefore, the ultimate challenge is to fuse the logic of the
+    database and data replication with the logic of having several
+    servers coordinated in a consistent and simple way. In other words,
+    to have multiple servers agreeing on the state of the system and the
+    data on each and every change that the system goes through. This can
+    be summarized as having servers reaching agreement on each database
+    state transition, so that they all progress as one single database
+    or alternatively that they eventually converge to the same state.
+    Meaning that they need to operate as a (distributed) state machine.
+  </p><p>
+    MySQL Group Replication provides distributed state machine
+    replication with strong coordination between servers. Servers
+    coordinate themselves automatically when they are part of the same
+    group. The group can operate in a single-primary mode with automatic
+    primary election, where only one server accepts updates at a time.
+    Alternatively, for more advanced users the group can be deployed in
+    multi-primary mode, where all servers can accept updates, even if
+    they are issued concurrently. This power comes at the expense of
+    applications having to work around the limitations imposed by such
+    deployments.
+  </p><p>
+    There is a built-in group membership service that keeps the view of
+    the group consistent and available for all servers at any given
+    point in time. Servers can leave and join the group and the view is
+    updated accordingly. Sometimes servers can leave the group
+    unexpectedly, in which case the failure detection mechanism detects
+    this and notifies the group that the view has changed. This is all
+    automatic.
+  </p><p>
+    For a transaction to commit, the majority of the group have to agree
+    on the order of a given transaction in the global sequence of
+    transactions. Deciding to commit or abort a transaction is done by
+    each server individually, but all servers make the same decision. If
+    there is a network partition, resulting in a split where members are
+    unable to reach agreement, then the system does not progress until
+    this issue is resolved. Hence there is also a built-in, automatic,
+    split-brain protection mechanism.
+  </p><p>
+    All of this is powered by the provided Group Communication System
+    (GCS) protocols. These provide a failure detection mechanism, a
+    group membership service, and safe and completely ordered message
+    delivery. All these properties are key to creating a system which
+    ensures that data is consistently replicated across the group of
+    servers. At the very core of this technology lies an implementation
+    of the Paxos algorithm. It acts as the group communication engine.
+  </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication.html">Previous <span class="navHint"> Group Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication.html">Up <span class="navHint"> Group Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-replication-technologies.html">Next <span class="navHint"> Replication Technologies </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.6.6 Undo Logs</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-on-disk-structures.html" title="15.6 InnoDB On-Disk Structures" /><link rel="prev" href="innodb-redo-log.html" title="15.6.5 Redo Log" /><link rel="next" href="innodb-locking-transaction-model.html" title="15.7 InnoDB Locking and Transaction Model" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-undo-logs.html#innodb-undo-logs">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-redo-log.html">Previous <span class="navHint"> Redo Log </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-on-disk-structures.html">Up <span class="navHint"> InnoDB On-Disk Structures </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-locking-transaction-model.html">Next <span class="navHint"> InnoDB Locking and Transaction Model </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="innodb-undo-logs"></a>15.6.6 Undo Logs</h3></div></div></div><p>
+      An undo log is a collection of undo log records associated with a
+      single read-write transaction. An undo log record contains
+      information about how to undo the latest change by a transaction
+      to a <a class="link" href="glossary.html#glos_clustered_index" title="clustered index">clustered index</a>
+      record. If another transaction needs to see the original data as
+      part of a consistent read operation, the unmodified data is
+      retrieved from undo log records. Undo logs exist within
+      <a class="link" href="glossary.html#glos_undo_log_segment" title="undo log segment">undo log segments</a>,
+      which are contained within
+      <a class="link" href="glossary.html#glos_rollback_segment" title="rollback segment">rollback segments</a>.
+      Rollback segments reside in
+      <a class="link" href="glossary.html#glos_undo_tablespace" title="undo tablespace">undo tablespaces</a> and
+      in the <a class="link" href="glossary.html#glos_global_temporary_tablespace" title="global temporary tablespace">global
+      temporary tablespace</a>.
+    </p><p>
+      Undo logs that reside in the global temporary tablespace are used
+      for transactions that modify data in user-defined temporary
+      tables. These undo logs are not redo-logged, as they are not
+      required for crash recovery. They are used only for rollback while
+      the server is running. This type of undo log benefits performance
+      by avoiding redo logging I/O.
+    </p><p>
+      For information about data-at-rest encryption for undo logs, see
+      <a class="xref" href="innodb-data-encryption.html#innodb-data-encryption-undo-log" title="Undo Log Encryption">Undo Log Encryption</a>.
+    </p><p>
+      Each undo tablespace and the global temporary tablespace
+      individually support a maximum of 128 rollback segments. The
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_rollback_segments"><code class="literal">innodb_rollback_segments</code></a> variable
+      defines the number of rollback segments.
+    </p><p>
+      The number of transactions that a rollback segment supports
+      depends on the number of undo slots in the rollback segment and
+      the number of undo logs required by each transaction. The number
+      of undo slots in a rollback segment differs according to
+      <code class="literal">InnoDB</code> page size.
+    </p><div class="informaltable"><table summary="Number of undo slots in a rollback segment for each InnoDB page size"><col style="width: 50%" /><col style="width: 50%" /><thead><tr>
+          <th>InnoDB Page Size</th>
+          <th>Number of Undo Slots in a Rollback Segment (InnoDB Page Size / 16)</th>
+        </tr></thead><tbody><tr>
+          <td><code class="literal">4096 (4KB)</code></td>
+          <td><code class="literal">256</code></td>
+        </tr><tr>
+          <td><code class="literal">8192 (8KB)</code></td>
+          <td><code class="literal">512</code></td>
+        </tr><tr>
+          <td><code class="literal">16384 (16KB)</code></td>
+          <td><code class="literal">1024</code></td>
+        </tr><tr>
+          <td><code class="literal">32768 (32KB)</code></td>
+          <td><code class="literal">2048</code></td>
+        </tr><tr>
+          <td><code class="literal">65536 (64KB)</code></td>
+          <td><code class="literal">4096</code></td>
+        </tr></tbody></table></div><p>
+      A transaction is assigned up to four undo logs, one for each of
+      the following operation types:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operations on
+          user-defined tables
+        </p></li><li class="listitem"><p>
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> and
+          <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> operations on
+          user-defined tables
+        </p></li><li class="listitem"><p>
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operations on
+          user-defined temporary tables
+        </p></li><li class="listitem"><p>
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> and
+          <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> operations on
+          user-defined temporary tables
+        </p></li></ol></div><p>
+      Undo logs are assigned as needed. For example, a transaction that
+      performs <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>,
+      <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>, and
+      <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> operations on regular and
+      temporary tables requires a full assignment of four undo logs. A
+      transaction that performs only
+      <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operations on regular tables
+      requires a single undo log.
+    </p><p>
+      A transaction that performs operations on regular tables is
+      assigned undo logs from an assigned undo tablespace rollback
+      segment. A transaction that performs operations on temporary
+      tables is assigned undo logs from an assigned global temporary
+      tablespace rollback segment.
+    </p><p>
+      An undo log assigned to a transaction remains attached to the
+      transaction for its duration. For example, an undo log assigned to
+      a transaction for an <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+      operation on a regular table is used for all
+      <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operations on regular tables
+      performed by that transaction.
+    </p><p>
+      Given the factors described above, the following formulas can be
+      used to estimate the number of concurrent read-write transactions
+      that <code class="literal">InnoDB</code> is capable of supporting.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        It is possible to encounter a concurrent transaction limit error
+        before reaching the number of concurrent read-write transactions
+        that <code class="literal">InnoDB</code> is capable of supporting. This
+        occurs when a rollback segment assigned to a transaction runs
+        out of undo slots. In such cases, try rerunning the transaction.
+      </p><p>
+        When transactions perform operations on temporary tables, the
+        number of concurrent read-write transactions that
+        <code class="literal">InnoDB</code> is capable of supporting is
+        constrained by the number of rollback segments allocated to the
+        global temporary tablespace, which is 128 by default.
+      </p></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          If each transaction performs either an
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+          <span class="bold"><strong>or</strong></span> an
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> or
+          <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> operation, the number of
+          concurrent read-write transactions that
+          <code class="literal">InnoDB</code> is capable of supporting is:
+        </p><pre class="programlisting">(innodb_page_size / 16) * innodb_rollback_segments * number of undo tablespaces
+</pre></li><li class="listitem"><p>
+          If each transaction performs an
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+          <span class="bold"><strong>and</strong></span> an
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> or
+          <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> operation, the number of
+          concurrent read-write transactions that
+          <code class="literal">InnoDB</code> is capable of supporting is:
+        </p><pre class="programlisting">(innodb_page_size / 16 / 2) * innodb_rollback_segments * number of undo tablespaces
+</pre></li><li class="listitem"><p>
+          If each transaction performs an
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operation on a temporary
+          table, the number of concurrent read-write transactions that
+          <code class="literal">InnoDB</code> is capable of supporting is:
+        </p><pre class="programlisting">(innodb_page_size / 16) * innodb_rollback_segments
+</pre></li><li class="listitem"><p>
+          If each transaction performs an
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+          <span class="bold"><strong>and</strong></span> an
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> or
+          <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> operation on a temporary
+          table, the number of concurrent read-write transactions that
+          <code class="literal">InnoDB</code> is capable of supporting is:
+        </p><pre class="programlisting">(innodb_page_size / 16 / 2) * innodb_rollback_segments
+</pre></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-redo-log.html">Previous <span class="navHint"> Redo Log </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-on-disk-structures.html">Up <span class="navHint"> InnoDB On-Disk Structures </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-locking-transaction-model.html">Next <span class="navHint"> InnoDB Locking and Transaction Model </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

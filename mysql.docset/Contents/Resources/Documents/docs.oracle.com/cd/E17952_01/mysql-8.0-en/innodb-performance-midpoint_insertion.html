@@ -1,0 +1,110 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1618"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.8.3.3%C2%A0Making%20the%20Buffer%20Pool%20Scan%20Resistant"></a><title>15.8.3.3&nbsp;Making the Buffer Pool Scan Resistant</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-performance-buffer-pool.html" title="15.8.3&nbsp;InnoDB Buffer Pool Configuration"/><link rel="prev" href="innodb-multiple-buffer-pools.html" title="15.8.3.2&nbsp;Configuring Multiple Buffer Pool Instances"/><link rel="next" href="innodb-performance-read_ahead.html" title="15.8.3.4&nbsp;Configuring InnoDB Buffer Pool Prefetching (Read-Ahead)"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-performance-midpoint_insertion.html#innodb-performance-midpoint_insertion">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-multiple-buffer-pools.html">Previous <span class="navHint"> Configuring Multiple Buffer Pool Instances </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-performance-buffer-pool.html">Up <span class="navHint"> InnoDB Buffer Pool Configuration </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-performance-read_ahead.html">Next <span class="navHint"> Configuring InnoDB Buffer Pool Prefetching (Read-Ahead) </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1617"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/15.8.3.3%C2%A0Making%20the%20Buffer%20Pool%20Scan%20Resistant"></a><h4 class="title"><a id="innodb-performance-midpoint_insertion"></a>15.8.3.3&nbsp;Making the Buffer Pool Scan Resistant</h4></div></div></div><a id="idm45828888195504" class="indexterm"></a><a id="idm45828888194432" class="indexterm"></a><a id="idm45828888193360" class="indexterm"></a><a id="idm45828888192288" class="indexterm"></a><a id="idm45828888191216" class="indexterm"></a><a id="idm45828888190144" class="indexterm"></a><a id="idm45828888189072" class="indexterm"></a><p>
+        Rather than using a strict <a class="link" href="glossary.html#glos_lru" title="LRU">LRU</a>
+        algorithm, <code class="literal">InnoDB</code> uses a technique to
+        minimize the amount of data that is brought into the
+        <a class="link" href="glossary.html#glos_buffer_pool" title="buffer pool">buffer pool</a> and never
+        accessed again. The goal is to make sure that frequently
+        accessed (<span class="quote">&ldquo;<span class="quote">hot</span>&rdquo;</span>) pages remain in the buffer pool,
+        even as <a class="link" href="glossary.html#glos_read_ahead" title="read-ahead">read-ahead</a> and
+        <a class="link" href="glossary.html#glos_full_table_scan" title="full table scan">full table scans</a>
+        bring in new blocks that might or might not be accessed
+        afterward.
+      </p><p>
+        Newly read blocks are inserted into the middle of the LRU list.
+        All newly read pages are inserted at a location that by default
+        is <code class="literal">3/8</code> from the tail of the LRU list. The
+        pages are moved to the front of the list (the most-recently used
+        end) when they are accessed in the buffer pool for the first
+        time. Thus, pages that are never accessed never make it to the
+        front portion of the LRU list, and <span class="quote">&ldquo;<span class="quote">age out</span>&rdquo;</span> sooner
+        than with a strict LRU approach. This arrangement divides the
+        LRU list into two segments, where the pages downstream of the
+        insertion point are considered <span class="quote">&ldquo;<span class="quote">old</span>&rdquo;</span> and are
+        desirable victims for LRU eviction.
+      </p><p>
+        For an explanation of the inner workings of the
+        <code class="literal">InnoDB</code> buffer pool and specifics about the
+        LRU algorithm, see <a class="xref" href="innodb-buffer-pool.html" title="15.5.1&nbsp;Buffer Pool">Section&nbsp;15.5.1, &ldquo;Buffer Pool&rdquo;</a>.
+      </p><p>
+        You can control the insertion point in the LRU list and choose
+        whether <code class="literal">InnoDB</code> applies the same optimization
+        to blocks brought into the buffer pool by table or index scans.
+        The configuration parameter
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_pct"><code class="literal">innodb_old_blocks_pct</code></a> controls
+        the percentage of <span class="quote">&ldquo;<span class="quote">old</span>&rdquo;</span> blocks in the LRU list. The
+        default value of
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_pct"><code class="literal">innodb_old_blocks_pct</code></a> is
+        <code class="literal">37</code>, corresponding to the original fixed ratio
+        of 3/8. The value range is <code class="literal">5</code> (new pages in
+        the buffer pool age out very quickly) to <code class="literal">95</code>
+        (only 5% of the buffer pool is reserved for hot pages, making
+        the algorithm close to the familiar LRU strategy).
+      </p><p>
+        The optimization that keeps the buffer pool from being churned
+        by read-ahead can avoid similar problems due to table or index
+        scans. In these scans, a data page is typically accessed a few
+        times in quick succession and is never touched again. The
+        configuration parameter
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_time"><code class="literal">innodb_old_blocks_time</code></a>
+        specifies the time window (in milliseconds) after the first
+        access to a page during which it can be accessed without being
+        moved to the front (most-recently used end) of the LRU list. The
+        default value of
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_time"><code class="literal">innodb_old_blocks_time</code></a> is
+        <code class="literal">1000</code>. Increasing this value makes more and
+        more blocks likely to age out faster from the buffer pool.
+      </p><p>
+        Both <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_pct"><code class="literal">innodb_old_blocks_pct</code></a> and
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_time"><code class="literal">innodb_old_blocks_time</code></a> can be
+        specified in the MySQL option file (<code class="literal">my.cnf</code> or
+        <code class="literal">my.ini</code>) or changed at runtime with the
+        <a class="link" href="set-variable.html" title="13.7.6.1&nbsp;SET Syntax for Variable Assignment"><code class="literal">SET
+        GLOBAL</code></a> statement. Changing the value at runtime
+        requires privileges sufficient to set global system variables.
+        See <a class="xref" href="system-variable-privileges.html" title="5.1.9.1&nbsp;System Variable Privileges">Section&nbsp;5.1.9.1, &ldquo;System Variable Privileges&rdquo;</a>.
+      </p><p>
+        To help you gauge the effect of setting these parameters, the
+        <code class="literal">SHOW ENGINE INNODB STATUS</code> command reports
+        buffer pool statistics. For details, see
+        <a class="xref" href="innodb-buffer-pool.html#innodb-buffer-pool-monitoring" title="Monitoring the Buffer Pool Using the InnoDB Standard Monitor">Monitoring the Buffer Pool Using the InnoDB Standard Monitor</a>.
+      </p><p>
+        Because the effects of these parameters can vary widely based on
+        your hardware configuration, your data, and the details of your
+        workload, always benchmark to verify the effectiveness before
+        changing these settings in any performance-critical or
+        production environment.
+      </p><p>
+        In mixed workloads where most of the activity is OLTP type with
+        periodic batch reporting queries which result in large scans,
+        setting the value of
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_time"><code class="literal">innodb_old_blocks_time</code></a> during
+        the batch runs can help keep the working set of the normal
+        workload in the buffer pool.
+      </p><p>
+        When scanning large tables that cannot fit entirely in the
+        buffer pool, setting
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_pct"><code class="literal">innodb_old_blocks_pct</code></a> to a
+        small value keeps the data that is only read once from consuming
+        a significant portion of the buffer pool. For example, setting
+        <code class="literal">innodb_old_blocks_pct=5</code> restricts this data
+        that is only read once to 5% of the buffer pool.
+      </p><p>
+        When scanning small tables that do fit into memory, there is
+        less overhead for moving pages around within the buffer pool, so
+        you can leave
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_pct"><code class="literal">innodb_old_blocks_pct</code></a> at its
+        default value, or even higher, such as
+        <code class="literal">innodb_old_blocks_pct=50</code>.
+      </p><p>
+        The effect of the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_time"><code class="literal">innodb_old_blocks_time</code></a>
+        parameter is harder to predict than the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_pct"><code class="literal">innodb_old_blocks_pct</code></a>
+        parameter, is relatively small, and varies more with the
+        workload. To arrive at an optimal value, conduct your own
+        benchmarks if the performance improvement from adjusting
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_old_blocks_pct"><code class="literal">innodb_old_blocks_pct</code></a> is not
+        sufficient.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-multiple-buffer-pools.html">Previous <span class="navHint"> Configuring Multiple Buffer Pool Instances </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-performance-buffer-pool.html">Up <span class="navHint"> InnoDB Buffer Pool Configuration </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-performance-read_ahead.html">Next <span class="navHint"> Configuring InnoDB Buffer Pool Prefetching (Read-Ahead) </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

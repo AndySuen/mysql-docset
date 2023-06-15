@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>B.3.3.5 Where MySQL Stores Temporary Files</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="administration-issues.html" title="B.3.3 Administration-Related Issues" /><link rel="prev" href="full-disk.html" title="B.3.3.4 How MySQL Handles a Full Disk" /><link rel="next" href="problems-with-mysql-sock.html" title="B.3.3.6 How to Protect or Change the MySQL Unix Socket File" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="temporary-files.html#temporary-files">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="full-disk.html">Previous <span class="navHint"> How MySQL Handles a Full Disk </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="administration-issues.html">Up <span class="navHint"> Administration-Related Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="problems-with-mysql-sock.html">Next <span class="navHint"> How to Protect or Change the MySQL Unix Socket File </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="temporary-files"></a>B.3.3.5 Where MySQL Stores Temporary Files</h4></div></div></div><a id="idm45828774747472" class="indexterm"></a><a id="idm45828774746432" class="indexterm"></a><a id="idm45828774745344" class="indexterm"></a><p>
+          On Unix, MySQL uses the value of the <code class="literal">TMPDIR</code>
+          environment variable as the path name of the directory in
+          which to store temporary files. If <code class="literal">TMPDIR</code>
+          is not set, MySQL uses the system default, which is usually
+          <code class="filename">/tmp</code>, <code class="filename">/var/tmp</code>, or
+          <code class="filename">/usr/tmp</code>.
+        </p><p>
+          On Windows, MySQL checks in order the values of the
+          <code class="literal">TMPDIR</code>, <code class="literal">TEMP</code>, and
+          <code class="literal">TMP</code> environment variables. For the first
+          one found to be set, MySQL uses it and does not check those
+          remaining. If none of <code class="literal">TMPDIR</code>,
+          <code class="literal">TEMP</code>, or <code class="literal">TMP</code> are set,
+          MySQL uses the Windows system default, which is usually
+          <code class="filename">C:\windows\temp\</code>.
+        </p><p>
+          If the file system containing your temporary file directory is
+          too small, you can use the <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+          <a class="link" href="server-options.html#option_mysqld_tmpdir"><code class="option">--tmpdir</code></a> option to specify a
+          directory in a file system where you have enough space.
+        </p><p>
+          The <a class="link" href="server-options.html#option_mysqld_tmpdir"><code class="option">--tmpdir</code></a> option can be set
+          to a list of several paths that are used in round-robin
+          fashion. Paths should be separated by colon characters
+          (<code class="literal">:</code>) on Unix and semicolon characters
+          (<code class="literal">;</code>) on Windows.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            To spread the load effectively, these paths should be
+            located on different <span class="emphasis"><em>physical</em></span> disks,
+            not different partitions of the same disk.
+          </p></div><p>
+          If the MySQL server is acting as a replica, you can set the
+          system variable
+          <a class="link" href="replication-options-replica.html#sysvar_replica_load_tmpdir"><code class="literal">replica_load_tmpdir</code></a> (from
+          MySQL 8.0.26) or
+          <a class="link" href="replication-options-replica.html#sysvar_slave_load_tmpdir"><code class="literal">slave_load_tmpdir</code></a> (before
+          MySQL 8.0.26) to specify a separate directory for holding
+          temporary files when replicating <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD
+          DATA</code></a> statements. This directory should be in a
+          disk-based file system (not a memory-based file system) so
+          that the temporary files used to replicate LOAD DATA can
+          survive machine restarts. The directory also should not be one
+          that is cleared by the operating system during the system
+          startup process. However, replication can now continue after a
+          restart if the temporary files have been removed.
+        </p><p>
+          MySQL arranges that temporary files are removed if
+          <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> is terminated. On platforms that
+          support it (such as Unix), this is done by unlinking the file
+          after opening it. The disadvantage of this is that the name
+          does not appear in directory listings and you do not see a big
+          temporary file that fills up the file system in which the
+          temporary file directory is located. (In such cases,
+          <span class="command"><strong>lsof +L1</strong></span> may be helpful in identifying
+          large files associated with <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>.)
+        </p><p>
+          When sorting (<code class="literal">ORDER BY</code> or <code class="literal">GROUP
+          BY</code>), MySQL normally uses one or two temporary files.
+          The maximum disk space required is determined by the following
+          expression:
+        </p><pre class="programlisting">(length of what is sorted + sizeof(row pointer))
+* number of matched rows
+* 2
+</pre><p>
+          The row pointer size is usually four bytes, but may grow in
+          the future for really big tables.
+        </p><p>
+          For some statements, MySQL creates temporary SQL tables that
+          are not hidden and have names that begin with
+          <code class="filename">#sql</code>.
+        </p><p>
+          Some <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> queries creates
+          temporary SQL tables to hold intermediate results.
+        </p><p>
+          DDL operations that rebuild the table and are not performed
+          online using the <code class="literal">ALGORITHM=INPLACE</code>
+          technique create a temporary copy of the original table in the
+          same directory as the original table.
+        </p><p>
+          Online DDL operations may use temporary log files for
+          recording concurrent DML, temporary sort files when creating
+          an index, and temporary intermediate tables files when
+          rebuilding the table. For more information, see
+          <a class="xref" href="innodb-online-ddl-space-requirements.html" title="15.12.3 Online DDL Space Requirements">Section 15.12.3, “Online DDL Space Requirements”</a>.
+        </p><p>
+          <code class="literal">InnoDB</code> user-created temporary tables and
+          on-disk internal temporary tables are created in a temporary
+          tablespace file named <code class="filename">ibtmp1</code> in the MySQL
+          data directory. For more information, see
+          <a class="xref" href="innodb-temporary-tablespace.html" title="15.6.3.5 Temporary Tablespaces">Section 15.6.3.5, “Temporary Tablespaces”</a>.
+        </p><p>
+          See also
+          <a class="xref" href="innodb-information-schema-temp-table-info.html" title="15.15.7 InnoDB INFORMATION_SCHEMA Temporary Table Info Table">Section 15.15.7, “InnoDB INFORMATION_SCHEMA Temporary Table Info Table”</a>.
+        </p><p>
+          The optional <code class="literal">EXTENDED</code> modifier causes
+          <a class="link" href="show-tables.html" title="13.7.7.39 SHOW TABLES Statement"><code class="literal">SHOW TABLES</code></a> to list hidden
+          tables created by failed <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+          TABLE</code></a> statements. See <a class="xref" href="show-tables.html" title="13.7.7.39 SHOW TABLES Statement">Section 13.7.7.39, “SHOW TABLES Statement”</a>.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="full-disk.html">Previous <span class="navHint"> How MySQL Handles a Full Disk </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="administration-issues.html">Up <span class="navHint"> Administration-Related Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="problems-with-mysql-sock.html">Next <span class="navHint"> How to Protect or Change the MySQL Unix Socket File </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

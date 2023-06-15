@@ -1,0 +1,274 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1921"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.11.4%C2%A0Metadata%20Locking"></a><title>8.11.4&nbsp;Metadata Locking</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="locking-issues.html" title="8.11&nbsp;Optimizing Locking Operations"/><link rel="prev" href="concurrent-inserts.html" title="8.11.3&nbsp;Concurrent Inserts"/><link rel="next" href="external-locking.html" title="8.11.5&nbsp;External Locking"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="metadata-locking.html#metadata-locking">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="concurrent-inserts.html">Previous <span class="navHint"> Concurrent Inserts </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="locking-issues.html">Up <span class="navHint"> Optimizing Locking Operations </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="external-locking.html">Next <span class="navHint"> External Locking </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="metadata-locking"></a>8.11.4&nbsp;Metadata Locking</h3></div></div></div><a id="idm45828949501568" class="indexterm"></a><a id="idm45828949500496" class="indexterm"></a><a id="idm45828949499008" class="indexterm"></a><p>
+        MySQL uses metadata locking to manage concurrent access to
+        database objects and to ensure data consistency. Metadata
+        locking applies not just to tables, but also to schemas, stored
+        programs (procedures, functions, triggers, scheduled events),
+        tablespaces, user locks acquired with the
+        <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> function (see
+        <a class="xref" href="locking-functions.html" title="12.14&nbsp;Locking Functions">Section&nbsp;12.14, &ldquo;Locking Functions&rdquo;</a>), and locks acquired with
+        the locking service described in
+        <a class="xref" href="locking-service.html" title="5.6.9.1&nbsp;The Locking Service">Section&nbsp;5.6.9.1, &ldquo;The Locking Service&rdquo;</a>.
+      </p><p>
+        The Performance Schema
+        <a class="link" href="performance-schema-metadata-locks-table.html" title="27.12.13.3&nbsp;The metadata_locks Table"><code class="literal">metadata_locks</code></a> table exposes
+        metadata lock information, which can be useful for seeing which
+        sessions hold locks, are blocked waiting for locks, and so
+        forth. For details, see
+        <a class="xref" href="performance-schema-metadata-locks-table.html" title="27.12.13.3&nbsp;The metadata_locks Table">Section&nbsp;27.12.13.3, &ldquo;The metadata_locks Table&rdquo;</a>.
+      </p><p>
+        Metadata locking does involve some overhead, which increases as
+        query volume increases. Metadata contention increases the more
+        that multiple queries attempt to access the same objects.
+      </p><p>
+        Metadata locking is not a replacement for the table definition
+        cache, and its mutexes and locks differ from the
+        <code class="literal">LOCK_open</code> mutex. The following discussion
+        provides some information about how metadata locking works.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="metadata-locking.html#metadata-lock-acquisition" title="Metadata Lock Acquisition">Metadata Lock Acquisition</a></p></li><li class="listitem"><p><a class="xref" href="metadata-locking.html#metadata-lock-release" title="Metadata Lock Release">Metadata Lock Release</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1922"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Metadata%20Lock%20Acquisition"></a><h4 class="title"><a id="metadata-lock-acquisition"></a>Metadata Lock Acquisition</h4></div></div></div><p>
+          If there are multiple waiters for a given lock, the
+          highest-priority lock request is satisfied first, with an
+          exception related to the
+          <a class="link" href="server-system-variables.html#sysvar_max_write_lock_count"><code class="literal">max_write_lock_count</code></a> system
+          variable. Write lock requests have higher priority than read
+          lock requests. However, if
+          <a class="link" href="server-system-variables.html#sysvar_max_write_lock_count"><code class="literal">max_write_lock_count</code></a> is set
+          to some low value (say, 10), read lock requests may be
+          preferred over pending write lock requests if the read lock
+          requests have already been passed over in favor of 10 write
+          lock requests. Normally this behavior does not occur because
+          <a class="link" href="server-system-variables.html#sysvar_max_write_lock_count"><code class="literal">max_write_lock_count</code></a> by
+          default has a very large value.
+        </p><p>
+          Statements acquire metadata locks one by one, not
+          simultaneously, and perform deadlock detection in the process.
+        </p><p>
+          DML statements normally acquire locks in the order in which
+          tables are mentioned in the statement.
+        </p><p>
+          DDL statements, <a class="link" href="lock-tables.html" title="13.3.6&nbsp;LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">LOCK TABLES</code></a>,
+          and other similar statements try to reduce the number of
+          possible deadlocks between concurrent DDL statements by
+          acquiring locks on explicitly named tables in name order.
+          Locks might be acquired in a different order for implicitly
+          used tables (such as tables in foreign key relationships that
+          also must be locked).
+        </p><p>
+          For example, <a class="link" href="rename-table.html" title="13.1.36&nbsp;RENAME TABLE Statement"><code class="literal">RENAME TABLE</code></a> is a
+          DDL statement that acquires locks in name order:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              This <a class="link" href="rename-table.html" title="13.1.36&nbsp;RENAME TABLE Statement"><code class="literal">RENAME TABLE</code></a> statement
+              renames <code class="literal">tbla</code> to something else, and
+              renames <code class="literal">tblc</code> to
+              <code class="literal">tbla</code>:
+            </p><pre class="programlisting">RENAME TABLE tbla TO tbld, tblc TO tbla;
+</pre><p>
+              The statement acquires metadata locks, in order, on
+              <code class="literal">tbla</code>, <code class="literal">tblc</code>, and
+              <code class="literal">tbld</code> (because <code class="literal">tbld</code>
+              follows <code class="literal">tblc</code> in name order):
+            </p></li><li class="listitem"><p>
+              This slightly different statement also renames
+              <code class="literal">tbla</code> to something else, and renames
+              <code class="literal">tblc</code> to <code class="literal">tbla</code>:
+            </p><pre class="programlisting">RENAME TABLE tbla TO tblb, tblc TO tbla;
+</pre><p>
+              In this case, the statement acquires metadata locks, in
+              order, on <code class="literal">tbla</code>,
+              <code class="literal">tblb</code>, and <code class="literal">tblc</code>
+              (because <code class="literal">tblb</code> precedes
+              <code class="literal">tblc</code> in name order):
+            </p></li></ul></div><p>
+          Both statements acquire locks on <code class="literal">tbla</code> and
+          <code class="literal">tblc</code>, in that order, but differ in whether
+          the lock on the remaining table name is acquired before or
+          after <code class="literal">tblc</code>.
+        </p><p>
+          Metadata lock acquisition order can make a difference in
+          operation outcome when multiple transactions execute
+          concurrently, as the following example illustrates.
+        </p><p>
+          Begin with two tables <code class="literal">x</code> and
+          <code class="literal">x_new</code> that have identical structure. Three
+          clients issue statements that involve these tables:
+        </p><p>
+          Client 1:
+        </p><pre class="programlisting">LOCK TABLE x WRITE, x_new WRITE;
+</pre><p>
+          The statement requests and acquires write locks in name order
+          on <code class="literal">x</code> and <code class="literal">x_new</code>.
+        </p><p>
+          Client 2:
+        </p><pre class="programlisting">INSERT INTO x VALUES(1);
+</pre><p>
+          The statement requests and blocks waiting for a write lock on
+          <code class="literal">x</code>.
+        </p><p>
+          Client 3:
+        </p><pre class="programlisting">RENAME TABLE x TO x_old, x_new TO x;
+</pre><p>
+          The statement requests exclusive locks in name order on
+          <code class="literal">x</code>, <code class="literal">x_new</code>, and
+          <code class="literal">x_old</code>, but blocks waiting for the lock on
+          <code class="literal">x</code>.
+        </p><p>
+          Client 1:
+        </p><pre class="programlisting">UNLOCK TABLES;
+</pre><p>
+          The statement releases the write locks on <code class="literal">x</code>
+          and <code class="literal">x_new</code>. The exclusive lock request for
+          <code class="literal">x</code> by Client 3 has higher priority than the
+          write lock request by Client 2, so Client 3 acquires its lock
+          on <code class="literal">x</code>, then also on <code class="literal">x_new</code>
+          and <code class="literal">x_old</code>, performs the renaming, and
+          releases its locks. Client 2 then acquires its lock on
+          <code class="literal">x</code>, performs the insert, and releases its
+          lock.
+        </p><p>
+          Lock acquisition order results in the
+          <a class="link" href="rename-table.html" title="13.1.36&nbsp;RENAME TABLE Statement"><code class="literal">RENAME TABLE</code></a> executing before
+          the <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a>. The
+          <code class="literal">x</code> into which the insert occurs is the table
+          that was named <code class="literal">x_new</code> when Client 2 issued
+          the insert and was renamed to <code class="literal">x</code> by Client
+          3:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM x;</code></strong>
++------+
+| i    |
++------+
+|    1 |
++------+
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM x_old;</code></strong>
+Empty set (0.01 sec)
+</pre><p>
+          Now begin instead with tables named <code class="literal">x</code> and
+          <code class="literal">new_x</code> that have identical structure. Again,
+          three clients issue statements that involve these tables:
+        </p><p>
+          Client 1:
+        </p><pre class="programlisting">LOCK TABLE x WRITE, new_x WRITE;
+</pre><p>
+          The statement requests and acquires write locks in name order
+          on <code class="literal">new_x</code> and <code class="literal">x</code>.
+        </p><p>
+          Client 2:
+        </p><pre class="programlisting">INSERT INTO x VALUES(1);
+</pre><p>
+          The statement requests and blocks waiting for a write lock on
+          <code class="literal">x</code>.
+        </p><p>
+          Client 3:
+        </p><pre class="programlisting">RENAME TABLE x TO old_x, new_x TO x;
+</pre><p>
+          The statement requests exclusive locks in name order on
+          <code class="literal">new_x</code>, <code class="literal">old_x</code>, and
+          <code class="literal">x</code>, but blocks waiting for the lock on
+          <code class="literal">new_x</code>.
+        </p><p>
+          Client 1:
+        </p><pre class="programlisting">UNLOCK TABLES;
+</pre><p>
+          The statement releases the write locks on <code class="literal">x</code>
+          and <code class="literal">new_x</code>. For <code class="literal">x</code>, the
+          only pending request is by Client 2, so Client 2 acquires its
+          lock, performs the insert, and releases the lock. For
+          <code class="literal">new_x</code>, the only pending request is by
+          Client 3, which is permitted to acquire that lock (and also
+          the lock on <code class="literal">old_x</code>). The rename operation
+          still blocks for the lock on <code class="literal">x</code> until the
+          Client 2 insert finishes and releases its lock. Then Client 3
+          acquires the lock on <code class="literal">x</code>, performs the
+          rename, and releases its lock.
+        </p><p>
+          In this case, lock acquisition order results in the
+          <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> executing before the
+          <a class="link" href="rename-table.html" title="13.1.36&nbsp;RENAME TABLE Statement"><code class="literal">RENAME TABLE</code></a>. The
+          <code class="literal">x</code> into which the insert occurs is the
+          original <code class="literal">x</code>, now renamed to
+          <code class="literal">old_x</code> by the rename operation:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM x;</code></strong>
+Empty set (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM old_x;</code></strong>
++------+
+| i    |
++------+
+|    1 |
++------+
+</pre><p>
+          If order of lock acquisition in concurrent statements makes a
+          difference to an application in operation outcome, as in the
+          preceding example, you may be able to adjust the table names
+          to affect the order of lock acquisition.
+        </p><a id="idm45828949399920" class="indexterm"></a><p>
+          Metadata locks are extended, as necessary, to tables related
+          by a foreign key constraint to prevent conflicting DML and DDL
+          operations from executing concurrently on the related tables.
+          When updating a parent table, a metadata lock is taken on the
+          child table while updating foreign key metadata. Foreign key
+          metadata is owned by the child table.
+        </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1923"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Metadata%20Lock%20Release"></a><h4 class="title"><a id="metadata-lock-release"></a>Metadata Lock Release</h4></div></div></div><p>
+          To ensure transaction serializability, the server must not
+          permit one session to perform a data definition language (DDL)
+          statement on a table that is used in an uncompleted explicitly
+          or implicitly started transaction in another session. The
+          server achieves this by acquiring metadata locks on tables
+          used within a transaction and deferring release of those locks
+          until the transaction ends. A metadata lock on a table
+          prevents changes to the table&#39;s structure. This locking
+          approach has the implication that a table that is being used
+          by a transaction within one session cannot be used in DDL
+          statements by other sessions until the transaction ends.
+        </p><p>
+          This principle applies not only to transactional tables, but
+          also to nontransactional tables. Suppose that a session begins
+          a transaction that uses transactional table
+          <code class="literal">t</code> and nontransactional table
+          <code class="literal">nt</code> as follows:
+        </p><pre class="programlisting">START TRANSACTION;
+SELECT * FROM t;
+SELECT * FROM nt;
+</pre><p>
+          The server holds metadata locks on both <code class="literal">t</code>
+          and <code class="literal">nt</code> until the transaction ends. If
+          another session attempts a DDL or write lock operation on
+          either table, it blocks until metadata lock release at
+          transaction end. For example, a second session blocks if it
+          attempts any of these operations:
+        </p><pre class="programlisting">DROP TABLE t;
+ALTER TABLE t ...;
+DROP TABLE nt;
+ALTER TABLE nt ...;
+LOCK TABLE t ... WRITE;
+</pre><p>
+          The same behavior applies for The
+          <a class="link" href="lock-tables.html" title="13.3.6&nbsp;LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">LOCK TABLES ...
+          READ</code></a>. That is, explicitly or implicitly started
+          transactions that update any table (transactional or
+          nontransactional) block and are blocked by <code class="literal">LOCK
+          TABLES ... READ</code> for that table.
+        </p><p>
+          If the server acquires metadata locks for a statement that is
+          syntactically valid but fails during execution, it does not
+          release the locks early. Lock release is still deferred to the
+          end of the transaction because the failed statement is written
+          to the binary log and the locks protect log consistency.
+        </p><p>
+          In autocommit mode, each statement is in effect a complete
+          transaction, so metadata locks acquired for the statement are
+          held only to the end of the statement.
+        </p><p>
+          Metadata locks acquired during a
+          <a class="link" href="prepare.html" title="13.5.1&nbsp;PREPARE Statement"><code class="literal">PREPARE</code></a> statement are released
+          once the statement has been prepared, even if preparation
+          occurs within a multiple-statement transaction.
+        </p><p>
+          As of MySQL 8.0.13, for XA transactions in
+          <code class="literal">PREPARED</code> state, metadata locks are
+          maintained across client disconnects and server restarts,
+          until an <a class="link" href="xa.html" title="13.3.8&nbsp;XA Transactions"><code class="literal">XA
+          COMMIT</code></a> or <a class="link" href="xa.html" title="13.3.8&nbsp;XA Transactions"><code class="literal">XA
+          ROLLBACK</code></a> is executed.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="concurrent-inserts.html">Previous <span class="navHint"> Concurrent Inserts </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="locking-issues.html">Up <span class="navHint"> Optimizing Locking Operations </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="external-locking.html">Next <span class="navHint"> External Locking </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

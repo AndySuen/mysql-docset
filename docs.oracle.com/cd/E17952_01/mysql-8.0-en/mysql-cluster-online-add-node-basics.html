@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.6.7.2 Adding NDB Cluster Data Nodes Online: Basic procedure</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-online-add-node.html" title="23.6.7 Adding NDB Cluster Data Nodes Online" /><link rel="prev" href="mysql-cluster-online-add-node-remarks.html" title="23.6.7.1 Adding NDB Cluster Data Nodes Online: General Issues" /><link rel="next" href="mysql-cluster-online-add-node-example.html" title="23.6.7.3 Adding NDB Cluster Data Nodes Online: Detailed Example" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-online-add-node-basics.html#mysql-cluster-online-add-node-basics">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-online-add-node-remarks.html">Previous <span class="navHint"> Adding NDB Cluster Data Nodes Online: General Issues </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-online-add-node.html">Up <span class="navHint"> Adding NDB Cluster Data Nodes Online </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-online-add-node-example.html">Next <span class="navHint"> Adding NDB Cluster Data Nodes Online: Detailed Example </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-cluster-online-add-node-basics"></a>23.6.7.2 Adding NDB Cluster Data Nodes Online: Basic procedure</h4></div></div></div><p>
+        In this section, we list the basic steps required to add new
+        data nodes to an NDB Cluster. This procedure applies whether you
+        are using <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> or <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a>
+        binaries for the data node processes. For a more detailed
+        example, see
+        <a class="xref" href="mysql-cluster-online-add-node-example.html" title="23.6.7.3 Adding NDB Cluster Data Nodes Online: Detailed Example">Section 23.6.7.3, “Adding NDB Cluster Data Nodes Online: Detailed Example”</a>.
+      </p><p>
+        Assuming that you already have a running NDB Cluster, adding
+        data nodes online requires the following steps:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Edit the cluster configuration
+            <code class="filename">config.ini</code> file, adding new
+            <code class="literal">[ndbd]</code> sections corresponding to the
+            nodes to be added. In the case where the cluster uses
+            multiple management servers, these changes need to be made
+            to all <code class="filename">config.ini</code> files used by the
+            management servers.
+          </p><p>
+            You must be careful that node IDs for any new data nodes
+            added in the <code class="filename">config.ini</code> file do not
+            overlap node IDs used by existing nodes. In the event that
+            you have API nodes using dynamically allocated node IDs and
+            these IDs match node IDs that you want to use for new data
+            nodes, it is possible to force any such API nodes to
+            <span class="quote">“<span class="quote">migrate</span>”</span>, as described later in this
+            procedure.
+          </p></li><li class="listitem"><p>
+            Perform a rolling restart of all NDB Cluster management
+            servers.
+          </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+              All management servers must be restarted with the
+              <a class="link" href="mysql-cluster-programs-ndb-mgmd.html#option_ndb_mgmd_reload"><code class="option">--reload</code></a> or
+              <a class="link" href="mysql-cluster-programs-ndb-mgmd.html#option_ndb_mgmd_initial"><code class="option">--initial</code></a> option to force
+              the reading of the new configuration.
+            </p></div></li><li class="listitem"><p>
+            Perform a rolling restart of all existing NDB Cluster data
+            nodes. It is not necessary (or usually even desirable) to
+            use <a class="link" href="mysql-cluster-programs-ndbd.html#option_ndbd_initial"><code class="option">--initial</code></a> when restarting
+            the existing data nodes.
+          </p><p>
+            If you are using API nodes with dynamically allocated IDs
+            matching any node IDs that you wish to assign to new data
+            nodes, you must restart all API nodes (including SQL nodes)
+            before restarting any of the data nodes processes in this
+            step. This causes any API nodes with node IDs that were
+            previously not explicitly assigned to relinquish those node
+            IDs and acquire new ones.
+          </p></li><li class="listitem"><p>
+            Perform a rolling restart of any SQL or API nodes connected
+            to the NDB Cluster.
+          </p></li><li class="listitem"><p>
+            Start the new data nodes.
+          </p><p>
+            The new data nodes may be started in any order. They can
+            also be started concurrently, as long as they are started
+            after the rolling restarts of all existing data nodes have
+            been completed, and before proceeding to the next step.
+          </p></li><li class="listitem"><p>
+            Execute one or more <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-create-nodegroup"><code class="literal">CREATE
+            NODEGROUP</code></a> commands in the NDB Cluster management
+            client to create the new node group or node groups to which
+            the new data nodes belong.
+          </p></li><li class="listitem"><p>
+            Redistribute the cluster's data among all data nodes,
+            including the new ones. Normally this is done by issuing an
+            <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE ...
+            ALGORITHM=INPLACE, REORGANIZE PARTITION</code></a> statement
+            in the <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client for each
+            <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> table.
+          </p><p>
+            <span class="emphasis"><em>Exception</em></span>: For tables created using the
+            <code class="literal">MAX_ROWS</code> option, this statement does not
+            work; instead, use <code class="literal">ALTER TABLE ...
+            ALGORITHM=INPLACE MAX_ROWS=...</code> to reorganize such
+            tables. You should also bear in mind that using
+            <code class="literal">MAX_ROWS</code> to set the number of partitions
+            in this fashion is deprecated, and you should use
+            <code class="literal">PARTITION_BALANCE</code> instead; see
+            <a class="xref" href="create-table-ndb-comment-options.html" title="13.1.20.12 Setting NDB Comment Options">Section 13.1.20.12, “Setting NDB Comment Options”</a>, for more
+            information.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              This needs to be done only for tables already existing at
+              the time the new node group is added. Data in tables
+              created after the new node group is added is distributed
+              automatically; however, data added to any given table
+              <code class="literal">tbl</code> that existed before the new nodes
+              were added is not distributed using the new nodes until
+              that table has been reorganized.
+            </p></div></li><li class="listitem"><p>
+            <code class="literal">ALTER TABLE ... REORGANIZE PARTITION
+            ALGORITHM=INPLACE</code> reorganizes partitions but does
+            not reclaim the space freed on the <span class="quote">“<span class="quote">old</span>”</span> nodes.
+            You can do this by issuing, for each
+            <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> table, an
+            <a class="link" href="optimize-table.html" title="13.7.3.4 OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> statement in
+            the <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client.
+          </p><p>
+            This works for space used by variable-width columns of
+            in-memory <code class="literal">NDB</code> tables. <code class="literal">OPTIMIZE
+            TABLE</code> is not supported for fixed-width columns of
+            in-memory tables; it is also not supported for Disk Data
+            tables.
+          </p></li></ol></div><p>
+        You can add all the nodes desired, then issue several
+        <a class="link" href="mysql-cluster-mgm-client-commands.html#ndbclient-create-nodegroup"><code class="literal">CREATE NODEGROUP</code></a> commands in
+        succession to add the new node groups to the cluster.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-online-add-node-remarks.html">Previous <span class="navHint"> Adding NDB Cluster Data Nodes Online: General Issues </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-online-add-node.html">Up <span class="navHint"> Adding NDB Cluster Data Nodes Online </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-online-add-node-example.html">Next <span class="navHint"> Adding NDB Cluster Data Nodes Online: Detailed Example </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

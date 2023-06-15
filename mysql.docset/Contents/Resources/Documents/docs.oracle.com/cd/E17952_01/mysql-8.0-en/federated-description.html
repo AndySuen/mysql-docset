@@ -1,0 +1,68 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-815"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/16.8.1%C2%A0FEDERATED%20Storage%20Engine%20Overview"></a><title>16.8.1&nbsp;FEDERATED Storage Engine Overview</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="federated-storage-engine.html" title="16.8&nbsp;The FEDERATED Storage Engine"/><link rel="prev" href="federated-storage-engine.html" title="16.8&nbsp;The FEDERATED Storage Engine"/><link rel="next" href="federated-create.html" title="16.8.2&nbsp;How to Create FEDERATED Tables"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="federated-description.html#federated-description">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="federated-storage-engine.html">Previous <span class="navHint"> The FEDERATED Storage Engine </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="federated-storage-engine.html">Up <span class="navHint"> The FEDERATED Storage Engine </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="federated-create.html">Next <span class="navHint"> How to Create FEDERATED Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="federated-description"></a>16.8.1&nbsp;FEDERATED Storage Engine Overview</h3></div></div></div><p>
+      When you create a table using one of the standard storage engines
+      (such as <code class="literal">MyISAM</code>, <code class="literal">CSV</code> or
+      <code class="literal">InnoDB</code>), the table consists of the table
+      definition and the associated data. When you create a
+      <code class="literal">FEDERATED</code> table, the table definition is the
+      same, but the physical storage of the data is handled on a remote
+      server.
+    </p><p>
+      A <code class="literal">FEDERATED</code> table consists of two elements:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          A <span class="emphasis"><em>remote server</em></span> with a database table,
+          which in turn consists of the table definition (stored in the
+          MySQL data dictionary) and the associated table. The table
+          type of the remote table may be any type supported by the
+          remote <code class="literal">mysqld</code> server, including
+          <code class="literal">MyISAM</code> or <code class="literal">InnoDB</code>.
+        </p></li><li class="listitem"><p>
+          A <span class="emphasis"><em>local server</em></span> with a database table,
+          where the table definition matches that of the corresponding
+          table on the remote server. The table definition is stored in
+          the data dictionary. There is no data file on the local
+          server. Instead, the table definition includes a connection
+          string that points to the remote table.
+        </p></li></ul></div><p>
+      When executing queries and statements on a
+      <code class="literal">FEDERATED</code> table on the local server, the
+      operations that would normally insert, update or delete
+      information from a local data file are instead sent to the remote
+      server for execution, where they update the data file on the
+      remote server or return matching rows from the remote server.
+    </p><p>
+      The basic structure of a <code class="literal">FEDERATED</code> table setup
+      is shown in <a class="xref" href="federated-description.html#figure-se-federated-structure" title="Figure&nbsp;16.2&nbsp;FEDERATED Table Structure">Figure&nbsp;16.2, &ldquo;FEDERATED Table Structure&rdquo;</a>.
+    </p><div class="figure"><a id="figure-se-federated-structure"></a><p class="title"><strong>Figure&nbsp;16.2&nbsp;FEDERATED Table Structure</strong></p><div class="figure-contents"><div class="mediaobject"><img src="images/se-federated-structure.png" width="384" height="392" alt="Content is described in the surrounding text."/></div></div></div><br class="figure-break"/><p>
+      When a client issues an SQL statement that refers to a
+      <code class="literal">FEDERATED</code> table, the flow of information
+      between the local server (where the SQL statement is executed) and
+      the remote server (where the data is physically stored) is as
+      follows:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          The storage engine looks through each column that the
+          <code class="literal">FEDERATED</code> table has and constructs an
+          appropriate SQL statement that refers to the remote table.
+        </p></li><li class="listitem"><p>
+          The statement is sent to the remote server using the MySQL
+          client API.
+        </p></li><li class="listitem"><p>
+          The remote server processes the statement and the local server
+          retrieves any result that the statement produces (an
+          affected-rows count or a result set).
+        </p></li><li class="listitem"><p>
+          If the statement produces a result set, each column is
+          converted to internal storage engine format that the
+          <code class="literal">FEDERATED</code> engine expects and can use to
+          display the result to the client that issued the original
+          statement.
+        </p></li></ol></div><p>
+      The local server communicates with the remote server using MySQL
+      client C API functions. It invokes
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-real-query.html" target="_top"><code class="literal">mysql_real_query()</code></a> to send the
+      statement. To read a result set, it uses
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-store-result.html" target="_top"><code class="literal">mysql_store_result()</code></a> and fetches
+      rows one at a time using
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-fetch-row.html" target="_top"><code class="literal">mysql_fetch_row()</code></a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="federated-storage-engine.html">Previous <span class="navHint"> The FEDERATED Storage Engine </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="federated-storage-engine.html">Up <span class="navHint"> The FEDERATED Storage Engine </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="federated-create.html">Next <span class="navHint"> How to Create FEDERATED Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,202 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3498"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.1.7.1%C2%A0Checking%20Replication%20Status"></a><title>17.1.7.1&nbsp;Checking Replication Status</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-administration.html" title="17.1.7&nbsp;Common Replication Administration Tasks"/><link rel="prev" href="replication-administration.html" title="17.1.7&nbsp;Common Replication Administration Tasks"/><link rel="next" href="replication-administration-pausing.html" title="17.1.7.2&nbsp;Pausing Replication on the Replica"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-administration-status.html#replication-administration-status">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-administration.html">Previous <span class="navHint"> Common Replication Administration Tasks </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-administration.html">Up <span class="navHint"> Common Replication Administration Tasks </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-administration-pausing.html">Next <span class="navHint"> Pausing Replication on the Replica </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3497"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.1.7.1%C2%A0Checking%20Replication%20Status"></a><h4 class="title"><a id="replication-administration-status"></a>17.1.7.1&nbsp;Checking Replication Status</h4></div></div></div><p>
+        The most common task when managing a replication process is to
+        ensure that replication is taking place and that there have been
+        no errors between the replica and the source.
+      </p><p>
+        The <a class="link" href="show-replica-status.html" title="13.7.7.35&nbsp;SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+        REPLICA STATUS</code></a> statement, which you must execute on
+        each replica, provides information about the configuration and
+        status of the connection between the replica server and the
+        source server. From MySQL 8.0.22, <a class="link" href="show-slave-status.html" title="13.7.7.36&nbsp;SHOW SLAVE | REPLICA STATUS Statement"><code class="literal">SHOW
+        SLAVE STATUS</code></a> is deprecated, and
+        <a class="link" href="show-replica-status.html" title="13.7.7.35&nbsp;SHOW REPLICA STATUS Statement"><code class="literal">SHOW REPLICA STATUS</code></a> is available
+        to use instead. The Performance Schema has replication tables
+        that provide this information in a more accessible form. See
+        <a class="xref" href="performance-schema-replication-tables.html" title="27.12.11&nbsp;Performance Schema Replication Tables">Section&nbsp;27.12.11, &ldquo;Performance Schema Replication Tables&rdquo;</a>.
+      </p><p>
+        The replication heartbeat information shown in the Performance
+        Schema replication tables lets you check that the replication
+        connection is active even if the source has not sent events to
+        the replica recently. The source sends a heartbeat signal to a
+        replica if there are no updates to, and no unsent events in, the
+        binary log for a longer period than the heartbeat interval. The
+        <code class="literal">MASTER_HEARTBEAT_PERIOD</code> setting on the source
+        (set by the <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a>
+        statement) specifies the frequency of the heartbeat, which
+        defaults to half of the connection timeout interval for the
+        replica (specified by the system variable
+        <a class="link" href="replication-options-replica.html#sysvar_replica_net_timeout"><code class="literal">replica_net_timeout</code></a> or
+        <a class="link" href="replication-options-replica.html#sysvar_slave_net_timeout"><code class="literal">slave_net_timeout</code></a>). The
+        <a class="link" href="performance-schema-replication-connection-status-table.html" title="27.12.11.2&nbsp;The replication_connection_status Table"><code class="literal">replication_connection_status</code></a>
+        Performance Schema table shows when the most recent heartbeat
+        signal was received by a replica, and how many heartbeat signals
+        it has received.
+      </p><p>
+        If you are using the
+        <a class="link" href="show-replica-status.html" title="13.7.7.35&nbsp;SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+        REPLICA STATUS</code></a> statement to check on the status of an
+        individual replica, the statement provides the following
+        information:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW REPLICA STATUS\G</code></strong>
+*************************** 1. row ***************************
+             Replica_IO_State: Waiting for source to send event
+                  Source_Host: source1
+                  Source_User: root
+                  Source_Port: 3306
+                Connect_Retry: 60
+              Source_Log_File: mysql-bin.000004
+          Read_Source_Log_Pos: 931
+               Relay_Log_File: replica1-relay-bin.000056
+                Relay_Log_Pos: 950
+        Relay_Source_Log_File: mysql-bin.000004
+           Replica_IO_Running: Yes
+          Replica_SQL_Running: Yes
+              Replicate_Do_DB:
+          Replicate_Ignore_DB:
+           Replicate_Do_Table:
+       Replicate_Ignore_Table:
+      Replicate_Wild_Do_Table:
+  Replicate_Wild_Ignore_Table:
+                   Last_Errno: 0
+                   Last_Error:
+                 Skip_Counter: 0
+          Exec_Source_Log_Pos: 931
+              Relay_Log_Space: 1365
+              Until_Condition: None
+               Until_Log_File:
+                Until_Log_Pos: 0
+           Source_SSL_Allowed: No
+           Source_SSL_CA_File:
+           Source_SSL_CA_Path:
+              Source_SSL_Cert:
+            Source_SSL_Cipher:
+               Source_SSL_Key:
+        Seconds_Behind_Source: 0
+Source_SSL_Verify_Server_Cert: No
+                Last_IO_Errno: 0
+                Last_IO_Error:
+               Last_SQL_Errno: 0
+               Last_SQL_Error:
+  Replicate_Ignore_Server_Ids: 0
+</pre><p>
+        The key fields from the status report to examine are:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">Replica_IO_State</code>: The current status of
+            the replica. See <a class="xref" href="replica-io-thread-states.html" title="8.14.5&nbsp;Replication I/O (Receiver) Thread States">Section&nbsp;8.14.5, &ldquo;Replication I/O (Receiver) Thread States&rdquo;</a>,
+            and <a class="xref" href="replica-sql-thread-states.html" title="8.14.6&nbsp;Replication SQL Thread States">Section&nbsp;8.14.6, &ldquo;Replication SQL Thread States&rdquo;</a>, for more
+            information.
+          </p></li><li class="listitem"><p>
+            <code class="literal">Replica_IO_Running</code>: Whether the I/O
+            (receiver) thread for reading the source&#39;s binary log is
+            running. Normally, you want this to be
+            <code class="literal">Yes</code> unless you have not yet started
+            replication or have explicitly stopped it with
+            <a class="link" href="stop-replica.html" title="13.4.2.10&nbsp;STOP REPLICA Statement"><code class="literal">STOP
+            REPLICA</code></a>.
+          </p></li><li class="listitem"><p>
+            <code class="literal">Replica_SQL_Running</code>: Whether the SQL
+            thread for executing events in the relay log is running. As
+            with the I/O thread, this should normally be
+            <code class="literal">Yes</code>.
+          </p></li><li class="listitem"><p>
+            <code class="literal">Last_IO_Error</code>,
+            <code class="literal">Last_SQL_Error</code>: The last errors
+            registered by the I/O (receiver) and SQL (applier) threads
+            when processing the relay log. Ideally these should be
+            blank, indicating no errors.
+          </p></li><li class="listitem"><p>
+            <code class="literal">Seconds_Behind_Source</code>: The number of
+            seconds that the replication SQL (applier) thread is behind
+            processing the source binary log. A high number (or an
+            increasing one) can indicate that the replica is unable to
+            handle events from the source in a timely fashion.
+          </p><p>
+            A value of 0 for <code class="literal">Seconds_Behind_Source</code>
+            can usually be interpreted as meaning that the replica has
+            caught up with the source, but there are some cases where
+            this is not strictly true. For example, this can occur if
+            the network connection between source and replica is broken
+            but the replication I/O (receiver) thread has not yet
+            noticed this; that is, the time period set by
+            <a class="link" href="replication-options-replica.html#sysvar_replica_net_timeout"><code class="literal">replica_net_timeout</code></a> or
+            <a class="link" href="replication-options-replica.html#sysvar_slave_net_timeout"><code class="literal">slave_net_timeout</code></a> has not
+            yet elapsed.
+          </p><p>
+            It is also possible that transient values for
+            <code class="literal">Seconds_Behind_Source</code> may not reflect the
+            situation accurately. When the replication SQL (applier)
+            thread has caught up on I/O,
+            <code class="literal">Seconds_Behind_Source</code> displays 0; but
+            when the replication I/O (receiver) thread is still queuing
+            up a new event, <code class="literal">Seconds_Behind_Source</code> may
+            show a large value until the replication applier thread
+            finishes executing the new event. This is especially likely
+            when the events have old timestamps; in such cases, if you
+            execute
+            <a class="link" href="show-replica-status.html" title="13.7.7.35&nbsp;SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+            REPLICA STATUS</code></a> several times in a relatively short
+            period, you may see this value change back and forth
+            repeatedly between 0 and a relatively large value.
+          </p></li></ul></div><p>
+        Several pairs of fields provide information about the progress
+        of the replica in reading events from the source binary log and
+        processing them in the relay log:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            (<code class="literal">Master_Log_file</code>,
+            <code class="literal">Read_Master_Log_Pos</code>): Coordinates in the
+            source binary log indicating how far the replication I/O
+            (receiver) thread has read events from that log.
+          </p></li><li class="listitem"><p>
+            (<code class="literal">Relay_Master_Log_File</code>,
+            <code class="literal">Exec_Master_Log_Pos</code>): Coordinates in the
+            source binary log indicating how far the replication SQL
+            (applier) thread has executed events received from that log.
+          </p></li><li class="listitem"><p>
+            (<code class="literal">Relay_Log_File</code>,
+            <code class="literal">Relay_Log_Pos</code>): Coordinates in the
+            replica relay log indicating how far the replication SQL
+            (applier) thread has executed the relay log. These
+            correspond to the preceding coordinates, but are expressed
+            in replica relay log coordinates rather than source binary
+            log coordinates.
+          </p></li></ul></div><p>
+        On the source, you can check the status of connected replicas
+        using <a class="link" href="show-processlist.html" title="13.7.7.29&nbsp;SHOW PROCESSLIST Statement"><code class="literal">SHOW PROCESSLIST</code></a> to examine
+        the list of running processes. Replica connections have
+        <code class="literal">Binlog Dump</code> in the <code class="literal">Command</code>
+        field:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW PROCESSLIST \G;</code></strong>
+*************************** 4. row ***************************
+     Id: 10
+   User: root
+   Host: replica1:58371
+     db: NULL
+Command: Binlog Dump
+   Time: 777
+  State: Has sent all binlog to slave; waiting for binlog to be updated
+   Info: NULL
+</pre><p>
+        Because it is the replica that drives the replication process,
+        very little information is available in this report.
+      </p><p>
+        For replicas that were started with the
+        <a class="link" href="replication-options-replica.html#sysvar_report_host"><code class="option">--report-host</code></a> option and are
+        connected to the source, the
+        <a class="link" href="show-replicas.html" title="13.7.7.33&nbsp;SHOW REPLICAS Statement"><code class="literal">SHOW
+        REPLICAS</code></a> (or before MySQL 8.0.22,
+        <a class="link" href="show-slave-hosts.html" title="13.7.7.34&nbsp;SHOW SLAVE HOSTS | SHOW REPLICAS Statement"><code class="literal">SHOW SLAVE
+        HOSTS</code></a>) statement on the source shows basic information
+        about the replicas. The output includes the ID of the replica
+        server, the value of the
+        <a class="link" href="replication-options-replica.html#sysvar_report_host"><code class="option">--report-host</code></a> option, the
+        connecting port, and source ID:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW REPLICAS;</code></strong>
++-----------+----------+------+-------------------+-----------+
+| Server_id | Host     | Port | Rpl_recovery_rank | Source_id |
++-----------+----------+------+-------------------+-----------+
+|        10 | replica1 | 3306 |                 0 |         1 |
++-----------+----------+------+-------------------+-----------+
+1 row in set (0.00 sec)
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-administration.html">Previous <span class="navHint"> Common Replication Administration Tasks </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-administration.html">Up <span class="navHint"> Common Replication Administration Tasks </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-administration-pausing.html">Next <span class="navHint"> Pausing Replication on the Replica </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

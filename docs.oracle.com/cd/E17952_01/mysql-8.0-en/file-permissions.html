@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>B.3.3.1 Problems with File Permissions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="administration-issues.html" title="B.3.3 Administration-Related Issues" /><link rel="prev" href="administration-issues.html" title="B.3.3 Administration-Related Issues" /><link rel="next" href="resetting-permissions.html" title="B.3.3.2 How to Reset the Root Password" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="file-permissions.html#file-permissions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="administration-issues.html">Previous <span class="navHint"> Administration-Related Issues </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="administration-issues.html">Up <span class="navHint"> Administration-Related Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="resetting-permissions.html">Next <span class="navHint"> How to Reset the Root Password </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="file-permissions"></a>B.3.3.1 Problems with File Permissions</h4></div></div></div><a id="idm45828775047600" class="indexterm"></a><a id="idm45828775046144" class="indexterm"></a><a id="idm45828775044656" class="indexterm"></a><a id="idm45828775043168" class="indexterm"></a><a id="idm45828775042080" class="indexterm"></a><p>
+          If you have problems with file permissions, the
+          <code class="literal">UMASK</code> or <code class="literal">UMASK_DIR</code>
+          environment variable might be set incorrectly when
+          <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> starts. For example,
+          <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> might issue the following error
+          message when you create a table:
+        </p><pre class="programlisting">ERROR: Can't find file: 'path/with/<em class="replaceable"><code>file_name</code></em>' (Errcode: 13)
+</pre><p>
+          The default <code class="literal">UMASK</code> and
+          <code class="literal">UMASK_DIR</code> values are
+          <code class="literal">0640</code> and <code class="literal">0750</code>,
+          respectively. <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> assumes that the value
+          for <code class="literal">UMASK</code> or <code class="literal">UMASK_DIR</code>
+          is in octal if it starts with a zero. For example, setting
+          <code class="literal">UMASK=0600</code> is equivalent to
+          <code class="literal">UMASK=384</code> because 0600 octal is 384
+          decimal.
+        </p><p>
+          Assuming that you start <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> using
+          <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a>, change the default
+          <code class="literal">UMASK</code> value as follows:
+        </p><pre class="programlisting">UMASK=384  # = 600 in octal
+export UMASK
+mysqld_safe &amp;
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            An exception applies for the error log file if you start
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> using
+            <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a>, which does not respect
+            <code class="literal">UMASK</code>: <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> may
+            create the error log file if it does not exist prior to
+            starting <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, and
+            <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> uses a umask set to a strict
+            value of <code class="literal">0137</code>. If this is unsuitable,
+            create the error file manually with the desired access mode
+            prior to executing <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a>.
+          </p></div><a id="idm45828775012496" class="indexterm"></a><a id="idm45828775011408" class="indexterm"></a><p>
+          By default, <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> creates database
+          directories with an access permission value of
+          <code class="literal">0750</code>. To modify this behavior, set the
+          <code class="literal">UMASK_DIR</code> variable. If you set its value,
+          new directories are created with the combined
+          <code class="literal">UMASK</code> and <code class="literal">UMASK_DIR</code>
+          values. For example, to give group access to all new
+          directories, start <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> as follows:
+        </p><pre class="programlisting">UMASK_DIR=504  # = 770 in octal
+export UMASK_DIR
+mysqld_safe &amp;
+</pre><p>
+          For additional details, see
+          <a class="xref" href="environment-variables.html" title="4.9 Environment Variables">Section 4.9, “Environment Variables”</a>.
+        </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="administration-issues.html">Previous <span class="navHint"> Administration-Related Issues </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="administration-issues.html">Up <span class="navHint"> Administration-Related Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="resetting-permissions.html">Next <span class="navHint"> How to Reset the Root Password </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

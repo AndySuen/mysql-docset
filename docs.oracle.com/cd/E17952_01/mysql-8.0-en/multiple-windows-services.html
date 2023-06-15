@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.8.2.2 Starting Multiple MySQL Instances as Windows Services</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="multiple-windows-servers.html" title="5.8.2 Running Multiple MySQL Instances on Windows" /><link rel="prev" href="multiple-windows-command-line-servers.html" title="5.8.2.1 Starting Multiple MySQL Instances at the Windows Command Line" /><link rel="next" href="multiple-unix-servers.html" title="5.8.3 Running Multiple MySQL Instances on Unix" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="multiple-windows-services.html#multiple-windows-services">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="multiple-windows-command-line-servers.html">Previous <span class="navHint"> Starting Multiple MySQL Instances at the Windows Command Line </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="multiple-windows-servers.html">Up <span class="navHint"> Running Multiple MySQL Instances on Windows </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="multiple-unix-servers.html">Next <span class="navHint"> Running Multiple MySQL Instances on Unix </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="multiple-windows-services"></a>5.8.2.2 Starting Multiple MySQL Instances as Windows Services</h4></div></div></div><p>
+        On Windows, a MySQL server can run as a Windows service. The
+        procedures for installing, controlling, and removing a single
+        MySQL service are described in
+        <a class="xref" href="windows-start-service.html" title="2.3.4.8 Starting MySQL as a Windows Service">Section 2.3.4.8, “Starting MySQL as a Windows Service”</a>.
+      </p><p>
+        To set up multiple MySQL services, you must make sure that each
+        instance uses a different service name in addition to the other
+        parameters that must be unique per instance.
+      </p><p>
+        For the following instructions, suppose that you want to run the
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> server from two different versions of
+        MySQL that are installed at <code class="filename">C:\mysql-5.7.9</code>
+        and <code class="filename">C:\mysql-8.0.33</code>,
+        respectively. (This might be the case if you are running 5.7.9
+        as your production server, but also want to conduct tests using
+        8.0.33.)
+      </p><p>
+        To install MySQL as a Windows service, use the
+        <code class="option">--install</code> or <code class="option">--install-manual</code>
+        option. For information about these options, see
+        <a class="xref" href="windows-start-service.html" title="2.3.4.8 Starting MySQL as a Windows Service">Section 2.3.4.8, “Starting MySQL as a Windows Service”</a>.
+      </p><p>
+        Based on the preceding information, you have several ways to set
+        up multiple services. The following instructions describe some
+        examples. Before trying any of them, shut down and remove any
+        existing MySQL services.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <span class="bold"><strong>Approach 1:</strong></span> Specify the
+            options for all services in one of the standard option
+            files. To do this, use a different service name for each
+            server. Suppose that you want to run the 5.7.9
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> using the service name of
+            <code class="literal">mysqld1</code> and the 8.0.33
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> using the service name
+            <code class="literal">mysqld2</code>. In this case, you can use the
+            <code class="literal">[mysqld1]</code> group for 5.7.9 and the
+            <code class="literal">[mysqld2]</code> group for 8.0.33.
+            For example, you can set up <code class="filename">C:\my.cnf</code>
+            like this:
+          </p><pre class="programlisting"># options for mysqld1 service
+[mysqld1]
+basedir = C:/mysql-5.7.9
+port = 3307
+enable-named-pipe
+socket = mypipe1
+
+# options for mysqld2 service
+[mysqld2]
+basedir = C:/mysql-8.0.33
+port = 3308
+enable-named-pipe
+socket = mypipe2
+</pre><p>
+            Install the services as follows, using the full server path
+            names to ensure that Windows registers the correct
+            executable program for each service:
+          </p><pre class="programlisting">C:\&gt; <strong class="userinput"><code>C:\mysql-5.7.9\bin\mysqld --install mysqld1</code></strong>
+C:\&gt; <strong class="userinput"><code>C:\mysql-8.0.33\bin\mysqld --install mysqld2</code></strong>
+</pre><p>
+            To start the services, use the services manager, or
+            <span class="command"><strong>NET START</strong></span> or <span class="command"><strong>SC START</strong></span>
+            with the appropriate service names:
+          </p><pre class="programlisting">C:\&gt; <strong class="userinput"><code>SC START mysqld1</code></strong>
+C:\&gt; <strong class="userinput"><code>SC START mysqld2</code></strong>
+</pre><p>
+            To stop the services, use the services manager, or use
+            <span class="command"><strong>NET STOP</strong></span> or <span class="command"><strong>SC STOP</strong></span>
+            with the appropriate service names:
+          </p><pre class="programlisting">C:\&gt; <strong class="userinput"><code>SC STOP mysqld1</code></strong>
+C:\&gt; <strong class="userinput"><code>SC STOP mysqld2</code></strong>
+</pre></li><li class="listitem"><p>
+            <span class="bold"><strong>Approach 2:</strong></span> Specify options
+            for each server in separate files and use
+            <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a> when you
+            install the services to tell each server what file to use.
+            In this case, each file should list options using a
+            <code class="literal">[mysqld]</code> group.
+          </p><p>
+            With this approach, to specify options for the 5.7.9
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, create a file
+            <code class="filename">C:\my-opts1.cnf</code> that looks like this:
+          </p><pre class="programlisting">[mysqld]
+basedir = C:/mysql-5.7.9
+port = 3307
+enable-named-pipe
+socket = mypipe1
+</pre><p>
+            For the 8.0.33 <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, create
+            a file <code class="filename">C:\my-opts2.cnf</code> that looks like
+            this:
+          </p><pre class="programlisting">[mysqld]
+basedir = C:/mysql-8.0.33
+port = 3308
+enable-named-pipe
+socket = mypipe2
+</pre><p>
+            Install the services as follows (enter each command on a
+            single line):
+          </p><pre class="programlisting">C:\&gt; <strong class="userinput"><code>C:\mysql-5.7.9\bin\mysqld --install mysqld1</code></strong>
+           <strong class="userinput"><code>--defaults-file=C:\my-opts1.cnf</code></strong>
+C:\&gt; <strong class="userinput"><code>C:\mysql-8.0.33\bin\mysqld --install mysqld2</code></strong>
+           <strong class="userinput"><code>--defaults-file=C:\my-opts2.cnf</code></strong>
+</pre><p>
+            When you install a MySQL server as a service and use a
+            <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a> option, the
+            service name must precede the option.
+          </p><p>
+            After installing the services, start and stop them the same
+            way as in the preceding example.
+          </p></li></ul></div><p>
+        To remove multiple services, use <span class="command"><strong>SC DELETE
+        <em class="replaceable"><code>mysqld_service_name</code></em></strong></span> for
+        each one. Alternatively, use <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld --remove</strong></span></a>
+        for each one, specifying a service name following the
+        <a class="link" href="server-options.html#option_mysqld_remove"><code class="option">--remove</code></a> option. If the service
+        name is the default (<code class="literal">MySQL</code>), you can omit it
+        when using <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld --remove</strong></span></a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="multiple-windows-command-line-servers.html">Previous <span class="navHint"> Starting Multiple MySQL Instances at the Windows Command Line </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="multiple-windows-servers.html">Up <span class="navHint"> Running Multiple MySQL Instances on Windows </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="multiple-unix-servers.html">Next <span class="navHint"> Running Multiple MySQL Instances on Unix </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

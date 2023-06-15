@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.2.3.2 Monitoring Replication Applier Worker Threads</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-threads.html" title="17.2.3 Replication Threads" /><link rel="prev" href="replication-threads-monitor-main.html" title="17.2.3.1 Monitoring Replication Main Threads" /><link rel="next" href="replica-logs.html" title="17.2.4 Relay Log and Replication Metadata Repositories" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-threads-monitor-worker.html#replication-threads-monitor-worker">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-threads-monitor-main.html">Previous <span class="navHint"> Monitoring Replication Main Threads </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-threads.html">Up <span class="navHint"> Replication Threads </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replica-logs.html">Next <span class="navHint"> Relay Log and Replication Metadata Repositories </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-threads-monitor-worker"></a>17.2.3.2 Monitoring Replication Applier Worker Threads</h4></div></div></div><p>
+        On a multithreaded replica, the Performance Schema tables
+        <a class="link" href="performance-schema-replication-applier-status-by-coordinator-table.html" title="27.12.11.7 The replication_applier_status_by_coordinator Table"><code class="literal">replication_applier_status_by_coordinator</code></a>
+        and
+        <a class="link" href="performance-schema-replication-applier-status-by-worker-table.html" title="27.12.11.8 The replication_applier_status_by_worker Table"><code class="literal">replication_applier_status_by_worker</code></a>
+        show status information for the replica's coordinator thread and
+        applier worker threads respectively. For a replica with multiple
+        channels, the threads for each channel are identified.
+      </p><p>
+        A multithreaded replica's coordinator thread also prints
+        statistics to the replica's error log on a regular basis if the
+        verbosity setting is set to display informational messages. The
+        statistics are printed depending on the volume of events that
+        the coordinator thread has assigned to applier worker threads,
+        with a maximum frequency of once every 120 seconds. The message
+        lists the following statistics for the relevant replication
+        channel, or the default replication channel (which is not
+        named):
+      </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">
+            Seconds elapsed
+          </span></dt><dd><p>
+              The difference in seconds between the current time and the
+              last time this information was printed to the error log.
+            </p></dd><dt><span class="term">
+            Events assigned
+          </span></dt><dd><p>
+              The total number of events that the coordinator thread has
+              queued to all applier worker threads since the coordinator
+              thread was started.
+            </p></dd><dt><span class="term">
+            Worker queues filled over overrun level
+          </span></dt><dd><p>
+              The current number of events that are queued to any of the
+              applier worker threads in excess of the overrun level,
+              which is set at 90% of the maximum queue length of 16384
+              events. If this value is zero, no applier worker threads
+              are operating at the upper limit of their capacity.
+            </p></dd><dt><span class="term">
+            Waited due to worker queue full
+          </span></dt><dd><p>
+              The number of times that the coordinator thread had to
+              wait to schedule an event because an applier worker
+              thread's queue was full. If this value is zero, no applier
+              worker threads exhausted their capacity.
+            </p></dd><dt><span class="term">
+            Waited due to the total size
+          </span></dt><dd><p>
+              The number of times that the coordinator thread had to
+              wait to schedule an event because the
+              <a class="link" href="replication-options-replica.html#sysvar_replica_pending_jobs_size_max"><code class="literal">replica_pending_jobs_size_max</code></a>
+              or
+              <a class="link" href="replication-options-replica.html#sysvar_slave_pending_jobs_size_max"><code class="literal">slave_pending_jobs_size_max</code></a>
+              limit had been reached. This system variable sets the
+              maximum amount of memory (in bytes) available to applier
+              worker thread queues holding events not yet applied. If an
+              unusually large event exceeds this size, the transaction
+              is held until all the applier worker threads have empty
+              queues, and then processed. All subsequent transactions
+              are held until the large transaction has been completed.
+            </p></dd><dt><span class="term">
+            Waited at clock conflicts
+          </span></dt><dd><p>
+              The number of nanoseconds that the coordinator thread had
+              to wait to schedule an event because a transaction that
+              the event depended on had not yet been committed. If
+              <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_type"><code class="literal">replica_parallel_type</code></a> or
+              <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_type"><code class="literal">slave_parallel_type</code></a> is
+              set to <code class="literal">DATABASE</code> (rather than
+              <code class="literal">LOGICAL_CLOCK</code>), this value is always
+              zero.
+            </p></dd><dt><span class="term">
+            Waited (count) when workers occupied
+          </span></dt><dd><p>
+              The number of times that the coordinator thread slept for
+              a short period, which it might do in two situations. The
+              first situation is where the coordinator thread assigns an
+              event and finds the applier worker thread's queue is
+              filled beyond the underrun level of 10% of the maximum
+              queue length, in which case it sleeps for a maximum of 1
+              millisecond. The second situation is where
+              <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_type"><code class="literal">replica_parallel_type</code></a> or
+              <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_type"><code class="literal">slave_parallel_type</code></a> is
+              set to <code class="literal">LOGICAL_CLOCK</code> and the
+              coordinator thread needs to assign the first event of a
+              transaction to an applier worker thread's queue, it only
+              does this to a worker with an empty queue, so if no queues
+              are empty, the coordinator thread sleeps until one becomes
+              empty.
+            </p></dd><dt><span class="term">
+            Waited when workers occupied
+          </span></dt><dd><p>
+              The number of nanoseconds that the coordinator thread
+              slept while waiting for an empty applier worker thread
+              queue (that is, in the second situation described above,
+              where
+              <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_type"><code class="literal">replica_parallel_type</code></a> or
+              <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_type"><code class="literal">slave_parallel_type</code></a> is
+              set to <code class="literal">LOGICAL_CLOCK</code> and the first
+              event of a transaction needs to be assigned).
+            </p></dd></dl></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-threads-monitor-main.html">Previous <span class="navHint"> Monitoring Replication Main Threads </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-threads.html">Up <span class="navHint"> Replication Threads </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replica-logs.html">Next <span class="navHint"> Relay Log and Replication Metadata Repositories </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

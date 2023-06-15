@@ -1,0 +1,205 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1693"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/13.2.7.2%C2%A0INSERT%20...%20ON%20DUPLICATE%20KEY%20UPDATE%20Statement"></a><title>13.2.7.2&nbsp;INSERT ... ON DUPLICATE KEY UPDATE Statement</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="insert.html" title="13.2.7&nbsp;INSERT Statement"/><link rel="prev" href="insert-select.html" title="13.2.7.1&nbsp;INSERT ... SELECT Statement"/><link rel="next" href="insert-delayed.html" title="13.2.7.3&nbsp;INSERT DELAYED Statement"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="insert-on-duplicate.html#insert-on-duplicate">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="insert-select.html">Previous <span class="navHint"> INSERT ... SELECT Statement </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="insert.html">Up <span class="navHint"> INSERT Statement </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="insert-delayed.html">Next <span class="navHint"> INSERT DELAYED Statement </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1692"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/13.2.7.2%C2%A0INSERT%20...%20ON%20DUPLICATE%20KEY%20UPDATE%20Statement"></a><h4 class="title"><a id="insert-on-duplicate"></a>13.2.7.2&nbsp;INSERT ... ON DUPLICATE KEY UPDATE Statement</h4></div></div></div><p>
+        If you specify an <code class="literal">ON DUPLICATE KEY UPDATE</code>
+        clause and a row to be inserted would cause a duplicate value in
+        a <code class="literal">UNIQUE</code> index or <code class="literal">PRIMARY
+        KEY</code>, an <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> of the
+        old row occurs. For example, if column <code class="literal">a</code> is
+        declared as <code class="literal">UNIQUE</code> and contains the value
+        <code class="literal">1</code>, the following two statements have similar
+        effect:
+      </p><pre class="programlisting">INSERT INTO t1 (a,b,c) VALUES (1,2,3)
+  ON DUPLICATE KEY UPDATE c=c+1;
+
+UPDATE t1 SET c=c+1 WHERE a=1;
+</pre><p>
+        The effects are not quite identical: For an
+        <code class="literal">InnoDB</code> table where <code class="literal">a</code> is an
+        auto-increment column, the <code class="literal">INSERT</code> statement
+        increases the auto-increment value but the
+        <code class="literal">UPDATE</code> does not.
+      </p><p>
+        If column <code class="literal">b</code> is also unique, the
+        <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> is equivalent to this
+        <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> statement instead:
+      </p><pre class="programlisting">UPDATE t1 SET c=c+1 WHERE a=1 OR b=2 LIMIT 1;
+</pre><p>
+        If <code class="literal">a=1 OR b=2</code> matches several rows, only
+        <span class="emphasis"><em>one</em></span> row is updated. In general, you should
+        try to avoid using an <code class="literal">ON DUPLICATE KEY UPDATE</code>
+        clause on tables with multiple unique indexes.
+      </p><p>
+        With <code class="literal">ON DUPLICATE KEY UPDATE</code>, the
+        affected-rows value per row is 1 if the row is inserted as a new
+        row, 2 if an existing row is updated, and 0 if an existing row
+        is set to its current values. If you specify the
+        <code class="literal">CLIENT_FOUND_ROWS</code> flag to the
+        <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-real-connect.html" target="_top"><code class="literal">mysql_real_connect()</code></a> C API
+        function when connecting to <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, the
+        affected-rows value is 1 (not 0) if an existing row is set to
+        its current values.
+      </p><p>
+        If a table contains an <code class="literal">AUTO_INCREMENT</code> column
+        and <a class="link" href="insert-on-duplicate.html" title="13.2.7.2&nbsp;INSERT ... ON DUPLICATE KEY UPDATE Statement"><code class="literal">INSERT
+        ... ON DUPLICATE KEY UPDATE</code></a> inserts or updates a row,
+        the <a class="link" href="information-functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a> function
+        returns the <code class="literal">AUTO_INCREMENT</code> value.
+      </p><p>
+        The <code class="literal">ON DUPLICATE KEY UPDATE</code> clause can
+        contain multiple column assignments, separated by commas.
+      </p><p>
+        In assignment value expressions in the <code class="literal">ON DUPLICATE KEY
+        UPDATE</code> clause, you can use the
+        <a class="link" href="miscellaneous-functions.html#function_values"><code class="literal">VALUES(<em class="replaceable"><code>col_name</code></em>)</code></a>
+        function to refer to column values from the
+        <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> portion of the
+        <a class="link" href="insert-on-duplicate.html" title="13.2.7.2&nbsp;INSERT ... ON DUPLICATE KEY UPDATE Statement"><code class="literal">INSERT ...
+        ON DUPLICATE KEY UPDATE</code></a> statement. In other words,
+        <a class="link" href="miscellaneous-functions.html#function_values"><code class="literal">VALUES(<em class="replaceable"><code>col_name</code></em>)</code></a>
+        in the <code class="literal">ON DUPLICATE KEY UPDATE</code> clause refers
+        to the value of <em class="replaceable"><code>col_name</code></em> that would
+        be inserted, had no duplicate-key conflict occurred. This
+        function is especially useful in multiple-row inserts. The
+        <a class="link" href="miscellaneous-functions.html#function_values"><code class="literal">VALUES()</code></a> function is meaningful
+        only in the <code class="literal">ON DUPLICATE KEY UPDATE</code> clause or
+        <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> statements and returns
+        <code class="literal">NULL</code> otherwise. Example:
+      </p><pre class="programlisting">INSERT INTO t1 (a,b,c) VALUES (1,2,3),(4,5,6)
+  ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b);
+</pre><p>
+        That statement is identical to the following two statements:
+      </p><pre class="programlisting">INSERT INTO t1 (a,b,c) VALUES (1,2,3)
+  ON DUPLICATE KEY UPDATE c=3;
+INSERT INTO t1 (a,b,c) VALUES (4,5,6)
+  ON DUPLICATE KEY UPDATE c=9;
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          The use of <a class="link" href="miscellaneous-functions.html#function_values"><code class="literal">VALUES()</code></a> to refer to
+          the new row and columns is deprecated beginning with MySQL
+          8.0.20, and is subject to removal in a future version of
+          MySQL. Instead, use row and column aliases, as described in
+          the next few paragraphs of this section.
+        </p></div><p>
+        Beginning with MySQL 8.0.19, it is possible to use an alias for
+        the row, with, optionally, one or more of its columns to be
+        inserted, following the <code class="literal">VALUES</code> or
+        <code class="literal">SET</code> clause, and preceded by the
+        <code class="literal">AS</code> keyword. Using the row alias
+        <code class="literal">new</code>, the statement shown previously using
+        <code class="literal">VALUES()</code> to access the new column values can
+        be written in the form shown here:
+      </p><pre class="programlisting">INSERT INTO t1 (a,b,c) VALUES (1,2,3),(4,5,6) AS new
+  ON DUPLICATE KEY UPDATE c = new.a+new.b;
+</pre><p>
+        If, in addition, you use the column aliases
+        <code class="literal">m</code>, <code class="literal">n</code>, and
+        <code class="literal">p</code>, you can omit the row alias in the
+        assignment clause and write the same statement like this:
+      </p><pre class="programlisting">INSERT INTO t1 (a,b,c) VALUES (1,2,3),(4,5,6) AS new(m,n,p)
+  ON DUPLICATE KEY UPDATE c = m+n;
+</pre><p>
+        When using column aliases in this fashion, you must still use a
+        row alias following the <code class="literal">VALUES</code> clause, even
+        if you do not make direct use of it in the assignment clause.
+      </p><p>
+        Beginning with MySQL 8.0.20, an <code class="literal">INSERT ... SELECT ...
+        ON DUPLICATE KEY UPDATE</code> statement that uses
+        <code class="literal">VALUES()</code> in the <code class="literal">UPDATE</code>
+        clause, like this one, throws a warning:
+      </p><pre class="programlisting">INSERT INTO t1
+  SELECT c, c+d FROM t2
+  ON DUPLICATE KEY UPDATE b = VALUES(b);
+</pre><p>
+        You can eliminate such warnings by using a subquery instead,
+        like this:
+      </p><pre class="programlisting">INSERT INTO t1
+  SELECT * FROM (SELECT c, c+d AS e FROM t2) AS dt
+  ON DUPLICATE KEY UPDATE b = e;
+</pre><p>
+        You can also use row and column aliases with a
+        <code class="literal">SET</code> clause, as mentioned previously.
+        Employing <code class="literal">SET</code> instead of
+        <code class="literal">VALUES</code> in the two <code class="literal">INSERT ... ON
+        DUPLICATE KEY UPDATE</code> statements just shown can be done
+        as shown here:
+      </p><pre class="programlisting">INSERT INTO t1 SET a=1,b=2,c=3 AS new
+  ON DUPLICATE KEY UPDATE c = new.a+new.b;
+
+INSERT INTO t1 SET a=1,b=2,c=3 AS new(m,n,p)
+  ON DUPLICATE KEY UPDATE c = m+n;
+</pre><p>
+        The row alias must not be the same as the name of the table. If
+        column aliases are not used, or if they are the same as the
+        column names, they must be distinguished using the row alias in
+        the <code class="literal">ON DUPLICATE KEY UPDATE</code> clause. Column
+        aliases must be unique with regard to the row alias to which
+        they apply (that is, no column aliases referring to columns of
+        the same row may be the same).
+      </p><p>
+        For <a class="link" href="insert-on-duplicate.html" title="13.2.7.2&nbsp;INSERT ... ON DUPLICATE KEY UPDATE Statement"><code class="literal">INSERT
+        ... SELECT</code></a> statements, these rules apply regarding
+        acceptable forms of <code class="literal">SELECT</code> query expressions
+        that you can refer to in an <code class="literal">ON DUPLICATE KEY
+        UPDATE</code> clause:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            References to columns from queries on a single table, which
+            may be a derived table.
+          </p></li><li class="listitem"><p>
+            References to columns from queries on a join over multiple
+            tables.
+          </p></li><li class="listitem"><p>
+            References to columns from <code class="literal">DISTINCT</code>
+            queries.
+          </p></li><li class="listitem"><p>
+            References to columns in other tables, as long as the
+            <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> does not use
+            <code class="literal">GROUP BY</code>. One side effect is that you
+            must qualify references to nonunique column names.
+          </p></li></ul></div><p>
+        References to columns from a
+        <a class="link" href="union.html" title="13.2.18&nbsp;UNION Clause"><code class="literal">UNION</code></a> are not supported. To work
+        around this restriction, rewrite the
+        <a class="link" href="union.html" title="13.2.18&nbsp;UNION Clause"><code class="literal">UNION</code></a> as a derived table so that
+        its rows can be treated as a single-table result set. For
+        example, this statement produces an error:
+      </p><pre class="programlisting">INSERT INTO t1 (a, b)
+  SELECT c, d FROM t2
+  UNION
+  SELECT e, f FROM t3
+ON DUPLICATE KEY UPDATE b = b + c;
+</pre><p>
+        Instead, use an equivalent statement that rewrites the
+        <a class="link" href="union.html" title="13.2.18&nbsp;UNION Clause"><code class="literal">UNION</code></a> as a derived table:
+      </p><pre class="programlisting">INSERT INTO t1 (a, b)
+SELECT * FROM
+  (SELECT c, d FROM t2
+   UNION
+   SELECT e, f FROM t3) AS dt
+ON DUPLICATE KEY UPDATE b = b + c;
+</pre><p>
+        The technique of rewriting a query as a derived table also
+        enables references to columns from <code class="literal">GROUP BY</code>
+        queries.
+      </p><p>
+        Because the results of
+        <a class="link" href="insert-select.html" title="13.2.7.1&nbsp;INSERT ... SELECT Statement"><code class="literal">INSERT ...
+        SELECT</code></a> statements depend on the ordering of rows from
+        the <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> and this order cannot
+        always be guaranteed, it is possible when logging
+        <a class="link" href="insert-on-duplicate.html" title="13.2.7.2&nbsp;INSERT ... ON DUPLICATE KEY UPDATE Statement"><code class="literal">INSERT ...
+        SELECT ON DUPLICATE KEY UPDATE</code></a> statements for the
+        source and the replica to diverge. Thus,
+        <a class="link" href="insert-on-duplicate.html" title="13.2.7.2&nbsp;INSERT ... ON DUPLICATE KEY UPDATE Statement"><code class="literal">INSERT ...
+        SELECT ON DUPLICATE KEY UPDATE</code></a> statements are flagged
+        as unsafe for statement-based replication. Such statements
+        produce a warning in the error log when using statement-based
+        mode and are written to the binary log using the row-based
+        format when using <code class="literal">MIXED</code> mode. An
+        <a class="link" href="insert-on-duplicate.html" title="13.2.7.2&nbsp;INSERT ... ON DUPLICATE KEY UPDATE Statement"><code class="literal">INSERT ...
+        ON DUPLICATE KEY UPDATE</code></a> statement against a table
+        having more than one unique or primary key is also marked as
+        unsafe. (Bug #11765650, Bug #58637)
+      </p><p>
+        See also <a class="xref" href="replication-sbr-rbr.html" title="17.2.1.1&nbsp;Advantages and Disadvantages of Statement-Based and Row-Based Replication">Section&nbsp;17.2.1.1, &ldquo;Advantages and Disadvantages of Statement-Based and Row-Based
+        Replication&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="insert-select.html">Previous <span class="navHint"> INSERT ... SELECT Statement </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="insert.html">Up <span class="navHint"> INSERT Statement </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="insert-delayed.html">Next <span class="navHint"> INSERT DELAYED Statement </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

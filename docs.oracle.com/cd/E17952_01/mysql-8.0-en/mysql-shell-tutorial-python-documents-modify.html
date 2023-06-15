@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>20.4.3.4 Modify Documents</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-shell-tutorial-python-documents-collections.html" title="20.4.3 Documents and Collections" /><link rel="prev" href="mysql-shell-tutorial-python-documents-find.html" title="20.4.3.3 Find Documents" /><link rel="next" href="mysql-shell-tutorial-python-documents-remove.html" title="20.4.3.5 Remove Documents" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-shell-tutorial-python-documents-modify.html#mysql-shell-tutorial-python-documents-modify">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-shell-tutorial-python-documents-find.html">Previous <span class="navHint"> Find Documents </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-shell-tutorial-python-documents-collections.html">Up <span class="navHint"> Documents and Collections </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-shell-tutorial-python-documents-remove.html">Next <span class="navHint"> Remove Documents </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-shell-tutorial-python-documents-modify"></a>20.4.3.4 Modify Documents</h4></div></div></div><a id="idm45828848594320" class="indexterm"></a><p>
+        You can use the <code class="literal">modify()</code> method to update one
+        or more documents in a collection. The X DevAPI provides
+        additional methods for use with the <code class="literal">modify()</code>
+        method to:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Set and unset fields within documents.
+          </p></li><li class="listitem"><p>
+            Append, insert, and delete arrays.
+          </p></li><li class="listitem"><p>
+            Bind, limit, and sort the documents to be modified.
+          </p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="idm45828848587872"></a>Set and Unset Document Fields</h5></div></div></div><a id="idm45828848587184" class="indexterm"></a><p>
+          The <code class="literal">modify()</code> method works by filtering a
+          collection to include only the documents to be modified and
+          then applying the operations that you specify to those
+          documents.
+        </p><p>
+          In the following example, the <code class="literal">modify()</code>
+          method uses the search condition to identify the document to
+          change and then the <code class="literal">set()</code> method replaces
+          two values within the nested demographics object.
+        </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.modify("Code = 'SEA'").set(
+"demographics", {"LifeExpectancy": 78, "Population": 28})</code></strong>
+</pre><p>
+          After you modify a document, use the <code class="literal">find()</code>
+          method to verify the change.
+        </p><p>
+          To remove content from a document, use the
+          <code class="literal">modify()</code> and <code class="literal">unset()</code>
+          methods. For example, the following query removes the GNP from
+          a document that matches the search condition.
+        </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.modify("Name = 'Sealand'").unset("GNP")</code></strong>
+</pre><p>
+          Use the <code class="literal">find()</code> method to verify the change.
+        </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.find("Name = 'Sealand'")</code></strong>
+{
+    "_id": "00005e2ff4af00000000000000f4",
+    "Name": "Sealand",
+    "Code:": "SEA",
+    "IndepYear": 1967,
+    "geography": {
+        "Region": "British Islands",
+        "Continent": "Europe",
+        "SurfaceArea": 193
+    },
+    "government": {
+        "HeadOfState": "Michael Bates",
+        "GovernmentForm": "Monarchy"
+    },
+    "demographics": {
+        "Population": 27,
+        "LifeExpectancy": 79
+    }
+}
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="mysql-shell-tutorial-python-append-insert-delete"></a>Append, Insert, and Delete Arrays</h5></div></div></div><a id="idm45828848571088" class="indexterm"></a><p>
+          To append an element to an array field, or insert, or delete
+          elements in an array, use the
+          <code class="literal">array_append()</code>,
+          <code class="literal">array_insert()</code>, or
+          <code class="literal">array_delete()</code> methods. The following
+          examples modify the <code class="literal">countryinfo</code> collection
+          to enable tracking of international airports.
+        </p><p>
+          The first example uses the <code class="literal">modify()</code> and
+          <code class="literal">set()</code> methods to create a new Airports
+          field in all documents.
+        </p><div class="caution" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Caution</div><p>
+            Use care when you modify documents without specifying a
+            search condition; doing so modifies all documents in the
+            collection.
+          </p></div><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.modify("true").set("Airports", [])</code></strong>
+</pre><p>
+          With the Airports field added, the next example uses the
+          <code class="literal">array_append()</code> method to add a new airport
+          to one of the documents. <span class="emphasis"><em>$.Airports</em></span> in
+          the following example represents the Airports field of the
+          current document.
+        </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.modify("Name = 'France'").array_append("$.Airports", "ORY")</code></strong>
+</pre><p>
+          Use <code class="literal">find()</code> to see the change.
+        </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.find("Name = 'France'")</code></strong>
+{
+    "GNP": 1424285,
+    "_id": "00005de917d80000000000000048",
+    "Code": "FRA",
+    "Name": "France",
+    "Airports": [
+        "ORY"
+    ],
+    "IndepYear": 843,
+    "geography": {
+        "Region": "Western Europe",
+        "Continent": "Europe",
+        "SurfaceArea": 551500
+    },
+    "government": {
+        "HeadOfState": "Jacques Chirac",
+        "GovernmentForm": "Republic"
+    },
+    "demographics": {
+        "Population": 59225700,
+        "LifeExpectancy": 78.80000305175781
+    }
+}
+</pre><p>
+          To insert an element at a different position in the array, use
+          the <code class="literal">array_insert()</code> method to specify which
+          index to insert in the path expression. In this case, the
+          index is 0, or the first element in the array.
+        </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.modify("Name = 'France'").array_insert("$.Airports[0]", "CDG")</code></strong>
+</pre><p>
+          To delete an element from the array, you must pass to the
+          <code class="literal">array_delete()</code> method the index of the
+          element to be deleted.
+        </p><pre class="programlisting">mysql-py&gt; <strong class="userinput"><code>db.countryinfo.modify("Name = 'France'").array_delete("$.Airports[1]")</code></strong>
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h5 class="title"><a id="idm45828848548592"></a>Related Information</h5></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The <a class="link" href="json.html#json-paths" title="Searching and Modifying JSON Values">MySQL Reference
+              Manual</a> provides instructions to help you search for
+              and modify JSON values.
+            </p></li><li class="listitem"><p>
+              See <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/x-devapi-userguide-en/crud-ebnf-collection-crud-functions.html#crud-ebnf-collectionmodifyfunction" target="_top">CollectionModifyFunction</a>
+              for the full syntax definition.
+            </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-shell-tutorial-python-documents-find.html">Previous <span class="navHint"> Find Documents </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-shell-tutorial-python-documents-collections.html">Up <span class="navHint"> Documents and Collections </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-shell-tutorial-python-documents-remove.html">Next <span class="navHint"> Remove Documents </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

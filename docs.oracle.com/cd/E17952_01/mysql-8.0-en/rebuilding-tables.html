@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>2.10.13 Rebuilding or Repairing Tables or Indexes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="upgrading.html" title="2.10 Upgrading MySQL" /><link rel="prev" href="upgrade-troubleshooting.html" title="2.10.12 Upgrade Troubleshooting" /><link rel="next" href="copying-databases.html" title="2.10.14 Copying MySQL Databases to Another Machine" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="rebuilding-tables.html#rebuilding-tables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="upgrade-troubleshooting.html">Previous <span class="navHint"> Upgrade Troubleshooting </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="upgrading.html">Up <span class="navHint"> Upgrading MySQL </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="copying-databases.html">Next <span class="navHint"> Copying MySQL Databases to Another Machine </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="rebuilding-tables"></a>2.10.13 Rebuilding or Repairing Tables or Indexes</h3></div></div></div><a id="idm45829050949728" class="indexterm"></a><a id="idm45829050948272" class="indexterm"></a><a id="idm45829050946784" class="indexterm"></a><p>
+      This section describes how to rebuild or repair tables or indexes,
+      which may be necessitated by:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Changes to how MySQL handles data types or character sets. For
+          example, an error in a collation might have been corrected,
+          necessitating a table rebuild to update the indexes for
+          character columns that use the collation.
+        </p></li><li class="listitem"><p>
+          Required table repairs or upgrades reported by
+          <a class="link" href="check-table.html" title="13.7.3.2 CHECK TABLE Statement"><code class="literal">CHECK TABLE</code></a>,
+          <a class="link" href="mysqlcheck.html" title="4.5.3 mysqlcheck — A Table Maintenance Program"><span class="command"><strong>mysqlcheck</strong></span></a>, or
+          <a class="link" href="mysql-upgrade.html" title="4.4.5 mysql_upgrade — Check and Upgrade MySQL Tables"><span class="command"><strong>mysql_upgrade</strong></span></a>.
+        </p></li></ul></div><p>
+      Methods for rebuilding a table include:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="rebuilding-tables.html#rebuilding-tables-dump-reload" title="Dump and Reload Method">Dump and Reload Method</a></p></li><li class="listitem"><p><a class="xref" href="rebuilding-tables.html#rebuilding-tables-alter-table" title="ALTER TABLE Method">ALTER TABLE Method</a></p></li><li class="listitem"><p><a class="xref" href="rebuilding-tables.html#rebuilding-tables-repair-table" title="REPAIR TABLE Method">REPAIR TABLE Method</a></p></li></ul></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="rebuilding-tables-dump-reload"></a>Dump and Reload Method</h4></div></div></div><p>
+        If you are rebuilding tables because a different version of
+        MySQL cannot handle them after a binary (in-place) upgrade or
+        downgrade, you must use the dump-and-reload method. Dump the
+        tables <span class="emphasis"><em>before</em></span> upgrading or downgrading
+        using your original version of MySQL. Then reload the tables
+        <span class="emphasis"><em>after</em></span> upgrading or downgrading.
+      </p><p>
+        If you use the dump-and-reload method of rebuilding tables only
+        for the purpose of rebuilding indexes, you can perform the dump
+        either before or after upgrading or downgrading. Reloading still
+        must be done afterward.
+      </p><p>
+        If you need to rebuild an <code class="literal">InnoDB</code> table
+        because a <a class="link" href="check-table.html" title="13.7.3.2 CHECK TABLE Statement"><code class="literal">CHECK TABLE</code></a> operation
+        indicates that a table upgrade is required, use
+        <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> to create a dump file and
+        <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> to reload the file. If the
+        <a class="link" href="check-table.html" title="13.7.3.2 CHECK TABLE Statement"><code class="literal">CHECK TABLE</code></a> operation indicates
+        that there is a corruption or causes <code class="literal">InnoDB</code>
+        to fail, refer to <a class="xref" href="forcing-innodb-recovery.html" title="15.21.3 Forcing InnoDB Recovery">Section 15.21.3, “Forcing InnoDB Recovery”</a> for
+        information about using the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery</code></a> option to
+        restart <code class="literal">InnoDB</code>. To understand the type of
+        problem that <a class="link" href="check-table.html" title="13.7.3.2 CHECK TABLE Statement"><code class="literal">CHECK TABLE</code></a> may be
+        encountering, refer to the <code class="literal">InnoDB</code> notes in
+        <a class="xref" href="check-table.html" title="13.7.3.2 CHECK TABLE Statement">Section 13.7.3.2, “CHECK TABLE Statement”</a>.
+      </p><p>
+        To rebuild a table by dumping and reloading it, use
+        <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> to create a dump file and
+        <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> to reload the file:
+      </p><pre class="programlisting">mysqldump <em class="replaceable"><code>db_name</code></em> t1 &gt; dump.sql
+mysql <em class="replaceable"><code>db_name</code></em> &lt; dump.sql
+</pre><p>
+        To rebuild all the tables in a single database, specify the
+        database name without any following table name:
+      </p><pre class="programlisting">mysqldump <em class="replaceable"><code>db_name</code></em> &gt; dump.sql
+mysql <em class="replaceable"><code>db_name</code></em> &lt; dump.sql
+</pre><p>
+        To rebuild all tables in all databases, use the
+        <a class="link" href="mysqldump.html#option_mysqldump_all-databases"><code class="option">--all-databases</code></a> option:
+      </p><pre class="programlisting">mysqldump --all-databases &gt; dump.sql
+mysql &lt; dump.sql
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="rebuilding-tables-alter-table"></a>ALTER TABLE Method</h4></div></div></div><p>
+        To rebuild a table with <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+        TABLE</code></a>, use a <span class="quote">“<span class="quote">null</span>”</span> alteration; that is,
+        an <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement that
+        <span class="quote">“<span class="quote">changes</span>”</span> the table to use the storage engine that
+        it already has. For example, if <code class="literal">t1</code> is an
+        <code class="literal">InnoDB</code> table, use this statement:
+      </p><pre class="programlisting">ALTER TABLE t1 ENGINE = InnoDB;
+</pre><p>
+        If you are not sure which storage engine to specify in the
+        <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement, use
+        <a class="link" href="show-create-table.html" title="13.7.7.10 SHOW CREATE TABLE Statement"><code class="literal">SHOW CREATE TABLE</code></a> to display the
+        table definition.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="rebuilding-tables-repair-table"></a>REPAIR TABLE Method</h4></div></div></div><p>
+        The <a class="link" href="repair-table.html" title="13.7.3.5 REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a> method is only
+        applicable to <code class="literal">MyISAM</code>,
+        <code class="literal">ARCHIVE</code>, and <code class="literal">CSV</code> tables.
+      </p><p>
+        You can use <a class="link" href="repair-table.html" title="13.7.3.5 REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a> if the
+        table checking operation indicates that there is a corruption or
+        that an upgrade is required. For example, to repair a
+        <code class="literal">MyISAM</code> table, use this statement:
+      </p><pre class="programlisting">REPAIR TABLE t1;
+</pre><p>
+        <a class="link" href="mysqlcheck.html" title="4.5.3 mysqlcheck — A Table Maintenance Program"><span class="command"><strong>mysqlcheck --repair</strong></span></a> provides command-line
+        access to the <a class="link" href="repair-table.html" title="13.7.3.5 REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a>
+        statement. This can be a more convenient means of repairing
+        tables because you can use the
+        <a class="link" href="mysqlcheck.html#option_mysqlcheck_databases"><code class="option">--databases</code></a> or
+        <a class="link" href="mysqlcheck.html#option_mysqlcheck_all-databases"><code class="option">--all-databases</code></a> option to
+        repair all tables in specific databases or all databases,
+        respectively:
+      </p><pre class="programlisting">mysqlcheck --repair --databases <em class="replaceable"><code>db_name</code></em> ...
+mysqlcheck --repair --all-databases
+</pre></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="upgrade-troubleshooting.html">Previous <span class="navHint"> Upgrade Troubleshooting </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="upgrading.html">Up <span class="navHint"> Upgrading MySQL </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="copying-databases.html">Next <span class="navHint"> Copying MySQL Databases to Another Machine </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

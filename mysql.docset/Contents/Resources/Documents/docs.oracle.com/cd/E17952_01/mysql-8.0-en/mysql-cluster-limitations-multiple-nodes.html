@@ -1,0 +1,77 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2102"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.2.7.10%C2%A0Limitations%20Relating%20to%20Multiple%20NDB%20Cluster%20Nodes"></a><title>23.2.7.10&nbsp;Limitations Relating to Multiple NDB Cluster Nodes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-limitations.html" title="23.2.7&nbsp;Known Limitations of NDB Cluster"/><link rel="prev" href="mysql-cluster-limitations-disk-data.html" title="23.2.7.9&nbsp;Limitations Relating to NDB Cluster Disk Data Storage"/><link rel="next" href="mysql-cluster-limitations-resolved.html" title="23.2.7.11&nbsp;Previous NDB Cluster Issues Resolved in NDB Cluster 8.0"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-limitations-multiple-nodes.html#mysql-cluster-limitations-multiple-nodes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-limitations-disk-data.html">Previous <span class="navHint"> Limitations Relating to NDB Cluster Disk Data Storage </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-limitations.html">Up <span class="navHint"> Known Limitations of NDB Cluster </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-limitations-resolved.html">Next <span class="navHint"> Previous NDB Cluster Issues Resolved in NDB Cluster 8.0 </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2098"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/23.2.7.10%C2%A0Limitations%20Relating%20to%20Multiple%20NDB%20Cluster%20Nodes"></a><h4 class="title"><a id="mysql-cluster-limitations-multiple-nodes"></a>23.2.7.10&nbsp;Limitations Relating to Multiple NDB Cluster Nodes</h4></div></div></div><p><strong>Multiple SQL nodes.&nbsp;</strong><a id="idm45828843153440" class="indexterm"></a>
+          The following are issues relating to the use of multiple MySQL
+          servers as NDB Cluster SQL nodes, and are specific to the
+          <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> storage engine:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-2099"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Stored%20programs%20not%20distributed."></a><strong>Stored programs not distributed.&nbsp;</strong>
+              Stored procedures, stored functions, triggers, and
+              scheduled events are all supported by tables using the
+              <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> storage engine, but these
+              do <span class="emphasis"><em>not</em></span> propagate automatically
+              between MySQL Servers acting as Cluster SQL nodes, and
+              must be re-created separately on each SQL node. See
+              <a class="xref" href="stored-program-restrictions.html#stored-routines-ndbcluster" title="Stored routines and triggers in NDB Cluster">Stored routines and triggers in NDB Cluster</a>.
+            </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2100"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/No%20distributed%20table%20locks."></a><strong>No distributed table locks.&nbsp;</strong>
+              A <a class="link" href="lock-tables.html" title="13.3.6&nbsp;LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">LOCK TABLES</code></a> statement or
+              <a class="link" href="locking-functions.html#function_get-lock"><code class="literal">GET_LOCK()</code></a> call works only
+              for the SQL node on which the lock is issued; no other SQL
+              node in the cluster <span class="quote">&ldquo;<span class="quote">sees</span>&rdquo;</span> this lock. This is
+              true for a lock issued by any statement that locks tables
+              as part of its operations. (See next item for an example.)
+            </p><p>
+            Implementing table locks in <code class="literal">NDBCLUSTER</code>
+            can be done in an API application, and ensuring that all
+            applications start by setting
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndboperation.html#ndb-ndboperation-lockmode" target="_top"><code class="literal">LockMode</code></a> to
+            <code class="literal">LM_Read</code> or
+            <code class="literal">LM_Exclusive</code>. For more information about
+            how to do this, see the description of
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndboperation.html#ndb-ndboperation-getlockhandle" target="_top"><code class="literal">NdbOperation::getLockHandle()</code></a>
+            in the <em class="citetitle">NDB Cluster API Guide</em>.
+          </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-2101"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/ALTER%20TABLE%20operations."></a><strong>ALTER TABLE operations.&nbsp;</strong>
+              <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> is not fully
+              locking when running multiple MySQL servers (SQL nodes).
+              (As discussed in the previous item, NDB Cluster does not
+              support distributed table locks.)
+            </p></li></ul></div><p><strong>Multiple management nodes.&nbsp;</strong><a id="idm45828843131088" class="indexterm"></a>
+          When using multiple management servers:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            If any of the management servers are running on the same
+            host, you must give nodes explicit IDs in connection strings
+            because automatic allocation of node IDs does not work
+            across multiple management servers on the same host. This is
+            not required if every management server resides on a
+            different host.
+          </p></li><li class="listitem"><p>
+            When a management server starts, it first checks for any
+            other management server in the same NDB Cluster, and upon
+            successful connection to the other management server uses
+            its configuration data. This means that the management
+            server <a class="link" href="mysql-cluster-programs-ndb-mgmd.html#option_ndb_mgmd_reload"><code class="option">--reload</code></a> and
+            <a class="link" href="mysql-cluster-programs-ndb-mgmd.html#option_ndb_mgmd_initial"><code class="option">--initial</code></a> startup options
+            are ignored unless the management server is the only one
+            running. It also means that, when performing a rolling
+            restart of an NDB Cluster with multiple management nodes,
+            the management server reads its own configuration file if
+            (and only if) it is the only management server running in
+            this NDB Cluster. See
+            <a class="xref" href="mysql-cluster-rolling-restart.html" title="23.6.5&nbsp;Performing a Rolling Restart of an NDB Cluster">Section&nbsp;23.6.5, &ldquo;Performing a Rolling Restart of an NDB Cluster&rdquo;</a>, for more
+            information.
+          </p></li></ul></div><p><strong>Multiple network addresses.&nbsp;</strong>
+          Multiple network addresses per data node are not supported.
+          Use of these is liable to cause problems: In the event of a
+          data node failure, an SQL node waits for confirmation that the
+          data node went down but never receives it because another
+          route to that data node remains open. This can effectively
+          make the cluster inoperable.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          It is possible to use multiple network hardware
+          <span class="emphasis"><em>interfaces</em></span> (such as Ethernet cards) for a
+          single data node, but these must be bound to the same address.
+          This also means that it not possible to use more than one
+          <code class="literal">[tcp]</code> section per connection in the
+          <code class="literal">config.ini</code> file. See
+          <a class="xref" href="mysql-cluster-tcp-definition.html" title="23.4.3.10&nbsp;NDB Cluster TCP/IP Connections">Section&nbsp;23.4.3.10, &ldquo;NDB Cluster TCP/IP Connections&rdquo;</a>, for more
+          information.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-limitations-disk-data.html">Previous <span class="navHint"> Limitations Relating to NDB Cluster Disk Data Storage </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-limitations.html">Up <span class="navHint"> Known Limitations of NDB Cluster </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-limitations-resolved.html">Next <span class="navHint"> Previous NDB Cluster Issues Resolved in NDB Cluster 8.0 </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

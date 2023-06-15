@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.7.6 Starting NDB Cluster Replication (Single Replication Channel)</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-replication.html" title="23.7 NDB Cluster Replication" /><link rel="prev" href="mysql-cluster-replication-preparation.html" title="23.7.5 Preparing the NDB Cluster for Replication" /><link rel="next" href="mysql-cluster-replication-two-channels.html" title="23.7.7 Using Two Replication Channels for NDB Cluster Replication" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-replication-starting.html#mysql-cluster-replication-starting">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-replication-preparation.html">Previous <span class="navHint"> Preparing the NDB Cluster for Replication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-replication-two-channels.html">Next <span class="navHint"> Using Two Replication Channels for NDB Cluster Replication </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-replication-starting"></a>23.7.6 Starting NDB Cluster Replication (Single Replication Channel)</h3></div></div></div><a id="idm45828803884560" class="indexterm"></a><p>
+      This section outlines the procedure for starting NDB Cluster
+      replication using a single replication channel.
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Start the MySQL replication source server by issuing this
+          command, where <em class="replaceable"><code>id</code></em> is this
+          server's unique ID (see
+          <a class="xref" href="mysql-cluster-replication-general.html" title="23.7.2 General Requirements for NDB Cluster Replication">Section 23.7.2, “General Requirements for NDB Cluster Replication”</a>):
+        </p><pre class="programlisting">shell<em class="replaceable"><code>S</code></em>&gt; <strong class="userinput"><code>mysqld --ndbcluster --server-id=<em class="replaceable"><code>id</code></em> \</code></strong>
+        <strong class="userinput"><code>--log-bin --ndb-log-bin &amp;</code></strong>
+</pre><p>
+          This starts the server's <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+          process with binary logging enabled using the proper logging
+          format. It is also necessary in NDB 8.0 to enable logging of
+          updates to <code class="literal">NDB</code> tables explicitly, using the
+          <a class="link" href="mysql-cluster-options-variables.html#sysvar_ndb_log_bin"><code class="option">--ndb-log-bin</code></a> option; this is a
+          change from previous versions of NDB Cluster, in which this
+          option was enabled by default.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            You can also start the source with
+            <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="option">--binlog-format=MIXED</code></a>, in
+            which case row-based replication is used automatically when
+            replicating between clusters. Statement-based binary logging
+            is not supported for NDB Cluster Replication (see
+            <a class="xref" href="mysql-cluster-replication-general.html" title="23.7.2 General Requirements for NDB Cluster Replication">Section 23.7.2, “General Requirements for NDB Cluster Replication”</a>).
+          </p></div></li><li class="listitem"><p>
+          Start the MySQL replica server as shown here:
+        </p><pre class="programlisting">shell<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>mysqld --ndbcluster --server-id=<em class="replaceable"><code>id</code></em> &amp;</code></strong>
+</pre><p>
+          In the command just shown, <em class="replaceable"><code>id</code></em> is
+          the replica server's unique ID. It is not necessary to
+          enable logging on the replica.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            Unless you want replication to begin immediately, delay the
+            start of the replication threads until the appropriate
+            <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START REPLICA</code></a> statement has
+            been issued, as explained in Step 4 below. You can do this
+            by starting the replica with the
+            <a class="link" href="replication-options-replica.html#option_mysqld_skip-slave-start"><code class="option">--skip-slave-start</code></a> option on
+            the command line, by including
+            <code class="literal">skip-slave-start</code> in the replica's
+            <code class="filename">my.cnf</code> file, or in NDB 8.0.24 and
+            later, by setting the
+            <a class="link" href="replication-options-replica.html#sysvar_skip_slave_start"><code class="literal">skip_slave_start</code></a> system
+            variable. In NDB 8.0.26 and later, use
+            <a class="link" href="replication-options-replica.html#option_mysqld_skip-replica-start"><code class="option">--skip-replica-start</code></a> and
+            <a class="link" href="replication-options-replica.html#sysvar_skip_replica_start"><code class="literal">skip_replica_start</code></a>.
+          </p></div></li><li class="listitem"><p>
+          It is necessary to synchronize the replica server with the
+          source server's replication binary log. If binary logging
+          has not previously been running on the source, run the
+          following statement on the replica:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>CHANGE MASTER TO</code></strong>
+     -&gt; <strong class="userinput"><code>MASTER_LOG_FILE='',</code></strong>
+     -&gt; <strong class="userinput"><code>MASTER_LOG_POS=4;</code></strong>
+</pre><p>
+          Beginning with NDB 8.0.23, you can also use the following
+          statement:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>CHANGE REPLICATION SOURCE TO</code></strong>
+     -&gt; <strong class="userinput"><code>SOURCE_LOG_FILE='',</code></strong>
+     -&gt; <strong class="userinput"><code>SOURCE_LOG_POS=4;</code></strong>
+</pre><p>
+          This instructs the replica to begin reading the source
+          server's binary log from the log's starting point.
+          Otherwise—that is, if you are loading data from the
+          source using a backup—see
+          <a class="xref" href="mysql-cluster-replication-failover.html" title="23.7.8 Implementing Failover with NDB Cluster Replication">Section 23.7.8, “Implementing Failover with NDB Cluster Replication”</a>, for
+          information on how to obtain the correct values to use for
+          <code class="literal">SOURCE_LOG_FILE</code> |
+          <code class="literal">MASTER_LOG_FILE</code> and
+          <code class="literal">SOURCE_LOG_POS</code> |
+          <code class="literal">MASTER_LOG_POS</code> in such cases.
+        </p></li><li class="listitem"><p>
+          Finally, instruct the replica to begin applying replication by
+          issuing this command from the <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client
+          on the replica:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>START SLAVE;</code></strong>
+</pre><p>
+          In NDB 8.0.22 and later, you can also use the following
+          statement:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>START REPLICA;</code></strong></pre><p>
+          This also initiates the transmission of data and changes from
+          the source to the replica.
+        </p></li></ol></div><p>
+      It is also possible to use two replication channels, in a manner
+      similar to the procedure described in the next section; the
+      differences between this and using a single replication channel
+      are covered in
+      <a class="xref" href="mysql-cluster-replication-two-channels.html" title="23.7.7 Using Two Replication Channels for NDB Cluster Replication">Section 23.7.7, “Using Two Replication Channels for NDB Cluster Replication”</a>.
+    </p><a id="idm45828803835888" class="indexterm"></a><p>
+      It is also possible to improve cluster replication performance by
+      enabling <span class="firstterm">batched updates</span>.
+      This can be accomplished by setting the system variable
+      <a class="link" href="mysql-cluster-options-variables.html#sysvar_replica_allow_batching"><code class="literal">replica_allow_batching</code></a> (NDB
+      8.0.26 and later) or
+      <a class="link" href="mysql-cluster-options-variables.html#sysvar_slave_allow_batching"><code class="literal">slave_allow_batching</code></a> (prior to
+      NDB 8.0.26) on the replicas' <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+      processes. Normally, updates are applied as soon as they are
+      received. However, the use of batching causes updates to be
+      applied in batches of 32 KB each; this can result in higher
+      throughput and less CPU usage, particularly where individual
+      updates are relatively small.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        Batching works on a per-epoch basis; updates belonging to more
+        than one transaction can be sent as part of the same batch.
+      </p><p>
+        All outstanding updates are applied when the end of an epoch is
+        reached, even if the updates total less than 32 KB.
+      </p></div><a id="idm45828803828000" class="indexterm"></a><a id="idm45828803826928" class="indexterm"></a><p>
+      Batching can be turned on and off at runtime. To activate it at
+      runtime, you can use either of these two statements:
+    </p><pre class="programlisting">SET GLOBAL slave_allow_batching = 1;
+SET GLOBAL slave_allow_batching = ON;
+</pre><p>
+      Beginning with NDB 8.0.26, you can (and should) use one of the
+      following statements:
+    </p><pre class="programlisting">SET GLOBAL replica_allow_batching = 1;
+SET GLOBAL replica_allow_batching = ON;
+</pre><p>
+      If a particular batch causes problems (such as a statement whose
+      effects do not appear to be replicated correctly), batching can be
+      deactivated using either of the following statements:
+    </p><pre class="programlisting">SET GLOBAL slave_allow_batching = 0;
+SET GLOBAL slave_allow_batching = OFF;
+</pre><p>
+      Beginning with NDB 8.0.26, you can (and should) use one of the
+      following statements instead:
+    </p><pre class="programlisting">SET GLOBAL replica_allow_batching = 0;
+SET GLOBAL replica_allow_batching = OFF;
+</pre><p>
+      You can check whether batching is currently being used by means of
+      an appropriate <a class="link" href="show-variables.html" title="13.7.7.41 SHOW VARIABLES Statement"><code class="literal">SHOW VARIABLES</code></a>
+      statement, like this one:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW VARIABLES LIKE 'slave%';</code></strong>
+</pre><p>
+      In ŃDB 8.0.26 and later, use the following statement:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW VARIABLES LIKE 'replica%';</code></strong>
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-replication-preparation.html">Previous <span class="navHint"> Preparing the NDB Cluster for Replication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-replication-two-channels.html">Next <span class="navHint"> Using Two Replication Channels for NDB Cluster Replication </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

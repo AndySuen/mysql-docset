@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>15.12 InnoDB and Online DDL</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine" /><link rel="prev" href="innodb-truncate-table-reclaim-space.html" title="15.11.5 Reclaiming Disk Space with TRUNCATE TABLE" /><link rel="next" href="innodb-online-ddl-operations.html" title="15.12.1 Online DDL Operations" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-online-ddl.html#innodb-online-ddl">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="innodb-truncate-table-reclaim-space.html">Previous <span class="navHint"> Reclaiming Disk Space with TRUNCATE TABLE </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="innodb-storage-engine.html">Up <span class="navHint"> The InnoDB Storage Engine </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-online-ddl-operations.html">Next <span class="navHint"> Online DDL Operations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="innodb-online-ddl"></a>15.12 InnoDB and Online DDL</h2></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="innodb-online-ddl-operations.html">15.12.1 Online DDL Operations</a></span></li><li><span class="section"><a href="innodb-online-ddl-performance.html">15.12.2 Online DDL Performance and Concurrency</a></span></li><li><span class="section"><a href="innodb-online-ddl-space-requirements.html">15.12.3 Online DDL Space Requirements</a></span></li><li><span class="section"><a href="online-ddl-memory-management.html">15.12.4 Online DDL Memory Management</a></span></li><li><span class="section"><a href="online-ddl-parallel-thread-configuration.html">15.12.5 Configuring Parallel Threads for Online DDL Operations</a></span></li><li><span class="section"><a href="innodb-online-ddl-single-multi.html">15.12.6 Simplifying DDL Statements with Online DDL</a></span></li><li><span class="section"><a href="innodb-online-ddl-failure-conditions.html">15.12.7 Online DDL Failure Conditions</a></span></li><li><span class="section"><a href="innodb-online-ddl-limitations.html">15.12.8 Online DDL Limitations</a></span></li></ul></div><a id="idm45828885564672" class="indexterm"></a><a id="idm45828885563600" class="indexterm"></a><p>
+    The online DDL feature provides support for instant and in-place
+    table alterations and concurrent DML. Benefits of this feature
+    include:
+  </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+        Improved responsiveness and availability in busy production
+        environments, where making a table unavailable for minutes or
+        hours is not practical.
+      </p></li><li class="listitem"><p>
+        For in-place operations, the ability to adjust the balance
+        between performance and concurrency during DDL operations using
+        the <code class="literal">LOCK</code> clause. See
+        <a class="xref" href="innodb-online-ddl-performance.html#innodb-online-ddl-locking-options" title="The LOCK clause">The LOCK clause</a>.
+      </p></li><li class="listitem"><p>
+        Less disk space usage and I/O overhead than the table-copy
+        method.
+      </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+      <code class="literal">ALGORITHM=INSTANT</code> support is available for
+      <code class="literal">ADD COLUMN</code> and other operations in MySQL
+      8.0.12.
+    </p></div><p>
+    Typically, you do not need to do anything special to enable online
+    DDL. By default, MySQL performs the operation instantly or in place,
+    as permitted, with as little locking as possible.
+  </p><p>
+    You can control aspects of a DDL operation using the
+    <code class="literal">ALGORITHM</code> and <code class="literal">LOCK</code> clauses of
+    the <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement. These
+    clauses are placed at the end of the statement, separated from the
+    table and column specifications by commas. For example:
+  </p><pre class="programlisting">ALTER TABLE <em class="replaceable"><code>tbl_name</code></em> ADD PRIMARY KEY (<em class="replaceable"><code>column</code></em>), ALGORITHM=INPLACE, LOCK=NONE;
+</pre><p>
+    The <code class="literal">LOCK</code> clause may be used for operations that
+    are performed in place and is useful for fine-tuning the degree of
+    concurrent access to the table during operations. Only
+    <code class="literal">LOCK=DEFAULT</code> is supported for operations that are
+    performed instantly. The <code class="literal">ALGORITHM</code> clause is
+    primarily intended for performance comparisons and as a fallback to
+    the older table-copying behavior in case you encounter any issues.
+    For example:
+  </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+        To avoid accidentally making the table unavailable for reads,
+        writes, or both, during an in-place <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+        TABLE</code></a> operation, specify a clause on the
+        <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement such as
+        <code class="literal">LOCK=NONE</code> (permit reads and writes) or
+        <code class="literal">LOCK=SHARED</code> (permit reads). The operation
+        halts immediately if the requested level of concurrency is not
+        available.
+      </p></li><li class="listitem"><p>
+        To compare performance between algorithms, run a statement with
+        <code class="literal">ALGORITHM=INSTANT</code>,
+        <code class="literal">ALGORITHM=INPLACE</code> and
+        <code class="literal">ALGORITHM=COPY</code>. You can also run a statement
+        with the <a class="link" href="server-system-variables.html#sysvar_old_alter_table"><code class="literal">old_alter_table</code></a>
+        configuration option enabled to force the use of
+        <code class="literal">ALGORITHM=COPY</code>.
+      </p></li><li class="listitem"><p>
+        To avoid tying up the server with an <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+        TABLE</code></a> operation that copies the table, include
+        <code class="literal">ALGORITHM=INSTANT</code> or
+        <code class="literal">ALGORITHM=INPLACE</code>. The statement halts
+        immediately if it cannot use the specified algorithm.
+      </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-truncate-table-reclaim-space.html">Previous <span class="navHint"> Reclaiming Disk Space with TRUNCATE TABLE </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-storage-engine.html">Up <span class="navHint"> The InnoDB Storage Engine </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-online-ddl-operations.html">Next <span class="navHint"> Online DDL Operations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

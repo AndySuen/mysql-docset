@@ -1,0 +1,150 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-125"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/7.3.1%C2%A0Establishing%20a%20Backup%20Policy"></a><title>7.3.1&nbsp;Establishing a Backup Policy</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="backup-strategy-example.html" title="7.3&nbsp;Example Backup and Recovery Strategy"/><link rel="prev" href="backup-strategy-example.html" title="7.3&nbsp;Example Backup and Recovery Strategy"/><link rel="next" href="recovery-from-backups.html" title="7.3.2&nbsp;Using Backups for Recovery"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="backup-policy.html#backup-policy">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="backup-strategy-example.html">Previous <span class="navHint"> Example Backup and Recovery Strategy </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="backup-strategy-example.html">Up <span class="navHint"> Example Backup and Recovery Strategy </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="recovery-from-backups.html">Next <span class="navHint"> Using Backups for Recovery </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="backup-policy"></a>7.3.1&nbsp;Establishing a Backup Policy</h3></div></div></div><p>
+        To be useful, backups must be scheduled regularly. A full backup
+        (a snapshot of the data at a point in time) can be done in MySQL
+        with several tools. For example,
+        <a class="link" href="mysql-enterprise-backup.html" title="30.2&nbsp;MySQL Enterprise Backup Overview">MySQL Enterprise
+        Backup</a> can perform a
+        <a class="link" href="glossary.html#glos_physical_backup" title="physical backup">physical backup</a> of
+        an entire instance, with optimizations to minimize overhead and
+        avoid disruption when backing up <code class="literal">InnoDB</code> data
+        files; <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> provides online
+        <a class="link" href="glossary.html#glos_logical_backup" title="logical backup">logical backup</a>. This
+        discussion uses <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>.
+      </p><p>
+        Assume that we make a full backup of all our
+        <code class="literal">InnoDB</code> tables in all databases using the
+        following command on Sunday at 1 p.m., when load is low:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqldump --all-databases --master-data --single-transaction &gt; backup_sunday_1_PM.sql</code></strong>
+</pre><p>
+        The resulting <code class="filename">.sql</code> file produced by
+        <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> contains a set of SQL
+        <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> statements that can be
+        used to reload the dumped tables at a later time.
+      </p><p>
+        This backup operation acquires a global read lock on all tables
+        at the beginning of the dump (using <a class="link" href="flush.html#flush-tables-with-read-lock"><code class="literal">FLUSH
+        TABLES WITH READ LOCK</code></a>). As soon as this lock has been
+        acquired, the binary log coordinates are read and the lock is
+        released. If long updating statements are running when the
+        <a class="link" href="flush.html" title="13.7.8.3&nbsp;FLUSH Statement"><code class="literal">FLUSH</code></a> statement is issued, the
+        backup operation may stall until those statements finish. After
+        that, the dump becomes lock-free and does not disturb reads and
+        writes on the tables.
+      </p><p>
+        It was assumed earlier that the tables to back up are
+        <code class="literal">InnoDB</code> tables, so
+        <a class="link" href="mysqldump.html#option_mysqldump_single-transaction"><code class="option">--single-transaction</code></a> uses a
+        consistent read and guarantees that data seen by
+        <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> does not change. (Changes made by
+        other clients to <code class="literal">InnoDB</code> tables are not seen
+        by the <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> process.) If the backup
+        operation includes nontransactional tables, consistency requires
+        that they do not change during the backup. For example, for the
+        <code class="literal">MyISAM</code> tables in the <code class="literal">mysql</code>
+        database, there must be no administrative changes to MySQL
+        accounts during the backup.
+      </p><p>
+        Full backups are necessary, but it is not always convenient to
+        create them. They produce large backup files and take time to
+        generate. They are not optimal in the sense that each successive
+        full backup includes all data, even that part that has not
+        changed since the previous full backup. It is more efficient to
+        make an initial full backup, and then to make incremental
+        backups. The incremental backups are smaller and take less time
+        to produce. The tradeoff is that, at recovery time, you cannot
+        restore your data just by reloading the full backup. You must
+        also process the incremental backups to recover the incremental
+        changes.
+      </p><p>
+        To make incremental backups, we need to save the incremental
+        changes. In MySQL, these changes are represented in the binary
+        log, so the MySQL server should always be started with the
+        <a class="link" href="replication-options-binary-log.html#option_mysqld_log-bin"><code class="option">--log-bin</code></a> option to enable that
+        log. With binary logging enabled, the server writes each data
+        change into a file while it updates data. Looking at the data
+        directory of a MySQL server that has been running for some days,
+        we find these MySQL binary log files:
+      </p><pre class="programlisting">-rw-rw---- 1 guilhem  guilhem   1277324 Nov 10 23:59 gbichot2-bin.000001
+-rw-rw---- 1 guilhem  guilhem         4 Nov 10 23:59 gbichot2-bin.000002
+-rw-rw---- 1 guilhem  guilhem        79 Nov 11 11:06 gbichot2-bin.000003
+-rw-rw---- 1 guilhem  guilhem       508 Nov 11 11:08 gbichot2-bin.000004
+-rw-rw---- 1 guilhem  guilhem 220047446 Nov 12 16:47 gbichot2-bin.000005
+-rw-rw---- 1 guilhem  guilhem    998412 Nov 14 10:08 gbichot2-bin.000006
+-rw-rw---- 1 guilhem  guilhem       361 Nov 14 10:07 gbichot2-bin.index
+</pre><p>
+        Each time it restarts, the MySQL server creates a new binary log
+        file using the next number in the sequence. While the server is
+        running, you can also tell it to close the current binary log
+        file and begin a new one manually by issuing a
+        <a class="link" href="flush.html#flush-logs"><code class="literal">FLUSH LOGS</code></a> SQL statement or with
+        a <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin flush-logs</strong></span></a> command.
+        <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> also has an option to flush the
+        logs. The <code class="literal">.index</code> file in the data directory
+        contains the list of all MySQL binary logs in the directory.
+      </p><p>
+        The MySQL binary logs are important for recovery because they
+        form the set of incremental backups. If you make sure to flush
+        the logs when you make your full backup, the binary log files
+        created afterward contain all the data changes made since the
+        backup. Let&#39;s modify the previous <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>
+        command a bit so that it flushes the MySQL binary logs at the
+        moment of the full backup, and so that the dump file contains
+        the name of the new current binary log:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqldump --single-transaction --flush-logs --master-data=2 \</code></strong>
+         <strong class="userinput"><code>--all-databases &gt; backup_sunday_1_PM.sql</code></strong>
+</pre><p>
+        After executing this command, the data directory contains a new
+        binary log file, <code class="filename">gbichot2-bin.000007</code>,
+        because the <a class="link" href="mysqldump.html#option_mysqldump_flush-logs"><code class="option">--flush-logs</code></a>
+        option causes the server to flush its logs. The
+        <a class="link" href="mysqldump.html#option_mysqldump_master-data"><code class="option">--master-data</code></a> option causes
+        <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> to write binary log information to
+        its output, so the resulting <code class="filename">.sql</code> dump file
+        includes these lines:
+      </p><pre class="programlisting">-- Position to start replication or point-in-time recovery from
+-- CHANGE MASTER TO MASTER_LOG_FILE=&#39;gbichot2-bin.000007&#39;,MASTER_LOG_POS=4;
+</pre><p>
+        Because the <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> command made a full
+        backup, those lines mean two things:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The dump file contains all changes made before any changes
+            written to the <code class="filename">gbichot2-bin.000007</code>
+            binary log file or higher.
+          </p></li><li class="listitem"><p>
+            All data changes logged after the backup are not present in
+            the dump file, but are present in the
+            <code class="filename">gbichot2-bin.000007</code> binary log file or
+            higher.
+          </p></li></ul></div><p>
+        On Monday at 1 p.m., we can create an incremental backup by
+        flushing the logs to begin a new binary log file. For example,
+        executing a <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin flush-logs</strong></span></a> command
+        creates <code class="filename">gbichot2-bin.000008</code>. All changes
+        between the Sunday 1 p.m. full backup and Monday 1 p.m. are
+        written in <code class="filename">gbichot2-bin.000007</code>. This
+        incremental backup is important, so it is a good idea to copy it
+        to a safe place. (For example, back it up on tape or DVD, or
+        copy it to another machine.) On Tuesday at 1 p.m., execute
+        another <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin flush-logs</strong></span></a> command. All
+        changes between Monday 1 p.m. and Tuesday 1 p.m. are written in
+        <code class="filename">gbichot2-bin.000008</code> (which also should be
+        copied somewhere safe).
+      </p><p>
+        The MySQL binary logs take up disk space. To free up space,
+        purge them from time to time. One way to do this is by deleting
+        the binary logs that are no longer needed, such as when we make
+        a full backup:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqldump --single-transaction --flush-logs --master-data=2 \</code></strong>
+         <strong class="userinput"><code>--all-databases --delete-master-logs &gt; backup_sunday_1_PM.sql</code></strong>
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Deleting the MySQL binary logs with <a class="link" href="mysqldump.html" title="4.5.4&nbsp;mysqldump &mdash; A Database Backup Program"><span class="command"><strong>mysqldump
+          --delete-master-logs</strong></span></a> can be dangerous if your server
+          is a replication source server, because replicas might not yet
+          fully have processed the contents of the binary log. The
+          description for the <a class="link" href="purge-binary-logs.html" title="13.4.1.1&nbsp;PURGE BINARY LOGS Statement"><code class="literal">PURGE BINARY
+          LOGS</code></a> statement explains what should be verified
+          before deleting the MySQL binary logs. See
+          <a class="xref" href="purge-binary-logs.html" title="13.4.1.1&nbsp;PURGE BINARY LOGS Statement">Section&nbsp;13.4.1.1, &ldquo;PURGE BINARY LOGS Statement&rdquo;</a>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="backup-strategy-example.html">Previous <span class="navHint"> Example Backup and Recovery Strategy </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="backup-strategy-example.html">Up <span class="navHint"> Example Backup and Recovery Strategy </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="recovery-from-backups.html">Next <span class="navHint"> Using Backups for Recovery </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

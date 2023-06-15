@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>10.8.7 Using Collation in INFORMATION_SCHEMA Searches</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="charset-collations.html" title="10.8 Collation Issues" /><link rel="prev" href="charset-collation-effect.html" title="10.8.6 Examples of the Effect of Collation" /><link rel="next" href="charset-unicode.html" title="10.9 Unicode Support" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="charset-collation-information-schema.html#charset-collation-information-schema">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="charset-collation-effect.html">Previous <span class="navHint"> Examples of the Effect of Collation </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="charset-collations.html">Up <span class="navHint"> Collation Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="charset-unicode.html">Next <span class="navHint"> Unicode Support </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="charset-collation-information-schema"></a>10.8.7 Using Collation in INFORMATION_SCHEMA Searches</h3></div></div></div><a id="idm45828943680048" class="indexterm"></a><a id="idm45828943678560" class="indexterm"></a><p>
+        String columns in <code class="literal">INFORMATION_SCHEMA</code> tables
+        have a collation of <code class="literal">utf8mb3_general_ci</code>, which
+        is case-insensitive. However, for values that correspond to
+        objects that are represented in the file system, such as
+        databases and tables, searches in
+        <code class="literal">INFORMATION_SCHEMA</code> string columns can be
+        case-sensitive or case-insensitive, depending on the
+        characteristics of the underlying file system and the
+        <a class="link" href="server-system-variables.html#sysvar_lower_case_table_names"><code class="literal">lower_case_table_names</code></a> system
+        variable setting. For example, searches may be case-sensitive if
+        the file system is case-sensitive. This section describes this
+        behavior and how to modify it if necessary.
+      </p><p>
+        Suppose that a query searches the
+        <code class="literal">SCHEMATA.SCHEMA_NAME</code> column for the
+        <code class="literal">test</code> database. On Linux, file systems are
+        case-sensitive, so comparisons of
+        <code class="literal">SCHEMATA.SCHEMA_NAME</code> with
+        <code class="literal">'test'</code> match, but comparisons with
+        <code class="literal">'TEST'</code> do not:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA</code></strong>
+       <strong class="userinput"><code>WHERE SCHEMA_NAME = 'test';</code></strong>
++-------------+
+| SCHEMA_NAME |
++-------------+
+| test        |
++-------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA</code></strong>
+       <strong class="userinput"><code>WHERE SCHEMA_NAME = 'TEST';</code></strong>
+Empty set (0.00 sec)
+</pre><p>
+        These results occur with the
+        <a class="link" href="server-system-variables.html#sysvar_lower_case_table_names"><code class="literal">lower_case_table_names</code></a> system
+        variable set to 0. A
+        <a class="link" href="server-system-variables.html#sysvar_lower_case_table_names"><code class="literal">lower_case_table_names</code></a> setting
+        of 1 or 2 causes the second query to return the same (nonempty)
+        result as the first query.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          It is prohibited to start the server with a
+          <a class="link" href="server-system-variables.html#sysvar_lower_case_table_names"><code class="literal">lower_case_table_names</code></a>
+          setting that is different from the setting used when the
+          server was initialized.
+        </p></div><p>
+        On Windows or macOS, file systems are not case-sensitive, so
+        comparisons match both <code class="literal">'test'</code> and
+        <code class="literal">'TEST'</code>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA</code></strong>
+       <strong class="userinput"><code>WHERE SCHEMA_NAME = 'test';</code></strong>
++-------------+
+| SCHEMA_NAME |
++-------------+
+| test        |
++-------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA</code></strong>
+       <strong class="userinput"><code>WHERE SCHEMA_NAME = 'TEST';</code></strong>
++-------------+
+| SCHEMA_NAME |
++-------------+
+| TEST        |
++-------------+
+</pre><p>
+        The value of
+        <a class="link" href="server-system-variables.html#sysvar_lower_case_table_names"><code class="literal">lower_case_table_names</code></a> makes no
+        difference in this context.
+      </p><p>
+        The preceding behavior occurs because the
+        <code class="literal">utf8mb3_general_ci</code> collation is not used for
+        <code class="literal">INFORMATION_SCHEMA</code> queries when searching for
+        values that correspond to objects represented in the file
+        system.
+      </p><p>
+        If the result of a string operation on an
+        <code class="literal">INFORMATION_SCHEMA</code> column differs from
+        expectations, a workaround is to use an explicit
+        <code class="literal">COLLATE</code> clause to force a suitable collation
+        (see <a class="xref" href="charset-collate.html" title="10.8.1 Using COLLATE in SQL Statements">Section 10.8.1, “Using COLLATE in SQL Statements”</a>). For example, to perform
+        a case-insensitive search, use <code class="literal">COLLATE</code> with
+        the <code class="literal">INFORMATION_SCHEMA</code> column name:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA</code></strong>
+       <strong class="userinput"><code>WHERE SCHEMA_NAME COLLATE utf8mb3_general_ci = 'test';</code></strong>
++-------------+
+| SCHEMA_NAME |
++-------------+
+| test        |
++-------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA</code></strong>
+       <strong class="userinput"><code>WHERE SCHEMA_NAME COLLATE utf8mb3_general_ci = 'TEST';</code></strong>
++-------------+
+| SCHEMA_NAME |
++-------------+
+| test        |
++-------------+
+</pre><p>
+        You can also use the <a class="link" href="string-functions.html#function_upper"><code class="literal">UPPER()</code></a> or
+        <a class="link" href="string-functions.html#function_lower"><code class="literal">LOWER()</code></a> function:
+      </p><pre class="programlisting">WHERE UPPER(SCHEMA_NAME) = 'TEST'
+WHERE LOWER(SCHEMA_NAME) = 'test'
+</pre><p>
+        Although a case-insensitive comparison can be performed even on
+        platforms with case-sensitive file systems, as just shown, it is
+        not necessarily always the right thing to do. On such platforms,
+        it is possible to have multiple objects with names that differ
+        only in lettercase. For example, tables named
+        <code class="literal">city</code>, <code class="literal">CITY</code>, and
+        <code class="literal">City</code> can all exist simultaneously. Consider
+        whether a search should match all such names or just one and
+        write queries accordingly. The first of the following
+        comparisons (with <code class="literal">utf8mb3_bin</code>) is
+        case-sensitive; the others are not:
+      </p><pre class="programlisting">WHERE TABLE_NAME COLLATE utf8mb3_bin = 'City'
+WHERE TABLE_NAME COLLATE utf8mb3_general_ci = 'city'
+WHERE UPPER(TABLE_NAME) = 'CITY'
+WHERE LOWER(TABLE_NAME) = 'city'
+</pre><p>
+        Searches in <code class="literal">INFORMATION_SCHEMA</code> string columns
+        for values that refer to <code class="literal">INFORMATION_SCHEMA</code>
+        itself do use the <code class="literal">utf8mb3_general_ci</code>
+        collation because <code class="literal">INFORMATION_SCHEMA</code> is a
+        <span class="quote">“<span class="quote">virtual</span>”</span> database not represented in the file
+        system. For example, comparisons with
+        <code class="literal">SCHEMATA.SCHEMA_NAME</code> match
+        <code class="literal">'information_schema'</code> or
+        <code class="literal">'INFORMATION_SCHEMA'</code> regardless of platform:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA</code></strong>
+       <strong class="userinput"><code>WHERE SCHEMA_NAME = 'information_schema';</code></strong>
++--------------------+
+| SCHEMA_NAME        |
++--------------------+
+| information_schema |
++--------------------+
+
+mysql&gt; <strong class="userinput"><code>SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA</code></strong>
+       <strong class="userinput"><code>WHERE SCHEMA_NAME = 'INFORMATION_SCHEMA';</code></strong>
++--------------------+
+| SCHEMA_NAME        |
++--------------------+
+| information_schema |
++--------------------+
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="charset-collation-effect.html">Previous <span class="navHint"> Examples of the Effect of Collation </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="charset-collations.html">Up <span class="navHint"> Collation Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="charset-unicode.html">Next <span class="navHint"> Unicode Support </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

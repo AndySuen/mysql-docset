@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.5.2 Optimizing InnoDB Transaction Management</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="optimizing-innodb.html" title="8.5 Optimizing for InnoDB Tables" /><link rel="prev" href="optimizing-innodb-storage-layout.html" title="8.5.1 Optimizing Storage Layout for InnoDB Tables" /><link rel="next" href="innodb-performance-ro-txn.html" title="8.5.3 Optimizing InnoDB Read-Only Transactions" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="optimizing-innodb-transaction-management.html#optimizing-innodb-transaction-management">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="optimizing-innodb-storage-layout.html">Previous <span class="navHint"> Optimizing Storage Layout for InnoDB Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="optimizing-innodb.html">Up <span class="navHint"> Optimizing for InnoDB Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="innodb-performance-ro-txn.html">Next <span class="navHint"> Optimizing InnoDB Read-Only Transactions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="optimizing-innodb-transaction-management"></a>8.5.2 Optimizing InnoDB Transaction Management</h3></div></div></div><p>
+        To optimize <code class="literal">InnoDB</code> transaction processing,
+        find the ideal balance between the performance overhead of
+        transactional features and the workload of your server. For
+        example, an application might encounter performance issues if it
+        commits thousands of times per second, and different performance
+        issues if it commits only every 2-3 hours.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The default MySQL setting <code class="literal">AUTOCOMMIT=1</code>
+            can impose performance limitations on a busy database
+            server. Where practical, wrap several related data change
+            operations into a single transaction, by issuing
+            <code class="literal">SET AUTOCOMMIT=0</code> or a <code class="literal">START
+            TRANSACTION</code> statement, followed by a
+            <code class="literal">COMMIT</code> statement after making all the
+            changes.
+          </p><p>
+            <code class="literal">InnoDB</code> must flush the log to disk at each
+            transaction commit if that transaction made modifications to
+            the database. When each change is followed by a commit (as
+            with the default autocommit setting), the I/O throughput of
+            the storage device puts a cap on the number of potential
+            operations per second.
+          </p></li><li class="listitem"><p>
+            Alternatively, for transactions that consist only of a
+            single <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statement,
+            turning on <code class="literal">AUTOCOMMIT</code> helps
+            <code class="literal">InnoDB</code> to recognize read-only
+            transactions and optimize them. See
+            <a class="xref" href="innodb-performance-ro-txn.html" title="8.5.3 Optimizing InnoDB Read-Only Transactions">Section 8.5.3, “Optimizing InnoDB Read-Only Transactions”</a> for
+            requirements.
+          </p></li><li class="listitem"><p>
+            Avoid performing rollbacks after inserting, updating, or
+            deleting huge numbers of rows. If a big transaction is
+            slowing down server performance, rolling it back can make
+            the problem worse, potentially taking several times as long
+            to perform as the original data change operations. Killing
+            the database process does not help, because the rollback
+            starts again on server startup.
+          </p><p>
+            To minimize the chance of this issue occurring:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                Increase the size of the
+                <a class="link" href="glossary.html#glos_buffer_pool" title="buffer pool">buffer pool</a> so
+                that all the data change changes can be cached rather
+                than immediately written to disk.
+              </p></li><li class="listitem"><p>
+                Set
+                <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffering"><code class="literal">innodb_change_buffering=all</code></a>
+                so that update and delete operations are buffered in
+                addition to inserts.
+              </p></li><li class="listitem"><p>
+                Consider issuing <code class="literal">COMMIT</code> statements
+                periodically during the big data change operation,
+                possibly breaking a single delete or update into
+                multiple statements that operate on smaller numbers of
+                rows.
+              </p></li></ul></div><p>
+            To get rid of a runaway rollback once it occurs, increase
+            the buffer pool so that the rollback becomes CPU-bound and
+            runs fast, or kill the server and restart with
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_force_recovery"><code class="literal">innodb_force_recovery=3</code></a>, as
+            explained in <a class="xref" href="innodb-recovery.html" title="15.18.2 InnoDB Recovery">Section 15.18.2, “InnoDB Recovery”</a>.
+          </p><p>
+            This issue is expected to be infrequent with the default
+            setting
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_change_buffering"><code class="literal">innodb_change_buffering=all</code></a>,
+            which allows update and delete operations to be cached in
+            memory, making them faster to perform in the first place,
+            and also faster to roll back if needed. Make sure to use
+            this parameter setting on servers that process long-running
+            transactions with many inserts, updates, or deletes.
+          </p></li><li class="listitem"><p>
+            If you can afford the loss of some of the latest committed
+            transactions if an unexpected exit occurs, you can set the
+            <a class="link" href="innodb-parameters.html#sysvar_innodb_flush_log_at_trx_commit"><code class="literal">innodb_flush_log_at_trx_commit</code></a>
+            parameter to 0. <code class="literal">InnoDB</code> tries to flush the
+            log once per second anyway, although the flush is not
+            guaranteed.
+          </p></li><li class="listitem"><p>
+            When rows are modified or deleted, the rows and associated
+            <a class="link" href="glossary.html#glos_undo_log" title="undo log">undo logs</a> are not
+            physically removed immediately, or even immediately after
+            the transaction commits. The old data is preserved until
+            transactions that started earlier or concurrently are
+            finished, so that those transactions can access the previous
+            state of modified or deleted rows. Thus, a long-running
+            transaction can prevent <code class="literal">InnoDB</code> from
+            purging data that was changed by a different transaction.
+          </p></li><li class="listitem"><p>
+            When rows are modified or deleted within a long-running
+            transaction, other transactions using the
+            <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_read-committed"><code class="literal">READ COMMITTED</code></a> and
+            <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_repeatable-read"><code class="literal">REPEATABLE READ</code></a> isolation
+            levels have to do more work to reconstruct the older data if
+            they read those same rows.
+          </p></li><li class="listitem"><p>
+            When a long-running transaction modifies a table, queries
+            against that table from other transactions do not make use
+            of the <a class="link" href="glossary.html#glos_covering_index" title="covering index">covering
+            index</a> technique. Queries that normally could retrieve
+            all the result columns from a secondary index, instead look
+            up the appropriate values from the table data.
+          </p><p>
+            If secondary index pages are found to have a
+            <code class="literal">PAGE_MAX_TRX_ID</code> that is too new, or if
+            records in the secondary index are delete-marked,
+            <code class="literal">InnoDB</code> may need to look up records using
+            a clustered index.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimizing-innodb-storage-layout.html">Previous <span class="navHint"> Optimizing Storage Layout for InnoDB Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimizing-innodb.html">Up <span class="navHint"> Optimizing for InnoDB Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-performance-ro-txn.html">Next <span class="navHint"> Optimizing InnoDB Read-Only Transactions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

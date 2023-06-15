@@ -1,0 +1,75 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2524"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.6.14.2%C2%A0NDB%20File%20System%20Encryption%20Implementation"></a><title>23.6.14.2&nbsp;NDB File System Encryption Implementation</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-tde.html" title="23.6.14&nbsp;File System Encryption for NDB Cluster"/><link rel="prev" href="mysql-cluster-tde-setup.html" title="23.6.14.1&nbsp;NDB File System Encryption Setup and Usage"/><link rel="next" href="mysql-cluster-tde-limitations.html" title="23.6.14.3&nbsp;NDB File System Encryption Limitations"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-tde-implementation.html#mysql-cluster-tde-implementation">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-tde-setup.html">Previous <span class="navHint"> NDB File System Encryption Setup and Usage </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-tde.html">Up <span class="navHint"> File System Encryption for NDB Cluster </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-tde-limitations.html">Next <span class="navHint"> NDB File System Encryption Limitations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-2523"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/23.6.14.2%C2%A0NDB%20File%20System%20Encryption%20Implementation"></a><h4 class="title"><a id="mysql-cluster-tde-implementation"></a>23.6.14.2&nbsp;NDB File System Encryption Implementation</h4></div></div></div><p>
+        For <code class="literal">NDB</code> Transparent Data Encryption (TDE),
+        data nodes encrypt user data at rest, with security provided by
+        a password (file system password), which is used to encrypt and
+        decrypt a secrets file on each data node. The secrets file
+        contains a Node Master Key (NMK), a key used later to encrypt
+        the different file types used for persistence.
+        <code class="literal">NDB</code> TDE encrypts user data files including
+        LCP files, redo log files, tablespace files, and undo log files.
+      </p><p>
+        You can use the <a class="link" href="mysql-cluster-programs-ndbxfrm.html" title="23.5.31&nbsp;ndbxfrm &mdash; Compress, Decompress, Encrypt, and Decrypt Files Created by NDB Cluster"><span class="command"><strong>ndbxfrm</strong></span></a> utility to see
+        whether a file is encrypted, as shown here:
+      </p><pre class="programlisting">&gt; <strong class="userinput"><code>ndbxfrm -i ndb_5_fs/LCP/0/T2F0.Data</code></strong>
+File=ndb_5_fs/LCP/0/T2F0.Data, compression=no, encryption=yes
+&gt; <strong class="userinput"><code>ndbxfrm -i ndb_6_fs/LCP/0/T2F0.Data</code></strong>
+File=ndb_6_fs/LCP/0/T2F0.Data, compression=no, encryption=no
+</pre><p>
+        Beginning with NDB 8.0.31, it is possible to obtain the key from
+        the secrets file using the
+        <a class="link" href="mysql-cluster-programs-ndb-secretsfile-reader.html" title="23.5.24&nbsp;ndb_secretsfile_reader &mdash; Obtain Key Information from an Encrypted NDB Data File"><span class="command"><strong>ndb_secretsfile_reader</strong></span></a> program added in that
+        release, like this:
+      </p><pre class="programlisting">&gt; <strong class="userinput"><code>ndb_secretsfile_reader --filesystem-password=54kl14 ndb_5_fs/D1/NDBCNTR/S0.sysfile</code></strong>
+ndb_secretsfile_reader: [Warning] Using a password on the command line interface can be insecure.
+cac256e18b2ddf6b5ef82d99a72f18e864b78453cc7fa40bfaf0c40b91122d18
+</pre><p>
+        The per-node key hierarchy can be represented as follows:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A user-supplied passphrase (P) is processed by a
+            key-derivation function using a random salt to generate a
+            unique passphase key (PK).
+          </p></li><li class="listitem"><p>
+            The PK (unique to each node) encrypts the data on each node
+            in its own secrets file.
+          </p></li><li class="listitem"><p>
+            The data in the secrets file includes a unique, randomly
+            generated Node Master Key (NMK).
+          </p></li><li class="listitem"><p>
+            The NMK encrypts (using wrapping) one or more randomly
+            generated data encryption key (DEK) values in the header of
+            each encrypted file (including LCP and TS files, and redo
+            and undo logs).
+          </p></li><li class="listitem"><p>
+            Data encryption key values (DEK<sub>0</sub>,
+            ..., DEK<sub>n</sub>) are used for encryption of
+            [subsets of] data in each file.
+          </p></li></ul></div><p>
+        The passphrase indirectly encrypts the secrets file containing
+        the random NMK, which encrypts a portion of the header of each
+        encrypted file on the node. The encrypted file header contains
+        random data keys used for the data in that file.
+      </p><p>
+        Encryption is implemented transparently by the
+        <a class="ulink" href="https://dev.mysql.com/doc/ndb-internals/en/ndb-internals-kernel-blocks-ndbfs.html" target="_top"><code class="literal">NDBFS</code></a> layer within the data
+        nodes. <code class="literal">NDBFS</code> internal client blocks operate
+        on their files as normal; <code class="literal">NDBFS</code> wraps the
+        physical file with extra header and footer information
+        supporting encryption, and encrypts and decrypts data as it is
+        read from and written to the file. The wrapped file format is
+        referred to as <code class="literal">ndbxfrm1</code>.
+      </p><p>
+        The node password is processed with PBKDF2 and the random salt
+        to encrypt the secrets file, which contains the randomly
+        generated NMK which is used to encrypt the randomly generated
+        data encryption key in each encrypted file.
+      </p><p>
+        The work of encryption and decryption is performed in the NDBFS
+        I/O threads (rather than in signal execution threads such as
+        main, tc, ldm, or rep). This is similar to what happens with
+        compressed LCPs and compressed backups, and normally results in
+        increased I/O thread CPU usage; you may wish to adjust
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbmtd-threadconfig"><code class="literal">ThreadConfig</code></a> (if in
+        use) with regard to the I/O threads.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-tde-setup.html">Previous <span class="navHint"> NDB File System Encryption Setup and Usage </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-tde.html">Up <span class="navHint"> File System Encryption for NDB Cluster </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-tde-limitations.html">Next <span class="navHint"> NDB File System Encryption Limitations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

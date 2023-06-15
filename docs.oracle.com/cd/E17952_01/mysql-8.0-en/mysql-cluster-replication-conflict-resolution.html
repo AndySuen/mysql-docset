@@ -1,0 +1,1444 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.7.12 NDB Cluster Replication Conflict Resolution</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-replication.html" title="23.7 NDB Cluster Replication" /><link rel="prev" href="mysql-cluster-replication-mta.html" title="23.7.11 NDB Cluster Replication Using the Multithreaded Applier" /><link rel="next" href="mysql-cluster-news.html" title="23.8 NDB Cluster Release Notes" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-conflict-resolution">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-replication-mta.html">Previous <span class="navHint"> NDB Cluster Replication Using the Multithreaded Applier </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-news.html">Next <span class="navHint"> NDB Cluster Release Notes </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-replication-conflict-resolution"></a>23.7.12 NDB Cluster Replication Conflict Resolution</h3></div></div></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#conflict-resolution-requirements" title="Requirements">Requirements</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#conflict-resolution-source-column" title="Source Column Control">Source Column Control</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#conflict-resolution-control" title="Conflict Resolution Control">Conflict Resolution Control</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#conflict-resolution-functions" title="Conflict Resolution Functions">Conflict Resolution Functions</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#conflict-resolution-exceptions-table" title="Conflict Resolution Exceptions Table">Conflict Resolution Exceptions Table</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#conflict-detection-statvars" title="Conflict Detection Status Variables">Conflict Detection Status Variables</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#conflict-detection-examples" title="Examples">Examples</a></p></li></ul></div><a id="idm45828803289664" class="indexterm"></a><a id="idm45828803288176" class="indexterm"></a><a id="idm45828803286688" class="indexterm"></a><a id="idm45828803285232" class="indexterm"></a><a id="idm45828803283728" class="indexterm"></a><p>
+      When using a replication setup involving multiple sources
+      (including circular replication), it is possible that different
+      sources may try to update the same row on the replica with
+      different data. Conflict resolution in NDB Cluster Replication
+      provides a means of resolving such conflicts by permitting a
+      user-defined resolution column to be used to determine whether or
+      not an update on a given source should be applied on the replica.
+    </p><p>
+      Some types of conflict resolution supported by NDB Cluster
+      (<code class="literal">NDB$OLD()</code>, <code class="literal">NDB$MAX()</code>, and
+      <code class="literal">NDB$MAX_DELETE_WIN()</code>; additionally, in NDB
+      8.0.30 and later, <code class="literal">NDB$MAX_INS()</code> and
+      <code class="literal">NDB$MAX_DEL_WIN_INS()</code>) implement this
+      user-defined column as a <span class="quote">“<span class="quote">timestamp</span>”</span> column (although
+      its type cannot be <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">TIMESTAMP</code></a>, as
+      explained later in this section). These types of conflict
+      resolution are always applied a row-by-row basis rather than a
+      transactional basis. The epoch-based conflict resolution functions
+      <code class="literal">NDB$EPOCH()</code> and
+      <code class="literal">NDB$EPOCH_TRANS()</code> compare the order in which
+      epochs are replicated (and thus these functions are
+      transactional). Different methods can be used to compare
+      resolution column values on the replica when conflicts occur, as
+      explained later in this section; the method used can be set to act
+      on a single table, database, or server, or on a set of one or more
+      tables using pattern matching. See
+      <a class="xref" href="mysql-cluster-replication-schema.html#ndb-replication-wildcards" title="Matching with wildcards">Matching with wildcards</a>, for information about
+      using pattern matches in the <code class="literal">db</code>,
+      <code class="literal">table_name</code>, and <code class="literal">server_id</code>
+      columns of the <code class="literal">mysql.ndb_replication</code> table.
+    </p><p>
+      You should also keep in mind that it is the application's
+      responsibility to ensure that the resolution column is correctly
+      populated with relevant values, so that the resolution function
+      can make the appropriate choice when determining whether to apply
+      an update.
+    </p><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="conflict-resolution-requirements"></a>Requirements</h4></div></div></div><p>
+        Preparations for conflict resolution must be made on both the
+        source and the replica. These tasks are described in the
+        following list:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            On the source writing the binary logs, you must determine
+            which columns are sent (all columns or only those that have
+            been updated). This is done for the MySQL Server as a whole
+            by applying the <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> startup option
+            <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-log-updated-only"><code class="option">--ndb-log-updated-only</code></a>
+            (described later in this section), or on one or more
+            specific tables by placing the proper entries in the
+            <code class="literal">mysql.ndb_replication</code> table (see
+            <a class="xref" href="mysql-cluster-replication-schema.html#ndb-replication-ndb-replication" title="ndb_replication Table">ndb_replication Table</a>).
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              If you are replicating tables with very large columns
+              (such as <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">TEXT</code></a> or
+              <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a> columns),
+              <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-log-updated-only"><code class="option">--ndb-log-updated-only</code></a> can
+              also be useful for reducing the size of the binary logs
+              and avoiding possible replication failures due to
+              exceeding
+              <a class="link" href="server-system-variables.html#sysvar_max_allowed_packet"><code class="literal">max_allowed_packet</code></a>.
+            </p><p>
+              See
+              <a class="xref" href="replication-features-max-allowed-packet.html" title="17.5.1.20 Replication and max_allowed_packet">Section 17.5.1.20, “Replication and max_allowed_packet”</a>,
+              for more information about this issue.
+            </p></div></li><li class="listitem"><p>
+            On the replica, you must determine which type of conflict
+            resolution to apply (<span class="quote">“<span class="quote">latest timestamp wins</span>”</span>,
+            <span class="quote">“<span class="quote">same timestamp wins</span>”</span>, <span class="quote">“<span class="quote">primary
+            wins</span>”</span>, <span class="quote">“<span class="quote">primary wins, complete
+            transaction</span>”</span>, or none). This is done using the
+            <code class="literal">mysql.ndb_replication</code> system table, and
+            applies to one or more specific tables (see
+            <a class="xref" href="mysql-cluster-replication-schema.html#ndb-replication-ndb-replication" title="ndb_replication Table">ndb_replication Table</a>).
+          </p></li><li class="listitem"><p>
+            NDB Cluster also supports read conflict detection, that is,
+            detecting conflicts between reads of a given row in one
+            cluster and updates or deletes of the same row in another
+            cluster. This requires exclusive read locks obtained by
+            setting
+            <a class="link" href="mysql-cluster-options-variables.html#sysvar_ndb_log_exclusive_reads"><code class="literal">ndb_log_exclusive_reads</code></a>
+            equal to 1 on the replica. All rows read by a conflicting
+            read are logged in the exceptions table. For more
+            information, see
+            <a class="xref" href="mysql-cluster-replication-conflict-resolution.html#conflict-resolution-read-conflicts" title="Read conflict detection and resolution">Read conflict detection and resolution</a>.
+          </p></li><li class="listitem"><p>
+            Prior to NDB 8.0.30, <code class="literal">NDB</code> applied
+            <code class="literal">WRITE_ROW</code> events strictly as inserts,
+            requiring that there was not already any such row; that is,
+            an incoming write was always rejected if the row already
+            existed. (This is still the case when using any conflict
+            resolution function other than
+            <code class="literal">NDB$MAX_INS()</code> or
+            <code class="literal">NDB$MAX_DEL_WIN_INS()</code>.)
+          </p><p>
+            Beginning with NDB 8.0.30, when using
+            <code class="literal">NDB$MAX_INS()</code> or
+            <code class="literal">NDB$MAX_DEL_WIN_INS()</code>,
+            <code class="literal">NDB</code> can apply
+            <code class="literal">WRITE_ROW</code> events idempotently, mapping
+            such an event to an insert when the incoming row does not
+            already exist, or to an update if it does.
+          </p></li></ul></div><p>
+        When using the functions <code class="literal">NDB$OLD()</code>,
+        <code class="literal">NDB$MAX()</code>, and
+        <code class="literal">NDB$MAX_DELETE_WIN()</code> for timestamp-based
+        conflict resolution (as well as <code class="literal">NDB$MAX_INS()</code>
+        and <code class="literal">NDB$MAX_DEL_WIN_INS()</code>, beginning with NDB
+        8.0.30), we often refer to the column used for determining
+        updates as a <span class="quote">“<span class="quote">timestamp</span>”</span> column. However, the data
+        type of this column is never
+        <a class="link" href="datetime.html" title="11.2.2 The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">TIMESTAMP</code></a>; instead, its data type
+        should be <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INT</code></a>
+        (<a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INTEGER</code></a>) or
+        <a class="link" href="integer-types.html" title="11.1.2 Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">BIGINT</code></a>. The
+        <span class="quote">“<span class="quote">timestamp</span>”</span> column should also be
+        <code class="literal">UNSIGNED</code> and <code class="literal">NOT NULL</code>.
+      </p><p>
+        The <code class="literal">NDB$EPOCH()</code> and
+        <code class="literal">NDB$EPOCH_TRANS()</code> functions discussed later
+        in this section work by comparing the relative order of
+        replication epochs applied on a primary and secondary NDB
+        Cluster, and do not make use of timestamps.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="conflict-resolution-source-column"></a>Source Column Control</h4></div></div></div><p>
+        <a id="idm45828803224560" class="indexterm"></a>
+
+        We can see update operations in terms of <span class="quote">“<span class="quote">before</span>”</span>
+        and <span class="quote">“<span class="quote">after</span>”</span> images—that is, the states of the
+        table before and after the update is applied. Normally, when
+        updating a table with a primary key, the <span class="quote">“<span class="quote">before</span>”</span>
+        image is not of great interest; however, when we need to
+        determine on a per-update basis whether or not to use the
+        updated values on a replica, we need to make sure that both
+        images are written to the source's binary log. This is done
+        with the
+        <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-log-update-as-write"><code class="option">--ndb-log-update-as-write</code></a> option
+        for <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, as described later in this
+        section.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          Whether logging of complete rows or of updated columns only is
+          done is decided when the MySQL server is started, and cannot
+          be changed online; you must either restart
+          <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>, or start a new
+          <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> instance with different logging
+          options.
+        </p></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="conflict-resolution-control"></a>Conflict Resolution Control</h4></div></div></div><p>
+        <a id="idm45828803213760" class="indexterm"></a>
+
+        Conflict resolution is usually enabled on the server where
+        conflicts can occur. Like logging method selection, it is
+        enabled by entries in the
+        <code class="literal">mysql.ndb_replication</code> table.
+      </p><p>
+        <code class="literal">NBT_UPDATED_ONLY_MINIMAL</code> and
+        <code class="literal">NBT_UPDATED_FULL_MINIMAL</code> can be used with
+        <code class="literal">NDB$EPOCH()</code>, <code class="literal">NDB$EPOCH2()</code>,
+        and <code class="literal">NDB$EPOCH_TRANS()</code>, because these do not
+        require <span class="quote">“<span class="quote">before</span>”</span> values of columns which are not
+        primary keys. Conflict resolution algorithms requiring the old
+        values, such as <code class="literal">NDB$MAX()</code> and
+        <code class="literal">NDB$OLD()</code>, do not work correctly with these
+        <code class="literal">binlog_type</code> values.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="conflict-resolution-functions"></a>Conflict Resolution Functions</h4></div></div></div><p>
+        This section provides detailed information about the functions
+        which can be used for conflict detection and resolution with NDB
+        Replication.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-old" title="NDB$OLD()">NDB$OLD()</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-max" title="NDB$MAX()">NDB$MAX()</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-max-delete-win" title="NDB$MAX_DELETE_WIN()">NDB$MAX_DELETE_WIN()</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-max-ins" title="NDB$MAX_INS()">NDB$MAX_INS()</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-max-del-win-ins" title="NDB$MAX_DEL_WIN_INS()">NDB$MAX_DEL_WIN_INS()</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-epoch" title="NDB$EPOCH()">NDB$EPOCH()</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-epoch-trans" title="NDB$EPOCH_TRANS()">NDB$EPOCH_TRANS()</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-epoch2" title="NDB$EPOCH2()">NDB$EPOCH2()</a></p></li><li class="listitem"><p><a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-epoch2-trans" title="NDB$EPOCH2_TRANS()">NDB$EPOCH2_TRANS()</a></p></li></ul></div><h5><a id="mysql-cluster-replication-ndb-old"></a>NDB$OLD()</h5><p>
+        <a id="idm45828803192544" class="indexterm"></a>
+
+        If the value of <em class="replaceable"><code>column_name</code></em> is the
+        same on both the source and the replica, then the update is
+        applied; otherwise, the update is not applied on the replica and
+        an exception is written to the log. This is illustrated by the
+        following pseudocode:
+      </p><pre class="programlisting">if (<em class="replaceable"><code>source_old_column_value</code></em> == <em class="replaceable"><code>replica_current_column_value</code></em>)
+  apply_update();
+else
+  log_exception();
+</pre><p>
+        <a id="idm45828803188496" class="indexterm"></a>
+
+        This function can be used for <span class="quote">“<span class="quote">same value wins</span>”</span>
+        conflict resolution. This type of conflict resolution ensures
+        that updates are not applied on the replica from the wrong
+        source.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          The column value from the source's <span class="quote">“<span class="quote">before</span>”</span>
+          image is used by this function.
+        </p></div><h5><a id="mysql-cluster-replication-ndb-max"></a>NDB$MAX()</h5><p>
+        <a id="idm45828803183920" class="indexterm"></a>
+
+        For an update or delete operation, if the
+        <span class="quote">“<span class="quote">timestamp</span>”</span> column value for a given row coming
+        from the source is higher than that on the replica, it is
+        applied; otherwise it is not applied on the replica. This is
+        illustrated by the following pseudocode:
+      </p><pre class="programlisting">if (<em class="replaceable"><code>source_new_column_value</code></em> &gt; <em class="replaceable"><code>replica_current_column_value</code></em>)
+  apply_update();
+</pre><p>
+        <a id="idm45828803179904" class="indexterm"></a>
+
+        This function can be used for <span class="quote">“<span class="quote">greatest timestamp
+        wins</span>”</span> conflict resolution. This type of conflict
+        resolution ensures that, in the event of a conflict, the version
+        of the row that was most recently updated is the version that
+        persists.
+      </p><p>
+        This function has no effects on conflicts between write
+        operations, other than that a write operation with the same
+        primary key as a previous write is always rejected; it is
+        accepted and applied only if no write operation using the same
+        primary key already exists. Beginning with NDB 8.0.30, you can
+        use
+        <code class="literal"><a class="link" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-max-ins" title="NDB$MAX_INS()">NDB$MAX_INS()</a></code>
+        to handle conflict resolution between writes.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          The column value from the sources's <span class="quote">“<span class="quote">after</span>”</span>
+          image is used by this function.
+        </p></div><h5><a id="mysql-cluster-replication-ndb-max-delete-win"></a>NDB$MAX_DELETE_WIN()</h5><p>
+        <a id="idm45828803173072" class="indexterm"></a>
+
+        This is a variation on <code class="literal">NDB$MAX()</code>. Due to the
+        fact that no timestamp is available for a delete operation, a
+        delete using <code class="literal">NDB$MAX()</code> is in fact processed
+        as <code class="literal">NDB$OLD</code>, but for some use cases, this is
+        not optimal. For <code class="literal">NDB$MAX_DELETE_WIN()</code>, if the
+        <span class="quote">“<span class="quote">timestamp</span>”</span> column value for a given row adding or
+        updating an existing row coming from the source is higher than
+        that on the replica, it is applied. However, delete operations
+        are treated as always having the higher value. This is
+        illustrated by the following pseudocode:
+      </p><pre class="programlisting">if ( (<em class="replaceable"><code>source_new_column_value</code></em> &gt; <em class="replaceable"><code>replica_current_column_value</code></em>)
+        ||
+      <em class="replaceable"><code>operation.type</code></em> == "delete")
+  apply_update();
+</pre><p>
+        <a id="idm45828803165504" class="indexterm"></a>
+
+        This function can be used for <span class="quote">“<span class="quote">greatest timestamp, delete
+        wins</span>”</span> conflict resolution. This type of conflict
+        resolution ensures that, in the event of a conflict, the version
+        of the row that was deleted or (otherwise) most recently updated
+        is the version that persists.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          As with <code class="literal">NDB$MAX()</code>, the column value from
+          the source's <span class="quote">“<span class="quote">after</span>”</span> image is the value used
+          by this function.
+        </p></div><h5><a id="mysql-cluster-replication-ndb-max-ins"></a>NDB$MAX_INS()</h5><p>
+        <a id="idm45828803160144" class="indexterm"></a>
+
+        This function provides support for resolution of conflicting
+        write operations. Such conflicts are handled by
+        <span class="quote">“<span class="quote">NDB$MAX_INS()</span>”</span> as follows:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            If there is no conflicting write, apply this one (this is
+            the same as <code class="literal">NDB$MAX()</code>).
+          </p></li><li class="listitem"><p>
+            Otherwise, apply <span class="quote">“<span class="quote">greatest timestamp wins</span>”</span>
+            conflict resolution, as follows:
+          </p><div class="orderedlist"><ol class="orderedlist" type="a"><li class="listitem"><p>
+                If the timestamp for the incoming write is greater than
+                that of the conflicting write, apply the incoming
+                operation.
+              </p></li><li class="listitem"><p>
+                If the timestamp for the incoming write is
+                <span class="emphasis"><em>not</em></span> greater, reject the incoming
+                write operation.
+              </p></li></ol></div></li></ol></div><p>
+        When handling an insert operation,
+        <code class="literal">NDB$MAX_INS()</code> compares timestamps from the
+        source and replica as illustrated by the following pseudocode:
+      </p><pre class="programlisting">if (source_new_column_value &gt; replica_current_column_value)
+  apply_insert();
+else
+  log_exception();
+</pre><p>
+        For an update operation, the updated timestamp column value from
+        the source is compared with the replica's timestamp column
+        value, as shown here:
+      </p><pre class="programlisting">if (source_new_column_value &gt; replica_current_column_value)
+  apply_update();
+else
+  log_exception();
+</pre><p>
+        This is the same as performed by
+        <code class="literal"><a class="link" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-max" title="NDB$MAX()">NDB$MAX()</a></code>.
+      </p><p>
+        For delete operations, the handling is also the same as that
+        performed by <code class="literal">NDB$MAX()</code> (and thus the same as
+        <code class="literal">NDB$OLD()</code>), and is done like this:
+      </p><pre class="programlisting">if (source_new_column_value == replica_current_column_value)
+  apply_delete();
+else
+  log_exception();
+</pre><p>
+        <code class="literal">NDB$MAX_INS()</code> was added in NDB 8.0.30.
+      </p><h5><a id="mysql-cluster-replication-ndb-max-del-win-ins"></a>NDB$MAX_DEL_WIN_INS()</h5><p>
+        <a id="idm45828803139440" class="indexterm"></a>
+
+        This function provides support for resolution of conflicting
+        write operations, along with <span class="quote">“<span class="quote">delete wins</span>”</span>
+        resolution like that of
+        <code class="literal"><a class="link" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-max-delete-win" title="NDB$MAX_DELETE_WIN()">NDB$MAX_DELETE_WIN()</a></code>.
+        Write conflicts are handled by
+        <code class="literal">NDB$MAX_DEL_WIN_INS()</code> as shown here:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            If there is no conflicting write, apply this one (this is
+            the same as <code class="literal">NDB$MAX_DELETE_WIN()</code>).
+          </p></li><li class="listitem"><p>
+            Otherwise, apply <span class="quote">“<span class="quote">greatest timestamp wins</span>”</span>
+            conflict resolution, as follows:
+          </p><div class="orderedlist"><ol class="orderedlist" type="a"><li class="listitem"><p>
+                If the timestamp for the incoming write is greater than
+                that of the conflicting write, apply the incoming
+                operation.
+              </p></li><li class="listitem"><p>
+                If the timestamp for the incoming write is
+                <span class="emphasis"><em>not</em></span> greater, reject the incoming
+                write operation.
+              </p></li></ol></div></li></ol></div><p>
+        Handling of insert operations as performed by
+        <code class="literal">NDB$MAX_DEL_WIN_INS()</code> can be represented in
+        pseudocode as shown here:
+      </p><pre class="programlisting">if (source_new_column_value &gt; replica_current_column_value)
+  apply_insert();
+else
+  log_exception();
+</pre><p>
+        For update operations, the source's updated timestamp
+        column value is compared with replica's timestamp column
+        value, like this (again using pseudocode):
+      </p><pre class="programlisting">if (source_new_column_value &gt; replica_current_column_value)
+  apply_update();
+else
+  log_exception();
+</pre><p>
+        Deletes are handled using a <span class="quote">“<span class="quote">delete always wins</span>”</span>
+        strategy (the same as <code class="literal">NDB$MAX_DELETE_WIN()</code>);
+        a <code class="literal">DELETE</code> is always applied without any regard
+        to any timestamp values, as illustrated by this pseudocode:
+      </p><pre class="programlisting">if (operation.type == "delete")
+  apply_delete();
+</pre><p>
+        For conflicts between update and delete operations, this
+        function behaves identically to
+        <code class="literal">NDB$MAX_DELETE_WIN()</code>.
+      </p><p>
+        <code class="literal">NDB$MAX_DEL_WIN_INS()</code> was added in NDB
+        8.0.30.
+      </p><h5><a id="mysql-cluster-replication-ndb-epoch"></a>NDB$EPOCH()</h5><p>
+        <a id="idm45828803116800" class="indexterm"></a>
+
+        <a id="idm45828803115728" class="indexterm"></a>
+
+        The <code class="literal">NDB$EPOCH()</code> function tracks the order in
+        which replicated epochs are applied on a replica cluster
+        relative to changes originating on the replica. This relative
+        ordering is used to determine whether changes originating on the
+        replica are concurrent with any changes that originate locally,
+        and are therefore potentially in conflict.
+      </p><p>
+        Most of what follows in the description of
+        <code class="literal">NDB$EPOCH()</code> also applies to
+        <code class="literal">NDB$EPOCH_TRANS()</code>. Any exceptions are noted
+        in the text.
+      </p><p>
+        <code class="literal">NDB$EPOCH()</code> is asymmetric, operating on one
+        NDB Cluster in a bidirectional replication configuration
+        (sometimes referred to as <span class="quote">“<span class="quote">active-active</span>”</span>
+        replication). We refer here to cluster on which it operates as
+        the primary, and the other as the secondary. The replica on the
+        primary is responsible for detecting and handling conflicts,
+        while the replica on the secondary is not involved in any
+        conflict detection or handling.
+      </p><p>
+        When the replica on the primary detects conflicts, it injects
+        events into its own binary log to compensate for these; this
+        ensures that the secondary NDB Cluster eventually realigns
+        itself with the primary and so keeps the primary and secondary
+        from diverging. This compensation and realignment mechanism
+        requires that the primary NDB Cluster always wins any conflicts
+        with the secondary—that is, that the primary's
+        changes are always used rather than those from the secondary in
+        event of a conflict. This <span class="quote">“<span class="quote">primary always wins</span>”</span>
+        rule has the following implications:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Operations that change data, once committed on the primary,
+            are fully persistent and are not undone or rolled back by
+            conflict detection and resolution.
+          </p></li><li class="listitem"><p>
+            Data read from the primary is fully consistent. Any changes
+            committed on the Primary (locally or from the replica) are
+            not reverted later.
+          </p></li><li class="listitem"><p>
+            Operations that change data on the secondary may later be
+            reverted if the primary determines that they are in
+            conflict.
+          </p></li><li class="listitem"><p>
+            Individual rows read on the secondary are self-consistent at
+            all times, each row always reflecting either a state
+            committed by the secondary, or one committed by the primary.
+          </p></li><li class="listitem"><p>
+            Sets of rows read on the secondary may not necessarily be
+            consistent at a given single point in time. For
+            <code class="literal">NDB$EPOCH_TRANS()</code>, this is a transient
+            state; for <code class="literal">NDB$EPOCH()</code>, it can be a
+            persistent state.
+          </p></li><li class="listitem"><p>
+            Assuming a period of sufficient length without any
+            conflicts, all data on the secondary NDB Cluster
+            (eventually) becomes consistent with the primary's
+            data.
+          </p></li></ul></div><p>
+        <code class="literal">NDB$EPOCH()</code> and
+        <code class="literal">NDB$EPOCH_TRANS()</code> do not require any user
+        schema modifications, or application changes to provide conflict
+        detection. However, careful thought must be given to the schema
+        used, and the access patterns used, to verify that the complete
+        system behaves within specified limits.
+      </p><p>
+        Each of the <code class="literal">NDB$EPOCH()</code> and
+        <code class="literal">NDB$EPOCH_TRANS()</code> functions can take an
+        optional parameter; this is the number of bits to use to
+        represent the lower 32 bits of the epoch, and should be set to
+        no less than the value calculated as shown here:
+      </p><pre class="programlisting">CEIL( LOG2( <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-timebetweenglobalcheckpoints"><code class="literal">TimeBetweenGlobalCheckpoints</code></a> / <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-timebetweenepochs"><code class="literal">TimeBetweenEpochs</code></a> ), 1)
+</pre><p>
+        For the default values of these configuration parameters (2000
+        and 100 milliseconds, respectively), this gives a value of 5
+        bits, so the default value (6) should be sufficient, unless
+        other values are used for
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-timebetweenglobalcheckpoints"><code class="literal">TimeBetweenGlobalCheckpoints</code></a>,
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-timebetweenepochs"><code class="literal">TimeBetweenEpochs</code></a>, or
+        both. A value that is too small can result in false positives,
+        while one that is too large could lead to excessive wasted space
+        in the database.
+      </p><p>
+        Both <code class="literal">NDB$EPOCH()</code> and
+        <code class="literal">NDB$EPOCH_TRANS()</code> insert entries for
+        conflicting rows into the relevant exceptions tables, provided
+        that these tables have been defined according to the same
+        exceptions table schema rules as described elsewhere in this
+        section (see
+        <a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-old" title="NDB$OLD()">NDB$OLD()</a>). You must
+        create any exceptions table before creating the data table with
+        which it is to be used.
+      </p><p>
+        As with the other conflict detection functions discussed in this
+        section, <code class="literal">NDB$EPOCH()</code> and
+        <code class="literal">NDB$EPOCH_TRANS()</code> are activated by including
+        relevant entries in the <code class="literal">mysql.ndb_replication</code>
+        table (see <a class="xref" href="mysql-cluster-replication-schema.html#ndb-replication-ndb-replication" title="ndb_replication Table">ndb_replication Table</a>).
+        The roles of the primary and secondary NDB Clusters in this
+        scenario are fully determined by
+        <code class="literal">mysql.ndb_replication</code> table entries.
+      </p><p>
+        Because the conflict detection algorithms employed by
+        <code class="literal">NDB$EPOCH()</code> and
+        <code class="literal">NDB$EPOCH_TRANS()</code> are asymmetric, you must
+        use different values for the <code class="literal">server_id</code>
+        entries of the primary and secondary replicas.
+      </p><p>
+        A conflict between <code class="literal">DELETE</code> operations alone is
+        not sufficient to trigger a conflict using
+        <code class="literal">NDB$EPOCH()</code> or
+        <code class="literal">NDB$EPOCH_TRANS()</code>, and the relative placement
+        within epochs does not matter.
+      </p><p><a id="mysql-cluster-replication-ndb-epoch-limitations"></a>
+        <span class="bold"><strong>Limitations on NDB$EPOCH()</strong></span>
+      </p><p>
+        <a id="idm45828803074240" class="indexterm"></a>
+
+        The following limitations currently apply when using
+        <code class="literal">NDB$EPOCH()</code> to perform conflict detection:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Conflicts are detected using NDB Cluster epoch boundaries,
+            with granularity proportional to
+            <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-timebetweenepochs"><code class="literal">TimeBetweenEpochs</code></a>
+            (default: 100 milliseconds). The minimum conflict window is
+            the minimum time during which concurrent updates to the same
+            data on both clusters always report a conflict. This is
+            always a nonzero length of time, and is roughly proportional
+            to <code class="literal">2 * (latency + queueing +
+            TimeBetweenEpochs)</code>. This implies
+            that—assuming the default for
+            <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-timebetweenepochs"><code class="literal">TimeBetweenEpochs</code></a>
+            and ignoring any latency between clusters (as well as any
+            queuing delays)—the minimum conflict window size is
+            approximately 200 milliseconds. This minimum window should
+            be considered when looking at expected application
+            <span class="quote">“<span class="quote">race</span>”</span> patterns.
+          </p></li><li class="listitem"><p>
+            Additional storage is required for tables using the
+            <code class="literal">NDB$EPOCH()</code> and
+            <code class="literal">NDB$EPOCH_TRANS()</code> functions; from 1 to 32
+            bits extra space per row is required, depending on the value
+            passed to the function.
+          </p></li><li class="listitem"><p>
+            Conflicts between delete operations may result in divergence
+            between the primary and secondary. When a row is deleted on
+            both clusters concurrently, the conflict can be detected,
+            but is not recorded, since the row is deleted. This means
+            that further conflicts during the propagation of any
+            subsequent realignment operations are not detected, which
+            can lead to divergence.
+          </p><p>
+            Deletes should be externally serialized, or routed to one
+            cluster only. Alternatively, a separate row should be
+            updated transactionally with such deletes and any inserts
+            that follow them, so that conflicts can be tracked across
+            row deletes. This may require changes in applications.
+          </p></li><li class="listitem"><p>
+            Only two NDB Clusters in a bidirectional
+            <span class="quote">“<span class="quote">active-active</span>”</span> configuration are currently
+            supported when using <code class="literal">NDB$EPOCH()</code> or
+            <code class="literal">NDB$EPOCH_TRANS()</code> for conflict detection.
+          </p></li><li class="listitem"><p>
+            Tables having <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a> or
+            <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">TEXT</code></a> columns are not
+            currently supported with <code class="literal">NDB$EPOCH()</code> or
+            <code class="literal">NDB$EPOCH_TRANS()</code>.
+          </p></li></ul></div><h5><a id="mysql-cluster-replication-ndb-epoch-trans"></a>NDB$EPOCH_TRANS()</h5><p>
+        <a id="idm45828803052384" class="indexterm"></a>
+
+        <code class="literal">NDB$EPOCH_TRANS()</code> extends the
+        <code class="literal">NDB$EPOCH()</code> function. Conflicts are detected
+        and handled in the same way using the <span class="quote">“<span class="quote">primary wins
+        all</span>”</span> rule (see
+        <a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-epoch" title="NDB$EPOCH()">NDB$EPOCH()</a>) but with
+        the extra condition that any other rows updated in the same
+        transaction in which the conflict occurred are also regarded as
+        being in conflict. In other words, where
+        <code class="literal">NDB$EPOCH()</code> realigns individual conflicting
+        rows on the secondary, <code class="literal">NDB$EPOCH_TRANS()</code>
+        realigns conflicting transactions.
+      </p><p>
+        In addition, any transactions which are detectably dependent on
+        a conflicting transaction are also regarded as being in
+        conflict, these dependencies being determined by the contents of
+        the secondary cluster's binary log. Since the binary log
+        contains only data modification operations (inserts, updates,
+        and deletes), only overlapping data modifications are used to
+        determine dependencies between transactions.
+      </p><p>
+        <code class="literal">NDB$EPOCH_TRANS()</code> is subject to the same
+        conditions and limitations as <code class="literal">NDB$EPOCH()</code>,
+        and in addition requires that all transaction IDs are recorded
+        in the secondary's binary log, using
+        <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-log-transaction-id"><code class="option">--ndb-log-transaction-id</code></a> set to
+        <code class="literal">ON</code>. This adds a variable amount of overhead
+        (up to 13 bytes per row).
+      </p><p>
+        The deprecated
+        <a class="link" href="replication-options-binary-log.html#sysvar_log_bin_use_v1_row_events"><code class="literal">log_bin_use_v1_row_events</code></a>
+        system variable, which defaults to <code class="literal">OFF</code>, must
+        <span class="emphasis"><em>not</em></span> be set to <code class="literal">ON</code> with
+        <code class="literal">NDB$EPOCH_TRANS()</code>.
+      </p><p>
+        See <a class="xref" href="mysql-cluster-replication-conflict-resolution.html#mysql-cluster-replication-ndb-epoch" title="NDB$EPOCH()">NDB$EPOCH()</a>.
+      </p><h5><a id="mysql-cluster-replication-ndb-epoch2"></a>NDB$EPOCH2()</h5><p>
+        <a id="idm45828803035472" class="indexterm"></a>
+
+        The <code class="literal">NDB$EPOCH2()</code> function is similar to
+        <code class="literal">NDB$EPOCH()</code>, except that
+        <code class="literal">NDB$EPOCH2()</code> provides for delete-delete
+        handling with a bidirectional replication topology. In this
+        scenario, primary and secondary roles are assigned to the two
+        sources by setting the
+        <a class="link" href="mysql-cluster-options-variables.html#sysvar_ndb_slave_conflict_role"><code class="literal">ndb_slave_conflict_role</code></a> system
+        variable to the appropriate value on each source (usually one
+        each of <code class="literal">PRIMARY</code>,
+        <code class="literal">SECONDARY</code>). When this is done, modifications
+        made by the secondary are reflected by the primary back to the
+        secondary which then conditionally applies them.
+      </p><h5><a id="mysql-cluster-replication-ndb-epoch2-trans"></a>NDB$EPOCH2_TRANS()</h5><p>
+        <a id="idm45828803027488" class="indexterm"></a>
+
+        <code class="literal">NDB$EPOCH2_TRANS()</code> extends the
+        <code class="literal">NDB$EPOCH2()</code> function. Conflicts are detected
+        and handled in the same way, and assigning primary and secondary
+        roles to the replicating clusters, but with the extra condition
+        that any other rows updated in the same transaction in which the
+        conflict occurred are also regarded as being in conflict. That
+        is, <code class="literal">NDB$EPOCH2()</code> realigns individual
+        conflicting rows on the secondary, while
+        <code class="literal">NDB$EPOCH_TRANS()</code> realigns conflicting
+        transactions.
+      </p><p>
+        Where <code class="literal">NDB$EPOCH()</code> and
+        <code class="literal">NDB$EPOCH_TRANS()</code> use metadata that is
+        specified per row, per last modified epoch, to determine on the
+        primary whether an incoming replicated row change from the
+        secondary is concurrent with a locally committed change;
+        concurrent changes are regarded as conflicting, with subsequent
+        exceptions table updates and realignment of the secondary. A
+        problem arises when a row is deleted on the primary so there is
+        no longer any last-modified epoch available to determine whether
+        any replicated operations conflict, which means that conflicting
+        delete operations are not detected. This can result in
+        divergence, an example being a delete on one cluster which is
+        concurrent with a delete and insert on the other; this why
+        delete operations can be routed to only one cluster when using
+        <code class="literal">NDB$EPOCH()</code> and
+        <code class="literal">NDB$EPOCH_TRANS()</code>.
+      </p><p>
+        <code class="literal">NDB$EPOCH2()</code> bypasses the issue just
+        described—storing information about deleted rows on the
+        PRIMARY—by ignoring any delete-delete conflict, and by
+        avoiding any potential resultant divergence as well. This is
+        accomplished by reflecting any operation successfully applied on
+        and replicated from the secondary back to the secondary. On its
+        return to the secondary, it can be used to reapply an operation
+        on the secondary which was deleted by an operation originating
+        from the primary.
+      </p><p>
+        When using <code class="literal">NDB$EPOCH2()</code>, you should keep in
+        mind that the secondary applies the delete from the primary,
+        removing the new row until it is restored by a reflected
+        operation. In theory, the subsequent insert or update on the
+        secondary conflicts with the delete from the primary, but in
+        this case, we choose to ignore this and allow the secondary to
+        <span class="quote">“<span class="quote">win</span>”</span>, in the interest of preventing divergence
+        between the clusters. In other words, after a delete, the
+        primary does not detect conflicts, and instead adopts the
+        secondary's following changes immediately. Because of this,
+        the secondary's state can revisit multiple previous
+        committed states as it progresses to a final (stable) state, and
+        some of these may be visible.
+      </p><p>
+        You should also be aware that reflecting all operations from the
+        secondary back to the primary increases the size of the
+        primary's logbinary log, as well as demands on bandwidth, CPU
+        usage, and disk I/O.
+      </p><p>
+        Application of reflected operations on the secondary depends on
+        the state of the target row on the secondary. Whether or not
+        reflected changes are applied on the secondary can be tracked by
+        checking the
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_reflected_op_prepare_count"><code class="literal">Ndb_conflict_reflected_op_prepare_count</code></a>
+        and
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_reflected_op_discard_count"><code class="literal">Ndb_conflict_reflected_op_discard_count</code></a>
+        status variables. The number of changes applied is simply the
+        difference between these two values (note that
+        <code class="literal">Ndb_conflict_reflected_op_prepare_count</code> is
+        always greater than or equal to
+        <code class="literal">Ndb_conflict_reflected_op_discard_count</code>).
+      </p><p>
+        Events are applied if and only if both of the following
+        conditions are true:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The existence of the row—that is, whether or not it
+            exists—is in accordance with the type of event. For
+            delete and update operations, the row must already exist.
+            For insert operations, the row must <span class="emphasis"><em>not</em></span>
+            exist.
+          </p></li><li class="listitem"><p>
+            The row was last modified by the primary. It is possible
+            that the modification was accomplished through the execution
+            of a reflected operation.
+          </p></li></ul></div><p>
+        If both of these conditions are not met, the reflected operation
+        is discarded by the secondary.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="conflict-resolution-exceptions-table"></a>Conflict Resolution Exceptions Table</h4></div></div></div><p>
+        <a id="idm45828803003760" class="indexterm"></a>
+
+        <a id="idm45828803002240" class="indexterm"></a>
+
+        To use the <code class="literal">NDB$OLD()</code> conflict resolution
+        function, it is also necessary to create an exceptions table
+        corresponding to each <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> table for
+        which this type of conflict resolution is to be employed. This
+        is also true when using <code class="literal">NDB$EPOCH()</code> or
+        <code class="literal">NDB$EPOCH_TRANS()</code>. The name of this table is
+        that of the table for which conflict resolution is to be
+        applied, with the string <code class="literal">$EX</code> appended. (For
+        example, if the name of the original table is
+        <code class="literal">mytable</code>, the name of the corresponding
+        exceptions table name should be <code class="literal">mytable$EX</code>.)
+        The syntax for creating the exceptions table is as shown here:
+      </p><pre class="programlisting">CREATE TABLE <em class="replaceable"><code>original_table</code></em>$EX  (
+    [NDB$]server_id INT UNSIGNED,
+    [NDB$]source_server_id INT UNSIGNED,
+    [NDB$]source_epoch BIGINT UNSIGNED,
+    [NDB$]count INT UNSIGNED,
+
+    [NDB$OP_TYPE ENUM('WRITE_ROW','UPDATE_ROW', 'DELETE_ROW',
+      'REFRESH_ROW', 'READ_ROW') NOT NULL,]
+    [NDB$CFT_CAUSE ENUM('ROW_DOES_NOT_EXIST', 'ROW_ALREADY_EXISTS',
+      'DATA_IN_CONFLICT', 'TRANS_IN_CONFLICT') NOT NULL,]
+    [NDB$ORIG_TRANSID BIGINT UNSIGNED NOT NULL,]
+
+    <em class="replaceable"><code>original_table_pk_columns</code></em>,
+
+    [<em class="replaceable"><code>orig_table_column</code></em>|<em class="replaceable"><code>orig_table_column</code></em>$OLD|<em class="replaceable"><code>orig_table_column</code></em>$NEW,]
+
+    [<em class="replaceable"><code>additional_columns</code></em>,]
+
+    PRIMARY KEY([NDB$]server_id, [NDB$]source_server_id, [NDB$]source_epoch, [NDB$]count)
+) ENGINE=NDB;
+</pre><p>
+        The first four columns are required. The names of the first four
+        columns and the columns matching the original table's
+        primary key columns are not critical; however, we suggest for
+        reasons of clarity and consistency, that you use the names shown
+        here for the <code class="literal">server_id</code>,
+        <code class="literal">source_server_id</code>,
+        <code class="literal">source_epoch</code>, and <code class="literal">count</code>
+        columns, and that you use the same names as in the original
+        table for the columns matching those in the original
+        table's primary key.
+      </p><p>
+        If the exceptions table uses one or more of the optional columns
+        <code class="literal">NDB$OP_TYPE</code>,
+        <code class="literal">NDB$CFT_CAUSE</code>, or
+        <code class="literal">NDB$ORIG_TRANSID</code> discussed later in this
+        section, then each of the required columns must also be named
+        using the prefix <code class="literal">NDB$</code>. If desired, you can
+        use the <code class="literal">NDB$</code> prefix to name the required
+        columns even if you do not define any optional columns, but in
+        this case, all four of the required columns must be named using
+        the prefix.
+      </p><p>
+        Following these columns, the columns making up the original
+        table's primary key should be copied in the order in which
+        they are used to define the primary key of the original table.
+        The data types for the columns duplicating the primary key
+        columns of the original table should be the same as (or larger
+        than) those of the original columns. A subset of the primary key
+        columns may be used.
+      </p><p>
+        The exceptions table must use the
+        <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> storage engine. (An example
+        that uses <code class="literal">NDB$OLD()</code> with an exceptions table
+        is shown later in this section.)
+      </p><p>
+        Additional columns may optionally be defined following the
+        copied primary key columns, but not before any of them; any such
+        extra columns cannot be <code class="literal">NOT NULL</code>. NDB Cluster
+        supports three additional, predefined optional columns
+        <code class="literal">NDB$OP_TYPE</code>,
+        <code class="literal">NDB$CFT_CAUSE</code>, and
+        <code class="literal">NDB$ORIG_TRANSID</code>, which are described in the
+        next few paragraphs.
+      </p><p>
+        <a id="idm45828802975184" class="indexterm"></a>
+
+        <code class="literal">NDB$OP_TYPE</code>: This column can be used to
+        obtain the type of operation causing the conflict. If you use
+        this column, define it as shown here:
+      </p><pre class="programlisting">NDB$OP_TYPE ENUM('WRITE_ROW', 'UPDATE_ROW', 'DELETE_ROW',
+    'REFRESH_ROW', 'READ_ROW') NOT NULL
+</pre><p>
+        The <code class="literal">WRITE_ROW</code>, <code class="literal">UPDATE_ROW</code>,
+        and <code class="literal">DELETE_ROW</code> operation types represent
+        user-initiated operations. <code class="literal">REFRESH_ROW</code>
+        operations are operations generated by conflict resolution in
+        compensating transactions sent back to the originating cluster
+        from the cluster that detected the conflict.
+        <code class="literal">READ_ROW</code> operations are user-initiated read
+        tracking operations defined with exclusive row locks.
+      </p><p>
+        <a id="idm45828802967552" class="indexterm"></a>
+
+        <code class="literal">NDB$CFT_CAUSE</code>: You can define an optional
+        column <code class="literal">NDB$CFT_CAUSE</code> which provides the cause
+        of the registered conflict. This column, if used, is defined as
+        shown here:
+      </p><pre class="programlisting">NDB$CFT_CAUSE ENUM('ROW_DOES_NOT_EXIST', 'ROW_ALREADY_EXISTS',
+    'DATA_IN_CONFLICT', 'TRANS_IN_CONFLICT') NOT NULL
+</pre><p>
+        <code class="literal">ROW_DOES_NOT_EXIST</code> can be reported as the
+        cause for <code class="literal">UPDATE_ROW</code> and
+        <code class="literal">WRITE_ROW</code> operations;
+        <code class="literal">ROW_ALREADY_EXISTS</code> can be reported for
+        <code class="literal">WRITE_ROW</code> events.
+        <code class="literal">DATA_IN_CONFLICT</code> is reported when a row-based
+        conflict function detects a conflict;
+        <code class="literal">TRANS_IN_CONFLICT</code> is reported when a
+        transactional conflict function rejects all of the operations
+        belonging to a complete transaction.
+      </p><p>
+        <a id="idm45828802957824" class="indexterm"></a>
+
+        <code class="literal">NDB$ORIG_TRANSID</code>: The
+        <code class="literal">NDB$ORIG_TRANSID</code> column, if used, contains
+        the ID of the originating transaction. This column should be
+        defined as follows:
+      </p><pre class="programlisting">NDB$ORIG_TRANSID BIGINT UNSIGNED NOT NULL
+</pre><p>
+        <code class="literal">NDB$ORIG_TRANSID</code> is a 64-bit value generated
+        by <code class="literal">NDB</code>. This value can be used to correlate
+        multiple exceptions table entries belonging to the same
+        conflicting transaction from the same or different exceptions
+        tables.
+      </p><p>
+        Additional reference columns which are not part of the original
+        table's primary key can be named
+        <code class="literal"><em class="replaceable"><code>colname</code></em>$OLD</code> or
+        <code class="literal"><em class="replaceable"><code>colname</code></em>$NEW</code>.
+        <code class="literal"><em class="replaceable"><code>colname</code></em>$OLD</code>
+        references old values in update and delete operations—that
+        is, operations containing <code class="literal">DELETE_ROW</code> events.
+        <code class="literal"><em class="replaceable"><code>colname</code></em>$NEW</code> can be
+        used to reference new values in insert and update
+        operations—in other words, operations using
+        <code class="literal">WRITE_ROW</code> events,
+        <code class="literal">UPDATE_ROW</code> events, or both types of events.
+        Where a conflicting operation does not supply a value for a
+        given reference column that is not a primary key, the exceptions
+        table row contains either <code class="literal">NULL</code>, or a defined
+        default value for that column.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          The <code class="literal">mysql.ndb_replication</code> table is read
+          when a data table is set up for replication, so the row
+          corresponding to a table to be replicated must be inserted
+          into <code class="literal">mysql.ndb_replication</code>
+          <span class="emphasis"><em>before</em></span> the table to be replicated is
+          created.
+        </p></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="conflict-detection-statvars"></a>Conflict Detection Status Variables</h4></div></div></div><p>
+        <a id="idm45828802938800" class="indexterm"></a>
+
+        <a id="idm45828802937280" class="indexterm"></a>
+
+        Several status variables can be used to monitor conflict
+        detection. You can see how many rows have been found in conflict
+        by <code class="literal">NDB$EPOCH()</code> since this replica was last
+        restarted from the current value of the
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_fn_epoch"><code class="literal">Ndb_conflict_fn_epoch</code></a> system
+        status variable.
+      </p><p>
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_fn_epoch_trans"><code class="literal">Ndb_conflict_fn_epoch_trans</code></a>
+        provides the number of rows that have been found directly in
+        conflict by <code class="literal">NDB$EPOCH_TRANS()</code>.
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_fn_epoch2"><code class="literal">Ndb_conflict_fn_epoch2</code></a> and
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_fn_epoch2_trans"><code class="literal">Ndb_conflict_fn_epoch2_trans</code></a>
+        show the number of rows found in conflict by
+        <code class="literal">NDB$EPOCH2()</code> and
+        <code class="literal">NDB$EPOCH2_TRANS()</code>, respectively. The number
+        of rows actually realigned, including those affected due to
+        their membership in or dependency on the same transactions as
+        other conflicting rows, is given by
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_trans_row_reject_count"><code class="literal">Ndb_conflict_trans_row_reject_count</code></a>.
+      </p><p>
+        Another server status variable
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_fn_max"><code class="literal">Ndb_conflict_fn_max</code></a> provides a
+        count of the number of times that a row was not applied on the
+        current SQL node due to <span class="quote">“<span class="quote">greatest timestamp wins</span>”</span>
+        conflict resolution since the last time that
+        <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> was started.
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_fn_max_del_win"><code class="literal">Ndb_conflict_fn_max_del_win</code></a>
+        provides a count of the number of times that conflict resolution
+        based on the outcome of <code class="literal">NDB$MAX_DELETE_WIN()</code>
+        has been applied.
+      </p><p>
+        NDB 8.0.30 and later provides
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_fn_max_ins"><code class="literal">Ndb_conflict_fn_max_ins</code></a> for
+        tracking the number of times that <span class="quote">“<span class="quote">greater timestamp
+        wins</span>”</span> handling has been applied to write operations
+        (using <code class="literal">NDB$MAX_INS()</code>); a count of the number
+        of times that <span class="quote">“<span class="quote">same timestamp wins</span>”</span> handling of
+        writes has been applied (as implemented by
+        <code class="literal">NDB$MAX_DEL_WIN_INS()</code>), is provided by the
+        status variable
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_fn_max_del_win_ins"><code class="literal">Ndb_conflict_fn_max_del_win_ins</code></a>.
+      </p><p>
+        The number of times that a row was not applied as the result of
+        <span class="quote">“<span class="quote">same timestamp wins</span>”</span> conflict resolution on a
+        given <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> since the last time it was
+        restarted is given by the global status variable
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_fn_old"><code class="literal">Ndb_conflict_fn_old</code></a>. In
+        addition to incrementing
+        <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_conflict_fn_old"><code class="literal">Ndb_conflict_fn_old</code></a>, the
+        primary key of the row that was not used is inserted into an
+        <span class="firstterm">exceptions table</span>, as
+        explained elsewhere in this section.
+      </p><p>
+        See also <a class="xref" href="mysql-cluster-options-variables.html#mysql-cluster-status-variables" title="23.4.3.9.3 NDB Cluster Status Variables">Section 23.4.3.9.3, “NDB Cluster Status Variables”</a>.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="conflict-detection-examples"></a>Examples</h4></div></div></div><p>
+        The following examples assume that you have already a working
+        NDB Cluster replication setup, as described in
+        <a class="xref" href="mysql-cluster-replication-preparation.html" title="23.7.5 Preparing the NDB Cluster for Replication">Section 23.7.5, “Preparing the NDB Cluster for Replication”</a>, and
+        <a class="xref" href="mysql-cluster-replication-starting.html" title="23.7.6 Starting NDB Cluster Replication (Single Replication Channel)">Section 23.7.6, “Starting NDB Cluster Replication (Single Replication Channel)”</a>.
+      </p><p><a id="conflict-detection-ndbmax-example"></a><strong>NDB$MAX() example. </strong>
+          Suppose you wish to enable <span class="quote">“<span class="quote">greatest timestamp
+          wins</span>”</span> conflict resolution on table
+          <code class="literal">test.t1</code>, using column
+          <code class="literal">mycol</code> as the <span class="quote">“<span class="quote">timestamp</span>”</span>. This
+          can be done using the following steps:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Make sure that you have started the source
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> with
+            <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-log-update-as-write"><code class="option">--ndb-log-update-as-write=OFF</code></a>.
+          </p></li><li class="listitem"><p>
+            On the source, perform this
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement:
+          </p><pre class="programlisting">INSERT INTO mysql.ndb_replication
+    VALUES ('test', 't1', 0, NULL, 'NDB$MAX(mycol)');
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              If the <code class="literal">ndb_replication</code> table does not
+              already exist, you must create it. See
+              <a class="xref" href="mysql-cluster-replication-schema.html#ndb-replication-ndb-replication" title="ndb_replication Table">ndb_replication Table</a>.
+            </p></div><p>
+            Inserting a 0 into the <code class="literal">server_id</code> column
+            indicates that all SQL nodes accessing this table should use
+            conflict resolution. If you want to use conflict resolution
+            on a specific <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> only, use the actual
+            server ID.
+          </p><p>
+            Inserting <code class="literal">NULL</code> into the
+            <code class="literal">binlog_type</code> column has the same effect as
+            inserting 0 (<code class="literal">NBT_DEFAULT</code>); the server
+            default is used.
+          </p></li><li class="listitem"><p>
+            Create the <code class="literal">test.t1</code> table:
+          </p><pre class="programlisting">CREATE TABLE test.t1 (
+    <em class="replaceable"><code>columns</code></em>
+    mycol INT UNSIGNED,
+    <em class="replaceable"><code>columns</code></em>
+) ENGINE=NDB;
+</pre><p>
+            Now, when updates are performed on this table, conflict
+            resolution is applied, and the version of the row having the
+            greatest value for <code class="literal">mycol</code> is written to
+            the replica.
+          </p></li></ol></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Other <code class="literal">binlog_type</code> options such as
+          <code class="literal">NBT_UPDATED_ONLY_USE_UPDATE</code>
+          (<code class="literal">6</code>) should be used to control logging on
+          the source using the <code class="literal">ndb_replication</code> table
+          rather than by using command-line options.
+        </p></div><p><a id="conflict-detection-ndbold-example"></a><strong>NDB$OLD() example. </strong>
+          Suppose an <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> table such as the
+          one defined here is being replicated, and you wish to enable
+          <span class="quote">“<span class="quote">same timestamp wins</span>”</span> conflict resolution for
+          updates to this table:
+        </p><pre class="programlisting">CREATE TABLE test.t2  (
+    a INT UNSIGNED NOT NULL,
+    b CHAR(25) NOT NULL,
+    <em class="replaceable"><code>columns</code></em>,
+    mycol INT UNSIGNED NOT NULL,
+    <em class="replaceable"><code>columns</code></em>,
+    PRIMARY KEY pk (a, b)
+)   ENGINE=NDB;
+</pre><p>
+        The following steps are required, in the order shown:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            First—and <span class="emphasis"><em>prior</em></span> to creating
+            <code class="literal">test.t2</code>—you must insert a row into
+            the
+            <a class="link" href="mysql-cluster-replication-schema.html#ndb-replication-ndb-replication" title="ndb_replication Table"><code class="literal">mysql.ndb_replication</code></a>
+            table, as shown here:
+          </p><pre class="programlisting">INSERT INTO mysql.ndb_replication
+    VALUES ('test', 't2', 0, 0, 'NDB$OLD(mycol)');
+</pre><p>
+            Possible values for the <code class="literal">binlog_type</code>
+            column are shown earlier in this section; in this case, we
+            use <code class="literal">0</code> to specify that the server default
+            logging behavior be used. The value
+            <code class="literal">'NDB$OLD(mycol)'</code> should be inserted into
+            the <code class="literal">conflict_fn</code> column.
+          </p></li><li class="listitem"><p>
+            Create an appropriate exceptions table for
+            <code class="literal">test.t2</code>. The table creation statement
+            shown here includes all required columns; any additional
+            columns must be declared following these columns, and before
+            the definition of the table's primary key.
+          </p><pre class="programlisting">CREATE TABLE test.t2$EX  (
+    server_id INT UNSIGNED,
+    source_server_id INT UNSIGNED,
+    source_epoch BIGINT UNSIGNED,
+    count INT UNSIGNED,
+    a INT UNSIGNED NOT NULL,
+    b CHAR(25) NOT NULL,
+
+    [<em class="replaceable"><code>additional_columns</code></em>,]
+
+    PRIMARY KEY(server_id, source_server_id, source_epoch, count)
+)   ENGINE=NDB;
+</pre><p>
+            We can include additional columns for information about the
+            type, cause, and originating transaction ID for a given
+            conflict. We are also not required to supply matching
+            columns for all primary key columns in the original table.
+            This means you can create the exceptions table like this:
+          </p><pre class="programlisting">CREATE TABLE test.t2$EX  (
+    NDB$server_id INT UNSIGNED,
+    NDB$source_server_id INT UNSIGNED,
+    NDB$source_epoch BIGINT UNSIGNED,
+    NDB$count INT UNSIGNED,
+    a INT UNSIGNED NOT NULL,
+
+    NDB$OP_TYPE ENUM('WRITE_ROW','UPDATE_ROW', 'DELETE_ROW',
+      'REFRESH_ROW', 'READ_ROW') NOT NULL,
+    NDB$CFT_CAUSE ENUM('ROW_DOES_NOT_EXIST', 'ROW_ALREADY_EXISTS',
+      'DATA_IN_CONFLICT', 'TRANS_IN_CONFLICT') NOT NULL,
+    NDB$ORIG_TRANSID BIGINT UNSIGNED NOT NULL,
+
+    [<em class="replaceable"><code>additional_columns</code></em>,]
+
+    PRIMARY KEY(NDB$server_id, NDB$source_server_id, NDB$source_epoch, NDB$count)
+)   ENGINE=NDB;
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              The <code class="literal">NDB$</code> prefix is required for the
+              four required columns since we included at least one of
+              the columns <code class="literal">NDB$OP_TYPE</code>,
+              <code class="literal">NDB$CFT_CAUSE</code>, or
+              <code class="literal">NDB$ORIG_TRANSID</code> in the table
+              definition.
+            </p></div></li><li class="listitem"><p>
+            Create the table <code class="literal">test.t2</code> as shown
+            previously.
+          </p></li></ol></div><p>
+        These steps must be followed for every table for which you wish
+        to perform conflict resolution using
+        <code class="literal">NDB$OLD()</code>. For each such table, there must be
+        a corresponding row in <code class="literal">mysql.ndb_replication</code>,
+        and there must be an exceptions table in the same database as
+        the table being replicated.
+      </p><p><a id="conflict-resolution-read-conflicts"></a><strong>Read conflict detection and resolution. </strong>
+          <a id="idm45828802847328" class="indexterm"></a>
+
+          <a id="idm45828802845808" class="indexterm"></a>
+
+          NDB Cluster also supports tracking of read operations, which
+          makes it possible in circular replication setups to manage
+          conflicts between reads of a given row in one cluster and
+          updates or deletes of the same row in another. This example
+          uses <code class="literal">employee</code> and
+          <code class="literal">department</code> tables to model a scenario in
+          which an employee is moved from one department to another on
+          the source cluster (which we refer to hereafter as cluster
+          <span class="emphasis"><em>A</em></span>) while the replica cluster (hereafter
+          <span class="emphasis"><em>B</em></span>) updates the employee count of the
+          employee's former department in an interleaved
+          transaction.
+        </p><p>
+        The data tables have been created using the following SQL
+        statements:
+      </p><pre class="programlisting"># Employee table
+CREATE TABLE employee (
+    id INT PRIMARY KEY,
+    name VARCHAR(2000),
+    dept INT NOT NULL
+)   ENGINE=NDB;
+
+# Department table
+CREATE TABLE department (
+    id INT PRIMARY KEY,
+    name VARCHAR(2000),
+    members INT
+)   ENGINE=NDB;
+</pre><p>
+        The contents of the two tables include the rows shown in the
+        (partial) output of the following
+        <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT id, name, dept FROM employee;</code></strong>
++---------------+------+
+| id   | name   | dept |
++------+--------+------+
+...
+| 998  |  Mike  | 3    |
+| 999  |  Joe   | 3    |
+| 1000 |  Mary  | 3    |
+...
++------+--------+------+
+
+mysql&gt; <strong class="userinput"><code>SELECT id, name, members FROM department;</code></strong>
++-----+-------------+---------+
+| id  | name        | members |
++-----+-------------+---------+
+...
+| 3   | Old project | 24      |
+...
++-----+-------------+---------+
+</pre><p>
+        We assume that we are already using an exceptions table that
+        includes the four required columns (and these are used for this
+        table's primary key), the optional columns for operation
+        type and cause, and the original table's primary key
+        column, created using the SQL statement shown here:
+      </p><pre class="programlisting">CREATE TABLE employee$EX  (
+    NDB$server_id INT UNSIGNED,
+    NDB$source_server_id INT UNSIGNED,
+    NDB$source_epoch BIGINT UNSIGNED,
+    NDB$count INT UNSIGNED,
+
+    NDB$OP_TYPE ENUM( 'WRITE_ROW','UPDATE_ROW', 'DELETE_ROW',
+                      'REFRESH_ROW','READ_ROW') NOT NULL,
+    NDB$CFT_CAUSE ENUM( 'ROW_DOES_NOT_EXIST',
+                        'ROW_ALREADY_EXISTS',
+                        'DATA_IN_CONFLICT',
+                        'TRANS_IN_CONFLICT') NOT NULL,
+
+    id INT NOT NULL,
+
+    PRIMARY KEY(NDB$server_id, NDB$source_server_id, NDB$source_epoch, NDB$count)
+)   ENGINE=NDB;
+</pre><p>
+        Suppose there occur the two simultaneous transactions on the two
+        clusters. On cluster <span class="emphasis"><em>A</em></span>, we create a new
+        department, then move employee number 999 into that department,
+        using the following SQL statements:
+      </p><pre class="programlisting"><a class="link" href="commit.html" title="13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Statements"><code class="literal">BEGIN</code></a>;
+  <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> INTO department VALUES (4, "New project", 1);
+  <span class="emphasis"><em><a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> employee SET dept = 4 WHERE id = 999;</em></span>
+COMMIT;
+</pre><p>
+        At the same time, on cluster <span class="emphasis"><em>B</em></span>, another
+        transaction reads from <code class="literal">employee</code>, as shown
+        here:
+      </p><pre class="programlisting">BEGIN;
+  <span class="emphasis"><em>SELECT name FROM employee WHERE id = 999;</em></span>
+  UPDATE department SET members = members - 1  WHERE id = 3;
+commit;
+</pre><a id="idm45828802823040" class="indexterm"></a><p>
+        The conflicting transactions are not normally detected by the
+        conflict resolution mechanism, since the conflict is between a
+        read (<code class="literal">SELECT</code>) and an update operation. You
+        can circumvent this issue by executing
+        <a class="link" href="set-variable.html" title="13.7.6.1 SET Syntax for Variable Assignment"><code class="literal">SET</code></a>
+        <a class="link" href="mysql-cluster-options-variables.html#sysvar_ndb_log_exclusive_reads"><code class="literal">ndb_log_exclusive_reads</code></a>
+        <code class="literal">= 1</code> on the replica cluster. Acquiring
+        exclusive read locks in this way causes any rows read on the
+        source to be flagged as needing conflict resolution on the
+        replica cluster. If we enable exclusive reads in this way prior
+        to the logging of these transactions, the read on cluster
+        <span class="emphasis"><em>B</em></span> is tracked and sent to cluster
+        <span class="emphasis"><em>A</em></span> for resolution; the conflict on the
+        employee row is subsequently detected and the transaction on
+        cluster <span class="emphasis"><em>B</em></span> is aborted.
+      </p><p>
+        The conflict is registered in the exceptions table (on cluster
+        <span class="emphasis"><em>A</em></span>) as a <code class="literal">READ_ROW</code>
+        operation (see
+        <a class="xref" href="mysql-cluster-replication-conflict-resolution.html#conflict-resolution-exceptions-table" title="Conflict Resolution Exceptions Table">Conflict Resolution Exceptions Table</a>, for a
+        description of operation types), as shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT id, NDB$OP_TYPE, NDB$CFT_CAUSE FROM employee$EX;</code></strong>
++-------+-------------+-------------------+
+| id    | NDB$OP_TYPE | NDB$CFT_CAUSE     |
++-------+-------------+-------------------+
+...
+| 999   | READ_ROW    | TRANS_IN_CONFLICT |
++-------+-------------+-------------------+
+</pre><p>
+        Any existing rows found in the read operation are flagged. This
+        means that multiple rows resulting from the same conflict may be
+        logged in the exception table, as shown by examining the effects
+        a conflict between an update on cluster <span class="emphasis"><em>A</em></span>
+        and a read of multiple rows on cluster <span class="emphasis"><em>B</em></span>
+        from the same table in simultaneous transactions. The
+        transaction executed on cluster <span class="emphasis"><em>A</em></span> is shown
+        here:
+      </p><pre class="programlisting">BEGIN;
+  INSERT INTO department VALUES (4, "New project", 0);
+  <span class="emphasis"><em>UPDATE employee SET dept = 4 WHERE dept = 3;</em></span>
+  SELECT COUNT(*) INTO @count FROM employee WHERE dept = 4;
+  UPDATE department SET members = @count WHERE id = 4;
+COMMIT;
+</pre><p>
+        Concurrently a transaction containing the statements shown here
+        runs on cluster <span class="emphasis"><em>B</em></span>:
+      </p><pre class="programlisting">SET ndb_log_exclusive_reads = 1;  # Must be set if not already enabled
+...
+BEGIN;
+  <span class="emphasis"><em>SELECT COUNT(*) INTO @count FROM employee WHERE dept = 3 FOR UPDATE;</em></span>
+  UPDATE department SET members = @count WHERE id = 3;
+COMMIT;
+</pre><p>
+        In this case, all three rows matching the
+        <code class="literal">WHERE</code> condition in the second
+        transaction's <code class="literal">SELECT</code> are read, and are
+        thus flagged in the exceptions table, as shown here:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT id, NDB$OP_TYPE, NDB$CFT_CAUSE FROM employee$EX;</code></strong>
++-------+-------------+-------------------+
+| id    | NDB$OP_TYPE | NDB$CFT_CAUSE     |
++-------+-------------+-------------------+
+...
+| 998   | READ_ROW    | TRANS_IN_CONFLICT |
+| 999   | READ_ROW    | TRANS_IN_CONFLICT |
+| 1000  | READ_ROW    | TRANS_IN_CONFLICT |
+...
++-------+-------------+-------------------+
+</pre><p>
+        Read tracking is performed on the basis of existing rows only. A
+        read based on a given condition track conflicts only of any rows
+        that are <span class="emphasis"><em>found</em></span> and not of any rows that are
+        inserted in an interleaved transaction. This is similar to how
+        exclusive row locking is performed in a single instance of NDB
+        Cluster.
+      </p><p><a id="conflict-detection-insert-conflict-example"></a><strong>Insert conflict detection and resolution example (NDB 8.0.30 and later). </strong>
+          The following example illustrates the use of the insert
+          conflict detection functions added in NDB 8.0.30. We assume
+          that we are replicating two tables <code class="literal">t1</code> and
+          <code class="literal">t2</code> in database <code class="literal">test</code>, and
+          that we wish to use insert conflict detection with
+          <code class="literal">NDB$MAX_INS()</code> for <code class="literal">t1</code> and
+          <code class="literal">NDB$MAX_DEL_WIN_INS()</code> for
+          <code class="literal">t2</code>. The two data tables are not created
+          until later in the setup process.
+        </p><p>
+        Setting up insert conflict resolution is similar to setting up
+        other conflict detection and resolution algorithms as shown in
+        the previous examples. If the
+        <code class="literal">mysql.ndb_replication</code> table used to configure
+        binary logging and conflict resolution, does not already exist,
+        it is first necessary to create it, as shown here:
+      </p><pre class="programlisting">CREATE TABLE mysql.ndb_replication (
+    db VARBINARY(63),
+    table_name VARBINARY(63),
+    server_id INT UNSIGNED,
+    binlog_type INT UNSIGNED,
+    conflict_fn VARBINARY(128),
+    PRIMARY KEY USING HASH (db, table_name, server_id)
+) ENGINE=NDB 
+PARTITION BY KEY(db,table_name);
+</pre><p>
+        The <code class="literal">ndb_replication</code> table acts on a per-table
+        basis; that is, we need to insert a row containing table
+        information, a <code class="literal">binlog_type</code> value, the
+        conflict resolution function to be employed, and the name of the
+        timestamp column (<code class="literal">X</code>) for each table to be set
+        up, like this:
+      </p><pre class="programlisting">INSERT INTO mysql.ndb_replication VALUES ("test", "t1", 0, 7, "NDB$MAX_INS(X)");
+INSERT INTO mysql.ndb_replication VALUES ("test", "t2", 0, 7, "NDB$MAX_DEL_WIN_INS(X)");
+</pre><p>
+        Here we have set the binlog_type as
+        <code class="literal">NBT_FULL_USE_UPDATE</code> (<code class="literal">7</code>)
+        which means that full rows are always logged. See
+        <a class="xref" href="mysql-cluster-replication-schema.html#ndb-replication-ndb-replication" title="ndb_replication Table">ndb_replication Table</a>, for other
+        possible values.
+      </p><p>
+        You can also create an exceptions table corresponding to each
+        <code class="literal">NDB</code> table for which conflict resolution is to
+        be employed. An exceptions table records all rows rejected by
+        the conflict resolution function for a given table. Exceptions
+        tables for replication conflict detection for tables
+        <code class="literal">t1</code> and <code class="literal">t2</code> can be created
+        using the following two SQL statements:
+      </p><pre class="programlisting">CREATE TABLE `t1$EX` (
+    NDB$server_id INT UNSIGNED,
+    NDB$master_server_id INT UNSIGNED,
+    NDB$master_epoch BIGINT UNSIGNED,
+    NDB$count INT UNSIGNED,
+    NDB$OP_TYPE ENUM('WRITE_ROW', 'UPDATE_ROW', 'DELETE_ROW', 
+                     'REFRESH_ROW', 'READ_ROW') NOT NULL,
+    NDB$CFT_CAUSE ENUM('ROW_DOES_NOT_EXIST', 'ROW_ALREADY_EXISTS',
+                       'DATA_IN_CONFLICT', 'TRANS_IN_CONFLICT') NOT NULL,
+    a INT NOT NULL,
+    PRIMARY KEY(NDB$server_id, NDB$master_server_id, 
+                NDB$master_epoch, NDB$count)
+) ENGINE=NDB;
+
+CREATE TABLE `t2$EX` (
+    NDB$server_id INT UNSIGNED,
+    NDB$master_server_id INT UNSIGNED,
+    NDB$master_epoch BIGINT UNSIGNED,
+    NDB$count INT UNSIGNED,
+    NDB$OP_TYPE ENUM('WRITE_ROW', 'UPDATE_ROW', 'DELETE_ROW',
+                     'REFRESH_ROW', 'READ_ROW') NOT NULL,
+    NDB$CFT_CAUSE ENUM( 'ROW_DOES_NOT_EXIST', 'ROW_ALREADY_EXISTS',
+                        'DATA_IN_CONFLICT', 'TRANS_IN_CONFLICT') NOT NULL,
+    a INT NOT NULL,
+    PRIMARY KEY(NDB$server_id, NDB$master_server_id, 
+                NDB$master_epoch, NDB$count)
+) ENGINE=NDB;
+</pre><p>
+        Finally, after creating the exception tables just shown, you can
+        create the data tables to be replicated and subject to conflict
+        resolution control, using the following two SQL statements:
+      </p><pre class="programlisting">CREATE TABLE t1 (
+    a INT PRIMARY KEY, 
+    b VARCHAR(32), 
+    X INT UNSIGNED
+) ENGINE=NDB;
+
+CREATE TABLE t2 (
+    a INT PRIMARY KEY, 
+    b VARCHAR(32), 
+    X INT UNSIGNED
+) ENGINE=NDB;
+</pre><p>
+        For each table, the <code class="literal">X</code> column is used as the
+        timestamp column.
+      </p><p>
+        Once created on the source, <code class="literal">t1</code> and
+        <code class="literal">t2</code> are replicated and can be assumed to exist
+        on both the source and the replica. In the remainder of this
+        example, we use <code class="literal">mysqlS&gt;</code> to indicate a
+        <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client connected to the source, and
+        <code class="literal">mysqlR&gt;</code> to indicate a
+        <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client running on the replica.
+      </p><p>
+        First we insert one row each into the tables on the source, like
+        this:
+      </p><pre class="programlisting">mysqlS&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES (1, 'Initial X=1', 1);</code></strong>
+Query OK, 1 row affected (0.01 sec)
+
+mysqlS&gt; <strong class="userinput"><code>INSERT INTO t2 VALUES (1, 'Initial X=1', 1);</code></strong>
+Query OK, 1 row affected (0.01 sec)
+</pre><p>
+        We can be certain that these two rows are replicated without
+        causing any conflicts, since the tables on the replica did not
+        contain any rows prior to issuing the
+        <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements on the source.
+        We can verify this by selecting from the tables on the replica
+        as shown here:
+      </p><pre class="programlisting">mysqlR&gt; <strong class="userinput"><code>TABLE t1 ORDER BY a;</code></strong>
++---+-------------+------+
+| a | b           | X    |
++---+-------------+------+
+| 1 | Initial X=1 |    1 |
++---+-------------+------+
+1 row in set (0.00 sec)
+
+mysqlR&gt; <strong class="userinput"><code>TABLE t2 ORDER BY a;</code></strong>
++---+-------------+------+
+| a | b           | X    |
++---+-------------+------+
+| 1 | Initial X=1 |    1 |
++---+-------------+------+
+1 row in set (0.00 sec)
+</pre><p>
+        Next, we insert new rows into the tables on the replica, like
+        this:
+      </p><pre class="programlisting">mysqlR&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES (2, 'Replica X=2', 2);</code></strong>
+Query OK, 1 row affected (0.01 sec)
+
+mysqlR&gt; <strong class="userinput"><code>INSERT INTO t2 VALUES (2, 'Replica X=2', 2);</code></strong>
+Query OK, 1 row affected (0.01 sec)
+</pre><p>
+        Now we insert conflicting rows into the tables on the source
+        having greater timestamp (<code class="literal">X</code>) column values,
+        using the statements shown here:
+      </p><pre class="programlisting">mysqlS&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES (2, 'Source X=20', 20);</code></strong>
+Query OK, 1 row affected (0.01 sec)
+
+mysqlS&gt; <strong class="userinput"><code>INSERT INTO t2 VALUES (2, 'Source X=20', 20);</code></strong>
+Query OK, 1 row affected (0.01 sec)
+</pre><p>
+        Now we observe the results by selecting (again) from both tables
+        on the replica, as shown here:
+      </p><pre class="programlisting">mysqlR&gt; <strong class="userinput"><code>TABLE t1 ORDER BY a;</code></strong>
++---+-------------+-------+
+| a | b           | X     |
++---+-------------+-------+
+| 1 | Initial X=1 |    1  |
++---+-------------+-------+
+| 2 | Source X=20 |   20  |
++---+-------------+-------+
+2 rows in set (0.00 sec)
+
+mysqlR&gt; <strong class="userinput"><code>TABLE t2 ORDER BY a;</code></strong>
++---+-------------+-------+
+| a | b           | X     |
++---+-------------+-------+
+| 1 | Initial X=1 |    1  |
++---+-------------+-------+
+| 1 | Source X=20 |   20  |
++---+-------------+-------+
+2 rows in set (0.00 sec)
+</pre><p>
+        The rows inserted on the source, having greater timestamps than
+        those in the conflicting rows on the replica, have replaced
+        those rows. On the replica, we next insert two new rows which do
+        not conflict with any existing rows in <code class="literal">t1</code> or
+        <code class="literal">t2</code>, like this:
+      </p><pre class="programlisting">mysqlR&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES (3, 'Slave X=30', 30);</code></strong>
+Query OK, 1 row affected (0.01 sec)
+
+mysqlR&gt; <strong class="userinput"><code>INSERT INTO t2 VALUES (3, 'Slave X=30', 30);</code></strong>
+Query OK, 1 row affected (0.01 sec)
+</pre><p>
+        Inserting more rows on the source with the same primary key
+        value (<code class="literal">3</code>) brings about conflicts as before,
+        but this time we use a value for the timestamp column less than
+        that in same column in the conflicting rows on the replica.
+      </p><pre class="programlisting">mysqlS&gt; <strong class="userinput"><code>INSERT INTO t1 VALUES (3, 'Source X=3', 3);</code></strong>
+Query OK, 1 row affected (0.01 sec)
+
+mysqlS&gt; <strong class="userinput"><code>INSERT INTO t2 VALUES (3, 'Source X=3', 3);</code></strong>
+Query OK, 1 row affected (0.01 sec)
+</pre><p>
+        We can see by querying the tables that both inserts from the
+        source were rejected by the replica, and the rows inserted on
+        the replica previously have not been overwritten, as shown here
+        in the <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client on the replica:
+      </p><pre class="programlisting">mysqlR&gt; <strong class="userinput"><code>TABLE t1 ORDER BY a;</code></strong>
++---+--------------+-------+
+| a | b            | X     |
++---+--------------+-------+
+| 1 |  Initial X=1 |    1  |
++---+--------------+-------+
+| 2 |  Source X=20 |   20  |
++---+--------------+-------+
+| 3 | Replica X=30 |   30  |
++---+--------------+-------+
+3 rows in set (0.00 sec)
+
+mysqlR&gt; <strong class="userinput"><code>TABLE t2 ORDER BY a;</code></strong>
++---+--------------+-------+
+| a | b            | X     |
++---+--------------+-------+
+| 1 |  Initial X=1 |    1  |
++---+--------------+-------+
+| 2 |  Source X=20 |   20  |
++---+--------------+-------+
+| 3 | Replica X=30 |   30  |
++---+--------------+-------+
+3 rows in set (0.00 sec)
+</pre><p>
+        You can see information about the rows that were rejected in the
+        exception tables, as shown here:
+      </p><pre class="programlisting">mysqlR&gt; <strong class="userinput"><code>SELECT  NDB$server_id, NDB$master_server_id, NDB$count,</code></strong>
+      &gt;         <strong class="userinput"><code>NDB$OP_TYPE, NDB$CFT_CAUSE, a</code></strong>
+      &gt; <strong class="userinput"><code>FROM t1$EX</code></strong>
+      &gt; <strong class="userinput"><code>ORDER BY NDB$count\G</code></strong>
+*************************** 1. row ***************************
+NDB$server_id       : 2
+NDB$master_server_id: 1
+NDB$count           : 1
+NDB$OP_TYPE         : WRITE_ROW
+NDB$CFT_CAUSE       : DATA_IN_CONFLICT
+a                   : 3
+1 row in set (0.00 sec)
+
+mysqlR&gt; <strong class="userinput"><code>SELECT  NDB$server_id, NDB$master_server_id, NDB$count,</code></strong>
+      &gt;         <strong class="userinput"><code>NDB$OP_TYPE, NDB$CFT_CAUSE, a</code></strong>
+      &gt; <strong class="userinput"><code>FROM t2$EX</code></strong>
+      &gt; <strong class="userinput"><code>ORDER BY NDB$count\G</code></strong>
+*************************** 1. row ***************************
+NDB$server_id       : 2
+NDB$master_server_id: 1
+NDB$count           : 1
+NDB$OP_TYPE         : WRITE_ROW
+NDB$CFT_CAUSE       : DATA_IN_CONFLICT
+a                   : 3
+1 row in set (0.00 sec)
+</pre><p>
+        As we saw earlier, no other rows inserted on the source were
+        rejected by the replica, only those rows having a lesser
+        timestamp value than the rows in conflict on the replica.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-replication-mta.html">Previous <span class="navHint"> NDB Cluster Replication Using the Multithreaded Applier </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-news.html">Next <span class="navHint"> NDB Cluster Release Notes </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

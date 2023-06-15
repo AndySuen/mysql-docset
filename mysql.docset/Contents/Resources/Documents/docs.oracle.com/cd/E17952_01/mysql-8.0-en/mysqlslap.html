@@ -1,0 +1,991 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2914"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/4.5.8%C2%A0mysqlslap%20%E2%80%94%20A%20Load%20Emulation%20Client"></a><title>4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="programs-client.html" title="4.5&nbsp;Client Programs"/><link rel="prev" href="mysqlshow.html" title="4.5.7&nbsp;mysqlshow &mdash; Display Database, Table, and Column Information"/><link rel="next" href="programs-admin-utils.html" title="4.6&nbsp;Administrative and Utility Programs"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysqlslap.html#mysqlslap">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysqlshow.html">Previous <span class="navHint"> mysqlshow &mdash; Display Database, Table, and Column Information </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="programs-client.html">Up <span class="navHint"> Client Programs </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="programs-admin-utils.html">Next <span class="navHint"> Administrative and Utility Programs </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysqlslap"></a>4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client</h3></div></div></div><a id="idm45829036312192" class="indexterm"></a><a id="idm45829036311280" class="indexterm"></a><p>
+        <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> is a diagnostic program designed to
+        emulate client load for a MySQL server and to report the timing
+        of each stage. It works as if multiple clients are accessing the
+        server.
+      </p><p>
+        Invoke <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> like this:
+      </p><pre class="programlisting">mysqlslap [<em class="replaceable"><code>options</code></em>]
+</pre><p>
+        Some options such as <a class="link" href="mysqlslap.html#option_mysqlslap_create"><code class="option">--create</code></a>
+        or <a class="link" href="mysqlslap.html#option_mysqlslap_query"><code class="option">--query</code></a> enable you to
+        specify a string containing an SQL statement or a file
+        containing statements. If you specify a file, by default it must
+        contain one statement per line. (That is, the implicit statement
+        delimiter is the newline character.) Use the
+        <a class="link" href="mysqlslap.html#option_mysqlslap_delimiter"><code class="option">--delimiter</code></a> option to specify
+        a different delimiter, which enables you to specify statements
+        that span multiple lines or place multiple statements on a
+        single line. You cannot include comments in a file;
+        <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> does not understand them.
+      </p><p>
+        <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> runs in three stages:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Create schema, table, and optionally any stored programs or
+            data to use for the test. This stage uses a single client
+            connection.
+          </p></li><li class="listitem"><p>
+            Run the load test. This stage can use many client
+            connections.
+          </p></li><li class="listitem"><p>
+            Clean up (disconnect, drop table if specified). This stage
+            uses a single client connection.
+          </p></li></ol></div><p>
+        Examples:
+      </p><p>
+        Supply your own create and query SQL statements, with 50 clients
+        querying and 200 selects for each (enter the command on a single
+        line):
+      </p><pre class="programlisting">mysqlslap --delimiter=&#34;;&#34;
+  --create=&#34;CREATE TABLE a (b int);INSERT INTO a VALUES (23)&#34;
+  --query=&#34;SELECT * FROM a&#34; --concurrency=50 --iterations=200
+</pre><p>
+        Let <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> build the query SQL statement
+        with a table of two <a class="link" href="integer-types.html" title="11.1.2&nbsp;Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INT</code></a> columns
+        and three <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a> columns. Use
+        five clients querying 20 times each. Do not create the table or
+        insert the data (that is, use the previous test&#39;s schema and
+        data):
+      </p><pre class="programlisting">mysqlslap --concurrency=5 --iterations=20
+  --number-int-cols=2 --number-char-cols=3
+  --auto-generate-sql
+</pre><p>
+        Tell the program to load the create, insert, and query SQL
+        statements from the specified files, where the
+        <code class="filename">create.sql</code> file has multiple table creation
+        statements delimited by <code class="literal">&#39;;&#39;</code> and multiple
+        insert statements delimited by <code class="literal">&#39;;&#39;</code>. The
+        <code class="option">--query</code> file should contain multiple queries
+        delimited by <code class="literal">&#39;;&#39;</code>. Run all the load
+        statements, then run all the queries in the query file with five
+        clients (five times each):
+      </p><pre class="programlisting">mysqlslap --concurrency=5
+  --iterations=5 --query=query.sql --create=create.sql
+  --delimiter=&#34;;&#34;
+</pre><p>
+        <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> supports the following options,
+        which can be specified on the command line or in the
+        <code class="literal">[mysqlslap]</code> and <code class="literal">[client]</code>
+        groups of an option file. For information about option files
+        used by MySQL programs, see <a class="xref" href="option-files.html" title="4.2.2.2&nbsp;Using Option Files">Section&nbsp;4.2.2.2, &ldquo;Using Option Files&rdquo;</a>.
+      </p><div class="table"><a id="idm45829036278160"></a><p class="title"><strong>Table&nbsp;4.18&nbsp;mysqlslap Options</strong></p><div class="table-contents"><table frame="box" rules="all" summary="Command-line options available for mysqlslap."><colgroup><col style="width: 27%"/><col style="width: 50%"/><col style="width: 11%"/><col style="width: 11%"/></colgroup><thead><tr><th scope="col">Option Name</th>
+<th scope="col">Description</th>
+<th scope="col">Introduced</th>
+<th scope="col">Deprecated</th>
+</tr></thead><tbody><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql">--auto-generate-sql</a></th>
+<td>Generate SQL statements automatically when they are not supplied in files or using command options</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-add-autoincrement">--auto-generate-sql-add-autoincrement</a></th>
+<td>Add AUTO_INCREMENT column to automatically generated tables</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-execute-number">--auto-generate-sql-execute-number</a></th>
+<td>Specify how many queries to generate automatically</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-guid-primary">--auto-generate-sql-guid-primary</a></th>
+<td>Add a GUID-based primary key to automatically generated tables</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-load-type">--auto-generate-sql-load-type</a></th>
+<td>Specify the test load type</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-secondary-indexes">--auto-generate-sql-secondary-indexes</a></th>
+<td>Specify how many secondary indexes to add to automatically generated tables</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-unique-query-number">--auto-generate-sql-unique-query-number</a></th>
+<td>How many different queries to generate for automatic tests</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-unique-write-number">--auto-generate-sql-unique-write-number</a></th>
+<td>How many different queries to generate for --auto-generate-sql-write-number</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-write-number">--auto-generate-sql-write-number</a></th>
+<td>How many row inserts to perform on each thread</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_commit">--commit</a></th>
+<td>How many statements to execute before committing</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_compress">--compress</a></th>
+<td>Compress all information sent between client and server</td>
+<td></td>
+<td>8.0.18</td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_compression-algorithms">--compression-algorithms</a></th>
+<td>Permitted compression algorithms for connections to server</td>
+<td>8.0.18</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_concurrency">--concurrency</a></th>
+<td>Number of clients to simulate when issuing the SELECT statement</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_create">--create</a></th>
+<td>File or string containing the statement to use for creating the table</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_create-schema">--create-schema</a></th>
+<td>Schema in which to run the tests</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_csv">--csv</a></th>
+<td>Generate output in comma-separated values format</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_debug">--debug</a></th>
+<td>Write debugging log</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_debug-check">--debug-check</a></th>
+<td>Print debugging information when program exits</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_debug-info">--debug-info</a></th>
+<td>Print debugging information, memory, and CPU statistics when program exits</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_default-auth">--default-auth</a></th>
+<td>Authentication plugin to use</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_defaults-extra-file">--defaults-extra-file</a></th>
+<td>Read named option file in addition to usual option files</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_defaults-file">--defaults-file</a></th>
+<td>Read only named option file</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_defaults-group-suffix">--defaults-group-suffix</a></th>
+<td>Option group suffix value</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_delimiter">--delimiter</a></th>
+<td>Delimiter to use in SQL statements</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_detach">--detach</a></th>
+<td>Detach (close and reopen) each connection after each N statements</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_enable-cleartext-plugin">--enable-cleartext-plugin</a></th>
+<td>Enable cleartext authentication plugin</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_engine">--engine</a></th>
+<td>Storage engine to use for creating the table</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_get-server-public-key">--get-server-public-key</a></th>
+<td>Request RSA public key from server</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_help">--help</a></th>
+<td>Display help message and exit</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_host">--host</a></th>
+<td>Host on which MySQL server is located</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_iterations">--iterations</a></th>
+<td>Number of times to run the tests</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_login-path">--login-path</a></th>
+<td>Read login path options from .mylogin.cnf</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_no-defaults">--no-defaults</a></th>
+<td>Read no option files</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_no-drop">--no-drop</a></th>
+<td>Do not drop any schema created during the test run</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_number-char-cols">--number-char-cols</a></th>
+<td>Number of VARCHAR columns to use if --auto-generate-sql is specified</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_number-int-cols">--number-int-cols</a></th>
+<td>Number of INT columns to use if --auto-generate-sql is specified</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_number-of-queries">--number-of-queries</a></th>
+<td>Limit each client to approximately this number of queries</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_only-print">--only-print</a></th>
+<td>Do not connect to databases. mysqlslap only prints what it would have done</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_password">--password</a></th>
+<td>Password to use when connecting to server</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_password1">--password1</a></th>
+<td>First multifactor authentication password to use when connecting to server</td>
+<td>8.0.27</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_password2">--password2</a></th>
+<td>Second multifactor authentication password to use when connecting to server</td>
+<td>8.0.27</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_password3">--password3</a></th>
+<td>Third multifactor authentication password to use when connecting to server</td>
+<td>8.0.27</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_pipe">--pipe</a></th>
+<td>Connect to server using named pipe (Windows only)</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_plugin-dir">--plugin-dir</a></th>
+<td>Directory where plugins are installed</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_port">--port</a></th>
+<td>TCP/IP port number for connection</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_post-query">--post-query</a></th>
+<td>File or string containing the statement to execute after the tests have completed</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_post-system">--post-system</a></th>
+<td>String to execute using system() after the tests have completed</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_pre-query">--pre-query</a></th>
+<td>File or string containing the statement to execute before running the tests</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_pre-system">--pre-system</a></th>
+<td>String to execute using system() before running the tests</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_print-defaults">--print-defaults</a></th>
+<td>Print default options</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_protocol">--protocol</a></th>
+<td>Transport protocol to use</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_query">--query</a></th>
+<td>File or string containing the SELECT statement to use for retrieving data</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_server-public-key-path">--server-public-key-path</a></th>
+<td>Path name to file containing RSA public key</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_shared-memory-base-name">--shared-memory-base-name</a></th>
+<td>Shared-memory name for shared-memory connections (Windows only)</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_silent">--silent</a></th>
+<td>Silent mode</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_socket">--socket</a></th>
+<td>Unix socket file or Windows named pipe to use</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_sql-mode">--sql-mode</a></th>
+<td>Set SQL mode for client session</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl">--ssl-ca</a></th>
+<td>File that contains list of trusted SSL Certificate Authorities</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl">--ssl-capath</a></th>
+<td>Directory that contains trusted SSL Certificate Authority certificate files</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl">--ssl-cert</a></th>
+<td>File that contains X.509 certificate</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl">--ssl-cipher</a></th>
+<td>Permissible ciphers for connection encryption</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl">--ssl-crl</a></th>
+<td>File that contains certificate revocation lists</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl">--ssl-crlpath</a></th>
+<td>Directory that contains certificate revocation-list files</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl-fips-mode">--ssl-fips-mode</a></th>
+<td>Whether to enable FIPS mode on client side</td>
+<td></td>
+<td>8.0.34</td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl">--ssl-key</a></th>
+<td>File that contains X.509 key</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl">--ssl-mode</a></th>
+<td>Desired security state of connection to server</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl">--ssl-session-data</a></th>
+<td>File that contains SSL session data</td>
+<td>8.0.29</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_ssl">--ssl-session-data-continue-on-failed-reuse</a></th>
+<td>Whether to establish connections if session reuse fails</td>
+<td>8.0.29</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_tls-ciphersuites">--tls-ciphersuites</a></th>
+<td>Permissible TLSv1.3 ciphersuites for encrypted connections</td>
+<td>8.0.16</td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_tls-version">--tls-version</a></th>
+<td>Permissible TLS protocols for encrypted connections</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_user">--user</a></th>
+<td>MySQL user name to use when connecting to server</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_verbose">--verbose</a></th>
+<td>Verbose mode</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_version">--version</a></th>
+<td>Display version information and exit</td>
+<td></td>
+<td></td>
+</tr><tr><th scope="row"><a class="link" href="mysqlslap.html#option_mysqlslap_zstd-compression-level">--zstd-compression-level</a></th>
+<td>Compression level for connections to server that use zstd compression</td>
+<td>8.0.18</td>
+<td></td>
+</tr></tbody></table></div></div><br class="table-break"/><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a id="option_mysqlslap_help"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_help"><code class="option">--help</code></a>,
+            <code class="option">-?</code>
+          </p><a id="idm45829035933952" class="indexterm"></a><a id="idm45829035932464" class="indexterm"></a><p>
+            Display a help message and exit.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_auto-generate-sql"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql"><code class="option">--auto-generate-sql</code></a>,
+            <code class="option">-a</code>
+          </p><a id="idm45829035927920" class="indexterm"></a><a id="idm45829035926464" class="indexterm"></a><p>
+            Generate SQL statements automatically when they are not
+            supplied in files or using command options.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_auto-generate-sql-add-autoincrement"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-add-autoincrement"><code class="option">--auto-generate-sql-add-autoincrement</code></a>
+          </p><a id="idm45829035922160" class="indexterm"></a><a id="idm45829035920704" class="indexterm"></a><p>
+            Add an <code class="literal">AUTO_INCREMENT</code> column to
+            automatically generated tables.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_auto-generate-sql-execute-number"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-execute-number"><code class="option">--auto-generate-sql-execute-number=<em class="replaceable"><code>N</code></em></code></a>
+          </p><a id="idm45829035915472" class="indexterm"></a><a id="idm45829035913968" class="indexterm"></a><p>
+            Specify how many queries to generate automatically.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_auto-generate-sql-guid-primary"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-guid-primary"><code class="option">--auto-generate-sql-guid-primary</code></a>
+          </p><a id="idm45829035909776" class="indexterm"></a><a id="idm45829035908272" class="indexterm"></a><p>
+            Add a GUID-based primary key to automatically generated
+            tables.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_auto-generate-sql-load-type"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-load-type"><code class="option">--auto-generate-sql-load-type=<em class="replaceable"><code>type</code></em></code></a>
+          </p><a id="idm45829035903776" class="indexterm"></a><a id="idm45829035902272" class="indexterm"></a><p>
+            Specify the test load type. The permissible values are
+            <code class="literal">read</code> (scan tables),
+            <code class="literal">write</code> (insert into tables),
+            <code class="literal">key</code> (read primary keys),
+            <code class="literal">update</code> (update primary keys), or
+            <code class="literal">mixed</code> (half inserts, half scanning
+            selects). The default is <code class="literal">mixed</code>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_auto-generate-sql-secondary-indexes"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-secondary-indexes"><code class="option">--auto-generate-sql-secondary-indexes=<em class="replaceable"><code>N</code></em></code></a>
+          </p><a id="idm45829035893360" class="indexterm"></a><a id="idm45829035891904" class="indexterm"></a><p>
+            Specify how many secondary indexes to add to automatically
+            generated tables. By default, none are added.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_auto-generate-sql-unique-query-number"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-unique-query-number"><code class="option">--auto-generate-sql-unique-query-number=<em class="replaceable"><code>N</code></em></code></a>
+          </p><a id="idm45829035887360" class="indexterm"></a><a id="idm45829035885840" class="indexterm"></a><p>
+            How many different queries to generate for automatic tests.
+            For example, if you run a <code class="literal">key</code> test that
+            performs 1000 selects, you can use this option with a value
+            of 1000 to run 1000 unique queries, or with a value of 50 to
+            perform 50 different selects. The default is 10.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_auto-generate-sql-unique-write-number"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-unique-write-number"><code class="option">--auto-generate-sql-unique-write-number=<em class="replaceable"><code>N</code></em></code></a>
+          </p><a id="idm45829035880432" class="indexterm"></a><a id="idm45829035878912" class="indexterm"></a><p>
+            How many different queries to generate for
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-write-number"><code class="option">--auto-generate-sql-write-number</code></a>.
+            The default is 10.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_auto-generate-sql-write-number"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql-write-number"><code class="option">--auto-generate-sql-write-number=<em class="replaceable"><code>N</code></em></code></a>
+          </p><a id="idm45829035873328" class="indexterm"></a><a id="idm45829035871824" class="indexterm"></a><p>
+            How many row inserts to perform. The default is 100.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_commit"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_commit"><code class="option">--commit=<em class="replaceable"><code>N</code></em></code></a>
+          </p><a id="idm45829035867520" class="indexterm"></a><a id="idm45829035866032" class="indexterm"></a><p>
+            How many statements to execute before committing. The
+            default is 0 (no commits are done).
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_compress"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_compress"><code class="option">--compress</code></a>,
+            <code class="option">-C</code>
+          </p><a id="idm45829035861424" class="indexterm"></a><a id="idm45829035859936" class="indexterm"></a><p>
+            Compress all information sent between the client and the
+            server if possible. See
+            <a class="xref" href="connection-compression-control.html" title="4.2.8&nbsp;Connection Compression Control">Section&nbsp;4.2.8, &ldquo;Connection Compression Control&rdquo;</a>.
+          </p><p>
+            As of MySQL 8.0.18, this option is deprecated. Expect it to
+            be removed in a future version of MySQL. See
+            <a class="xref" href="connection-compression-control.html#connection-compression-legacy-configuration" title="Configuring Legacy Connection Compression">Configuring Legacy Connection Compression</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_compression-algorithms"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_compression-algorithms"><code class="option">--compression-algorithms=<em class="replaceable"><code>value</code></em></code></a>
+          </p><a id="idm45829035853568" class="indexterm"></a><a id="idm45829035852064" class="indexterm"></a><p>
+            The permitted compression algorithms for connections to the
+            server. The available algorithms are the same as for the
+            <a class="link" href="server-system-variables.html#sysvar_protocol_compression_algorithms"><code class="literal">protocol_compression_algorithms</code></a>
+            system variable. The default value is
+            <code class="literal">uncompressed</code>.
+          </p><p>
+            For more information, see
+            <a class="xref" href="connection-compression-control.html" title="4.2.8&nbsp;Connection Compression Control">Section&nbsp;4.2.8, &ldquo;Connection Compression Control&rdquo;</a>.
+          </p><p>
+            This option was added in MySQL 8.0.18.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_concurrency"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_concurrency"><code class="option">--concurrency=<em class="replaceable"><code>N</code></em></code></a>,
+            <code class="option">-c <em class="replaceable"><code>N</code></em></code>
+          </p><a id="idm45829035843232" class="indexterm"></a><a id="idm45829035841744" class="indexterm"></a><p>
+            The number of parallel clients to simulate.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_create"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_create"><code class="option">--create=<em class="replaceable"><code>value</code></em></code></a>
+          </p><a id="idm45829035837424" class="indexterm"></a><a id="idm45829035835936" class="indexterm"></a><p>
+            The file or string containing the statement to use for
+            creating the table.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_create-schema"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_create-schema"><code class="option">--create-schema=<em class="replaceable"><code>value</code></em></code></a>
+          </p><a id="idm45829035831408" class="indexterm"></a><a id="idm45829035829920" class="indexterm"></a><p>
+            The schema in which to run the tests.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              If the
+              <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql"><code class="option">--auto-generate-sql</code></a>
+              option is also given, <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> drops
+              the schema at the end of the test run. To avoid this, use
+              the <a class="link" href="mysqlslap.html#option_mysqlslap_no-drop"><code class="option">--no-drop</code></a> option as
+              well.
+            </p></div></li><li class="listitem"><p><a id="option_mysqlslap_csv"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_csv"><code class="option">--csv[=<em class="replaceable"><code>file_name</code></em>]</code></a>
+          </p><a id="idm45829035821312" class="indexterm"></a><a id="idm45829035819824" class="indexterm"></a><p>
+            Generate output in comma-separated values format. The output
+            goes to the named file, or to the standard output if no file
+            is given.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_debug"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_debug"><code class="option">--debug[=<em class="replaceable"><code>debug_options</code></em>]</code></a>,
+            <code class="option">-#
+            [<em class="replaceable"><code>debug_options</code></em>]</code>
+          </p><a id="idm45829035814352" class="indexterm"></a><a id="idm45829035812864" class="indexterm"></a><p>
+            Write a debugging log. A typical
+            <em class="replaceable"><code>debug_options</code></em> string is
+            <code class="literal">d:t:o,<em class="replaceable"><code>file_name</code></em></code>.
+            The default is
+            <code class="literal">d:t:o,/tmp/mysqlslap.trace</code>.
+          </p><p>
+            This option is available only if MySQL was built using
+            <a class="link" href="source-configuration-options.html#option_cmake_with_debug"><code class="option">WITH_DEBUG</code></a>. MySQL release
+            binaries provided by Oracle are <span class="emphasis"><em>not</em></span>
+            built using this option.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_debug-check"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_debug-check"><code class="option">--debug-check</code></a>
+          </p><a id="idm45829035804576" class="indexterm"></a><a id="idm45829035803088" class="indexterm"></a><p>
+            Print some debugging information when the program exits.
+          </p><p>
+            This option is available only if MySQL was built using
+            <a class="link" href="source-configuration-options.html#option_cmake_with_debug"><code class="option">WITH_DEBUG</code></a>. MySQL release
+            binaries provided by Oracle are <span class="emphasis"><em>not</em></span>
+            built using this option.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_debug-info"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_debug-info"><code class="option">--debug-info</code></a>,
+            <code class="option">-T</code>
+          </p><a id="idm45829035796640" class="indexterm"></a><a id="idm45829035795152" class="indexterm"></a><p>
+            Print debugging information and memory and CPU usage
+            statistics when the program exits.
+          </p><p>
+            This option is available only if MySQL was built using
+            <a class="link" href="source-configuration-options.html#option_cmake_with_debug"><code class="option">WITH_DEBUG</code></a>. MySQL release
+            binaries provided by Oracle are <span class="emphasis"><em>not</em></span>
+            built using this option.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_default-auth"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_default-auth"><code class="option">--default-auth=<em class="replaceable"><code>plugin</code></em></code></a>
+          </p><a id="idm45829035788720" class="indexterm"></a><a id="idm45829035787232" class="indexterm"></a><p>
+            A hint about which client-side authentication plugin to use.
+            See <a class="xref" href="pluggable-authentication.html" title="6.2.17&nbsp;Pluggable Authentication">Section&nbsp;6.2.17, &ldquo;Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_defaults-extra-file"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_defaults-extra-file"><code class="option">--defaults-extra-file=<em class="replaceable"><code>file_name</code></em></code></a>
+          </p><a id="idm45829035782128" class="indexterm"></a><a id="idm45829035780672" class="indexterm"></a><p>
+            Read this option file after the global option file but (on
+            Unix) before the user option file. If the file does not
+            exist or is otherwise inaccessible, an error occurs. If
+            <em class="replaceable"><code>file_name</code></em> is not an absolute path
+            name, it is interpreted relative to the current directory.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_defaults-file"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_defaults-file"><code class="option">--defaults-file=<em class="replaceable"><code>file_name</code></em></code></a>
+          </p><a id="idm45829035774368" class="indexterm"></a><a id="idm45829035772880" class="indexterm"></a><p>
+            Use only the given option file. If the file does not exist
+            or is otherwise inaccessible, an error occurs. If
+            <em class="replaceable"><code>file_name</code></em> is not an absolute path
+            name, it is interpreted relative to the current directory.
+          </p><p>
+            Exception: Even with
+            <a class="link" href="option-file-options.html#option_general_defaults-file"><code class="option">--defaults-file</code></a>, client
+            programs read <code class="filename">.mylogin.cnf</code>.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_defaults-group-suffix"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_defaults-group-suffix"><code class="option">--defaults-group-suffix=<em class="replaceable"><code>str</code></em></code></a>
+          </p><a id="idm45829035764544" class="indexterm"></a><a id="idm45829035763040" class="indexterm"></a><p>
+            Read not only the usual option groups, but also groups with
+            the usual names and a suffix of
+            <em class="replaceable"><code>str</code></em>. For example,
+            <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> normally reads the
+            <code class="literal">[client]</code> and
+            <code class="literal">[mysqlslap]</code> groups. If this option is
+            given as
+            <a class="link" href="mysqlslap.html#option_mysqlslap_defaults-group-suffix"><code class="option">--defaults-group-suffix=_other</code></a>,
+            <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> also reads the
+            <code class="literal">[client_other]</code> and
+            <code class="literal">[mysqlslap_other]</code> groups.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_delimiter"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_delimiter"><code class="option">--delimiter=<em class="replaceable"><code>str</code></em></code></a>,
+            <code class="option">-F <em class="replaceable"><code>str</code></em></code>
+          </p><a id="idm45829035749872" class="indexterm"></a><a id="idm45829035748384" class="indexterm"></a><p>
+            The delimiter to use in SQL statements supplied in files or
+            using command options.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_detach"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_detach"><code class="option">--detach=<em class="replaceable"><code>N</code></em></code></a>
+          </p><a id="idm45829035744048" class="indexterm"></a><a id="idm45829035742560" class="indexterm"></a><p>
+            Detach (close and reopen) each connection after each
+            <em class="replaceable"><code>N</code></em> statements. The default is 0
+            (connections are not detached).
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_enable-cleartext-plugin"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_enable-cleartext-plugin"><code class="option">--enable-cleartext-plugin</code></a>
+          </p><a id="idm45829035737776" class="indexterm"></a><a id="idm45829035736272" class="indexterm"></a><p>
+            Enable the <code class="literal">mysql_clear_password</code> cleartext
+            authentication plugin. (See
+            <a class="xref" href="cleartext-pluggable-authentication.html" title="6.4.1.4&nbsp;Client-Side Cleartext Pluggable Authentication">Section&nbsp;6.4.1.4, &ldquo;Client-Side Cleartext Pluggable Authentication&rdquo;</a>.)
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_engine"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_engine"><code class="option">--engine=<em class="replaceable"><code>engine_name</code></em></code></a>,
+            <code class="option">-e <em class="replaceable"><code>engine_name</code></em></code>
+          </p><a id="idm45829035729808" class="indexterm"></a><a id="idm45829035728320" class="indexterm"></a><p>
+            The storage engine to use for creating tables.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_get-server-public-key"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_get-server-public-key"><code class="option">--get-server-public-key</code></a>
+          </p><a id="idm45829035724192" class="indexterm"></a><a id="idm45829035722736" class="indexterm"></a><p>
+            Request from the server the RSA public key that it uses for
+            key pair-based password exchange. This option applies to
+            clients that connect to the server using an account that
+            authenticates with the
+            <code class="literal">caching_sha2_password</code> authentication
+            plugin. For connections by such accounts, the server does
+            not send the public key to the client unless requested. The
+            option is ignored for accounts that do not authenticate with
+            that plugin. It is also ignored if RSA-based password
+            exchange is not needed, as is the case when the client
+            connects to the server using a secure connection.
+          </p><p>
+            If
+            <a class="link" href="mysqlslap.html#option_mysqlslap_server-public-key-path"><code class="option">--server-public-key-path=<em class="replaceable"><code>file_name</code></em></code></a>
+            is given and specifies a valid public key file, it takes
+            precedence over
+            <a class="link" href="mysqlslap.html#option_mysqlslap_get-server-public-key"><code class="option">--get-server-public-key</code></a>.
+          </p><p>
+            For information about the
+            <code class="literal">caching_sha2_password</code> plugin, see
+            <a class="xref" href="caching-sha2-pluggable-authentication.html" title="6.4.1.2&nbsp;Caching SHA-2 Pluggable Authentication">Section&nbsp;6.4.1.2, &ldquo;Caching SHA-2 Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_host"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_host"><code class="option">--host=<em class="replaceable"><code>host_name</code></em></code></a>,
+            <code class="option">-h <em class="replaceable"><code>host_name</code></em></code>
+          </p><a id="idm45829035711680" class="indexterm"></a><a id="idm45829035710192" class="indexterm"></a><p>
+            Connect to the MySQL server on the given host.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_iterations"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_iterations"><code class="option">--iterations=<em class="replaceable"><code>N</code></em></code></a>,
+            <code class="option">-i <em class="replaceable"><code>N</code></em></code>
+          </p><a id="idm45829035705136" class="indexterm"></a><a id="idm45829035703648" class="indexterm"></a><p>
+            The number of times to run the tests.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_login-path"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_login-path"><code class="option">--login-path=<em class="replaceable"><code>name</code></em></code></a>
+          </p><a id="idm45829035699216" class="indexterm"></a><a id="idm45829035697728" class="indexterm"></a><p>
+            Read options from the named login path in the
+            <code class="filename">.mylogin.cnf</code> login path file. A
+            <span class="quote">&ldquo;<span class="quote">login path</span>&rdquo;</span> is an option group containing
+            options that specify which MySQL server to connect to and
+            which account to authenticate as. To create or modify a
+            login path file, use the
+            <a class="link" href="mysql-config-editor.html" title="4.6.7&nbsp;mysql_config_editor &mdash; MySQL Configuration Utility"><span class="command"><strong>mysql_config_editor</strong></span></a> utility. See
+            <a class="xref" href="mysql-config-editor.html" title="4.6.7&nbsp;mysql_config_editor &mdash; MySQL Configuration Utility">Section&nbsp;4.6.7, &ldquo;mysql_config_editor &mdash; MySQL Configuration Utility&rdquo;</a>.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_no-drop"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_no-drop"><code class="option">--no-drop</code></a>
+          </p><a id="idm45829035689168" class="indexterm"></a><a id="idm45829035687680" class="indexterm"></a><p>
+            Prevent <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> from dropping any
+            schema it creates during the test run.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_no-defaults"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_no-defaults"><code class="option">--no-defaults</code></a>
+          </p><a id="idm45829035682352" class="indexterm"></a><a id="idm45829035680864" class="indexterm"></a><p>
+            Do not read any option files. If program startup fails due
+            to reading unknown options from an option file,
+            <a class="link" href="mysqlslap.html#option_mysqlslap_no-defaults"><code class="option">--no-defaults</code></a> can be used
+            to prevent them from being read.
+          </p><p>
+            The exception is that the <code class="filename">.mylogin.cnf</code>
+            file is read in all cases, if it exists. This permits
+            passwords to be specified in a safer way than on the command
+            line even when
+            <a class="link" href="mysqlslap.html#option_mysqlslap_no-defaults"><code class="option">--no-defaults</code></a> is used. To
+            create <code class="filename">.mylogin.cnf</code>, use the
+            <a class="link" href="mysql-config-editor.html" title="4.6.7&nbsp;mysql_config_editor &mdash; MySQL Configuration Utility"><span class="command"><strong>mysql_config_editor</strong></span></a> utility. See
+            <a class="xref" href="mysql-config-editor.html" title="4.6.7&nbsp;mysql_config_editor &mdash; MySQL Configuration Utility">Section&nbsp;4.6.7, &ldquo;mysql_config_editor &mdash; MySQL Configuration Utility&rdquo;</a>.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_number-char-cols"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_number-char-cols"><code class="option">--number-char-cols=<em class="replaceable"><code>N</code></em></code></a>,
+            <code class="option">-x <em class="replaceable"><code>N</code></em></code>
+          </p><a id="idm45829035668544" class="indexterm"></a><a id="idm45829035667056" class="indexterm"></a><p>
+            The number of <a class="link" href="char.html" title="11.3.2&nbsp;The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a> columns
+            to use if
+            <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql"><code class="option">--auto-generate-sql</code></a> is
+            specified.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_number-int-cols"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_number-int-cols"><code class="option">--number-int-cols=<em class="replaceable"><code>N</code></em></code></a>,
+            <code class="option">-y <em class="replaceable"><code>N</code></em></code>
+          </p><a id="idm45829035659760" class="indexterm"></a><a id="idm45829035658272" class="indexterm"></a><p>
+            The number of <a class="link" href="integer-types.html" title="11.1.2&nbsp;Integer Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT"><code class="literal">INT</code></a> columns to
+            use if <a class="link" href="mysqlslap.html#option_mysqlslap_auto-generate-sql"><code class="option">--auto-generate-sql</code></a>
+            is specified.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_number-of-queries"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_number-of-queries"><code class="option">--number-of-queries=<em class="replaceable"><code>N</code></em></code></a>
+          </p><a id="idm45829035651696" class="indexterm"></a><a id="idm45829035650240" class="indexterm"></a><p>
+            Limit each client to approximately this many queries. Query
+            counting takes into account the statement delimiter. For
+            example, if you invoke <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> as
+            follows, the <code class="literal">;</code> delimiter is recognized so
+            that each instance of the query string counts as two
+            queries. As a result, 5 rows (not 10) are inserted.
+          </p><pre class="programlisting">mysqlslap --delimiter=&#34;;&#34; --number-of-queries=10
+          --query=&#34;use test;insert into t values(null)&#34;
+</pre></li><li class="listitem"><p><a id="option_mysqlslap_only-print"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_only-print"><code class="option">--only-print</code></a>
+          </p><a id="idm45829035642848" class="indexterm"></a><a id="idm45829035641360" class="indexterm"></a><p>
+            Do not connect to databases. <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a>
+            only prints what it would have done.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_password"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password"><code class="option">--password[=<em class="replaceable"><code>password</code></em>]</code></a>,
+            <code class="option">-p[<em class="replaceable"><code>password</code></em>]</code>
+          </p><a id="idm45829035634704" class="indexterm"></a><a id="idm45829035633216" class="indexterm"></a><p>
+            The password of the MySQL account used for connecting to the
+            server. The password value is optional. If not given,
+            <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> prompts for one. If given,
+            there must be <span class="emphasis"><em>no space</em></span> between
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password"><code class="option">--password=</code></a> or
+            <code class="option">-p</code> and the password following it. If no
+            password option is specified, the default is to send no
+            password.
+          </p><p>
+            Specifying a password on the command line should be
+            considered insecure. To avoid giving the password on the
+            command line, use an option file. See
+            <a class="xref" href="password-security-user.html" title="6.1.2.1&nbsp;End-User Guidelines for Password Security">Section&nbsp;6.1.2.1, &ldquo;End-User Guidelines for Password Security&rdquo;</a>.
+          </p><p>
+            To explicitly specify that there is no password and that
+            <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> should not prompt for one, use
+            the
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password"><code class="option">--skip-password</code></a>
+            option.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_password1"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password1"><code class="option">--password1[=<em class="replaceable"><code>pass_val</code></em>]</code></a>
+          </p><a id="idm45829035621344" class="indexterm"></a><p>
+            The password for multifactor authentication factor 1 of the
+            MySQL account used for connecting to the server. The
+            password value is optional. If not given,
+            <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> prompts for one. If given,
+            there must be <span class="emphasis"><em>no space</em></span> between
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password1"><code class="option">--password1=</code></a> and the
+            password following it. If no password option is specified,
+            the default is to send no password.
+          </p><p>
+            Specifying a password on the command line should be
+            considered insecure. To avoid giving the password on the
+            command line, use an option file. See
+            <a class="xref" href="password-security-user.html" title="6.1.2.1&nbsp;End-User Guidelines for Password Security">Section&nbsp;6.1.2.1, &ldquo;End-User Guidelines for Password Security&rdquo;</a>.
+          </p><p>
+            To explicitly specify that there is no password and that
+            <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> should not prompt for one, use
+            the
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password1"><code class="option">--skip-password1</code></a>
+            option.
+          </p><p>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password1"><code class="option">--password1</code></a> and
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password"><code class="option">--password</code></a> are synonymous,
+            as are
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password1"><code class="option">--skip-password1</code></a>
+            and
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password"><code class="option">--skip-password</code></a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_password2"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password2"><code class="option">--password2[=<em class="replaceable"><code>pass_val</code></em>]</code></a>
+          </p><a id="idm45829035605792" class="indexterm"></a><p>
+            The password for multifactor authentication factor 2 of the
+            MySQL account used for connecting to the server. The
+            semantics of this option are similar to the semantics for
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password1"><code class="option">--password1</code></a>; see the
+            description of that option for details.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_password3"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password3"><code class="option">--password3[=<em class="replaceable"><code>pass_val</code></em>]</code></a>
+          </p><a id="idm45829035600496" class="indexterm"></a><p>
+            The password for multifactor authentication factor 3 of the
+            MySQL account used for connecting to the server. The
+            semantics of this option are similar to the semantics for
+            <a class="link" href="mysqlslap.html#option_mysqlslap_password1"><code class="option">--password1</code></a>; see the
+            description of that option for details.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_pipe"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_pipe"><code class="option">--pipe</code></a>,
+            <code class="option">-W</code>
+          </p><a id="idm45829035595248" class="indexterm"></a><a id="idm45829035593760" class="indexterm"></a><p>
+            On Windows, connect to the server using a named pipe. This
+            option applies only if the server was started with the
+            <a class="link" href="server-system-variables.html#sysvar_named_pipe"><code class="literal">named_pipe</code></a> system variable
+            enabled to support named-pipe connections. In addition, the
+            user making the connection must be a member of the Windows
+            group specified by the
+            <a class="link" href="server-system-variables.html#sysvar_named_pipe_full_access_group"><code class="literal">named_pipe_full_access_group</code></a>
+            system variable.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_plugin-dir"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_plugin-dir"><code class="option">--plugin-dir=<em class="replaceable"><code>dir_name</code></em></code></a>
+          </p><a id="idm45829035586464" class="indexterm"></a><a id="idm45829035584976" class="indexterm"></a><p>
+            The directory in which to look for plugins. Specify this
+            option if the
+            <a class="link" href="mysqlslap.html#option_mysqlslap_default-auth"><code class="option">--default-auth</code></a> option is
+            used to specify an authentication plugin but
+            <a class="link" href="mysqlslap.html" title="4.5.8&nbsp;mysqlslap &mdash; A Load Emulation Client"><span class="command"><strong>mysqlslap</strong></span></a> does not find it. See
+            <a class="xref" href="pluggable-authentication.html" title="6.2.17&nbsp;Pluggable Authentication">Section&nbsp;6.2.17, &ldquo;Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_port"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_port"><code class="option">--port=<em class="replaceable"><code>port_num</code></em></code></a>,
+            <code class="option">-P <em class="replaceable"><code>port_num</code></em></code>
+          </p><a id="idm45829035576960" class="indexterm"></a><a id="idm45829035575472" class="indexterm"></a><p>
+            For TCP/IP connections, the port number to use.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_post-query"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_post-query"><code class="option">--post-query=<em class="replaceable"><code>value</code></em></code></a>
+          </p><a id="idm45829035571056" class="indexterm"></a><a id="idm45829035569568" class="indexterm"></a><p>
+            The file or string containing the statement to execute after
+            the tests have completed. This execution is not counted for
+            timing purposes.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_post-system"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_post-system"><code class="option">--post-system=<em class="replaceable"><code>str</code></em></code></a>
+          </p><a id="idm45829035565040" class="indexterm"></a><a id="idm45829035563552" class="indexterm"></a><p>
+            The string to execute using <code class="literal">system()</code>
+            after the tests have completed. This execution is not
+            counted for timing purposes.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_pre-query"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_pre-query"><code class="option">--pre-query=<em class="replaceable"><code>value</code></em></code></a>
+          </p><a id="idm45829035558320" class="indexterm"></a><a id="idm45829035556832" class="indexterm"></a><p>
+            The file or string containing the statement to execute
+            before running the tests. This execution is not counted for
+            timing purposes.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_pre-system"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_pre-system"><code class="option">--pre-system=<em class="replaceable"><code>str</code></em></code></a>
+          </p><a id="idm45829035552320" class="indexterm"></a><a id="idm45829035550832" class="indexterm"></a><p>
+            The string to execute using <code class="literal">system()</code>
+            before running the tests. This execution is not counted for
+            timing purposes.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_print-defaults"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_print-defaults"><code class="option">--print-defaults</code></a>
+          </p><a id="idm45829035545888" class="indexterm"></a><a id="idm45829035544400" class="indexterm"></a><p>
+            Print the program name and all options that it gets from
+            option files.
+          </p><p>
+            For additional information about this and other option-file
+            options, see <a class="xref" href="option-file-options.html" title="4.2.2.3&nbsp;Command-Line Options that Affect Option-File Handling">Section&nbsp;4.2.2.3, &ldquo;Command-Line Options that Affect Option-File Handling&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_protocol"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_protocol"><code class="option">--protocol={TCP|SOCKET|PIPE|MEMORY}</code></a>
+          </p><a id="idm45829035539072" class="indexterm"></a><a id="idm45829035537584" class="indexterm"></a><p>
+            The transport protocol to use for connecting to the server.
+            It is useful when the other connection parameters normally
+            result in use of a protocol other than the one you want. For
+            details on the permissible values, see
+            <a class="xref" href="transport-protocols.html" title="4.2.7&nbsp;Connection Transport Protocols">Section&nbsp;4.2.7, &ldquo;Connection Transport Protocols&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_query"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_query"><code class="option">--query=<em class="replaceable"><code>value</code></em></code></a>,
+            <code class="option">-q <em class="replaceable"><code>value</code></em></code>
+          </p><a id="idm45829035531568" class="indexterm"></a><a id="idm45829035530080" class="indexterm"></a><p>
+            The file or string containing the
+            <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statement to use for
+            retrieving data.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_server-public-key-path"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_server-public-key-path"><code class="option">--server-public-key-path=<em class="replaceable"><code>file_name</code></em></code></a>
+          </p><a id="idm45829035524352" class="indexterm"></a><a id="idm45829035522848" class="indexterm"></a><p>
+            The path name to a file in PEM format containing a
+            client-side copy of the public key required by the server
+            for RSA key pair-based password exchange. This option
+            applies to clients that authenticate with the
+            <code class="literal">sha256_password</code> or
+            <code class="literal">caching_sha2_password</code> authentication
+            plugin. This option is ignored for accounts that do not
+            authenticate with one of those plugins. It is also ignored
+            if RSA-based password exchange is not used, as is the case
+            when the client connects to the server using a secure
+            connection.
+          </p><p>
+            If
+            <a class="link" href="mysqlslap.html#option_mysqlslap_server-public-key-path"><code class="option">--server-public-key-path=<em class="replaceable"><code>file_name</code></em></code></a>
+            is given and specifies a valid public key file, it takes
+            precedence over
+            <a class="link" href="mysqlslap.html#option_mysqlslap_get-server-public-key"><code class="option">--get-server-public-key</code></a>.
+          </p><p>
+            For <code class="literal">sha256_password</code>, this option applies
+            only if MySQL was built using OpenSSL.
+          </p><p>
+            For information about the <code class="literal">sha256_password</code>
+            and <code class="literal">caching_sha2_password</code> plugins, see
+            <a class="xref" href="sha256-pluggable-authentication.html" title="6.4.1.3&nbsp;SHA-256 Pluggable Authentication">Section&nbsp;6.4.1.3, &ldquo;SHA-256 Pluggable Authentication&rdquo;</a>, and
+            <a class="xref" href="caching-sha2-pluggable-authentication.html" title="6.4.1.2&nbsp;Caching SHA-2 Pluggable Authentication">Section&nbsp;6.4.1.2, &ldquo;Caching SHA-2 Pluggable Authentication&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_shared-memory-base-name"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_shared-memory-base-name"><code class="option">--shared-memory-base-name=<em class="replaceable"><code>name</code></em></code></a>
+          </p><a id="idm45829035509056" class="indexterm"></a><a id="idm45829035507552" class="indexterm"></a><p>
+            On Windows, the shared-memory name to use for connections
+            made using shared memory to a local server. The default
+            value is <code class="literal">MYSQL</code>. The shared-memory name is
+            case-sensitive.
+          </p><p>
+            This option applies only if the server was started with the
+            <a class="link" href="server-system-variables.html#sysvar_shared_memory"><code class="literal">shared_memory</code></a> system
+            variable enabled to support shared-memory connections.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_silent"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_silent"><code class="option">--silent</code></a>,
+            <code class="option">-s</code>
+          </p><a id="idm45829035500528" class="indexterm"></a><a id="idm45829035499040" class="indexterm"></a><p>
+            Silent mode. No output.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_socket"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_socket"><code class="option">--socket=<em class="replaceable"><code>path</code></em></code></a>,
+            <code class="option">-S <em class="replaceable"><code>path</code></em></code>
+          </p><a id="idm45829035494048" class="indexterm"></a><a id="idm45829035492560" class="indexterm"></a><p>
+            For connections to <code class="literal">localhost</code>, the Unix
+            socket file to use, or, on Windows, the name of the named
+            pipe to use.
+          </p><p>
+            On Windows, this option applies only if the server was
+            started with the <a class="link" href="server-system-variables.html#sysvar_named_pipe"><code class="literal">named_pipe</code></a>
+            system variable enabled to support named-pipe connections.
+            In addition, the user making the connection must be a member
+            of the Windows group specified by the
+            <a class="link" href="server-system-variables.html#sysvar_named_pipe_full_access_group"><code class="literal">named_pipe_full_access_group</code></a>
+            system variable.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_sql-mode"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_sql-mode"><code class="option">--sql-mode=<em class="replaceable"><code>mode</code></em></code></a>
+          </p><a id="idm45829035484128" class="indexterm"></a><a id="idm45829035482640" class="indexterm"></a><p>
+            Set the SQL mode for the client session.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_ssl"></a>
+            <code class="option">--ssl*</code>
+          </p><a id="idm45829035479136" class="indexterm"></a><a id="idm45829035477648" class="indexterm"></a><p>
+            Options that begin with <code class="option">--ssl</code> specify
+            whether to connect to the server using encryption and
+            indicate where to find SSL keys and certificates. See
+            <a class="xref" href="connection-options.html#encrypted-connection-options" title="Command Options for Encrypted Connections">Command Options for Encrypted Connections</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_ssl-fips-mode"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_ssl-fips-mode"><code class="option">--ssl-fips-mode={OFF|ON|STRICT}</code></a>
+          </p><a id="idm45829035472336" class="indexterm"></a><a id="idm45829035470848" class="indexterm"></a><p>
+            Controls whether to enable FIPS mode on the client side. The
+            <a class="link" href="mysqlslap.html#option_mysqlslap_ssl-fips-mode"><code class="option">--ssl-fips-mode</code></a> option
+            differs from other
+            <code class="option">--ssl-<em class="replaceable"><code>xxx</code></em></code>
+            options in that it is not used to establish encrypted
+            connections, but rather to affect which cryptographic
+            operations to permit. See <a class="xref" href="fips-mode.html" title="6.8&nbsp;FIPS Support">Section&nbsp;6.8, &ldquo;FIPS Support&rdquo;</a>.
+          </p><p>
+            These <a class="link" href="mysqlslap.html#option_mysqlslap_ssl-fips-mode"><code class="option">--ssl-fips-mode</code></a>
+            values are permitted:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                <code class="literal">OFF</code>: Disable FIPS mode.
+              </p></li><li class="listitem"><p>
+                <code class="literal">ON</code>: Enable FIPS mode.
+              </p></li><li class="listitem"><p>
+                <code class="literal">STRICT</code>: Enable <span class="quote">&ldquo;<span class="quote">strict</span>&rdquo;</span>
+                FIPS mode.
+              </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              If the OpenSSL FIPS Object Module is not available, the
+              only permitted value for
+              <a class="link" href="mysqlslap.html#option_mysqlslap_ssl-fips-mode"><code class="option">--ssl-fips-mode</code></a> is
+              <code class="literal">OFF</code>. In this case, setting
+              <a class="link" href="mysqlslap.html#option_mysqlslap_ssl-fips-mode"><code class="option">--ssl-fips-mode</code></a> to
+              <code class="literal">ON</code> or <code class="literal">STRICT</code> causes
+              the client to produce a warning at startup and to operate
+              in non-FIPS mode.
+            </p></div><p>
+            As of MySQL 8.0.34, this option is deprecated. Expect it to
+            be removed in a future version of MySQL.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_tls-ciphersuites"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_tls-ciphersuites"><code class="option">--tls-ciphersuites=<em class="replaceable"><code>ciphersuite_list</code></em></code></a>
+          </p><a id="idm45829035451392" class="indexterm"></a><a id="idm45829035449904" class="indexterm"></a><p>
+            The permissible ciphersuites for encrypted connections that
+            use TLSv1.3. The value is a list of one or more
+            colon-separated ciphersuite names. The ciphersuites that can
+            be named for this option depend on the SSL library used to
+            compile MySQL. For details, see
+            <a class="xref" href="encrypted-connection-protocols-ciphers.html" title="6.3.2&nbsp;Encrypted Connection TLS Protocols and Ciphers">Section&nbsp;6.3.2, &ldquo;Encrypted Connection TLS Protocols and Ciphers&rdquo;</a>.
+          </p><p>
+            This option was added in MySQL 8.0.16.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_tls-version"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_tls-version"><code class="option">--tls-version=<em class="replaceable"><code>protocol_list</code></em></code></a>
+          </p><a id="idm45829035444032" class="indexterm"></a><a id="idm45829035442544" class="indexterm"></a><p>
+            The permissible TLS protocols for encrypted connections. The
+            value is a list of one or more comma-separated protocol
+            names. The protocols that can be named for this option
+            depend on the SSL library used to compile MySQL. For
+            details, see
+            <a class="xref" href="encrypted-connection-protocols-ciphers.html" title="6.3.2&nbsp;Encrypted Connection TLS Protocols and Ciphers">Section&nbsp;6.3.2, &ldquo;Encrypted Connection TLS Protocols and Ciphers&rdquo;</a>.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_user"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_user"><code class="option">--user=<em class="replaceable"><code>user_name</code></em></code></a>,
+            <code class="option">-u <em class="replaceable"><code>user_name</code></em></code>
+          </p><a id="idm45829035436640" class="indexterm"></a><a id="idm45829035435152" class="indexterm"></a><p>
+            The user name of the MySQL account to use for connecting to
+            the server.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_verbose"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_verbose"><code class="option">--verbose</code></a>,
+            <code class="option">-v</code>
+          </p><a id="idm45829035430496" class="indexterm"></a><a id="idm45829035429008" class="indexterm"></a><p>
+            Verbose mode. Print more information about what the program
+            does. This option can be used multiple times to increase the
+            amount of information.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_version"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_version"><code class="option">--version</code></a>,
+            <code class="option">-V</code>
+          </p><a id="idm45829035424384" class="indexterm"></a><a id="idm45829035422896" class="indexterm"></a><p>
+            Display version information and exit.
+          </p></li><li class="listitem"><p><a id="option_mysqlslap_zstd-compression-level"></a>
+            <a class="link" href="mysqlslap.html#option_mysqlslap_zstd-compression-level"><code class="option">--zstd-compression-level=<em class="replaceable"><code>level</code></em></code></a>
+          </p><a id="idm45829035418496" class="indexterm"></a><a id="idm45829035416992" class="indexterm"></a><p>
+            The compression level to use for connections to the server
+            that use the <code class="literal">zstd</code> compression algorithm.
+            The permitted levels are from 1 to 22, with larger values
+            indicating increasing levels of compression. The default
+            <code class="literal">zstd</code> compression level is 3. The
+            compression level setting has no effect on connections that
+            do not use <code class="literal">zstd</code> compression.
+          </p><p>
+            For more information, see
+            <a class="xref" href="connection-compression-control.html" title="4.2.8&nbsp;Connection Compression Control">Section&nbsp;4.2.8, &ldquo;Connection Compression Control&rdquo;</a>.
+          </p><p>
+            This option was added in MySQL 8.0.18.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysqlshow.html">Previous <span class="navHint"> mysqlshow &mdash; Display Database, Table, and Column Information </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="programs-client.html">Up <span class="navHint"> Client Programs </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="programs-admin-utils.html">Next <span class="navHint"> Administrative and Utility Programs </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

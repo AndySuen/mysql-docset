@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.6.2 Bulk Data Loading for MyISAM Tables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="optimizing-myisam.html" title="8.6 Optimizing for MyISAM Tables" /><link rel="prev" href="optimizing-queries-myisam.html" title="8.6.1 Optimizing MyISAM Queries" /><link rel="next" href="repair-table-optimization.html" title="8.6.3 Optimizing REPAIR TABLE Statements" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="optimizing-myisam-bulk-data-loading.html#optimizing-myisam-bulk-data-loading">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="optimizing-queries-myisam.html">Previous <span class="navHint"> Optimizing MyISAM Queries </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="optimizing-myisam.html">Up <span class="navHint"> Optimizing for MyISAM Tables </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="repair-table-optimization.html">Next <span class="navHint"> Optimizing REPAIR TABLE Statements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="optimizing-myisam-bulk-data-loading"></a>8.6.2 Bulk Data Loading for MyISAM Tables</h3></div></div></div><a id="idm45828952559968" class="indexterm"></a><p>
+        These performance tips supplement the general guidelines for
+        fast inserts in <a class="xref" href="insert-optimization.html" title="8.2.5.1 Optimizing INSERT Statements">Section 8.2.5.1, “Optimizing INSERT Statements”</a>.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For a <code class="literal">MyISAM</code> table, you can use
+            concurrent inserts to add rows at the same time that
+            <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements are
+            running, if there are no deleted rows in middle of the data
+            file. See <a class="xref" href="concurrent-inserts.html" title="8.11.3 Concurrent Inserts">Section 8.11.3, “Concurrent Inserts”</a>.
+          </p></li><li class="listitem"><p>
+            With some extra work, it is possible to make
+            <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> run even faster for
+            a <code class="literal">MyISAM</code> table when the table has many
+            indexes. Use the following procedure:
+          </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                Execute a <a class="link" href="flush.html#flush-tables"><code class="literal">FLUSH TABLES</code></a>
+                statement or a <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin
+                flush-tables</strong></span></a> command.
+              </p></li><li class="listitem"><p>
+                Use <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk --keys-used=0 -rq
+                <em class="replaceable"><code>/path/to/db/tbl_name</code></em></strong></span></a>
+                to remove all use of indexes for the table.
+              </p></li><li class="listitem"><p>
+                Insert data into the table with
+                <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA</code></a>. This does not
+                update any indexes and therefore is very fast.
+              </p></li><li class="listitem"><p>
+                If you intend only to read from the table in the future,
+                use <a class="link" href="myisampack.html" title="4.6.6 myisampack — Generate Compressed, Read-Only MyISAM Tables"><span class="command"><strong>myisampack</strong></span></a> to compress it. See
+                <a class="xref" href="compressed-format.html" title="16.2.3.3 Compressed Table Characteristics">Section 16.2.3.3, “Compressed Table Characteristics”</a>.
+              </p></li><li class="listitem"><p>
+                Re-create the indexes with <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk -rq
+                <em class="replaceable"><code>/path/to/db/tbl_name</code></em></strong></span></a>.
+                This creates the index tree in memory before writing it
+                to disk, which is much faster than updating the index
+                during <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> because
+                it avoids lots of disk seeks. The resulting index tree
+                is also perfectly balanced.
+              </p></li><li class="listitem"><p>
+                Execute a <a class="link" href="flush.html#flush-tables"><code class="literal">FLUSH TABLES</code></a>
+                statement or a <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin
+                flush-tables</strong></span></a> command.
+              </p></li></ol></div><p>
+            <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> performs the
+            preceding optimization automatically if the
+            <code class="literal">MyISAM</code> table into which you insert data
+            is empty. The main difference between automatic optimization
+            and using the procedure explicitly is that you can let
+            <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a> allocate much more temporary
+            memory for the index creation than you might want the server
+            to allocate for index re-creation when it executes the
+            <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> statement.
+          </p><p>
+            You can also disable or enable the nonunique indexes for a
+            <code class="literal">MyISAM</code> table by using the following
+            statements rather than <a class="link" href="myisamchk.html" title="4.6.4 myisamchk — MyISAM Table-Maintenance Utility"><span class="command"><strong>myisamchk</strong></span></a>. If you
+            use these statements, you can skip the
+            <a class="link" href="flush.html#flush-tables"><code class="literal">FLUSH TABLES</code></a> operations:
+          </p><pre class="programlisting">ALTER TABLE <em class="replaceable"><code>tbl_name</code></em> DISABLE KEYS;
+ALTER TABLE <em class="replaceable"><code>tbl_name</code></em> ENABLE KEYS;
+</pre></li><li class="listitem"><p>
+            To speed up <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operations
+            that are performed with multiple statements for
+            nontransactional tables, lock your tables:
+          </p><pre class="programlisting">LOCK TABLES a WRITE;
+INSERT INTO a VALUES (1,23),(2,34),(4,33);
+INSERT INTO a VALUES (8,26),(6,29);
+...
+UNLOCK TABLES;
+</pre><p>
+            This benefits performance because the index buffer is
+            flushed to disk only once, after all
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statements have
+            completed. Normally, there would be as many index buffer
+            flushes as there are <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+            statements. Explicit locking statements are not needed if
+            you can insert all rows with a single
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>.
+          </p><p>
+            Locking also lowers the total time for multiple-connection
+            tests, although the maximum wait time for individual
+            connections might go up because they wait for locks. Suppose
+            that five clients attempt to perform inserts simultaneously
+            as follows:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                Connection 1 does 1000 inserts
+              </p></li><li class="listitem"><p>
+                Connections 2, 3, and 4 do 1 insert
+              </p></li><li class="listitem"><p>
+                Connection 5 does 1000 inserts
+              </p></li></ul></div><p>
+            If you do not use locking, connections 2, 3, and 4 finish
+            before 1 and 5. If you use locking, connections 2, 3, and 4
+            probably do not finish before 1 or 5, but the total time
+            should be about 40% faster.
+          </p><p>
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>,
+            <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a>, and
+            <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> operations are very
+            fast in MySQL, but you can obtain better overall performance
+            by adding locks around everything that does more than about
+            five successive inserts or updates. If you do very many
+            successive inserts, you could do a <a class="link" href="lock-tables.html" title="13.3.6 LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">LOCK
+            TABLES</code></a> followed by an
+            <a class="link" href="lock-tables.html" title="13.3.6 LOCK TABLES and UNLOCK TABLES Statements"><code class="literal">UNLOCK
+            TABLES</code></a> once in a while (each 1,000 rows or so) to
+            permit other threads to access table. This would still
+            result in a nice performance gain.
+          </p><p>
+            <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> is still much slower
+            for loading data than <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD
+            DATA</code></a>, even when using the strategies just
+            outlined.
+          </p></li><li class="listitem"><p>
+            To increase performance for <code class="literal">MyISAM</code>
+            tables, for both <a class="link" href="load-data.html" title="13.2.9 LOAD DATA Statement"><code class="literal">LOAD DATA</code></a>
+            and <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>, enlarge the key
+            cache by increasing the
+            <a class="link" href="server-system-variables.html#sysvar_key_buffer_size"><code class="literal">key_buffer_size</code></a> system
+            variable. See <a class="xref" href="server-configuration.html" title="5.1.1 Configuring the Server">Section 5.1.1, “Configuring the Server”</a>.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimizing-queries-myisam.html">Previous <span class="navHint"> Optimizing MyISAM Queries </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimizing-myisam.html">Up <span class="navHint"> Optimizing for MyISAM Tables </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="repair-table-optimization.html">Next <span class="navHint"> Optimizing REPAIR TABLE Statements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

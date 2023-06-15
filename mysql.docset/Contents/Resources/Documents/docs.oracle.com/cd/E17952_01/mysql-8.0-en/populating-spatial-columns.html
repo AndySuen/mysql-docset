@@ -1,0 +1,76 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3402"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/11.4.7%C2%A0Populating%20Spatial%20Columns"></a><title>11.4.7&nbsp;Populating Spatial Columns</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="spatial-types.html" title="11.4&nbsp;Spatial Data Types"/><link rel="prev" href="creating-spatial-columns.html" title="11.4.6&nbsp;Creating Spatial Columns"/><link rel="next" href="fetching-spatial-data.html" title="11.4.8&nbsp;Fetching Spatial Data"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="populating-spatial-columns.html#populating-spatial-columns">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="creating-spatial-columns.html">Previous <span class="navHint"> Creating Spatial Columns </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="spatial-types.html">Up <span class="navHint"> Spatial Data Types </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="fetching-spatial-data.html">Next <span class="navHint"> Fetching Spatial Data </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="populating-spatial-columns"></a>11.4.7&nbsp;Populating Spatial Columns</h3></div></div></div><p>
+        After you have created spatial columns, you can populate them
+        with spatial data.
+      </p><p>
+        Values should be stored in internal geometry format, but you can
+        convert them to that format from either Well-Known Text (WKT) or
+        Well-Known Binary (WKB) format. The following examples
+        demonstrate how to insert geometry values into a table by
+        converting WKT values to internal geometry format:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Perform the conversion directly in the
+            <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> statement:
+          </p><pre class="programlisting">INSERT INTO geom VALUES (ST_GeomFromText(&#39;POINT(1 1)&#39;));
+
+SET @g = &#39;POINT(1 1)&#39;;
+INSERT INTO geom VALUES (ST_GeomFromText(@g));
+</pre></li><li class="listitem"><p>
+            Perform the conversion prior to the
+            <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a>:
+          </p><pre class="programlisting">SET @g = ST_GeomFromText(&#39;POINT(1 1)&#39;);
+INSERT INTO geom VALUES (@g);
+</pre></li></ul></div><p>
+        The following examples insert more complex geometries into the
+        table:
+      </p><pre class="programlisting">SET @g = &#39;LINESTRING(0 0,1 1,2 2)&#39;;
+INSERT INTO geom VALUES (ST_GeomFromText(@g));
+
+SET @g = &#39;POLYGON((0 0,10 0,10 10,0 10,0 0),(5 5,7 5,7 7,5 7, 5 5))&#39;;
+INSERT INTO geom VALUES (ST_GeomFromText(@g));
+
+SET @g =
+&#39;GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(0 0,1 1,2 2,3 3,4 4))&#39;;
+INSERT INTO geom VALUES (ST_GeomFromText(@g));
+</pre><p>
+        The preceding examples use
+        <a class="link" href="gis-wkt-functions.html#function_st-geomfromtext"><code class="literal">ST_GeomFromText()</code></a> to create
+        geometry values. You can also use type-specific functions:
+      </p><pre class="programlisting">SET @g = &#39;POINT(1 1)&#39;;
+INSERT INTO geom VALUES (ST_PointFromText(@g));
+
+SET @g = &#39;LINESTRING(0 0,1 1,2 2)&#39;;
+INSERT INTO geom VALUES (ST_LineStringFromText(@g));
+
+SET @g = &#39;POLYGON((0 0,10 0,10 10,0 10,0 0),(5 5,7 5,7 7,5 7, 5 5))&#39;;
+INSERT INTO geom VALUES (ST_PolygonFromText(@g));
+
+SET @g =
+&#39;GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(0 0,1 1,2 2,3 3,4 4))&#39;;
+INSERT INTO geom VALUES (ST_GeomCollFromText(@g));
+</pre><p>
+        A client application program that wants to use WKB
+        representations of geometry values is responsible for sending
+        correctly formed WKB in queries to the server. There are several
+        ways to satisfy this requirement. For example:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Inserting a <code class="literal">POINT(1 1)</code> value with hex
+            literal syntax:
+          </p><pre class="programlisting">INSERT INTO geom VALUES
+(ST_GeomFromWKB(X&#39;0101000000000000000000F03F000000000000F03F&#39;));
+</pre></li><li class="listitem"><p>
+            An ODBC application can send a WKB representation, binding
+            it to a placeholder using an argument of
+            <a class="link" href="blob.html" title="11.3.4&nbsp;The BLOB and TEXT Types"><code class="literal">BLOB</code></a> type:
+          </p><pre class="programlisting">INSERT INTO geom VALUES (ST_GeomFromWKB(?))
+</pre><p>
+            Other programming interfaces may support a similar
+            placeholder mechanism.
+          </p></li><li class="listitem"><p>
+            In a C program, you can escape a binary value using
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-real-escape-string-quote.html" target="_top"><code class="literal">mysql_real_escape_string_quote()</code></a>
+            and include the result in a query string that is sent to the
+            server. See
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/c-api-8.0-en/mysql-real-escape-string-quote.html" target="_top">mysql_real_escape_string_quote()</a>.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="creating-spatial-columns.html">Previous <span class="navHint"> Creating Spatial Columns </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="spatial-types.html">Up <span class="navHint"> Spatial Data Types </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="fetching-spatial-data.html">Next <span class="navHint"> Fetching Spatial Data </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

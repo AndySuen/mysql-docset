@@ -1,0 +1,71 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3523"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.5.1.1%C2%A0Replication%20and%20AUTO_INCREMENT"></a><title>17.5.1.1&nbsp;Replication and AUTO_INCREMENT</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-features.html" title="17.5.1&nbsp;Replication Features and Issues"/><link rel="prev" href="replication-features.html" title="17.5.1&nbsp;Replication Features and Issues"/><link rel="next" href="replication-features-blackhole.html" title="17.5.1.2&nbsp;Replication and BLACKHOLE Tables"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-auto-increment.html#replication-features-auto-increment">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-features.html">Previous <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-features-blackhole.html">Next <span class="navHint"> Replication and BLACKHOLE Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3522"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.5.1.1%C2%A0Replication%20and%20AUTO_INCREMENT"></a><h4 class="title"><a id="replication-features-auto-increment"></a>17.5.1.1&nbsp;Replication and AUTO_INCREMENT</h4></div></div></div><a id="idm45828857137856" class="indexterm"></a><a id="idm45828857136368" class="indexterm"></a><a id="idm45828857134880" class="indexterm"></a><a id="idm45828857133392" class="indexterm"></a><a id="idm45828857131904" class="indexterm"></a><a id="idm45828857130416" class="indexterm"></a><p>
+        Statement-based replication of
+        <code class="literal">AUTO_INCREMENT</code>,
+        <a class="link" href="information-functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a>, and
+        <a class="link" href="datetime.html" title="11.2.2&nbsp;The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">TIMESTAMP</code></a> values is carried out
+        subject to the following exceptions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            A statement invoking a trigger or function that causes an
+            update to an <code class="literal">AUTO_INCREMENT</code> column is not
+            replicated correctly using statement-based replication.
+            These statements are marked as unsafe. (Bug #45677)
+          </p></li><li class="listitem"><p>
+            An <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> into a table that
+            has a composite primary key that includes an
+            <code class="literal">AUTO_INCREMENT</code> column that is not the
+            first column of this composite key is not safe for
+            statement-based logging or replication. These statements are
+            marked as unsafe. (Bug #11754117, Bug #45670)
+          </p><p>
+            This issue does not affect tables using the
+            <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> storage engine, since an
+            <code class="literal">InnoDB</code> table with an
+            <a class="link" href="glossary.html#glos_auto_increment" title="auto-increment">AUTO_INCREMENT</a>
+            column requires at least one key where the auto-increment
+            column is the only or leftmost column.
+          </p></li><li class="listitem"><p>
+            Adding an <code class="literal">AUTO_INCREMENT</code> column to a
+            table with <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> might
+            not produce the same ordering of the rows on the replica and
+            the source. This occurs because the order in which the rows
+            are numbered depends on the specific storage engine used for
+            the table and the order in which the rows were inserted. If
+            it is important to have the same order on the source and
+            replica, the rows must be ordered before assigning an
+            <code class="literal">AUTO_INCREMENT</code> number. Assuming that you
+            want to add an <code class="literal">AUTO_INCREMENT</code> column to a
+            table <code class="literal">t1</code> that has columns
+            <code class="literal">col1</code> and <code class="literal">col2</code>, the
+            following statements produce a new table
+            <code class="literal">t2</code> identical to <code class="literal">t1</code> but
+            with an <code class="literal">AUTO_INCREMENT</code> column:
+          </p><pre class="programlisting">CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 ADD id INT AUTO_INCREMENT PRIMARY KEY;
+INSERT INTO t2 SELECT * FROM t1 ORDER BY col1, col2;
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+              To guarantee the same ordering on both source and replica,
+              the <code class="literal">ORDER BY</code> clause must name
+              <span class="emphasis"><em>all</em></span> columns of <code class="literal">t1</code>.
+            </p></div><p>
+            The instructions just given are subject to the limitations
+            of <a class="link" href="create-table-like.html" title="13.1.20.3&nbsp;CREATE TABLE ... LIKE Statement"><code class="literal">CREATE
+            TABLE ... LIKE</code></a>: Foreign key definitions are
+            ignored, as are the <code class="literal">DATA DIRECTORY</code> and
+            <code class="literal">INDEX DIRECTORY</code> table options. If a table
+            definition includes any of those characteristics, create
+            <code class="literal">t2</code> using a <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE
+            TABLE</code></a> statement that is identical to the one used
+            to create <code class="literal">t1</code>, but with the addition of
+            the <code class="literal">AUTO_INCREMENT</code> column.
+          </p><p>
+            Regardless of the method used to create and populate the
+            copy having the <code class="literal">AUTO_INCREMENT</code> column,
+            the final step is to drop the original table and then rename
+            the copy:
+          </p><pre class="programlisting">DROP t1;
+ALTER TABLE t2 RENAME t1;
+</pre><p>
+            See also <a class="xref" href="alter-table-problems.html" title="B.3.6.1&nbsp;Problems with ALTER TABLE">Section&nbsp;B.3.6.1, &ldquo;Problems with ALTER TABLE&rdquo;</a>.
+          </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features.html">Previous <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-blackhole.html">Next <span class="navHint"> Replication and BLACKHOLE Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

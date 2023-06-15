@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>25.9 Restrictions on Views</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="stored-objects.html" title="Chapter 25 Stored Objects" /><link rel="prev" href="stored-program-restrictions.html" title="25.8 Restrictions on Stored Programs" /><link rel="next" href="information-schema.html" title="Chapter 26 INFORMATION_SCHEMA Tables" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="view-restrictions.html#view-restrictions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="stored-program-restrictions.html">Previous <span class="navHint"> Restrictions on Stored Programs </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="stored-objects.html">Up <span class="navHint"> Stored Objects </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="information-schema.html">Next <span class="navHint"> INFORMATION_SCHEMA Tables </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="view-restrictions"></a>25.9 Restrictions on Views</h2></div></div></div><a id="idm45828798790160" class="indexterm"></a><a id="idm45828798788672" class="indexterm"></a><a id="idm45828798787184" class="indexterm"></a><a id="idm45828798785696" class="indexterm"></a><p>
+      The maximum number of tables that can be referenced in the
+      definition of a view is 61.
+    </p><p>
+      View processing is not optimized:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          It is not possible to create an index on a view.
+        </p></li><li class="listitem"><p>
+          Indexes can be used for views processed using the merge
+          algorithm. However, a view that is processed with the
+          temptable algorithm is unable to take advantage of indexes on
+          its underlying tables (although indexes can be used during
+          generation of the temporary tables).
+        </p></li></ul></div><p>
+      There is a general principle that you cannot modify a table and
+      select from the same table in a subquery. See
+      <a class="xref" href="subquery-restrictions.html" title="13.2.15.12 Restrictions on Subqueries">Section 13.2.15.12, “Restrictions on Subqueries”</a>.
+    </p><p>
+      The same principle also applies if you select from a view that
+      selects from the table, if the view selects from the table in a
+      subquery and the view is evaluated using the merge algorithm.
+      Example:
+    </p><pre class="programlisting">CREATE VIEW v1 AS
+SELECT * FROM t2 WHERE EXISTS (SELECT 1 FROM t1 WHERE t1.a = t2.a);
+
+UPDATE t1, v2 SET t1.a = 1 WHERE t1.b = v2.b;
+</pre><p>
+      If the view is evaluated using a temporary table, you
+      <span class="emphasis"><em>can</em></span> select from the table in the view
+      subquery and still modify that table in the outer query. In this
+      case, the view is stored in a temporary table and thus you are not
+      really selecting from the table in a subquery and modifying it at
+      the same time. (This is another reason you might wish to force
+      MySQL to use the temptable algorithm by specifying
+      <code class="literal">ALGORITHM = TEMPTABLE</code> in the view definition.)
+    </p><p>
+      You can use <a class="link" href="drop-table.html" title="13.1.32 DROP TABLE Statement"><code class="literal">DROP TABLE</code></a> or
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> to drop or alter a
+      table that is used in a view definition. No warning results from
+      the <code class="literal">DROP</code> or <code class="literal">ALTER</code> operation,
+      even though this invalidates the view. Instead, an error occurs
+      later, when the view is used. <a class="link" href="check-table.html" title="13.7.3.2 CHECK TABLE Statement"><code class="literal">CHECK
+      TABLE</code></a> can be used to check for views that have been
+      invalidated by <code class="literal">DROP</code> or <code class="literal">ALTER</code>
+      operations.
+    </p><p>
+      With regard to view updatability, the overall goal for views is
+      that if any view is theoretically updatable, it should be
+      updatable in practice. Many theoretically updatable views can be
+      updated now, but limitations still exist. For details, see
+      <a class="xref" href="view-updatability.html" title="25.5.3 Updatable and Insertable Views">Section 25.5.3, “Updatable and Insertable Views”</a>.
+    </p><a id="idm45828798767504" class="indexterm"></a><a id="idm45828798766016" class="indexterm"></a><a id="idm45828798764528" class="indexterm"></a><a id="idm45828798763040" class="indexterm"></a><a id="idm45828798761552" class="indexterm"></a><a id="idm45828798760064" class="indexterm"></a><p>
+      There exists a shortcoming with the current implementation of
+      views. If a user is granted the basic privileges necessary to
+      create a view (the <a class="link" href="privileges-provided.html#priv_create-view"><code class="literal">CREATE VIEW</code></a> and
+      <a class="link" href="privileges-provided.html#priv_select"><code class="literal">SELECT</code></a> privileges), that user
+      cannot call <a class="link" href="show-create-view.html" title="13.7.7.13 SHOW CREATE VIEW Statement"><code class="literal">SHOW CREATE VIEW</code></a> on
+      that object unless the user is also granted the
+      <a class="link" href="privileges-provided.html#priv_show-view"><code class="literal">SHOW VIEW</code></a> privilege.
+    </p><p>
+      That shortcoming can lead to problems backing up a database with
+      <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>, which may fail due to insufficient
+      privileges. This problem is described in Bug #22062.
+    </p><p>
+      The workaround to the problem is for the administrator to manually
+      grant the <a class="link" href="privileges-provided.html#priv_show-view"><code class="literal">SHOW VIEW</code></a> privilege to
+      users who are granted <a class="link" href="privileges-provided.html#priv_create-view"><code class="literal">CREATE VIEW</code></a>,
+      since MySQL doesn't grant it implicitly when views are created.
+    </p><p>
+      Views do not have indexes, so index hints do not apply. Use of
+      index hints when selecting from a view is not permitted.
+    </p><p>
+      <a class="link" href="show-create-view.html" title="13.7.7.13 SHOW CREATE VIEW Statement"><code class="literal">SHOW CREATE VIEW</code></a> displays view
+      definitions using an <code class="literal">AS
+      <em class="replaceable"><code>alias_name</code></em></code> clause for each
+      column. If a column is created from an expression, the default
+      alias is the expression text, which can be quite long. Aliases for
+      column names in <a class="link" href="create-view.html" title="13.1.23 CREATE VIEW Statement"><code class="literal">CREATE VIEW</code></a>
+      statements are checked against the maximum column length of 64
+      characters (not the maximum alias length of 256 characters). As a
+      result, views created from the output of <a class="link" href="show-create-view.html" title="13.7.7.13 SHOW CREATE VIEW Statement"><code class="literal">SHOW
+      CREATE VIEW</code></a> fail if any column alias exceeds 64
+      characters. This can cause problems in the following circumstances
+      for views with too-long aliases:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          View definitions fail to replicate to newer replicas that
+          enforce the column-length restriction.
+        </p></li><li class="listitem"><p>
+          Dump files created with <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> cannot be
+          loaded into servers that enforce the column-length
+          restriction.
+        </p></li></ul></div><p>
+      A workaround for either problem is to modify each problematic view
+      definition to use aliases that provide shorter column names. Then
+      the view replicates properly, and can be dumped and reloaded
+      without causing an error. To modify the definition, drop and
+      create the view again with <a class="link" href="drop-view.html" title="13.1.35 DROP VIEW Statement"><code class="literal">DROP
+      VIEW</code></a> and <a class="link" href="create-view.html" title="13.1.23 CREATE VIEW Statement"><code class="literal">CREATE VIEW</code></a>, or
+      replace the definition with
+      <a class="link" href="create-view.html" title="13.1.23 CREATE VIEW Statement"><code class="literal">CREATE OR REPLACE
+      VIEW</code></a>.
+    </p><p>
+      For problems that occur when reloading view definitions in dump
+      files, another workaround is to edit the dump file to modify its
+      <a class="link" href="create-view.html" title="13.1.23 CREATE VIEW Statement"><code class="literal">CREATE VIEW</code></a> statements. However,
+      this does not change the original view definitions, which may
+      cause problems for subsequent dump operations.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="stored-program-restrictions.html">Previous <span class="navHint"> Restrictions on Stored Programs </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="stored-objects.html">Up <span class="navHint"> Stored Objects </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="information-schema.html">Next <span class="navHint"> INFORMATION_SCHEMA Tables </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

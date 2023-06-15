@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.3.8 XA Transactions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="sql-transactional-statements.html" title="13.3 Transactional and Locking Statements" /><link rel="prev" href="set-transaction.html" title="13.3.7 SET TRANSACTION Statement" /><link rel="next" href="xa-statements.html" title="13.3.8.1 XA Transaction SQL Statements" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="xa.html#xa">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="set-transaction.html">Previous <span class="navHint"> SET TRANSACTION Statement </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="sql-transactional-statements.html">Up <span class="navHint"> Transactional and Locking Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="xa-statements.html">Next <span class="navHint"> XA Transaction SQL Statements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="xa"></a>13.3.8 XA Transactions</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="xa-statements.html">13.3.8.1 XA Transaction SQL Statements</a></span></li><li><span class="section"><a href="xa-states.html">13.3.8.2 XA Transaction States</a></span></li><li><span class="section"><a href="xa-restrictions.html">13.3.8.3 Restrictions on XA Transactions</a></span></li></ul></div><a id="idm45828904522992" class="indexterm"></a><p>
+      Support for <a class="link" href="glossary.html#glos_xa" title="XA">XA</a> transactions is
+      available for the <a class="link" href="innodb-storage-engine.html" title="Chapter 15 The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> storage
+      engine. The MySQL XA implementation is based on the X/Open CAE
+      document <em class="citetitle">Distributed Transaction Processing: The XA
+      Specification</em>. This document is published by The Open
+      Group and available at
+      <a class="ulink" href="http://www.opengroup.org/public/pubs/catalog/c193.htm" target="_top">http://www.opengroup.org/public/pubs/catalog/c193.htm</a>.
+      Limitations of the current XA implementation are described in
+      <a class="xref" href="xa-restrictions.html" title="13.3.8.3 Restrictions on XA Transactions">Section 13.3.8.3, “Restrictions on XA Transactions”</a>.
+    </p><p>
+      On the client side, there are no special requirements. The XA
+      interface to a MySQL server consists of SQL statements that begin
+      with the <code class="literal">XA</code> keyword. MySQL client programs must
+      be able to send SQL statements and to understand the semantics of
+      the XA statement interface. They do not need be linked against a
+      recent client library. Older client libraries also work.
+    </p><p>
+      Among the MySQL Connectors, MySQL Connector/J 5.0.0 and higher
+      supports XA directly, by means of a class interface that handles
+      the XA SQL statement interface for you.
+    </p><p>
+      XA supports distributed transactions, that is, the ability to
+      permit multiple separate transactional resources to participate in
+      a global transaction. Transactional resources often are RDBMSs but
+      may be other kinds of resources.
+    </p><p>
+      A global transaction involves several actions that are
+      transactional in themselves, but that all must either complete
+      successfully as a group, or all be rolled back as a group. In
+      essence, this extends ACID properties <span class="quote">“<span class="quote">up a level</span>”</span> so
+      that multiple ACID transactions can be executed in concert as
+      components of a global operation that also has ACID properties.
+      (As with nondistributed transactions,
+      <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_serializable"><code class="literal">SERIALIZABLE</code></a> may be preferred
+      if your applications are sensitive to read phenomena.
+      <a class="link" href="innodb-transaction-isolation-levels.html#isolevel_repeatable-read"><code class="literal">REPEATABLE READ</code></a> may not be
+      sufficient for distributed transactions.)
+    </p><p>
+      Some examples of distributed transactions:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          An application may act as an integration tool that combines a
+          messaging service with an RDBMS. The application makes sure
+          that transactions dealing with message sending, retrieval, and
+          processing that also involve a transactional database all
+          happen in a global transaction. You can think of this as
+          <span class="quote">“<span class="quote">transactional email.</span>”</span>
+        </p></li><li class="listitem"><p>
+          An application performs actions that involve different
+          database servers, such as a MySQL server and an Oracle server
+          (or multiple MySQL servers), where actions that involve
+          multiple servers must happen as part of a global transaction,
+          rather than as separate transactions local to each server.
+        </p></li><li class="listitem"><p>
+          A bank keeps account information in an RDBMS and distributes
+          and receives money through automated teller machines (ATMs).
+          It is necessary to ensure that ATM actions are correctly
+          reflected in the accounts, but this cannot be done with the
+          RDBMS alone. A global transaction manager integrates the ATM
+          and database resources to ensure overall consistency of
+          financial transactions.
+        </p></li></ul></div><p>
+      Applications that use global transactions involve one or more
+      Resource Managers and a Transaction Manager:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          A Resource Manager (RM) provides access to transactional
+          resources. A database server is one kind of resource manager.
+          It must be possible to either commit or roll back transactions
+          managed by the RM.
+        </p></li><li class="listitem"><p>
+          A Transaction Manager (TM) coordinates the transactions that
+          are part of a global transaction. It communicates with the RMs
+          that handle each of these transactions. The individual
+          transactions within a global transaction are
+          <span class="quote">“<span class="quote">branches</span>”</span> of the global transaction. Global
+          transactions and their branches are identified by a naming
+          scheme described later.
+        </p></li></ul></div><p>
+      The MySQL implementation of XA enables a MySQL server to act as a
+      Resource Manager that handles XA transactions within a global
+      transaction. A client program that connects to the MySQL server
+      acts as the Transaction Manager.
+    </p><p>
+      To carry out a global transaction, it is necessary to know which
+      components are involved, and bring each component to a point when
+      it can be committed or rolled back. Depending on what each
+      component reports about its ability to succeed, they must all
+      commit or roll back as an atomic group. That is, either all
+      components must commit, or all components must roll back. To
+      manage a global transaction, it is necessary to take into account
+      that any component or the connecting network might fail.
+    </p><p>
+      The process for executing a global transaction uses two-phase
+      commit (2PC). This takes place after the actions performed by the
+      branches of the global transaction have been executed.
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          In the first phase, all branches are prepared. That is, they
+          are told by the TM to get ready to commit. Typically, this
+          means each RM that manages a branch records the actions for
+          the branch in stable storage. The branches indicate whether
+          they are able to do this, and these results are used for the
+          second phase.
+        </p></li><li class="listitem"><p>
+          In the second phase, the TM tells the RMs whether to commit or
+          roll back. If all branches indicated when they were prepared
+          that they were able to commit, all branches are told to
+          commit. If any branch indicated when it was prepared that it
+          was not able to commit, all branches are told to roll back.
+        </p></li></ol></div><p>
+      In some cases, a global transaction might use one-phase commit
+      (1PC). For example, when a Transaction Manager finds that a global
+      transaction consists of only one transactional resource (that is,
+      a single branch), that resource can be told to prepare and commit
+      at the same time.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="set-transaction.html">Previous <span class="navHint"> SET TRANSACTION Statement </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="sql-transactional-statements.html">Up <span class="navHint"> Transactional and Locking Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="xa-statements.html">Next <span class="navHint"> XA Transaction SQL Statements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

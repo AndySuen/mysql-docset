@@ -1,0 +1,93 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3903"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/6.7.6%C2%A0Troubleshooting%20SELinux"></a><title>6.7.6&nbsp;Troubleshooting SELinux</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="selinux.html" title="6.7&nbsp;SELinux"/><link rel="prev" href="selinux-context-mysql-feature-ports.html" title="6.7.5.2&nbsp;Setting the TCP Port Context for MySQL Features"/><link rel="next" href="fips-mode.html" title="6.8&nbsp;FIPS Support"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="selinux-troubleshooting.html#selinux-troubleshooting">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="selinux-context-mysql-feature-ports.html">Previous <span class="navHint"> Setting the TCP Port Context for MySQL Features </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="selinux.html">Up <span class="navHint"> SELinux </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="fips-mode.html">Next <span class="navHint"> FIPS Support </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="selinux-troubleshooting"></a>6.7.6&nbsp;Troubleshooting SELinux</h3></div></div></div><a id="idm45828958386848" class="indexterm"></a><p>
+      Troubleshooting SELinux typically involves placing SELinux into
+      permissive mode, rerunning problematic operations, checking for
+      access denial messages in the SELinux audit log, and placing
+      SELinux back into enforcing mode after problems are resolved.
+    </p><p>
+      To avoid placing the entire system into permissive mode using
+      <span class="command"><strong>setenforce</strong></span>, you can permit only the MySQL
+      service to run permissively by placing its SELinux domain
+      (<code class="filename">mysqld_t</code>) into permissive mode using the
+      <span class="command"><strong>semanage</strong></span> command:
+    </p><pre class="programlisting">semanage permissive -a mysqld_t</pre><p>
+      When you are finished troubleshooting, use this command to place
+      the <code class="literal">mysqld_t</code> domain back into enforcing mode:
+    </p><pre class="programlisting">semanage permissive -d mysqld_t</pre><p>
+      SELinux writes logs for denied operations to
+      <code class="filename">/var/log/audit/audit.log</code>. You can check for
+      denials by searching for <span class="quote">&ldquo;<span class="quote">denied</span>&rdquo;</span> messages.
+    </p><pre class="programlisting">grep &#34;denied&#34; /var/log/audit/audit.log</pre><p>
+      The following sections describes a few common areas where
+      SELinux-related issues may be encountered.
+    </p><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3900"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/File%20Contexts"></a><h4 class="title"><a id="selinux-troubleshooting-file-contexts"></a>File Contexts</h4></div></div></div><p>
+        If a MySQL directory or file has an incorrect SELinux context,
+        access may be denied. This issue can occur if MySQL is
+        configured to read from or write to a non-default directory or
+        file. For example, if you configure MySQL to use a non-default
+        data directory, the directory may not have the expected SELinux
+        context.
+      </p><p>
+        Attempting to start the MySQL service on a non-default data
+        directory with an invalid SELinux context causes the following
+        startup failure.
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>systemctl start mysql.service</code></strong>
+Job for mysqld.service failed because the control process exited with error code.
+See &#34;systemctl status mysqld.service&#34; and &#34;journalctl -xe&#34; for details.
+</pre><p>
+        In this case, a <span class="quote">&ldquo;<span class="quote">denial</span>&rdquo;</span> message is logged to
+        <code class="filename">/var/log/audit/audit.log</code>:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>grep &#34;denied&#34; /var/log/audit/audit.log</code></strong>
+type=AVC msg=audit(1587133719.786:194): avc:  denied  { write } for  pid=7133 comm=&#34;mysqld&#34;
+name=&#34;mysql&#34; dev=&#34;dm-0&#34; ino=51347078 scontext=system_u:system_r:mysqld_t:s0
+tcontext=unconfined_u:object_r:default_t:s0 tclass=dir permissive=0
+</pre><p>
+        For information about setting the proper SELinux context for
+        MySQL directories and files, see
+        <a class="xref" href="selinux-file-context.html" title="6.7.4&nbsp;SELinux File Context">Section&nbsp;6.7.4, &ldquo;SELinux File Context&rdquo;</a>.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3901"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Port%20Access"></a><h4 class="title"><a id="selinux-troubleshooting-port-access"></a>Port Access</h4></div></div></div><p>
+        SELinux expects services such as MySQL Server to use specific
+        ports. Changing ports without updating the SELinux policies may
+        cause a service failure.
+      </p><p>
+        The <code class="literal">mysqld_port_t</code> port type defines the ports
+        that the MySQL listens on. If you configure the MySQL Server to
+        use a non-default port, such as port 3307, and do not update the
+        policy to reflect the change, the MySQL service fails to start:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>systemctl start mysqld.service</code></strong>
+Job for mysqld.service failed because the control process exited with error code.
+See &#34;systemctl status mysqld.service&#34; and &#34;journalctl -xe&#34; for details.
+</pre><p>
+        In this case, a denial message is logged to
+        <code class="filename">/var/log/audit/audit.log</code>:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>grep &#34;denied&#34; /var/log/audit/audit.log</code></strong>
+type=AVC msg=audit(1587134375.845:198): avc:  denied  { name_bind } for  pid=7340
+comm=&#34;mysqld&#34; src=3307 scontext=system_u:system_r:mysqld_t:s0
+tcontext=system_u:object_r:unreserved_port_t:s0 tclass=tcp_socket permissive=0
+</pre><p>
+        For information about setting the proper SELinux port context
+        for MySQL, see <a class="xref" href="selinux-context-tcp-port.html" title="6.7.5&nbsp;SELinux TCP Port Context">Section&nbsp;6.7.5, &ldquo;SELinux TCP Port Context&rdquo;</a>.
+        Similar port access issues can occur when enabling MySQL
+        features that use ports that are not defined with the required
+        context. For more information, see
+        <a class="xref" href="selinux-context-mysql-feature-ports.html" title="6.7.5.2&nbsp;Setting the TCP Port Context for MySQL Features">Section&nbsp;6.7.5.2, &ldquo;Setting the TCP Port Context for MySQL Features&rdquo;</a>.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3902"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/Application%20Changes"></a><h4 class="title"><a id="selinux-troubleshooting-app-changes"></a>Application Changes</h4></div></div></div><p>
+        SELinux may not be aware of application changes. For example, a
+        new release, an application extension, or a new feature may
+        access system resources in a way that is not permitted by
+        SELinux, resulting in access denials. In such cases, you can use
+        the <span class="command"><strong>audit2allow</strong></span> utility to create custom
+        policies to permit access where it is required. The typical
+        method for creating custom policies is to change the SELinux
+        mode to permissive, identify access denial messages in the
+        SELinux audit log, and use the <span class="command"><strong>audit2allow</strong></span>
+        utility to create custom policies to permit access.
+      </p><p>
+        For information about using the <span class="command"><strong>audit2allow</strong></span>
+        utility, refer to your distribution&#39;s SELinux documentation.
+      </p><p>
+        If you encounter access issues for MySQL that you believe should
+        be handled by standard MySQL SELinux policy modules, please open
+        a bug report in your distribution&#39;s bug tracking system.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="selinux-context-mysql-feature-ports.html">Previous <span class="navHint"> Setting the TCP Port Context for MySQL Features </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="selinux.html">Up <span class="navHint"> SELinux </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="fips-mode.html">Next <span class="navHint"> FIPS Support </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

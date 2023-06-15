@@ -1,0 +1,47 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1602"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.6.3.8%C2%A0Optimizing%20Tablespace%20Space%20Allocation%20on%20Linux"></a><title>15.6.3.8&nbsp;Optimizing Tablespace Space Allocation on Linux</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-tablespace.html" title="15.6.3&nbsp;Tablespaces"/><link rel="prev" href="innodb-disabling-tablespace-path-validation.html" title="15.6.3.7&nbsp;Disabling Tablespace Path Validation"/><link rel="next" href="innodb-tablespace-autoextend-size.html" title="15.6.3.9&nbsp;Tablespace AUTOEXTEND_SIZE Configuration"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-optimize-tablespace-page-allocation.html#innodb-optimize-tablespace-page-allocation">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-disabling-tablespace-path-validation.html">Previous <span class="navHint"> Disabling Tablespace Path Validation </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-tablespace.html">Up <span class="navHint"> Tablespaces </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-tablespace-autoextend-size.html">Next <span class="navHint"> Tablespace AUTOEXTEND_SIZE Configuration </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1601"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/15.6.3.8%C2%A0Optimizing%20Tablespace%20Space%20Allocation%20on%20Linux"></a><h4 class="title"><a id="innodb-optimize-tablespace-page-allocation"></a>15.6.3.8&nbsp;Optimizing Tablespace Space Allocation on Linux</h4></div></div></div><a id="idm45828890160448" class="indexterm"></a><p>
+      As of MySQL 8.0.22, you can optimize how <code class="literal">InnoDB</code>
+      allocates space to file-per-table and general tablespaces on
+      Linux. By default, when additional space is required,
+      <code class="literal">InnoDB</code> allocates pages to the tablespace and
+      physically writes NULLs to those pages. This behavior can affect
+      performance if new pages are allocated frequently. As of MySQL
+      8.0.22, you can disable
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_extend_and_initialize"><code class="literal">innodb_extend_and_initialize</code></a> on
+      Linux systems to avoid physically writing NULLs to newly allocated
+      tablespace pages. When
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_extend_and_initialize"><code class="literal">innodb_extend_and_initialize</code></a> is
+      disabled, space is allocated to tablespace files using
+      <code class="literal">posix_fallocate()</code> calls, which reserve space
+      without physically writing NULLs.
+    </p><p>
+      When pages are allocated using
+      <code class="literal">posix_fallocate()</code> calls, the extension size is
+      small by default and pages are often allocated only a few at a
+      time, which can cause fragmentation and increase random I/O. To
+      avoid this issue, increase the tablespace extension size when
+      enabling <code class="literal">posix_fallocate()</code> calls. Tablespace
+      extension size can be increased up to 4GB using the
+      <code class="literal">AUTOEXTEND_SIZE</code> option. For more information,
+      see <a class="xref" href="innodb-tablespace-autoextend-size.html" title="15.6.3.9&nbsp;Tablespace AUTOEXTEND_SIZE Configuration">Section&nbsp;15.6.3.9, &ldquo;Tablespace AUTOEXTEND_SIZE Configuration&rdquo;</a>.
+    </p><p>
+      <code class="literal">InnoDB</code> writes a redo log record before
+      allocating a new tablespace page. If a page allocation operation
+      is interrupted, the operation is replayed from the redo log record
+      during recovery. (A page allocation operation replayed from a redo
+      log record physically writes NULLs to the newly allocated page.) A
+      redo log record is written before allocating a page regardless of
+      the <a class="link" href="innodb-parameters.html#sysvar_innodb_extend_and_initialize"><code class="literal">innodb_extend_and_initialize</code></a>
+      setting.
+    </p><p>
+      On non-Linux systems and Windows, <code class="literal">InnoDB</code>
+      allocates new pages to the tablespace and physically writes NULLs
+      to those pages, which is the default behavior. Attempting to
+      disable
+      <a class="link" href="innodb-parameters.html#sysvar_innodb_extend_and_initialize"><code class="literal">innodb_extend_and_initialize</code></a> on
+      those systems returns the following error:
+    </p><p>
+      <span class="errortext">Changing innodb_extend_and_initialize not supported on
+      this platform. Falling back to the default.</span>
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-disabling-tablespace-path-validation.html">Previous <span class="navHint"> Disabling Tablespace Path Validation </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-tablespace.html">Up <span class="navHint"> Tablespaces </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-tablespace-autoextend-size.html">Next <span class="navHint"> Tablespace AUTOEXTEND_SIZE Configuration </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

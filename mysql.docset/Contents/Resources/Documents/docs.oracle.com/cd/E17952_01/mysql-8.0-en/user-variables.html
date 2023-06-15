@@ -1,0 +1,235 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4497"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/9.4%C2%A0User-Defined%20Variables"></a><title>9.4&nbsp;User-Defined Variables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="language-structure.html" title="Chapter&nbsp;9&nbsp;Language Structure"/><link rel="prev" href="keywords.html" title="9.3&nbsp;Keywords and Reserved Words"/><link rel="next" href="expressions.html" title="9.5&nbsp;Expressions"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="user-variables.html#user-variables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="keywords.html">Previous <span class="navHint"> Keywords and Reserved Words </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="language-structure.html">Up <span class="navHint"> Language Structure </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="expressions.html">Next <span class="navHint"> Expressions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="user-variables"></a>9.4&nbsp;User-Defined Variables</h2></div></div></div><a id="idm45828945540480" class="indexterm"></a><a id="idm45828945538992" class="indexterm"></a><a id="idm45828945537920" class="indexterm"></a><a id="idm45828945536432" class="indexterm"></a><a id="idm45828945535360" class="indexterm"></a><a id="idm45828945534288" class="indexterm"></a><p>
+      You can store a value in a user-defined variable in one statement
+      and refer to it later in another statement. This enables you to
+      pass values from one statement to another.
+    </p><p>
+      User variables are written as
+      <code class="literal">@<em class="replaceable"><code>var_name</code></em></code>, where the
+      variable name <em class="replaceable"><code>var_name</code></em> consists of
+      alphanumeric characters, <code class="literal">.</code>,
+      <code class="literal">_</code>, and <code class="literal">$</code>. A user variable
+      name can contain other characters if you quote it as a string or
+      identifier (for example, <code class="literal">@&#39;my-var&#39;</code>,
+      <code class="literal">@&#34;my-var&#34;</code>, or <code class="literal">@`my-var`</code>).
+    </p><p>
+      User-defined variables are session specific. A user variable
+      defined by one client cannot be seen or used by other clients.
+      (Exception: A user with access to the Performance Schema
+      <a class="link" href="performance-schema-user-variable-tables.html" title="27.12.10&nbsp;Performance Schema User-Defined Variable Tables"><code class="literal">user_variables_by_thread</code></a> table can
+      see all user variables for all sessions.) All variables for a
+      given client session are automatically freed when that client
+      exits.
+    </p><p>
+      User variable names are not case-sensitive. Names have a maximum
+      length of 64 characters.
+    </p><p>
+      One way to set a user-defined variable is by issuing a
+      <a class="link" href="set-variable.html" title="13.7.6.1&nbsp;SET Syntax for Variable Assignment"><code class="literal">SET</code></a>
+      statement:
+    </p><pre class="programlisting">SET @<em class="replaceable"><code>var_name</code></em> = <em class="replaceable"><code>expr</code></em> [, @<em class="replaceable"><code>var_name</code></em> = <em class="replaceable"><code>expr</code></em>] ...
+</pre><p>
+      For <a class="link" href="set-variable.html" title="13.7.6.1&nbsp;SET Syntax for Variable Assignment"><code class="literal">SET</code></a>,
+      either <a class="link" href="assignment-operators.html#operator_assign-equal"><code class="literal">=</code></a> or
+      <a class="link" href="assignment-operators.html#operator_assign-value"><code class="literal">:=</code></a> can be
+      used as the assignment operator.
+    </p><p>
+      User variables can be assigned a value from a limited set of data
+      types: integer, decimal, floating-point, binary or nonbinary
+      string, or <code class="literal">NULL</code> value. Assignment of decimal
+      and real values does not preserve the precision or scale of the
+      value. A value of a type other than one of the permissible types
+      is converted to a permissible type. For example, a value having a
+      temporal or spatial data type is converted to a binary string. A
+      value having the <a class="link" href="json.html" title="11.5&nbsp;The JSON Data Type"><code class="literal">JSON</code></a> data type is
+      converted to a string with a character set of
+      <code class="literal">utf8mb4</code> and a collation of
+      <code class="literal">utf8mb4_bin</code>.
+    </p><p>
+      If a user variable is assigned a nonbinary (character) string
+      value, it has the same character set and collation as the string.
+      The coercibility of user variables is implicit. (This is the same
+      coercibility as for table column values.)
+    </p><p>
+      Hexadecimal or bit values assigned to user variables are treated
+      as binary strings. To assign a hexadecimal or bit value as a
+      number to a user variable, use it in numeric context. For example,
+      add 0 or use <a class="link" href="cast-functions.html#function_cast"><code class="literal">CAST(... AS UNSIGNED)</code></a>:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @v1 = X&#39;41&#39;;</code></strong>
+mysql&gt; <strong class="userinput"><code>SET @v2 = X&#39;41&#39;+0;</code></strong>
+mysql&gt; <strong class="userinput"><code>SET @v3 = CAST(X&#39;41&#39; AS UNSIGNED);</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT @v1, @v2, @v3;</code></strong>
++------+------+------+
+| @v1  | @v2  | @v3  |
++------+------+------+
+| A    |   65 |   65 |
++------+------+------+
+mysql&gt; <strong class="userinput"><code>SET @v1 = b&#39;1000001&#39;;</code></strong>
+mysql&gt; <strong class="userinput"><code>SET @v2 = b&#39;1000001&#39;+0;</code></strong>
+mysql&gt; <strong class="userinput"><code>SET @v3 = CAST(b&#39;1000001&#39; AS UNSIGNED);</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT @v1, @v2, @v3;</code></strong>
++------+------+------+
+| @v1  | @v2  | @v3  |
++------+------+------+
+| A    |   65 |   65 |
++------+------+------+
+</pre><p>
+      If the value of a user variable is selected in a result set, it is
+      returned to the client as a string.
+    </p><p>
+      If you refer to a variable that has not been initialized, it has a
+      value of <code class="literal">NULL</code> and a type of string.
+    </p><p>
+      Beginning with MySQL 8.0.22, a reference to a user variable in a
+      prepared statement has its type determined when the statement is
+      first prepared, and retains this type each time the statement is
+      executed thereafter. Similarly, the type of a user variable
+      employed in a statement within a stored procedure is determined
+      the first time the stored procedure is invoked, and retains this
+      type with each subsequent invocation.
+    </p><p>
+      User variables may be used in most contexts where expressions are
+      permitted. This does not currently include contexts that
+      explicitly require a literal value, such as in the
+      <code class="literal">LIMIT</code> clause of a
+      <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statement, or the
+      <code class="literal">IGNORE <em class="replaceable"><code>N</code></em> LINES</code>
+      clause of a <a class="link" href="load-data.html" title="13.2.9&nbsp;LOAD DATA Statement"><code class="literal">LOAD DATA</code></a> statement.
+    </p><p>
+      Previous releases of MySQL made it possible to assign a value to a
+      user variable in statements other than
+      <a class="link" href="set-variable.html" title="13.7.6.1&nbsp;SET Syntax for Variable Assignment"><code class="literal">SET</code></a>. This
+      functionality is supported in MySQL 8.0 for backward
+      compatibility but is subject to removal in a future release of
+      MySQL.
+    </p><p>
+      When making an assignment in this way, you must use
+      <a class="link" href="assignment-operators.html#operator_assign-value"><code class="literal">:=</code></a> as the
+      assignment operator; <code class="literal">=</code> is treated as the
+      comparison operator in statements other than
+      <a class="link" href="set-variable.html" title="13.7.6.1&nbsp;SET Syntax for Variable Assignment"><code class="literal">SET</code></a>.
+    </p><p>
+      The order of evaluation for expressions involving user variables
+      is undefined. For example, there is no guarantee that
+      <code class="literal">SELECT @a, @a:=@a+1</code> evaluates
+      <code class="literal">@a</code> first and then performs the assignment.
+    </p><p>
+      In addition, the default result type of a variable is based on its
+      type at the beginning of the statement. This may have unintended
+      effects if a variable holds a value of one type at the beginning
+      of a statement in which it is also assigned a new value of a
+      different type.
+    </p><p>
+      To avoid problems with this behavior, either do not assign a value
+      to and read the value of the same variable within a single
+      statement, or else set the variable to <code class="literal">0</code>,
+      <code class="literal">0.0</code>, or <code class="literal">&#39;&#39;</code> to define its
+      type before you use it.
+    </p><p>
+      <code class="literal">HAVING</code>, <code class="literal">GROUP BY</code>, and
+      <code class="literal">ORDER BY</code>, when referring to a variable that is
+      assigned a value in the select expression list do not work as
+      expected because the expression is evaluated on the client and
+      thus can use stale column values from a previous row.
+    </p><p>
+      User variables are intended to provide data values. They cannot be
+      used directly in an SQL statement as an identifier or as part of
+      an identifier, such as in contexts where a table or database name
+      is expected, or as a reserved word such as
+      <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a>. This is true even if the
+      variable is quoted, as shown in the following example:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT c1 FROM t;</code></strong>
++----+
+| c1 |
++----+
+|  0 |
++----+
+|  1 |
++----+
+2 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SET @col = &#34;c1&#34;;</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @col FROM t;</code></strong>
++------+
+| @col |
++------+
+| c1   |
++------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT `@col` FROM t;</code></strong>
+<span class="errortext">ERROR 1054 (42S22): Unknown column &#39;@col&#39; in &#39;field list&#39;</span>
+
+mysql&gt; SET @col = &#34;`c1`&#34;;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @col FROM t;</code></strong>
++------+
+| @col |
++------+
+| `c1` |
++------+
+1 row in set (0.00 sec)
+</pre><p>
+      An exception to this principle that user variables cannot be used
+      to provide identifiers, is when you are constructing a string for
+      use as a prepared statement to execute later. In this case, user
+      variables can be used to provide any part of the statement. The
+      following example illustrates how this can be done:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @c = &#34;c1&#34;;</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SET @s = CONCAT(&#34;SELECT &#34;, @c, &#34; FROM t&#34;);</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>PREPARE stmt FROM @s;</code></strong>
+Query OK, 0 rows affected (0.04 sec)
+Statement prepared
+
+mysql&gt; <strong class="userinput"><code>EXECUTE stmt;</code></strong>
++----+
+| c1 |
++----+
+|  0 |
++----+
+|  1 |
++----+
+2 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>DEALLOCATE PREPARE stmt;</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+</pre><p>
+      See <a class="xref" href="sql-prepared-statements.html" title="13.5&nbsp;Prepared Statements">Section&nbsp;13.5, &ldquo;Prepared Statements&rdquo;</a>, for more
+      information.
+    </p><p>
+      A similar technique can be used in application programs to
+      construct SQL statements using program variables, as shown here
+      using PHP 5:
+    </p><pre class="programlisting">&lt;?php
+  $mysqli = new mysqli(&#34;localhost&#34;, &#34;user&#34;, &#34;pass&#34;, &#34;test&#34;);
+
+  if( mysqli_connect_errno() )
+    die(&#34;Connection failed: %s\n&#34;, mysqli_connect_error());
+
+  $col = &#34;c1&#34;;
+
+  $query = &#34;SELECT $col FROM t&#34;;
+
+  $result = $mysqli-&gt;query($query);
+
+  while($row = $result-&gt;fetch_assoc())
+  {
+    echo &#34;&lt;p&gt;&#34; . $row[&#34;$col&#34;] . &#34;&lt;/p&gt;\n&#34;;
+  }
+
+  $result-&gt;close();
+
+  $mysqli-&gt;close();
+?&gt;
+</pre><p>
+      Assembling an SQL statement in this fashion is sometimes known as
+      <span class="quote">&ldquo;<span class="quote">Dynamic SQL</span>&rdquo;</span>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="keywords.html">Previous <span class="navHint"> Keywords and Reserved Words </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="language-structure.html">Up <span class="navHint"> Language Structure </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="expressions.html">Next <span class="navHint"> Expressions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

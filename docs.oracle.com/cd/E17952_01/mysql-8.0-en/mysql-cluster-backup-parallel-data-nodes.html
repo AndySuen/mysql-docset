@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.6.8.5 Taking an NDB Backup with Parallel Data Nodes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-backup.html" title="23.6.8 Online Backup of NDB Cluster" /><link rel="prev" href="mysql-cluster-backup-troubleshooting.html" title="23.6.8.4 NDB Cluster Backup Troubleshooting" /><link rel="next" href="mysql-cluster-importing-data.html" title="23.6.9 Importing Data Into MySQL Cluster" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-backup-parallel-data-nodes.html#mysql-cluster-backup-parallel-data-nodes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-backup-troubleshooting.html">Previous <span class="navHint"> NDB Cluster Backup Troubleshooting </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-backup.html">Up <span class="navHint"> Online Backup of NDB Cluster </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-importing-data.html">Next <span class="navHint"> Importing Data Into MySQL Cluster </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="mysql-cluster-backup-parallel-data-nodes"></a>23.6.8.5 Taking an NDB Backup with Parallel Data Nodes</h4></div></div></div><p>
+        It is possible in NDB 8.0 to take a backup with multiple local
+        data managers (LDMs) acting in parallel on the data nodes. For
+        this to work, all data nodes in the cluster must use multiple
+        LDMs, and each data node must use the same number of LDMs. This
+        means that all data nodes must run <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a>
+        (<a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a> is single-threaded and thus always has
+        only one LDM) and they must be configured to use multiple LDMs
+        before taking the backup; <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a> by default
+        runs in single-threaded mode. You can cause them to use multiple
+        LDMs by choosing an appropriate setting for one of the
+        multi-threaded data node configuration parameters
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbmtd-maxnoofexecutionthreads"><code class="literal">MaxNoOfExecutionThreads</code></a>
+        or <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbmtd-threadconfig"><code class="literal">ThreadConfig</code></a>. Keep
+        in mind that changing these parameters requires a restart of the
+        cluster; this can be a rolling restart. In addition, the
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbmtd-enablemultithreadedbackup"><code class="literal">EnableMultithreadedBackup</code></a>
+        parameter must be set to 1 for each data node (this is the
+        default).
+      </p><p>
+        Depending on the number of LDMs and other factors, you may also
+        need to increase
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbmtd-nooffragmentlogparts"><code class="literal">NoOfFragmentLogParts</code></a>.
+        If you are using large Disk Data tables, you may also need to
+        increase
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-diskpagebuffermemory"><code class="literal">DiskPageBufferMemory</code></a>. As
+        with single-threaded backups, you may also want or need to make
+        adjustments to settings for
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-backupdatabuffersize"><code class="literal">BackupDataBufferSize</code></a>,
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-backupmemory"><code class="literal">BackupMemory</code></a>, and other
+        configuration parameters relating to backups (see
+        <a class="xref" href="mysql-cluster-ndbd-definition.html#mysql-cluster-backup-parameters" title="Backup parameters">Backup parameters</a>).
+      </p><p>
+        Once all data nodes are using multiple LDMs, you can take the
+        parallel backup using the <a class="link" href="mysql-cluster-backup-using-management-client.html" title="23.6.8.2 Using The NDB Cluster Management Client to Create a Backup"><code class="literal">START
+        BACKUP</code></a> command in the NDB management client just as
+        you would if the data nodes were running <a class="link" href="mysql-cluster-programs-ndbd.html" title="23.5.1 ndbd — The NDB Cluster Data Node Daemon"><span class="command"><strong>ndbd</strong></span></a>
+        (or <a class="link" href="mysql-cluster-programs-ndbmtd.html" title="23.5.3 ndbmtd — The NDB Cluster Data Node Daemon (Multi-Threaded)"><span class="command"><strong>ndbmtd</strong></span></a> in single-threaded mode); no
+        additional or special syntax is required, and you can specify a
+        backup ID, wait option, or snapshot option in any combination as
+        needed or desired.
+      </p><p>
+        Backups using multiple LDMs create subdirectories, one per LDM,
+        under the directory
+        <code class="filename">BACKUP/BACKUP-<em class="replaceable"><code>backup_id</code></em>/</code>
+        (which in turn resides under the
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbd-backupdatadir"><code class="literal">BackupDataDir</code></a>) on each
+        data node; these subdirectories are named
+        <code class="filename">BACKUP-<em class="replaceable"><code>backup_id</code></em>-PART-1-OF-<em class="replaceable"><code>N</code></em>/</code>,
+        <code class="filename">BACKUP-<em class="replaceable"><code>backup_id</code></em>-PART-2-OF-<em class="replaceable"><code>N</code></em>/</code>,
+        and so on, up to
+        <code class="filename">BACKUP-<em class="replaceable"><code>backup_id</code></em>-PART-<em class="replaceable"><code>N</code></em>-OF-<em class="replaceable"><code>N</code></em>/</code>,
+        where <em class="replaceable"><code>backup_id</code></em> is the backup ID used
+        for this backup and <em class="replaceable"><code>N</code></em> is the number
+        of LDMs per data node. Each of these subdirectories contains the
+        usual backup files
+        <code class="literal">BACKUP-<em class="replaceable"><code>backup_id</code></em>-0.<em class="replaceable"><code>node_id</code></em>.Data</code>,
+        <code class="literal">BACKUP-<em class="replaceable"><code>backup_id</code></em>.<em class="replaceable"><code>node_id</code></em>.ctl</code>,
+        and <code class="literal">BACKUP-backup_id.node_id.log</code>, where
+        <em class="replaceable"><code>node_id</code></em> is the node ID of this data
+        node.
+      </p><p>
+        <a class="link" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23 ndb_restore — Restore an NDB Cluster Backup"><span class="command"><strong>ndb_restore</strong></span></a> automatically checks for the
+        presence of the subdirectories just described; if it finds them,
+        it attempts to restore the backup in parallel. For information
+        about restoring backups taken with multiple LDMs, see
+        <a class="xref" href="ndb-restore-parallel-data-node-backup.html" title="23.5.23.3 Restoring from a backup taken in parallel">Section 23.5.23.3, “Restoring from a backup taken in parallel”</a>.
+      </p><p>
+        To force creation of a single-threaded backup that can easily be
+        imported by <a class="link" href="mysql-cluster-programs-ndb-restore.html" title="23.5.23 ndb_restore — Restore an NDB Cluster Backup"><span class="command"><strong>ndb_restore</strong></span></a> from an NDB release
+        prior to 8.0, you can set
+        <a class="link" href="mysql-cluster-ndbd-definition.html#ndbparam-ndbmtd-enablemultithreadedbackup"><code class="literal">EnableMultithreadedBackup =
+        0</code></a> for all data nodes (you can do this by setting the
+        parameter in the <code class="literal">[ndbd default]</code> section of
+        the <code class="filename">config.ini</code> global configuration file).
+        It is also possible to restore a parallel backup to a cluster
+        running an older version of <code class="filename">NDB</code>. See
+        <a class="xref" href="ndb-restore-to-different-version.html#ndb-restore-to-previous-version" title="23.5.23.1.1 Restoring an NDB backup to a previous version of NDB Cluster">Section 23.5.23.1.1, “Restoring an NDB backup to a previous version of NDB Cluster”</a>, for more
+        information.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-backup-troubleshooting.html">Previous <span class="navHint"> NDB Cluster Backup Troubleshooting </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-backup.html">Up <span class="navHint"> Online Backup of NDB Cluster </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-importing-data.html">Next <span class="navHint"> Importing Data Into MySQL Cluster </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

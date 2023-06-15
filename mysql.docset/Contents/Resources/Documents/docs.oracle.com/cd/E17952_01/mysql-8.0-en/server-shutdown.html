@@ -1,0 +1,117 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3917"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/5.1.19%C2%A0The%20Server%20Shutdown%20Process"></a><title>5.1.19&nbsp;The Server Shutdown Process</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysqld-server.html" title="5.1&nbsp;The MySQL Server"/><link rel="prev" href="session-state-tracking.html" title="5.1.18&nbsp;Server Tracking of Client Session State"/><link rel="next" href="data-directory.html" title="5.2&nbsp;The MySQL Data Directory"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="server-shutdown.html#server-shutdown">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="session-state-tracking.html">Previous <span class="navHint"> Server Tracking of Client Session State </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysqld-server.html">Up <span class="navHint"> The MySQL Server </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="data-directory.html">Next <span class="navHint"> The MySQL Data Directory </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="server-shutdown"></a>5.1.19&nbsp;The Server Shutdown Process</h3></div></div></div><a id="idm45828987524752" class="indexterm"></a><a id="idm45828987523296" class="indexterm"></a><p>
+      The server shutdown process takes place as follows:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          The shutdown process is initiated.
+        </p><p>
+          This can occur initiated several ways. For example, a user
+          with the <a class="link" href="privileges-provided.html#priv_shutdown"><code class="literal">SHUTDOWN</code></a> privilege can
+          execute a <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin shutdown</strong></span></a> command.
+          <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin</strong></span></a> can be used on any platform
+          supported by MySQL. Other operating system-specific shutdown
+          initiation methods are possible as well: The server shuts down
+          on Unix when it receives a <code class="literal">SIGTERM</code> signal.
+          A server running as a service on Windows shuts down when the
+          services manager tells it to.
+        </p></li><li class="listitem"><p>
+          The server creates a shutdown thread if necessary.
+        </p><p>
+          Depending on how shutdown was initiated, the server might
+          create a thread to handle the shutdown process. If shutdown
+          was requested by a client, a shutdown thread is created. If
+          shutdown is the result of receiving a
+          <code class="literal">SIGTERM</code> signal, the signal thread might
+          handle shutdown itself, or it might create a separate thread
+          to do so. If the server tries to create a shutdown thread and
+          cannot (for example, if memory is exhausted), it issues a
+          diagnostic message that appears in the error log:
+        </p><pre class="programlisting">Error: Can&#39;t create thread to kill server
+</pre></li><li class="listitem"><p>
+          The server stops accepting new connections.
+        </p><p>
+          To prevent new activity from being initiated during shutdown,
+          the server stops accepting new client connections by closing
+          the handlers for the network interfaces to which it normally
+          listens for connections: the TCP/IP port, the Unix socket
+          file, the Windows named pipe, and shared memory on Windows.
+        </p></li><li class="listitem"><p>
+          The server terminates current activity.
+        </p><p>
+          For each thread associated with a client connection, the
+          server breaks the connection to the client and marks the
+          thread as killed. Threads die when they notice that they are
+          so marked. Threads for idle connections die quickly. Threads
+          that currently are processing statements check their state
+          periodically and take longer to die. For additional
+          information about thread termination, see
+          <a class="xref" href="kill.html" title="13.7.8.4&nbsp;KILL Statement">Section&nbsp;13.7.8.4, &ldquo;KILL Statement&rdquo;</a>, in particular for the instructions
+          about killed <a class="link" href="repair-table.html" title="13.7.3.5&nbsp;REPAIR TABLE Statement"><code class="literal">REPAIR TABLE</code></a> or
+          <a class="link" href="optimize-table.html" title="13.7.3.4&nbsp;OPTIMIZE TABLE Statement"><code class="literal">OPTIMIZE TABLE</code></a> operations on
+          <code class="literal">MyISAM</code> tables.
+        </p><p>
+          For threads that have an open transaction, the transaction is
+          rolled back. If a thread is updating a nontransactional table,
+          an operation such as a multiple-row
+          <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a> or
+          <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> may leave the table
+          partially updated because the operation can terminate before
+          completion.
+        </p><p>
+          If the server is a replication source server, it treats
+          threads associated with currently connected replicas like
+          other client threads. That is, each one is marked as killed
+          and exits when it next checks its state.
+        </p><p>
+          If the server is a replica server, it stops the replication
+          I/O and SQL threads, if they are active, before marking client
+          threads as killed. The SQL thread is permitted to finish its
+          current statement (to avoid causing replication problems), and
+          then stops. If the SQL thread is in the middle of a
+          transaction at this point, the server waits until the current
+          replication event group (if any) has finished executing, or
+          until the user issues a
+          <a class="link" href="kill.html" title="13.7.8.4&nbsp;KILL Statement"><code class="literal">KILL QUERY</code></a> or
+          <a class="link" href="kill.html" title="13.7.8.4&nbsp;KILL Statement"><code class="literal">KILL
+          CONNECTION</code></a> statement. See also
+          <a class="xref" href="stop-slave.html" title="13.4.2.11&nbsp;STOP SLAVE Statement">Section&nbsp;13.4.2.11, &ldquo;STOP SLAVE Statement&rdquo;</a>. Since nontransactional
+          statements cannot be rolled back, in order to guarantee
+          crash-safe replication, only transactional tables should be
+          used.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            To guarantee crash safety on the replica, you must run the
+            replica with
+            <a class="link" href="replication-options-replica.html#sysvar_relay_log_recovery"><code class="option">--relay-log-recovery</code></a> enabled.
+          </p></div><p>
+          See also <a class="xref" href="replica-logs.html" title="17.2.4&nbsp;Relay Log and Replication Metadata Repositories">Section&nbsp;17.2.4, &ldquo;Relay Log and Replication Metadata Repositories&rdquo;</a>).
+        </p></li><li class="listitem"><p>
+          The server shuts down or closes storage engines.
+        </p><p>
+          At this stage, the server flushes the table cache and closes
+          all open tables.
+        </p><p>
+          Each storage engine performs any actions necessary for tables
+          that it manages.
+
+          
+
+          <code class="literal">InnoDB</code> flushes its buffer pool to disk
+          (unless <a class="link" href="innodb-parameters.html#sysvar_innodb_fast_shutdown"><code class="literal">innodb_fast_shutdown</code></a>
+          is 2), writes the current LSN to the tablespace, and
+          terminates its own internal threads. <code class="literal">MyISAM</code>
+          flushes any pending index writes for a table.
+        </p></li><li class="listitem"><p>
+          The server exits.
+        </p></li></ol></div><a id="idm45828987486160" class="indexterm"></a><a id="idm45828987484672" class="indexterm"></a><p>
+      To provide information to management processes, the server returns
+      one of the exit codes described in the following list. The phrase
+      in parentheses indicates the action taken by systemd in response
+      to the code, for platforms on which systemd is used to manage the
+      server.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          0 = successful termination (no restart done)
+        </p></li><li class="listitem"><p>
+          1 = unsuccessful termination (no restart done)
+        </p></li><li class="listitem"><p>
+          2 = unsuccessful termination (restart done)
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="session-state-tracking.html">Previous <span class="navHint"> Server Tracking of Client Session State </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysqld-server.html">Up <span class="navHint"> The MySQL Server </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="data-directory.html">Next <span class="navHint"> The MySQL Data Directory </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

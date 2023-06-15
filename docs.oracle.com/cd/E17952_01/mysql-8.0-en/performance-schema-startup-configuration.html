@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>27.3 Performance Schema Startup Configuration</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="performance-schema.html" title="Chapter 27 MySQL Performance Schema" /><link rel="prev" href="performance-schema-build-configuration.html" title="27.2 Performance Schema Build Configuration" /><link rel="next" href="performance-schema-runtime-configuration.html" title="27.4 Performance Schema Runtime Configuration" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-startup-configuration.html#performance-schema-startup-configuration">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="performance-schema-build-configuration.html">Previous <span class="navHint"> Performance Schema Build Configuration </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="performance-schema-runtime-configuration.html">Next <span class="navHint"> Performance Schema Runtime Configuration </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="performance-schema-startup-configuration"></a>27.3 Performance Schema Startup Configuration</h2></div></div></div><p>
+      To use the MySQL Performance Schema, it must be enabled at server
+      startup to enable event collection to occur.
+    </p><p>
+      The Performance Schema is enabled by default. To enable or disable
+      it explicitly, start the server with the
+      <a class="link" href="performance-schema-system-variables.html#sysvar_performance_schema"><code class="literal">performance_schema</code></a> variable set
+      to an appropriate value. For example, use these lines in the
+      server <code class="filename">my.cnf</code> file:
+    </p><pre class="programlisting">[mysqld]
+performance_schema=ON
+</pre><p>
+      If the server is unable to allocate any internal buffer during
+      Performance Schema initialization, the Performance Schema disables
+      itself and sets
+      <a class="link" href="performance-schema-system-variables.html#sysvar_performance_schema"><code class="literal">performance_schema</code></a> to
+      <code class="literal">OFF</code>, and the server runs without
+      instrumentation.
+    </p><p>
+      The Performance Schema also permits instrument and consumer
+      configuration at server startup.
+    </p><p>
+      To control an instrument at server startup, use an option of this
+      form:
+    </p><pre class="programlisting">--performance-schema-instrument='<em class="replaceable"><code>instrument_name</code></em>=<em class="replaceable"><code>value</code></em>'
+</pre><p>
+      Here, <em class="replaceable"><code>instrument_name</code></em> is an instrument
+      name such as <code class="literal">wait/synch/mutex/sql/LOCK_open</code>,
+      and <em class="replaceable"><code>value</code></em> is one of these values:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">OFF</code>, <code class="literal">FALSE</code>, or
+          <code class="literal">0</code>: Disable the instrument
+        </p></li><li class="listitem"><p>
+          <code class="literal">ON</code>, <code class="literal">TRUE</code>, or
+          <code class="literal">1</code>: Enable and time the instrument
+        </p></li><li class="listitem"><p>
+          <code class="literal">COUNTED</code>: Enable and count (rather than
+          time) the instrument
+        </p></li></ul></div><p>
+      Each
+      <a class="link" href="performance-schema-options.html#option_mysqld_performance-schema-instrument"><code class="option">--performance-schema-instrument</code></a>
+      option can specify only one instrument name, but multiple
+      instances of the option can be given to configure multiple
+      instruments. In addition, patterns are permitted in instrument
+      names to configure instruments that match the pattern. To
+      configure all condition synchronization instruments as enabled and
+      counted, use this option:
+    </p><pre class="programlisting">--performance-schema-instrument='wait/synch/cond/%=COUNTED'
+</pre><p>
+      To disable all instruments, use this option:
+    </p><pre class="programlisting">--performance-schema-instrument='%=OFF'
+</pre><p>
+      Exception: The <code class="literal">memory/performance_schema/%</code>
+      instruments are built in and cannot be disabled at startup.
+    </p><p>
+      Longer instrument name strings take precedence over shorter
+      pattern names, regardless of order. For information about
+      specifying patterns to select instruments, see
+      <a class="xref" href="performance-schema-filtering-names.html" title="27.4.9 Naming Instruments or Consumers for Filtering Operations">Section 27.4.9, “Naming Instruments or Consumers for Filtering Operations”</a>.
+    </p><p>
+      An unrecognized instrument name is ignored. It is possible that a
+      plugin installed later may create the instrument, at which time
+      the name is recognized and configured.
+    </p><p>
+      To control a consumer at server startup, use an option of this
+      form:
+    </p><pre class="programlisting">--performance-schema-consumer-<em class="replaceable"><code>consumer_name</code></em>=<em class="replaceable"><code>value</code></em>
+</pre><p>
+      Here, <em class="replaceable"><code>consumer_name</code></em> is a consumer name
+      such as <code class="literal">events_waits_history</code>, and
+      <em class="replaceable"><code>value</code></em> is one of these values:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">OFF</code>, <code class="literal">FALSE</code>, or
+          <code class="literal">0</code>: Do not collect events for the consumer
+        </p></li><li class="listitem"><p>
+          <code class="literal">ON</code>, <code class="literal">TRUE</code>, or
+          <code class="literal">1</code>: Collect events for the consumer
+        </p></li></ul></div><p>
+      For example, to enable the <code class="literal">events_waits_history</code>
+      consumer, use this option:
+    </p><pre class="programlisting">--performance-schema-consumer-events-waits-history=ON
+</pre><p>
+      The permitted consumer names can be found by examining the
+      <a class="link" href="performance-schema-setup-consumers-table.html" title="27.12.2.2 The setup_consumers Table"><code class="literal">setup_consumers</code></a> table. Patterns are
+      not permitted. Consumer names in the
+      <a class="link" href="performance-schema-setup-consumers-table.html" title="27.12.2.2 The setup_consumers Table"><code class="literal">setup_consumers</code></a> table use
+      underscores, but for consumers set at startup, dashes and
+      underscores within the name are equivalent.
+    </p><p>
+      The Performance Schema includes several system variables that
+      provide configuration information:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW VARIABLES LIKE 'perf%';</code></strong>
++--------------------------------------------------------+---------+
+| Variable_name                                          | Value   |
++--------------------------------------------------------+---------+
+| performance_schema                                     | ON      |
+| performance_schema_accounts_size                       | 100     |
+| performance_schema_digests_size                        | 200     |
+| performance_schema_events_stages_history_long_size     | 10000   |
+| performance_schema_events_stages_history_size          | 10      |
+| performance_schema_events_statements_history_long_size | 10000   |
+| performance_schema_events_statements_history_size      | 10      |
+| performance_schema_events_waits_history_long_size      | 10000   |
+| performance_schema_events_waits_history_size           | 10      |
+| performance_schema_hosts_size                          | 100     |
+| performance_schema_max_cond_classes                    | 80      |
+| performance_schema_max_cond_instances                  | 1000    |
+...
+</pre><p>
+      The <a class="link" href="performance-schema-system-variables.html#sysvar_performance_schema"><code class="literal">performance_schema</code></a> variable
+      is <code class="literal">ON</code> or <code class="literal">OFF</code> to indicate
+      whether the Performance Schema is enabled or disabled. The other
+      variables indicate table sizes (number of rows) or memory
+      allocation values.
+    </p><a id="idm45828793074672" class="indexterm"></a><a id="idm45828793073184" class="indexterm"></a><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        With the Performance Schema enabled, the number of Performance
+        Schema instances affects the server memory footprint, perhaps to
+        a large extent. The Performance Schema autoscales many
+        parameters to use memory only as required; see
+        <a class="xref" href="performance-schema-memory-model.html" title="27.17 The Performance Schema Memory-Allocation Model">Section 27.17, “The Performance Schema Memory-Allocation Model”</a>.
+      </p></div><p>
+      To change the value of Performance Schema system variables, set
+      them at server startup. For example, put the following lines in a
+      <code class="filename">my.cnf</code> file to change the sizes of the
+      history tables for wait events:
+    </p><pre class="programlisting">[mysqld]
+performance_schema
+performance_schema_events_waits_history_size=20
+performance_schema_events_waits_history_long_size=15000
+</pre><p>
+      The Performance Schema automatically sizes the values of several
+      of its parameters at server startup if they are not set
+      explicitly. For example, it sizes the parameters that control the
+      sizes of the events waits tables this way. The Performance Schema
+      allocates memory incrementally, scaling its memory use to actual
+      server load, instead of allocating all the memory it needs during
+      server startup. Consequently, many sizing parameters need not be
+      set at all. To see which parameters are autosized or autoscaled,
+      use <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld --verbose --help</strong></span></a> and examine the
+      option descriptions, or see
+      <a class="xref" href="performance-schema-system-variables.html" title="27.15 Performance Schema System Variables">Section 27.15, “Performance Schema System Variables”</a>.
+    </p><p>
+      For each autosized parameter that is not set at server startup,
+      the Performance Schema determines how to set its value based on
+      the value of the following system values, which are considered as
+      <span class="quote">“<span class="quote">hints</span>”</span> about how you have configured your MySQL
+      server:
+    </p><pre class="programlisting">max_connections
+open_files_limit
+table_definition_cache
+table_open_cache
+</pre><p>
+      To override autosizing or autoscaling for a given parameter, set
+      it to a value other than −1 at startup. In this case, the
+      Performance Schema assigns it the specified value.
+    </p><p>
+      At runtime, <a class="link" href="show-variables.html" title="13.7.7.41 SHOW VARIABLES Statement"><code class="literal">SHOW VARIABLES</code></a> displays
+      the actual values that autosized parameters were set to.
+      Autoscaled parameters display with a value of −1.
+    </p><p>
+      If the Performance Schema is disabled, its autosized and
+      autoscaled parameters remain set to −1 and
+      <a class="link" href="show-variables.html" title="13.7.7.41 SHOW VARIABLES Statement"><code class="literal">SHOW VARIABLES</code></a> displays −1.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="performance-schema-build-configuration.html">Previous <span class="navHint"> Performance Schema Build Configuration </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="performance-schema.html">Up <span class="navHint"> MySQL Performance Schema </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="performance-schema-runtime-configuration.html">Next <span class="navHint"> Performance Schema Runtime Configuration </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

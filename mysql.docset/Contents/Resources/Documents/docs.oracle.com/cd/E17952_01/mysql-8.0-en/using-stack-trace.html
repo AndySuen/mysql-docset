@@ -1,0 +1,79 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4515"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/5.9.1.5%C2%A0Using%20a%20Stack%20Trace"></a><title>5.9.1.5&nbsp;Using a Stack Trace</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="debugging-server.html" title="5.9.1&nbsp;Debugging a MySQL Server"/><link rel="prev" href="using-gdb-on-mysqld.html" title="5.9.1.4&nbsp;Debugging mysqld under gdb"/><link rel="next" href="using-log-files.html" title="5.9.1.6&nbsp;Using Server Logs to Find Causes of Errors in mysqld"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="using-stack-trace.html#using-stack-trace">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="using-gdb-on-mysqld.html">Previous <span class="navHint"> Debugging mysqld under gdb </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="debugging-server.html">Up <span class="navHint"> Debugging a MySQL Server </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="using-log-files.html">Next <span class="navHint"> Using Server Logs to Find Causes of Errors in mysqld </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-4514"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/5.9.1.5%C2%A0Using%20a%20Stack%20Trace"></a><h4 class="title"><a id="using-stack-trace"></a>5.9.1.5&nbsp;Using a Stack Trace</h4></div></div></div><p>
+        On some operating systems, the error log contains a stack trace
+        if <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> dies unexpectedly. You can use this
+        to find out where (and maybe why) <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+        died. See <a class="xref" href="error-log.html" title="5.4.2&nbsp;The Error Log">Section&nbsp;5.4.2, &ldquo;The Error Log&rdquo;</a>. To get a stack trace, you
+        must not compile <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> with the
+        <code class="option">-fomit-frame-pointer</code> option to gcc. See
+        <a class="xref" href="compiling-for-debugging.html" title="5.9.1.1&nbsp;Compiling MySQL for Debugging">Section&nbsp;5.9.1.1, &ldquo;Compiling MySQL for Debugging&rdquo;</a>.
+      </p><p>
+        A stack trace in the error log looks something like this:
+      </p><pre class="programlisting">mysqld got signal 11;
+Attempting backtrace. You can use the following information
+to find out where mysqld died. If you see no messages after
+this, something went terribly wrong...
+
+stack_bottom = 0x41fd0110 thread_stack 0x40000
+mysqld(my_print_stacktrace+0x32)[0x9da402]
+mysqld(handle_segfault+0x28a)[0x6648e9]
+/lib/libpthread.so.0[0x7f1a5af000f0]
+/lib/libc.so.6(strcmp+0x2)[0x7f1a5a10f0f2]
+mysqld(_Z21check_change_passwordP3THDPKcS2_Pcj+0x7c)[0x7412cb]
+mysqld(_ZN16set_var_password5checkEP3THD+0xd0)[0x688354]
+mysqld(_Z17sql_set_variablesP3THDP4ListI12set_var_baseE+0x68)[0x688494]
+mysqld(_Z21mysql_execute_commandP3THD+0x41a0)[0x67a170]
+mysqld(_Z11mysql_parseP3THDPKcjPS2_+0x282)[0x67f0ad]
+mysqld(_Z16dispatch_command19enum_server_commandP3THDPcj+0xbb7[0x67fdf8]
+mysqld(_Z10do_commandP3THD+0x24d)[0x6811b6]
+mysqld(handle_one_connection+0x11c)[0x66e05e]
+</pre><p>
+        If resolution of function names for the trace fails, the trace
+        contains less information:
+      </p><pre class="programlisting">mysqld got signal 11;
+Attempting backtrace. You can use the following information
+to find out where mysqld died. If you see no messages after
+this, something went terribly wrong...
+
+stack_bottom = 0x41fd0110 thread_stack 0x40000
+[0x9da402]
+[0x6648e9]
+[0x7f1a5af000f0]
+[0x7f1a5a10f0f2]
+[0x7412cb]
+[0x688354]
+[0x688494]
+[0x67a170]
+[0x67f0ad]
+[0x67fdf8]
+[0x6811b6]
+[0x66e05e]
+</pre><p>
+        Newer versions of <code class="literal">glibc</code> stack trace functions
+        also print the address as relative to the object. On
+        <code class="literal">glibc</code>-based systems (Linux), the trace for an
+        unexpected exit within a plugin looks something like:
+      </p><pre class="programlisting">plugin/auth/auth_test_plugin.so(+0x9a6)[0x7ff4d11c29a6]
+</pre><p>
+        To translate the relative address (<code class="literal">+0x9a6</code>)
+        into a file name and line number, use this command:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>addr2line -fie auth_test_plugin.so 0x9a6</code></strong>
+auth_test_plugin
+mysql-trunk/plugin/auth/test_plugin.c:65
+</pre><p>
+        The <span class="command"><strong>addr2line</strong></span> utility is part of the
+        <code class="literal">binutils</code> package on Linux.
+      </p><p>
+        On Solaris, the procedure is similar. The Solaris
+        <code class="literal">printstack()</code> already prints relative
+        addresses:
+      </p><pre class="programlisting">plugin/auth/auth_test_plugin.so:0x1510
+</pre><p>
+        To translate, use this command:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>gaddr2line -fie auth_test_plugin.so 0x1510</code></strong>
+mysql-trunk/plugin/auth/test_plugin.c:88
+</pre><p>
+        Windows already prints the address, function name and line:
+      </p><pre class="programlisting">000007FEF07E10A4 auth_test_plugin.dll!auth_test_plugin()[test_plugin.c:72]
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="using-gdb-on-mysqld.html">Previous <span class="navHint"> Debugging mysqld under gdb </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="debugging-server.html">Up <span class="navHint"> Debugging a MySQL Server </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="using-log-files.html">Next <span class="navHint"> Using Server Logs to Find Causes of Errors in mysqld </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

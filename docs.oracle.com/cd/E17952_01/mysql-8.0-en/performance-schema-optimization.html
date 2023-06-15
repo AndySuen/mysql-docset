@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.4 Optimizing Performance Schema Queries</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="statement-optimization.html" title="8.2 Optimizing SQL Statements" /><link rel="prev" href="information-schema-optimization.html" title="8.2.3 Optimizing INFORMATION_SCHEMA Queries" /><link rel="next" href="data-change-optimization.html" title="8.2.5 Optimizing Data Change Statements" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="performance-schema-optimization.html#performance-schema-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="information-schema-optimization.html">Previous <span class="navHint"> Optimizing INFORMATION_SCHEMA Queries </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="statement-optimization.html">Up <span class="navHint"> Optimizing SQL Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="data-change-optimization.html">Next <span class="navHint"> Optimizing Data Change Statements </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="performance-schema-optimization"></a>8.2.4 Optimizing Performance Schema Queries</h3></div></div></div><a id="idm45828954518464" class="indexterm"></a><a id="idm45828954516960" class="indexterm"></a><p>
+        Applications that monitor databases may make frequent use of
+        Performance Schema tables. To write queries for these tables
+        most efficiently, take advantage of their indexes. For example,
+        include a <code class="literal">WHERE</code> clause that restricts
+        retrieved rows based on comparison to specific values in an
+        indexed column.
+      </p><p>
+        Most Performance Schema tables have indexes. Tables that do not
+        are those that normally contain few rows or are unlikely to be
+        queried frequently. Performance Schema indexes give the
+        optimizer access to execution plans other than full table scans.
+        These indexes also improve performance for related objects, such
+        as <a class="link" href="sys-schema.html" title="Chapter 28 MySQL sys Schema"><code class="literal">sys</code></a> schema views that use those
+        tables.
+      </p><p>
+        To see whether a given Performance Schema table has indexes and
+        what they are, use <a class="link" href="show-index.html" title="13.7.7.22 SHOW INDEX Statement"><code class="literal">SHOW INDEX</code></a> or
+        <a class="link" href="show-create-table.html" title="13.7.7.10 SHOW CREATE TABLE Statement"><code class="literal">SHOW CREATE TABLE</code></a>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW INDEX FROM performance_schema.accounts\G</code></strong>
+*************************** 1. row ***************************
+        Table: accounts
+   Non_unique: 0
+     Key_name: ACCOUNT
+ Seq_in_index: 1
+  Column_name: USER
+    Collation: NULL
+  Cardinality: NULL
+     Sub_part: NULL
+       Packed: NULL
+         Null: YES
+   Index_type: HASH
+      Comment:
+Index_comment:
+      Visible: YES
+*************************** 2. row ***************************
+        Table: accounts
+   Non_unique: 0
+     Key_name: ACCOUNT
+ Seq_in_index: 2
+  Column_name: HOST
+    Collation: NULL
+  Cardinality: NULL
+     Sub_part: NULL
+       Packed: NULL
+         Null: YES
+   Index_type: HASH
+      Comment:
+Index_comment:
+      Visible: YES
+
+mysql&gt; <strong class="userinput"><code>SHOW CREATE TABLE performance_schema.rwlock_instances\G</code></strong>
+*************************** 1. row ***************************
+       Table: rwlock_instances
+Create Table: CREATE TABLE `rwlock_instances` (
+  `NAME` varchar(128) NOT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
+  `WRITE_LOCKED_BY_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
+  `READ_LOCKED_BY_COUNT` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`OBJECT_INSTANCE_BEGIN`),
+  KEY `NAME` (`NAME`),
+  KEY `WRITE_LOCKED_BY_THREAD_ID` (`WRITE_LOCKED_BY_THREAD_ID`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+</pre><p>
+        To see the execution plan for a Performance Schema query and
+        whether it uses any indexes, use
+        <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM performance_schema.accounts</code></strong>
+       <strong class="userinput"><code>WHERE (USER,HOST) = ('root','localhost')\G</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: accounts
+   partitions: NULL
+         type: const
+possible_keys: ACCOUNT
+          key: ACCOUNT
+      key_len: 278
+          ref: const,const
+         rows: 1
+     filtered: 100.00
+        Extra: NULL
+</pre><p>
+        The <a class="link" href="explain.html" title="13.8.2 EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output indicates that
+        the optimizer uses the <a class="link" href="performance-schema-accounts-table.html" title="27.12.8.1 The accounts Table"><code class="literal">accounts</code></a>
+        table <code class="literal">ACCOUNT</code> index that comprises the
+        <code class="literal">USER</code> and <code class="literal">HOST</code> columns.
+      </p><p>
+        Performance Schema indexes are virtual: They are a construct of
+        the Performance Schema storage engine and use no memory or disk
+        storage. The Performance Schema reports index information to the
+        optimizer so that it can construct efficient execution plans.
+        The Performance Schema in turn uses optimizer information about
+        what to look for (for example, a particular key value), so that
+        it can perform efficient lookups without building actual index
+        structures. This implementation provides two important benefits:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            It entirely avoids the maintenance cost normally incurred
+            for tables that undergo frequent updates.
+          </p></li><li class="listitem"><p>
+            It reduces at an early stage of query execution the amount
+            of data retrieved. For conditions on the indexed columns,
+            the Performance Schema efficiently returns only table rows
+            that satisfy the query conditions. Without an index, the
+            Performance Schema would return all rows in the table,
+            requiring that the optimizer later evaluate the conditions
+            against each row to produce the final result.
+          </p></li></ul></div><p>
+        Performance Schema indexes are predefined and cannot be dropped,
+        added, or altered.
+      </p><p>
+        Performance Schema indexes are similar to hash indexes. For
+        example:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            They are used only for equality comparisons that use the
+            <code class="literal">=</code> or <code class="literal">&lt;=&gt;</code>
+            operators.
+          </p></li><li class="listitem"><p>
+            They are unordered. If a query result must have specific row
+            ordering characteristics, include an <code class="literal">ORDER
+            BY</code> clause.
+          </p></li></ul></div><p>
+        For additional information about hash indexes, see
+        <a class="xref" href="index-btree-hash.html" title="8.3.9 Comparison of B-Tree and Hash Indexes">Section 8.3.9, “Comparison of B-Tree and Hash Indexes”</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="information-schema-optimization.html">Previous <span class="navHint"> Optimizing INFORMATION_SCHEMA Queries </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="statement-optimization.html">Up <span class="navHint"> Optimizing SQL Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="data-change-optimization.html">Next <span class="navHint"> Optimizing Data Change Statements </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

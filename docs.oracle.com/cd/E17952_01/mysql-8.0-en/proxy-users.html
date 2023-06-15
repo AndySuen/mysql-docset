@@ -1,0 +1,602 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>6.2.19 Proxy Users</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="access-control.html" title="6.2 Access Control and Account Management" /><link rel="prev" href="multifactor-authentication.html" title="6.2.18 Multifactor Authentication" /><link rel="next" href="account-locking.html" title="6.2.20 Account Locking" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="proxy-users.html#proxy-users">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="multifactor-authentication.html">Previous <span class="navHint"> Multifactor Authentication </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="account-locking.html">Next <span class="navHint"> Account Locking </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="proxy-users"></a>6.2.19 Proxy Users</h3></div></div></div><a id="idm45828975545552" class="indexterm"></a><p>
+      The MySQL server authenticates client connections using
+      authentication plugins. The plugin that authenticates a given
+      connection may request that the connecting (external) user be
+      treated as a different user for privilege-checking purposes. This
+      enables the external user to be a proxy for the second user; that
+      is, to assume the privileges of the second user:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The external user is a <span class="quote">“<span class="quote">proxy user</span>”</span> (a user who
+          can impersonate or become known as another user).
+        </p></li><li class="listitem"><p>
+          The second user is a <span class="quote">“<span class="quote">proxied user</span>”</span> (a user whose
+          identity and privileges can be assumed by a proxy user).
+        </p></li></ul></div><p>
+      This section describes how the proxy user capability works. For
+      general information about authentication plugins, see
+      <a class="xref" href="pluggable-authentication.html" title="6.2.17 Pluggable Authentication">Section 6.2.17, “Pluggable Authentication”</a>. For information about
+      specific plugins, see <a class="xref" href="authentication-plugins.html" title="6.4.1 Authentication Plugins">Section 6.4.1, “Authentication Plugins”</a>.
+      For information about writing authentication plugins that support
+      proxy users, see
+      <a class="ulink" href="https://dev.mysql.com/doc/extending-mysql/8.0/en/writing-authentication-plugins-proxy-users.html" target="_top">Implementing Proxy User Support in Authentication Plugins</a>.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="proxy-users.html#proxy-users-support-requirements" title="Requirements for Proxy User Support">Requirements for Proxy User Support</a></p></li><li class="listitem"><p><a class="xref" href="proxy-users.html#proxy-users-example" title="Simple Proxy User Example">Simple Proxy User Example</a></p></li><li class="listitem"><p><a class="xref" href="proxy-users.html#preventing-proxied-account-direct-login" title="Preventing Direct Login to Proxied Accounts">Preventing Direct Login to Proxied Accounts</a></p></li><li class="listitem"><p><a class="xref" href="proxy-users.html#proxy-users-granting-proxy-privilege" title="Granting and Revoking the PROXY Privilege">Granting and Revoking the PROXY Privilege</a></p></li><li class="listitem"><p><a class="xref" href="proxy-users.html#default-proxy-users" title="Default Proxy Users">Default Proxy Users</a></p></li><li class="listitem"><p><a class="xref" href="proxy-users.html#proxy-users-conflicts" title="Default Proxy User and Anonymous User Conflicts">Default Proxy User and Anonymous User Conflicts</a></p></li><li class="listitem"><p><a class="xref" href="proxy-users.html#proxy-users-server-user-mapping" title="Server Support for Proxy User Mapping">Server Support for Proxy User Mapping</a></p></li><li class="listitem"><p><a class="xref" href="proxy-users.html#proxy-users-system-variables" title="Proxy User System Variables">Proxy User System Variables</a></p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        One administrative benefit to be gained by proxying is that the
+        DBA can set up a single account with a set of privileges and
+        then enable multiple proxy users to have those privileges
+        without having to assign the privileges individually to each of
+        those users. As an alternative to proxy users, DBAs may find
+        that roles provide a suitable way to map users onto specific
+        sets of named privileges. Each user can be granted a given
+        single role to, in effect, be granted the appropriate set of
+        privileges. See <a class="xref" href="roles.html" title="6.2.10 Using Roles">Section 6.2.10, “Using Roles”</a>.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="proxy-users-support-requirements"></a>Requirements for Proxy User Support</h4></div></div></div><p>
+        For proxying to occur for a given authentication plugin, these
+        conditions must be satisfied:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Proxying must be supported, either by the plugin itself, or
+            by the MySQL server on behalf of the plugin. In the latter
+            case, server support may need to be enabled explicitly; see
+            <a class="xref" href="proxy-users.html#proxy-users-server-user-mapping" title="Server Support for Proxy User Mapping">Server Support for Proxy User Mapping</a>.
+          </p></li><li class="listitem"><p>
+            The account for the external proxy user must be set up to be
+            authenticated by the plugin. Use the
+            <a class="link" href="create-user.html" title="13.7.1.3 CREATE USER Statement"><code class="literal">CREATE USER</code></a> statement to
+            associate an account with an authentication plugin, or
+            <a class="link" href="alter-user.html" title="13.7.1.1 ALTER USER Statement"><code class="literal">ALTER USER</code></a> to change its
+            plugin.
+          </p></li><li class="listitem"><p>
+            The account for the proxied user must exist and be granted
+            the privileges to be assumed by the proxy user. Use the
+            <a class="link" href="create-user.html" title="13.7.1.3 CREATE USER Statement"><code class="literal">CREATE USER</code></a> and
+            <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statements for this.
+          </p></li><li class="listitem"><p>
+            Normally, the proxied user is configured so that it can be
+            used only in proxying scenarios and not for direct logins.
+          </p></li><li class="listitem"><p>
+            The proxy user account must have the
+            <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a> privilege for the
+            proxied account. Use the
+            <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statement for this.
+          </p></li><li class="listitem"><p>
+            For a client connecting to the proxy account to be treated
+            as a proxy user, the authentication plugin must return a
+            user name different from the client user name, to indicate
+            the user name of the proxied account that defines the
+            privileges to be assumed by the proxy user.
+          </p><p>
+            Alternatively, for plugins that are provided proxy mapping
+            by the server, the proxied user is determined from the
+            <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a> privilege held by the
+            proxy user.
+          </p></li></ul></div><p>
+        The proxy mechanism permits mapping only the external client
+        user name to the proxied user name. There is no provision for
+        mapping host names:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            When a client connects to the server, the server determines
+            the proper account based on the user name passed by the
+            client program and the host from which the client connects.
+          </p></li><li class="listitem"><p>
+            If that account is a proxy account, the server attempts to
+            determine the appropriate proxied account by finding a match
+            for a proxied account using the user name returned by the
+            authentication plugin and the host name of the proxy
+            account. The host name in the proxied account is ignored.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="proxy-users-example"></a>Simple Proxy User Example</h4></div></div></div><p>
+        Consider the following account definitions:
+      </p><pre class="programlisting">-- create proxy account
+CREATE USER 'employee_ext'@'localhost'
+  IDENTIFIED WITH my_auth_plugin
+  AS '<em class="replaceable"><code>my_auth_string</code></em>';
+
+-- create proxied account and grant its privileges;
+-- use mysql_no_login plugin to prevent direct login
+CREATE USER 'employee'@'localhost'
+  IDENTIFIED WITH mysql_no_login;
+GRANT ALL
+  ON employees.*
+  TO 'employee'@'localhost';
+
+-- grant to proxy account the
+-- PROXY privilege for proxied account
+GRANT PROXY
+  ON 'employee'@'localhost'
+  TO 'employee_ext'@'localhost';
+</pre><p>
+        When a client connects as <code class="literal">employee_ext</code> from
+        the local host, MySQL uses the plugin named
+        <code class="literal">my_auth_plugin</code> to perform authentication.
+        Suppose that <code class="literal">my_auth_plugin</code> returns a user
+        name of <code class="literal">employee</code> to the server, based on the
+        content of
+        <code class="literal">'<em class="replaceable"><code>my_auth_string</code></em>'</code>
+        and perhaps by consulting some external authentication system.
+        The name <code class="literal">employee</code> differs from
+        <code class="literal">employee_ext</code>, so returning
+        <code class="literal">employee</code> serves as a request to the server to
+        treat the <code class="literal">employee_ext</code> external user, for
+        purposes of privilege checking, as the
+        <code class="literal">employee</code> local user.
+      </p><p>
+        In this case, <code class="literal">employee_ext</code> is the proxy user
+        and <code class="literal">employee</code> is the proxied user.
+      </p><p>
+        The server verifies that proxy authentication for
+        <code class="literal">employee</code> is possible for the
+        <code class="literal">employee_ext</code> user by checking whether
+        <code class="literal">employee_ext</code> (the proxy user) has the
+        <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a> privilege for
+        <code class="literal">employee</code> (the proxied user). If this
+        privilege has not been granted, an error occurs. Otherwise,
+        <code class="literal">employee_ext</code> assumes the privileges of
+        <code class="literal">employee</code>. The server checks statements
+        executed during the client session by
+        <code class="literal">employee_ext</code> against the privileges granted
+        to <code class="literal">employee</code>. In this case,
+        <code class="literal">employee_ext</code> can access tables in the
+        <code class="literal">employees</code> database.
+      </p><p>
+        The proxied account, <code class="literal">employee</code>, uses the
+        <code class="literal">mysql_no_login</code> authentication plugin to
+        prevent clients from using the account to log in directly. (This
+        assumes that the plugin is installed. For instructions, see
+        <a class="xref" href="no-login-pluggable-authentication.html" title="6.4.1.9 No-Login Pluggable Authentication">Section 6.4.1.9, “No-Login Pluggable Authentication”</a>.) For
+        alternative methods of protecting proxied accounts against
+        direct use, see
+        <a class="xref" href="proxy-users.html#preventing-proxied-account-direct-login" title="Preventing Direct Login to Proxied Accounts">Preventing Direct Login to Proxied Accounts</a>.
+      </p><p>
+        When proxying occurs, the <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a>
+        and <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> functions can
+        be used to see the difference between the connecting user (the
+        proxy user) and the account whose privileges apply during the
+        current session (the proxied user). For the example just
+        described, those functions return these values:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT USER(), CURRENT_USER();</code></strong>
++------------------------+--------------------+
+| USER()                 | CURRENT_USER()     |
++------------------------+--------------------+
+| employee_ext@localhost | employee@localhost |
++------------------------+--------------------+
+</pre><p>
+        In the <a class="link" href="create-user.html" title="13.7.1.3 CREATE USER Statement"><code class="literal">CREATE USER</code></a> statement that
+        creates the proxy user account, the <code class="literal">IDENTIFIED
+        WITH</code> clause that names the proxy-supporting
+        authentication plugin is optionally followed by an <code class="literal">AS
+        '<em class="replaceable"><code>auth_string</code></em>'</code> clause
+        specifying a string that the server passes to the plugin when
+        the user connects. If present, the string provides information
+        that helps the plugin determine how to map the proxy (external)
+        client user name to a proxied user name. It is up to each plugin
+        whether it requires the <code class="literal">AS</code> clause. If so, the
+        format of the authentication string depends on how the plugin
+        intends to use it. Consult the documentation for a given plugin
+        for information about the authentication string values it
+        accepts.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="preventing-proxied-account-direct-login"></a>Preventing Direct Login to Proxied Accounts</h4></div></div></div><p>
+        Proxied accounts generally are intended to be used only by means
+        of proxy accounts. That is, clients connect using a proxy
+        account, then are mapped onto and assume the privileges of the
+        appropriate proxied user.
+      </p><p>
+        There are multiple ways to ensure that a proxied account cannot
+        be used directly:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Associate the account with the
+            <code class="literal">mysql_no_login</code> authentication plugin. In
+            this case, the account cannot be used for direct logins
+            under any circumstances. This assumes that the plugin is
+            installed. For instructions, see
+            <a class="xref" href="no-login-pluggable-authentication.html" title="6.4.1.9 No-Login Pluggable Authentication">Section 6.4.1.9, “No-Login Pluggable Authentication”</a>.
+          </p></li><li class="listitem"><p>
+            Include the <code class="literal">ACCOUNT LOCK</code> option when you
+            create the account. See <a class="xref" href="create-user.html" title="13.7.1.3 CREATE USER Statement">Section 13.7.1.3, “CREATE USER Statement”</a>. With
+            this method, also include a password so that if the account
+            is unlocked later, it cannot be accessed with no password.
+            (If the <code class="literal">validate_password</code> component is
+            enabled, creating an account without a password is not
+            permitted, even if the account is locked. See
+            <a class="xref" href="validate-password.html" title="6.4.3 The Password Validation Component">Section 6.4.3, “The Password Validation Component”</a>.)
+          </p></li><li class="listitem"><p>
+            Create the account with a password but do not tell anyone
+            else the password. If you do not let anyone know the
+            password for the account, clients cannot use it to connect
+            directly to the MySQL server.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="proxy-users-granting-proxy-privilege"></a>Granting and Revoking the PROXY Privilege</h4></div></div></div><a id="idm45828975458224" class="indexterm"></a><p>
+        The <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a> privilege is needed to
+        enable an external user to connect as and have the privileges of
+        another user. To grant this privilege, use the
+        <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statement. For example:
+      </p><pre class="programlisting">GRANT PROXY ON '<em class="replaceable"><code>proxied_user</code></em>' TO '<em class="replaceable"><code>proxy_user</code></em>';
+</pre><a id="idm45828975451952" class="indexterm"></a><a id="idm45828975450464" class="indexterm"></a><p>
+        The statement creates a row in the
+        <code class="literal">mysql.proxies_priv</code> grant table.
+      </p><p>
+        At connect time, <em class="replaceable"><code>proxy_user</code></em> must
+        represent a valid externally authenticated MySQL user, and
+        <em class="replaceable"><code>proxied_user</code></em> must represent a valid
+        locally authenticated user. Otherwise, the connection attempt
+        fails.
+      </p><p>
+        The corresponding <a class="link" href="revoke.html" title="13.7.1.8 REVOKE Statement"><code class="literal">REVOKE</code></a> syntax
+        is:
+      </p><pre class="programlisting">REVOKE PROXY ON '<em class="replaceable"><code>proxied_user</code></em>' FROM '<em class="replaceable"><code>proxy_user</code></em>';
+</pre><p>
+        MySQL <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> and
+        <a class="link" href="revoke.html" title="13.7.1.8 REVOKE Statement"><code class="literal">REVOKE</code></a> syntax extensions work as
+        usual. Examples:
+      </p><pre class="programlisting">-- grant PROXY to multiple accounts
+GRANT PROXY ON 'a' TO 'b', 'c', 'd';
+
+-- revoke PROXY from multiple accounts
+REVOKE PROXY ON 'a' FROM 'b', 'c', 'd';
+
+-- grant PROXY to an account and enable the account to grant
+-- PROXY to the proxied account
+GRANT PROXY ON 'a' TO 'd' WITH GRANT OPTION;
+
+-- grant PROXY to default proxy account
+GRANT PROXY ON 'a' TO ''@'';
+</pre><p>
+        The <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a> privilege can be
+        granted in these cases:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            By a user that has <code class="literal">GRANT PROXY ... WITH GRANT
+            OPTION</code> for
+            <em class="replaceable"><code>proxied_user</code></em>.
+          </p></li><li class="listitem"><p>
+            By <em class="replaceable"><code>proxied_user</code></em> for itself: The
+            value of <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> must exactly
+            match <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> and
+            <em class="replaceable"><code>proxied_user</code></em>, for both the user
+            name and host name parts of the account name.
+          </p></li></ul></div><p>
+        The initial <code class="literal">root</code> account created during MySQL
+        installation has the
+        <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY ... WITH GRANT
+        OPTION</code></a> privilege for <code class="literal">''@''</code>, that
+        is, for all users and all hosts. This enables
+        <code class="literal">root</code> to set up proxy users, as well as to
+        delegate to other accounts the authority to set up proxy users.
+        For example, <code class="literal">root</code> can do this:
+      </p><pre class="programlisting">CREATE USER 'admin'@'localhost'
+  IDENTIFIED BY '<em class="replaceable"><code>admin_password</code></em>';
+GRANT PROXY
+  ON ''@''
+  TO 'admin'@'localhost'
+  WITH GRANT OPTION;
+</pre><p>
+        Those statements create an <code class="literal">admin</code> user that
+        can manage all <code class="literal">GRANT PROXY</code> mappings. For
+        example, <code class="literal">admin</code> can do this:
+      </p><pre class="programlisting">GRANT PROXY ON sally TO joe;
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="default-proxy-users"></a>Default Proxy Users</h4></div></div></div><a id="idm45828975419248" class="indexterm"></a><a id="idm45828975417760" class="indexterm"></a><p>
+        To specify that some or all users should connect using a given
+        authentication plugin, create a <span class="quote">“<span class="quote">blank</span>”</span> MySQL
+        account with an empty user name and host name
+        (<code class="literal">''@''</code>), associate it with that plugin, and
+        let the plugin return the real authenticated user name (if
+        different from the blank user). Suppose that there exists a
+        plugin named <code class="literal">ldap_auth</code> that implements LDAP
+        authentication and maps connecting users onto either a developer
+        or manager account. To set up proxying of users onto these
+        accounts, use the following statements:
+      </p><pre class="programlisting">-- create default proxy account
+CREATE USER ''@''
+  IDENTIFIED WITH ldap_auth
+  AS 'O=Oracle, OU=MySQL';
+
+-- create proxied accounts; use
+-- mysql_no_login plugin to prevent direct login
+CREATE USER 'developer'@'localhost'
+  IDENTIFIED WITH mysql_no_login;
+CREATE USER 'manager'@'localhost'
+  IDENTIFIED WITH mysql_no_login;
+
+-- grant to default proxy account the
+-- PROXY privilege for proxied accounts
+GRANT PROXY
+  ON 'manager'@'localhost'
+  TO ''@'';
+GRANT PROXY
+  ON 'developer'@'localhost'
+  TO ''@'';
+</pre><p>
+        Now assume that a client connects as follows:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql --user=myuser --password ...</code></strong>
+Enter password: <em class="replaceable"><code>myuser_password</code></em>
+</pre><p>
+        The server does not find <code class="literal">myuser</code> defined as a
+        MySQL user, but because there is a blank user account
+        (<code class="literal">''@''</code>) that matches the client user name and
+        host name, the server authenticates the client against that
+        account. The server invokes the <code class="literal">ldap_auth</code>
+        authentication plugin and passes <code class="literal">myuser</code> and
+        <em class="replaceable"><code>myuser_password</code></em> to it as the user
+        name and password.
+      </p><p>
+        If the <code class="literal">ldap_auth</code> plugin finds in the LDAP
+        directory that <em class="replaceable"><code>myuser_password</code></em> is not
+        the correct password for <code class="literal">myuser</code>,
+        authentication fails and the server rejects the connection.
+      </p><p>
+        If the password is correct and <code class="literal">ldap_auth</code>
+        finds that <code class="literal">myuser</code> is a developer, it returns
+        the user name <code class="literal">developer</code> to the MySQL server,
+        rather than <code class="literal">myuser</code>. Returning a user name
+        different from the client user name of <code class="literal">myuser</code>
+        signals to the server that it should treat
+        <code class="literal">myuser</code> as a proxy. The server verifies that
+        <code class="literal">''@''</code> can authenticate as
+        <code class="literal">developer</code> (because <code class="literal">''@''</code>
+        has the <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a> privilege to do so)
+        and accepts the connection. The session proceeds with
+        <code class="literal">myuser</code> having the privileges of the
+        <code class="literal">developer</code> proxied user. (These privileges
+        should be set up by the DBA using
+        <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statements, not shown.) The
+        <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> and
+        <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a> functions return
+        these values:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT USER(), CURRENT_USER();</code></strong>
++------------------+---------------------+
+| USER()           | CURRENT_USER()      |
++------------------+---------------------+
+| myuser@localhost | developer@localhost |
++------------------+---------------------+
+</pre><p>
+        If the plugin instead finds in the LDAP directory that
+        <code class="literal">myuser</code> is a manager, it returns
+        <code class="literal">manager</code> as the user name and the session
+        proceeds with <code class="literal">myuser</code> having the privileges of
+        the <code class="literal">manager</code> proxied user.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT USER(), CURRENT_USER();</code></strong>
++------------------+-------------------+
+| USER()           | CURRENT_USER()    |
++------------------+-------------------+
+| myuser@localhost | manager@localhost |
++------------------+-------------------+
+</pre><p>
+        For simplicity, external authentication cannot be multilevel:
+        Neither the credentials for <code class="literal">developer</code> nor
+        those for <code class="literal">manager</code> are taken into account in
+        the preceding example. However, they are still used if a client
+        tries to connect and authenticate directly as the
+        <code class="literal">developer</code> or <code class="literal">manager</code>
+        account, which is why those proxied accounts should be protected
+        against direct login (see
+        <a class="xref" href="proxy-users.html#preventing-proxied-account-direct-login" title="Preventing Direct Login to Proxied Accounts">Preventing Direct Login to Proxied Accounts</a>).
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="proxy-users-conflicts"></a>Default Proxy User and Anonymous User Conflicts</h4></div></div></div><a id="idm45828975376912" class="indexterm"></a><p>
+        If you intend to create a default proxy user, check for other
+        existing <span class="quote">“<span class="quote">match any user</span>”</span> accounts that take
+        precedence over the default proxy user because they can prevent
+        that user from working as intended.
+      </p><p>
+        In the preceding discussion, the default proxy user account has
+        <code class="literal">''</code> in the host part, which matches any host.
+        If you set up a default proxy user, take care to also check
+        whether nonproxy accounts exist with the same user part and
+        <code class="literal">'%'</code> in the host part, because
+        <code class="literal">'%'</code> also matches any host, but has precedence
+        over <code class="literal">''</code> by the rules that the server uses to
+        sort account rows internally (see
+        <a class="xref" href="connection-access.html" title="6.2.6 Access Control, Stage 1: Connection Verification">Section 6.2.6, “Access Control, Stage 1: Connection Verification”</a>).
+      </p><p>
+        Suppose that a MySQL installation includes these two accounts:
+      </p><pre class="programlisting">-- create default proxy account
+CREATE USER ''@''
+  IDENTIFIED WITH some_plugin
+  AS '<em class="replaceable"><code>some_auth_string</code></em>';
+-- create anonymous account
+CREATE USER ''@'%'
+  IDENTIFIED BY '<em class="replaceable"><code>anon_user_password</code></em>';
+</pre><p>
+        The first account (<code class="literal">''@''</code>) is intended as the
+        default proxy user, used to authenticate connections for users
+        who do not otherwise match a more-specific account. The second
+        account (<code class="literal">''@'%'</code>) is an anonymous-user
+        account, which might have been created, for example, to enable
+        users without their own account to connect anonymously.
+      </p><p>
+        Both accounts have the same user part (<code class="literal">''</code>),
+        which matches any user. And each account has a host part that
+        matches any host. Nevertheless, there is a priority in account
+        matching for connection attempts because the matching rules sort
+        a host of <code class="literal">'%'</code> ahead of <code class="literal">''</code>.
+        For accounts that do not match any more-specific account, the
+        server attempts to authenticate them against
+        <code class="literal">''@'%'</code> (the anonymous user) rather than
+        <code class="literal">''@''</code> (the default proxy user). As a result,
+        the default proxy account is never used.
+      </p><p>
+        To avoid this problem, use one of the following strategies:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Remove the anonymous account so that it does not conflict
+            with the default proxy user.
+          </p></li><li class="listitem"><p>
+            Use a more-specific default proxy user that matches ahead of
+            the anonymous user. For example, to permit only
+            <code class="literal">localhost</code> proxy connections, use
+            <code class="literal">''@'localhost'</code>:
+          </p><pre class="programlisting">CREATE USER ''@'localhost'
+  IDENTIFIED WITH some_plugin
+  AS '<em class="replaceable"><code>some_auth_string</code></em>';
+</pre><p>
+            In addition, modify any <code class="literal">GRANT PROXY</code>
+            statements to name <code class="literal">''@'localhost'</code> rather
+            than <code class="literal">''@''</code> as the proxy user.
+          </p><p>
+            Be aware that this strategy prevents anonymous-user
+            connections from <code class="literal">localhost</code>.
+          </p></li><li class="listitem"><p>
+            Use a named default account rather than an anonymous default
+            account. For an example of this technique, consult the
+            instructions for using the
+            <code class="literal">authentication_windows</code> plugin. See
+            <a class="xref" href="windows-pluggable-authentication.html" title="6.4.1.6 Windows Pluggable Authentication">Section 6.4.1.6, “Windows Pluggable Authentication”</a>.
+          </p></li><li class="listitem"><p>
+            Create multiple proxy users, one for local connections and
+            one for <span class="quote">“<span class="quote">everything else</span>”</span> (remote connections).
+            This can be useful particularly when local users should have
+            different privileges from remote users.
+          </p><p>
+            Create the proxy users:
+          </p><pre class="programlisting">-- create proxy user for local connections
+CREATE USER ''@'localhost'
+  IDENTIFIED WITH some_plugin
+  AS '<em class="replaceable"><code>some_auth_string</code></em>';
+-- create proxy user for remote connections
+CREATE USER ''@'%'
+  IDENTIFIED WITH some_plugin
+  AS '<em class="replaceable"><code>some_auth_string</code></em>';
+</pre><p>
+            Create the proxied users:
+          </p><pre class="programlisting">-- create proxied user for local connections
+CREATE USER 'developer'@'localhost'
+  IDENTIFIED WITH mysql_no_login;
+-- create proxied user for remote connections
+CREATE USER 'developer'@'%'
+  IDENTIFIED WITH mysql_no_login;
+</pre><p>
+            Grant to each proxy account the
+            <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a> privilege for the
+            corresponding proxied account:
+          </p><pre class="programlisting">GRANT PROXY
+  ON 'developer'@'localhost'
+  TO ''@'localhost';
+GRANT PROXY
+  ON 'developer'@'%'
+  TO ''@'%';
+</pre><p>
+            Finally, grant appropriate privileges to the local and
+            remote proxied users (not shown).
+          </p><p>
+            Assume that the
+            <code class="literal">some_plugin</code>/<code class="literal">'<em class="replaceable"><code>some_auth_string</code></em>'</code>
+            combination causes <code class="literal">some_plugin</code> to map the
+            client user name to <code class="literal">developer</code>. Local
+            connections match the <code class="literal">''@'localhost'</code>
+            proxy user, which maps to the
+            <code class="literal">'developer'@'localhost'</code> proxied user.
+            Remote connections match the <code class="literal">''@'%'</code> proxy
+            user, which maps to the <code class="literal">'developer'@'%'</code>
+            proxied user.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="proxy-users-server-user-mapping"></a>Server Support for Proxy User Mapping</h4></div></div></div><a id="idm45828975332576" class="indexterm"></a><p>
+        Some authentication plugins implement proxy user mapping for
+        themselves (for example, the PAM and Windows authentication
+        plugins). Other authentication plugins do not support proxy
+        users by default. Of these, some can request that the MySQL
+        server itself map proxy users according to granted proxy
+        privileges: <code class="literal">mysql_native_password</code>,
+        <code class="literal">sha256_password</code>. If the
+        <a class="link" href="server-system-variables.html#sysvar_check_proxy_users"><code class="literal">check_proxy_users</code></a> system
+        variable is enabled, the server performs proxy user mapping for
+        any authentication plugins that make such a request:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            By default,
+            <a class="link" href="server-system-variables.html#sysvar_check_proxy_users"><code class="literal">check_proxy_users</code></a> is
+            disabled, so the server performs no proxy user mapping even
+            for authentication plugins that request server support for
+            proxy users.
+          </p><a id="idm45828975325088" class="indexterm"></a><a id="idm45828975324048" class="indexterm"></a></li><li class="listitem"><p>
+            If <a class="link" href="server-system-variables.html#sysvar_check_proxy_users"><code class="literal">check_proxy_users</code></a> is
+            enabled, it may also be necessary to enable a
+            plugin-specific system variable to take advantage of server
+            proxy user mapping support:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                For the <code class="literal">mysql_native_password</code> plugin,
+                enable
+                <a class="link" href="server-system-variables.html#sysvar_mysql_native_password_proxy_users"><code class="literal">mysql_native_password_proxy_users</code></a>.
+              </p><a id="idm45828975317248" class="indexterm"></a><a id="idm45828975316208" class="indexterm"></a></li><li class="listitem"><p>
+                For the <code class="literal">sha256_password</code> plugin,
+                enable
+                <a class="link" href="server-system-variables.html#sysvar_sha256_password_proxy_users"><code class="literal">sha256_password_proxy_users</code></a>.
+              </p><a id="idm45828975311856" class="indexterm"></a><a id="idm45828975310752" class="indexterm"></a></li></ul></div></li></ul></div><p>
+        For example, to enable all the preceding capabilities, start the
+        server with these lines in the <code class="filename">my.cnf</code> file:
+      </p><pre class="programlisting">[mysqld]
+check_proxy_users=ON
+mysql_native_password_proxy_users=ON
+sha256_password_proxy_users=ON
+</pre><p>
+        Assuming that the relevant system variables have been enabled,
+        create the proxy user as usual using <a class="link" href="create-user.html" title="13.7.1.3 CREATE USER Statement"><code class="literal">CREATE
+        USER</code></a>, then grant it the
+        <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a> privilege to a single other
+        account to be treated as the proxied user. When the server
+        receives a successful connection request for the proxy user, it
+        finds that the user has the <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a>
+        privilege and uses it to determine the proper proxied user.
+      </p><pre class="programlisting">-- create proxy account
+CREATE USER 'proxy_user'@'localhost'
+  IDENTIFIED WITH mysql_native_password
+  BY '<em class="replaceable"><code>password</code></em>';
+
+-- create proxied account and grant its privileges;
+-- use mysql_no_login plugin to prevent direct login
+CREATE USER 'proxied_user'@'localhost'
+  IDENTIFIED WITH mysql_no_login;
+-- grant privileges to proxied account
+GRANT ...
+  ON ...
+  TO 'proxied_user'@'localhost';
+
+-- grant to proxy account the
+-- PROXY privilege for proxied account
+GRANT PROXY
+  ON 'proxied_user'@'localhost'
+  TO 'proxy_user'@'localhost';
+</pre><p>
+        To use the proxy account, connect to the server using its name
+        and password:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql -u proxy_user -p</code></strong>
+Enter password: <em class="replaceable"><code>(enter proxy_user password here)</code></em>
+</pre><p>
+        Authentication succeeds, the server finds that
+        <code class="literal">proxy_user</code> has the
+        <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a> privilege for
+        <code class="literal">proxied_user</code>, and the session proceeds with
+        <code class="literal">proxy_user</code> having the privileges of
+        <code class="literal">proxied_user</code>.
+      </p><p>
+        Proxy user mapping performed by the server is subject to these
+        restrictions:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The server does not proxy to or from an anonymous user, even
+            if the associated <a class="link" href="privileges-provided.html#priv_proxy"><code class="literal">PROXY</code></a>
+            privilege is granted.
+          </p></li><li class="listitem"><p>
+            When a single account has been granted proxy privileges for
+            more than one proxied account, server proxy user mapping is
+            nondeterministic. Therefore, granting to a single account
+            proxy privileges for multiple proxied accounts is
+            discouraged.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="proxy-users-system-variables"></a>Proxy User System Variables</h4></div></div></div><a id="idm45828975287488" class="indexterm"></a><p>
+        Two system variables help trace the proxy login process:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="server-system-variables.html#sysvar_proxy_user"><code class="literal">proxy_user</code></a>: This value is
+            <code class="literal">NULL</code> if proxying is not used. Otherwise,
+            it indicates the proxy user account. For example, if a
+            client authenticates through the <code class="literal">''@''</code>
+            proxy account, this variable is set as follows:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT @@proxy_user;</code></strong>
++--------------+
+| @@proxy_user |
++--------------+
+| ''@''        |
++--------------+
+</pre></li><li class="listitem"><p>
+            <a class="link" href="server-system-variables.html#sysvar_external_user"><code class="literal">external_user</code></a>: Sometimes
+            the authentication plugin may use an external user to
+            authenticate to the MySQL server. For example, when using
+            Windows native authentication, a plugin that authenticates
+            using the windows API does not need the login ID passed to
+            it. However, it still uses a Windows user ID to
+            authenticate. The plugin may return this external user ID
+            (or the first 512 UTF-8 bytes of it) to the server using the
+            <code class="literal">external_user</code> read-only session variable.
+            If the plugin does not set this variable, its value is
+            <code class="literal">NULL</code>.
+          </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="multifactor-authentication.html">Previous <span class="navHint"> Multifactor Authentication </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="account-locking.html">Next <span class="navHint"> Account Locking </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>7.5.1 Point-in-Time Recovery Using Binary Log</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="point-in-time-recovery.html" title="7.5 Point-in-Time (Incremental) Recovery" /><link rel="prev" href="point-in-time-recovery.html" title="7.5 Point-in-Time (Incremental) Recovery" /><link rel="next" href="point-in-time-recovery-positions.html" title="7.5.2 Point-in-Time Recovery Using Event Positions" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="point-in-time-recovery-binlog.html#point-in-time-recovery-binlog">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="point-in-time-recovery.html">Previous <span class="navHint"> Point-in-Time (Incremental) Recovery </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="point-in-time-recovery.html">Up <span class="navHint"> Point-in-Time (Incremental) Recovery </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="point-in-time-recovery-positions.html">Next <span class="navHint"> Point-in-Time Recovery Using Event Positions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="point-in-time-recovery-binlog"></a>7.5.1 Point-in-Time Recovery Using Binary Log</h3></div></div></div><p>
+        This section explains the general idea of using the binary log
+        to perform a point-in-time-recovery. The next section,
+        <a class="xref" href="point-in-time-recovery-positions.html" title="7.5.2 Point-in-Time Recovery Using Event Positions">Section 7.5.2, “Point-in-Time Recovery Using Event Positions”</a>, explains the
+        operation in details with an example.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Many of the examples in this and the next section use the
+          <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client to process binary log output
+          produced by <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>. If your binary log
+          contains <code class="literal">\0</code> (null) characters, that output
+          cannot be parsed by <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> unless you invoke
+          it with the <a class="link" href="mysql-command-options.html#option_mysql_binary-mode"><code class="option">--binary-mode</code></a>
+          option.
+        </p></div><p>
+        The source of information for point-in-time recovery is the set
+        of binary log files generated subsequent to the full backup
+        operation. Therefore, to allow a server to be restored to a
+        point-in-time, binary logging must be enabled on it, which is
+        the default setting for MySQL 8.0
+
+
+        (see <a class="xref" href="binary-log.html" title="5.4.4 The Binary Log">Section 5.4.4, “The Binary Log”</a>).
+      </p><p>
+        To restore data from the binary log, you must know the name and
+        location of the current binary log files. By default, the server
+        creates binary log files in the data directory, but a path name
+        can be specified with the
+        <a class="link" href="replication-options-binary-log.html#option_mysqld_log-bin"><code class="option">--log-bin</code></a> option to place the
+        files in a different location. To see a listing of all binary
+        log files, use this statement:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW BINARY LOGS;</code></strong>
+</pre><p>
+        To determine the name of the current binary log file, issue the
+        following statement:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW MASTER STATUS;</code></strong>
+</pre><p>
+        The <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> utility converts the events
+        in the binary log files from binary format to text so that they
+        can be viewed or applied. <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> has
+        options for selecting sections of the binary log based on event
+        times or position of events within the log. See
+        <a class="xref" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files">Section 4.6.9, “mysqlbinlog — Utility for Processing Binary Log Files”</a>.
+      </p><p>
+        Applying events from the binary log causes the data
+        modifications they represent to be reexecuted. This enables
+        recovery of data changes for a given span of time. To apply
+        events from the binary log, process
+        <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> output using the
+        <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog <em class="replaceable"><code>binlog_files</code></em> | mysql -u root -p</code></strong>
+</pre><p>
+        If binary log files have been encrypted, which can be done from
+        MySQL 8.0.14 onwards, <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> cannot read
+        them directly as in the above example, but can read them from
+        the server using the
+        <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_read-from-remote-server"><code class="option">--read-from-remote-server</code></a>
+        (<code class="literal">-R</code>) option. For example:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog --read-from-remote-server --host=<em class="replaceable"><code>host_name</code></em> --port=3306  --user=root --password --ssl-mode=required  <em class="replaceable"><code>binlog_files</code></em> | mysql -u root -p</code></strong>
+</pre><p>
+        Here, the option <code class="literal">--ssl-mode=required</code> has been
+        used to ensure that the data from the binary log files is
+        protected in transit, because it is sent to
+        <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> in an unencrypted format.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          <code class="literal">VERIFY_CA</code> and
+          <code class="literal">VERIFY_IDENTITY</code> are better choices than
+          <code class="literal">REQUIRED</code> for the SSL mode, because they
+          help prevent man-in-the-middle attacks. To implement one of
+          these settings, you must first ensure that the CA certificate
+          for the server is reliably available to all the clients that
+          use it in your environment, otherwise availability issues will
+          result. See <a class="xref" href="connection-options.html#encrypted-connection-options" title="Command Options for Encrypted Connections">Command Options for Encrypted Connections</a>.
+        </p></div><p>
+        Viewing log contents can be useful when you need to determine
+        event times or positions to select partial log contents prior to
+        executing events. To view events from the log, send
+        <a class="link" href="mysqlbinlog.html" title="4.6.9 mysqlbinlog — Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> output into a paging program:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog <em class="replaceable"><code>binlog_files</code></em> | more</code></strong>
+</pre><p>
+        Alternatively, save the output in a file and view the file in a
+        text editor:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog <em class="replaceable"><code>binlog_files</code></em> &gt; tmpfile</code></strong>
+$&gt; ... <em class="replaceable"><code>edit tmpfile</code></em> ...
+</pre><p>
+        After editing the file, apply the contents as follows:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysql -u root -p &lt; tmpfile</code></strong>
+</pre><p>
+        If you have more than one binary log to apply on the MySQL
+        server, use a single connection to apply the contents of all
+        binary log files that you want to process. Here is one way to do
+        so:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog binlog.000001 binlog.000002 | mysql -u root -p</code></strong>
+</pre><p>
+        Another approach is to write the whole log to a single file and
+        then process the file:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqlbinlog binlog.000001 &gt;  /tmp/statements.sql</code></strong>
+$&gt; <strong class="userinput"><code>mysqlbinlog binlog.000002 &gt;&gt; /tmp/statements.sql</code></strong>
+$&gt; <strong class="userinput"><code>mysql -u root -p -e "source /tmp/statements.sql"</code></strong>
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="point-in-time-recovery.html">Previous <span class="navHint"> Point-in-Time (Incremental) Recovery </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="point-in-time-recovery.html">Up <span class="navHint"> Point-in-Time (Incremental) Recovery </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="point-in-time-recovery-positions.html">Next <span class="navHint"> Point-in-Time Recovery Using Event Positions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

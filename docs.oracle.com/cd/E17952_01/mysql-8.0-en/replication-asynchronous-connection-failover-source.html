@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.4.9.1 Asynchronous Connection Failover for Sources</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-asynchronous-connection-failover.html" title="17.4.9 Switching Sources and Replicas with Asynchronous Connection Failover" /><link rel="prev" href="replication-asynchronous-connection-failover.html" title="17.4.9 Switching Sources and Replicas with Asynchronous Connection Failover" /><link rel="next" href="replication-asynchronous-connection-failover-replica.html" title="17.4.9.2 Asynchronous Connection Failover for Replicas" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-asynchronous-connection-failover-source.html#replication-asynchronous-connection-failover-source">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-asynchronous-connection-failover.html">Previous <span class="navHint"> Switching Sources and Replicas with Asynchronous Connection Failover </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-asynchronous-connection-failover.html">Up <span class="navHint"> Switching Sources and Replicas with Asynchronous Connection Failover </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-asynchronous-connection-failover-replica.html">Next <span class="navHint"> Asynchronous Connection Failover for Replicas </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-asynchronous-connection-failover-source"></a>17.4.9.1 Asynchronous Connection Failover for Sources</h4></div></div></div><p>
+        To activate asynchronous connection failover for a replication
+        channel set <code class="literal">SOURCE_CONNECTION_AUTO_FAILOVER=1</code>
+        on the <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+        TO</code></a> statement (from MySQL 8.0.23) or
+        <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement
+        (before MySQL 8.0.23) for the channel. GTID auto-positioning
+        must be in use for the channel (<code class="literal">SOURCE_AUTO_POSITION =
+        1</code> | <code class="literal">MASTER_AUTO_POSITION = 1</code>).
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+          When the existing connection to a source fails, the replica
+          first retries the same connection the number of times
+          specified by the <code class="literal">SOURCE_RETRY_COUNT</code> |
+          <code class="literal">MASTER_RETRY_COUNT</code> option of the
+          <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a> |
+          <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement. The
+          interval between attempts is set by the
+          <code class="literal">SOURCE_CONNECT_RETRY</code> |
+          <code class="literal">MASTER_CONNECT_RETRY</code> option. When these
+          attempts are exhausted, the asynchronous connection failover
+          mechanism takes over. Note that the defaults for these
+          options, which were designed for a connection to a single
+          source, make the replica retry the same connection for 60
+          days. To ensure that the asynchronous connection failover
+          mechanism can be activated promptly, set
+          <code class="literal">SOURCE_RETRY_COUNT</code> |
+          <code class="literal">MASTER_RETRY_COUNT</code> and
+          <code class="literal">SOURCE_CONNECT_RETRY</code> |
+          <code class="literal">MASTER_CONNECT_RETRY</code> to minimal numbers
+          that just allow a few retry attempts with the same source, in
+          case the connection failure is caused by a transient network
+          outage. Suitable values are
+          <code class="literal">SOURCE_RETRY_COUNT=3</code> |
+          <code class="literal">MASTER_RETRY_COUNT=3</code> and
+          <code class="literal">SOURCE_CONNECT_RETRY=10</code> |
+          <code class="literal">MASTER_CONNECT_RETRY=10</code>, which make the
+          replica retry the connection 3 times with 10-second intervals
+          between.
+        </p></div><p>
+        You also need to set the source list for the replication
+        channel, to specify the sources that are available for failover.
+        You set and manage source lists using the
+        <a class="link" href="replication-functions-source-list.html#function_asynchronous-connection-failover-add-source"><code class="literal">asynchronous_connection_failover_add_source</code></a>
+        and
+        <a class="link" href="replication-functions-source-list.html#function_asynchronous-connection-failover-delete-source"><code class="literal">asynchronous_connection_failover_delete_source</code></a>
+        functions to add and remove single replication source servers.
+        To add and remove managed groups of servers, use the
+        <a class="link" href="replication-functions-source-list.html#function_asynchronous-connection-failover-add-managed"><code class="literal">asynchronous_connection_failover_add_managed</code></a>
+        and
+        <a class="link" href="replication-functions-source-list.html#function_asynchronous-connection-failover-delete-managed"><code class="literal">asynchronous_connection_failover_delete_managed</code></a>
+        functions instead.
+      </p><p>
+        The functions name the relevant replication channel and specify
+        the host name, port number, network namespace, and weighted
+        priority (1-100, with 100 being the highest priority) of a MySQL
+        instance to add to or delete from the channel's source list. For
+        a managed group, you also specify the type of managed service
+        (currently only Group Replication is available), and the
+        identifier of the managed group (for Group Replication, this is
+        the value of the
+        <a class="link" href="group-replication-options.html#sysvar_group_replication_group_name"><code class="literal">group_replication_group_name</code></a>
+        system variable). When you add a managed group, you only need to
+        add one group member, and the replica automatically adds the
+        rest from the current group membership. When you delete a
+        managed group, you delete the entire group together.
+      </p><p>
+        In MySQL 8.0.22, the asynchronous connection failover mechanism
+        is activated following the failure of the replica's connection
+        to the source, and it issues a
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+        REPLICA</code></a> statement to attempt to connect to a new
+        source. In this release, the connection fails over if the
+        replication receiver thread stops due to the source stopping or
+        due to a network failure. The connection does not fail over in
+        any other situations, such as when the replication threads are
+        stopped by a <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+        REPLICA</code></a> statement.
+      </p><p>
+        From MySQL 8.0.23, the asynchronous connection failover
+        mechanism also fails over the connection if another available
+        server on the source list has a higher priority (weight)
+        setting. This feature ensures that the replica stays connected
+        to the most suitable source server at all times, and it applies
+        to both managed groups and single (non-managed) servers. For a
+        managed group, a source’s weight is assigned depending on
+        whether it is a primary or a secondary server. So assuming that
+        you set up the managed group to give a higher weight to a
+        primary and a lower weight to a secondary, when the primary
+        changes, the higher weight is assigned to the new primary, so
+        the replica changes over the connection to it. The asynchronous
+        connection failover mechanism additionally changes connection if
+        the currently connected managed source server leaves the managed
+        group, or is no longer in the majority in the managed group.
+      </p><p>
+        When failing over a connection, the source with the highest
+        priority (weight) setting among the alternative sources listed
+        in the source list for the channel is chosen for the first
+        connection attempt.
+
+
+        The replica checks first that it can connect to the source
+        server, or in the case of a managed group, that the source
+        server has <code class="literal">ONLINE</code> status in the group (not
+        <code class="literal">RECOVERING</code> or unavailable). If the highest
+        weighted source is not available, the replica tries with all the
+        listed sources in descending order of weight, then starts again
+        from the highest weighted source. If multiple sources have the
+        same weight, the replica orders them randomly. If the replica
+        needs to start working through the list again, it includes and
+        retries the source to which the original connection failure
+        occurred.
+      </p><p>
+        The source lists are stored in the
+        <code class="literal">mysql.replication_asynchronous_connection_failover</code>
+        and
+        <code class="literal">mysql.replication_asynchronous_connection_failover_managed</code>
+        tables, and can be viewed in the Performance Schema tables
+        <a class="link" href="performance-schema-replication-asynchronous-connection-failover-table.html" title="27.12.11.3 The replication_asynchronous_connection_failover Table"><code class="literal">replication_asynchronous_connection_failover</code></a>
+        and
+        <a class="link" href="performance-schema-replication-asynchronous-connection-failover-managed-table.html" title="27.12.11.4 The replication_asynchronous_connection_failover_managed Table"><code class="literal">replication_asynchronous_connection_failover_managed</code></a>.
+        The replica uses a monitor thread to track the membership of
+        managed groups and update the source list
+        (<code class="literal">thread/sql/replica_monitor</code>). The setting for
+        the <code class="literal">SOURCE_CONNECTION_AUTO_FAILOVER</code> option of
+        the <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>
+        | <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a>
+        statement, and the source list, are transferred to a clone of
+        the replica during a remote cloning operation.
+      </p><p></p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-asynchronous-connection-failover.html">Previous <span class="navHint"> Switching Sources and Replicas with Asynchronous Connection Failover </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-asynchronous-connection-failover.html">Up <span class="navHint"> Switching Sources and Replicas with Asynchronous Connection Failover </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-asynchronous-connection-failover-replica.html">Next <span class="navHint"> Asynchronous Connection Failover for Replicas </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

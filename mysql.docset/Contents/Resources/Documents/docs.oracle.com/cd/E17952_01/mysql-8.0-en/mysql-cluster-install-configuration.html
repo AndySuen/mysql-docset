@@ -1,0 +1,123 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-2049"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/23.3.3%C2%A0Initial%20Configuration%20of%20NDB%20Cluster"></a><title>23.3.3&nbsp;Initial Configuration of NDB Cluster</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="mysql-cluster-installation.html" title="23.3&nbsp;NDB Cluster Installation"/><link rel="prev" href="mysql-cluster-install-windows-service.html" title="23.3.2.4&nbsp;Installing NDB Cluster Processes as Windows Services"/><link rel="next" href="mysql-cluster-install-first-start.html" title="23.3.4&nbsp;Initial Startup of NDB Cluster"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-install-configuration.html#mysql-cluster-install-configuration">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="mysql-cluster-install-windows-service.html">Previous <span class="navHint"> Installing NDB Cluster Processes as Windows Services </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="mysql-cluster-installation.html">Up <span class="navHint"> NDB Cluster Installation </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="mysql-cluster-install-first-start.html">Next <span class="navHint"> Initial Startup of NDB Cluster </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-install-configuration"></a>23.3.3&nbsp;Initial Configuration of NDB Cluster</h3></div></div></div><a id="idm45828842253408" class="indexterm"></a><a id="idm45828842251920" class="indexterm"></a><a id="idm45828842250432" class="indexterm"></a><p>
+      In this section, we discuss manual configuration of an installed
+      NDB Cluster by creating and editing configuration files.
+    </p><p>
+      For our four-node, four-host NDB Cluster (see
+      <a class="xref" href="mysql-cluster-installation.html#mysql-cluster-install-nodes-hosts" title="Cluster nodes and host computers">Cluster nodes and host computers</a>), it is
+      necessary to write four configuration files, one per node host.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Each data node or SQL node requires a
+          <code class="filename">my.cnf</code> file that provides two pieces of
+          information: a <span class="firstterm">connection
+          string</span> that tells the node where to find the
+          management node, and a line telling the MySQL server on this
+          host (the machine hosting the data node) to enable the
+          <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDBCLUSTER</code></a> storage engine.
+        </p><p>
+          For more information on connection strings, see
+          <a class="xref" href="mysql-cluster-connection-strings.html" title="23.4.3.3&nbsp;NDB Cluster Connection Strings">Section&nbsp;23.4.3.3, &ldquo;NDB Cluster Connection Strings&rdquo;</a>.
+        </p></li><li class="listitem"><p>
+          The management node needs a <code class="filename">config.ini</code>
+          file telling it how many fragment replicas to maintain, how
+          much memory to allocate for data and indexes on each data
+          node, where to find the data nodes, where to save data to disk
+          on each data node, and where to find any SQL nodes.
+        </p></li></ul></div><p><strong>Configuring the data nodes and SQL nodes.&nbsp;</strong>
+        The <code class="filename">my.cnf</code> file needed for the data nodes
+        is fairly simple. The configuration file should be located in
+        the <code class="filename">/etc</code> directory and can be edited using
+        any text editor. (Create the file if it does not exist.) For
+        example:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>vi /etc/my.cnf</code></strong>
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        We show <span class="command"><strong>vi</strong></span> being used here to create the
+        file, but any text editor should work just as well.
+      </p></div><p>
+      For each data node and SQL node in our example setup,
+      <code class="filename">my.cnf</code> should look like this:
+    </p><pre class="programlisting">[mysqld]
+# Options for mysqld process:
+ndbcluster                      # run NDB storage engine
+
+[mysql_cluster]
+# Options for NDB Cluster processes:
+ndb-connectstring=198.51.100.10  # location of management server
+</pre><p>
+      After entering the preceding information, save this file and exit
+      the text editor. Do this for the machines hosting data node
+      <span class="quote">&ldquo;<span class="quote">A</span>&rdquo;</span>, data node <span class="quote">&ldquo;<span class="quote">B</span>&rdquo;</span>, and the SQL node.
+    </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        Once you have started a <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> process with
+        the <code class="literal">ndbcluster</code> and
+        <code class="literal">ndb-connectstring</code> parameters in the
+        <code class="literal">[mysqld]</code> and
+        <code class="literal">[mysql_cluster]</code> sections of the
+        <code class="filename">my.cnf</code> file as shown previously, you cannot
+        execute any <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> or
+        <a class="link" href="alter-table.html" title="13.1.9&nbsp;ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statements without
+        having actually started the cluster. Otherwise, these statements
+        fail with an error. This is by design.
+      </p></div><p><strong>Configuring the management node.&nbsp;</strong>
+        The first step in configuring the management node is to create
+        the directory in which the configuration file can be found and
+        then to create the file itself. For example (running as
+        <code class="literal">root</code>):
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mkdir /var/lib/mysql-cluster</code></strong>
+$&gt; <strong class="userinput"><code>cd /var/lib/mysql-cluster</code></strong>
+$&gt; <strong class="userinput"><code>vi config.ini</code></strong>
+</pre><p>
+      For our representative setup, the <code class="filename">config.ini</code>
+      file should read as follows:
+    </p><pre class="programlisting">[ndbd default]
+# Options affecting ndbd processes on all data nodes:
+NoOfReplicas=2    # Number of fragment replicas
+DataMemory=98M    # How much memory to allocate for data storage
+
+[ndb_mgmd]
+# Management process options:
+HostName=198.51.100.10          # Hostname or IP address of management node
+DataDir=/var/lib/mysql-cluster  # Directory for management node log files
+
+[ndbd]
+# Options for data node &#34;A&#34;:
+                                # (one [ndbd] section per data node)
+HostName=198.51.100.30          # Hostname or IP address
+NodeId=2                        # Node ID for this data node
+DataDir=/usr/local/mysql/data   # Directory for this data node&#39;s data files
+
+[ndbd]
+# Options for data node &#34;B&#34;:
+HostName=198.51.100.40          # Hostname or IP address
+NodeId=3                        # Node ID for this data node
+DataDir=/usr/local/mysql/data   # Directory for this data node&#39;s data files
+
+[mysqld]
+# SQL node options:
+HostName=198.51.100.20          # Hostname or IP address
+                                # (additional mysqld connections can be
+                                # specified for this node for various
+                                # purposes such as running ndb_restore)
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        The <code class="literal">world</code> database can be downloaded from
+        <a class="ulink" href="https://dev.mysql.com/doc/index-other.html" target="_top">https://dev.mysql.com/doc/index-other.html</a>.
+      </p></div><p>
+      After all the configuration files have been created and these
+      minimal options have been specified, you are ready to proceed with
+      starting the cluster and verifying that all processes are running.
+      We discuss how this is done in
+      <a class="xref" href="mysql-cluster-install-first-start.html" title="23.3.4&nbsp;Initial Startup of NDB Cluster">Section&nbsp;23.3.4, &ldquo;Initial Startup of NDB Cluster&rdquo;</a>.
+    </p><p>
+      For more detailed information about the available NDB Cluster
+      configuration parameters and their uses, see
+      <a class="xref" href="mysql-cluster-config-file.html" title="23.4.3&nbsp;NDB Cluster Configuration Files">Section&nbsp;23.4.3, &ldquo;NDB Cluster Configuration Files&rdquo;</a>, and
+      <a class="xref" href="mysql-cluster-configuration.html" title="23.4&nbsp;Configuration of NDB Cluster">Section&nbsp;23.4, &ldquo;Configuration of NDB Cluster&rdquo;</a>. For configuration
+      of NDB Cluster as relates to making backups, see
+      <a class="xref" href="mysql-cluster-backup-configuration.html" title="23.6.8.3&nbsp;Configuration for NDB Cluster Backups">Section&nbsp;23.6.8.3, &ldquo;Configuration for NDB Cluster Backups&rdquo;</a>.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        The default port for Cluster management nodes is 1186; the
+        default port for data nodes is 2202. However, the cluster can
+        automatically allocate ports for data nodes from those that are
+        already free.
+      </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-install-windows-service.html">Previous <span class="navHint"> Installing NDB Cluster Processes as Windows Services </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-installation.html">Up <span class="navHint"> NDB Cluster Installation </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-install-first-start.html">Next <span class="navHint"> Initial Startup of NDB Cluster </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,78 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3680"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.3.3.3%C2%A0Recovering%20From%20Failed%20Replication%20Privilege%20Checks"></a><title>17.3.3.3&nbsp;Recovering From Failed Replication Privilege Checks</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-privilege-checks.html" title="17.3.3&nbsp;Replication Privilege Checks"/><link rel="prev" href="replication-privilege-checks-gr.html" title="17.3.3.2&nbsp;Privilege Checks For Group Replication Channels"/><link rel="next" href="replication-solutions.html" title="17.4&nbsp;Replication Solutions"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-privilege-checks-recover.html#replication-privilege-checks-recover">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-privilege-checks-gr.html">Previous <span class="navHint"> Privilege Checks For Group Replication Channels </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-privilege-checks.html">Up <span class="navHint"> Replication Privilege Checks </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-solutions.html">Next <span class="navHint"> Replication Solutions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-3679"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/17.3.3.3%C2%A0Recovering%20From%20Failed%20Replication%20Privilege%20Checks"></a><h4 class="title"><a id="replication-privilege-checks-recover"></a>17.3.3.3&nbsp;Recovering From Failed Replication Privilege Checks</h4></div></div></div><p>
+        If a privilege check against the
+        <code class="literal">PRIVILEGE_CHECKS_USER</code> account fails, the
+        transaction is not executed and replication stops for the
+        channel. Details of the error and the last applied transaction
+        are recorded in the Performance Schema
+        <a class="link" href="performance-schema-replication-applier-status-by-worker-table.html" title="27.12.11.8&nbsp;The replication_applier_status_by_worker Table"><code class="literal">replication_applier_status_by_worker</code></a>
+        table. Follow this procedure to recover from the error:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Identify the replicated event that caused the error and
+            verify whether or not the event is expected and from a
+            trusted source. You can use <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>
+            to retrieve and display the events that were logged around
+            the time of the error. For instructions to do this, see
+            <a class="xref" href="point-in-time-recovery.html" title="7.5&nbsp;Point-in-Time (Incremental) Recovery">Section&nbsp;7.5, &ldquo;Point-in-Time (Incremental) Recovery&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            If the replicated event is not expected or is not from a
+            known and trusted source, investigate the cause. If you can
+            identify why the event took place and there are no security
+            considerations, proceed to fix the error as described below.
+          </p></li><li class="listitem"><p>
+            If the <code class="literal">PRIVILEGE_CHECKS_USER</code> account
+            should have been permitted to execute the transaction, but
+            has been misconfigured, grant the missing privileges to the
+            account, use a <a class="link" href="flush.html#flush-privileges"><code class="literal">FLUSH
+            PRIVILEGES</code></a> statement or execute a
+            <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin flush-privileges</strong></span></a> or
+            <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin reload</strong></span></a> command to reload the
+            grant tables, then restart replication for the channel.
+          </p></li><li class="listitem"><p>
+            If the transaction needs to be executed and you have
+            verified that it is trusted, but the
+            <code class="literal">PRIVILEGE_CHECKS_USER</code> account should not
+            have this privilege normally, you can grant the required
+            privilege to the <code class="literal">PRIVILEGE_CHECKS_USER</code>
+            account temporarily. After the replicated event has been
+            applied, remove the privilege from the account, and take any
+            necessary steps to ensure the event does not recur if it is
+            avoidable.
+          </p></li><li class="listitem"><p>
+            If the transaction is an administrative action that should
+            only have taken place on the source and not on the replica,
+            or should only have taken place on a single replication
+            group member, skip the transaction on the server or servers
+            where it stopped replication, then issue
+            <a class="link" href="start-replica.html" title="13.4.2.8&nbsp;START REPLICA Statement"><code class="literal">START
+            REPLICA</code></a> to restart replication on the channel. To
+            avoid the situation in future, you could issue such
+            administrative statements with <code class="literal">SET sql_log_bin =
+            0</code> before them and <code class="literal">SET sql_log_bin =
+            1</code> after them, so that they are not logged on the
+            source.
+          </p></li><li class="listitem"><p>
+            If the transaction is a DDL or DML statement that should not
+            have taken place on either the source or the replica, skip
+            the transaction on the server or servers where it stopped
+            replication, undo the transaction manually on the server
+            where it originally took place, then issue
+            <a class="link" href="start-replica.html" title="13.4.2.8&nbsp;START REPLICA Statement"><code class="literal">START
+            REPLICA</code></a> to restart replication.
+          </p></li></ol></div><p>
+        To skip a transaction, if GTIDs are in use, commit an empty
+        transaction that has the GTID of the failing transaction, for
+        example:
+      </p><pre class="programlisting">SET GTID_NEXT=&#39;aaa-bbb-ccc-ddd:N&#39;;
+BEGIN;
+COMMIT;
+SET GTID_NEXT=&#39;AUTOMATIC&#39;;
+</pre><p>
+        If GTIDs are not in use, issue a <code class="literal">SET GLOBAL
+        sql_replica_skip_counter</code> or <code class="literal">SET GLOBAL
+        sql_slave_skip_counter</code> statement to skip the event.
+        For instructions to use this alternative method and more details
+        about skipping transactions, see
+        <a class="xref" href="replication-administration-skip.html" title="17.1.7.3&nbsp;Skipping Transactions">Section&nbsp;17.1.7.3, &ldquo;Skipping Transactions&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-privilege-checks-gr.html">Previous <span class="navHint"> Privilege Checks For Group Replication Channels </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-privilege-checks.html">Up <span class="navHint"> Replication Privilege Checks </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-solutions.html">Next <span class="navHint"> Replication Solutions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

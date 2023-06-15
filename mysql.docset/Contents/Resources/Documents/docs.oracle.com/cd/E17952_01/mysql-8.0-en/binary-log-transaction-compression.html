@@ -1,0 +1,316 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-141"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/5.4.4.5%C2%A0Binary%20Log%20Transaction%20Compression"></a><title>5.4.4.5&nbsp;Binary Log Transaction Compression</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="binary-log.html" title="5.4.4&nbsp;The Binary Log"/><link rel="prev" href="binary-log-mysql-database.html" title="5.4.4.4&nbsp;Logging Format for Changes to mysql Database Tables"/><link rel="next" href="slow-query-log.html" title="5.4.5&nbsp;The Slow Query Log"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="binary-log-transaction-compression.html#binary-log-transaction-compression">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="binary-log-mysql-database.html">Previous <span class="navHint"> Logging Format for Changes to mysql Database Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="binary-log.html">Up <span class="navHint"> The Binary Log </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="slow-query-log.html">Next <span class="navHint"> The Slow Query Log </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-140"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/5.4.4.5%C2%A0Binary%20Log%20Transaction%20Compression"></a><h4 class="title"><a id="binary-log-transaction-compression"></a>5.4.4.5&nbsp;Binary Log Transaction Compression</h4></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="binary-log-transaction-compression.html#binary-log-transaction-compression-enabled">5.4.4.5.1 Behaviors When Binary Log Transaction Compression is Enabled</a></span></li><li><span class="section"><a href="binary-log-transaction-compression.html#binary-log-transaction-compression-uncompressed">5.4.4.5.2 Combining Compressed and Uncompressed Transaction Payloads</a></span></li><li><span class="section"><a href="binary-log-transaction-compression.html#binary-log-transaction-compression-monitoring">5.4.4.5.3 Monitoring Binary Log Transaction Compression</a></span></li></ul></div><p>
+        Beginning with MySQL 8.0.20, you can enable binary log
+        transaction compression on a MySQL server instance. When binary
+        log transaction compression is enabled, transaction payloads are
+        compressed using the zstd algorithm, and then written to the
+        server&#39;s binary log file as a single event (a
+        <code class="literal">Transaction_payload_event</code>).
+      </p><p>
+        Compressed transaction payloads remain in a compressed state
+        while they are sent in the replication stream to replicas, other
+        Group Replication group members, or clients such as
+        <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>. They are not decompressed by
+        receiver threads, and are written to the relay log still in
+        their compressed state. Binary log transaction compression
+        therefore saves storage space both on the originator of the
+        transaction and on the recipient (and for their backups), and
+        saves network bandwidth when the transactions are sent between
+        server instances.
+      </p><p>
+        Compressed transaction payloads are decompressed when the
+        individual events contained in them need to be inspected. For
+        example, the <code class="literal">Transaction_payload_event</code> is
+        decompressed by an applier thread in order to apply the events
+        it contains on the recipient. Decompression is also carried out
+        during recovery, by <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> when
+        replaying transactions, and by the <a class="link" href="show-binlog-events.html" title="13.7.7.2&nbsp;SHOW BINLOG EVENTS Statement"><code class="literal">SHOW
+        BINLOG EVENTS</code></a> and <a class="link" href="show-relaylog-events.html" title="13.7.7.32&nbsp;SHOW RELAYLOG EVENTS Statement"><code class="literal">SHOW RELAYLOG
+        EVENTS</code></a> statements.
+      </p><p>
+        You can enable binary log transaction compression on a MySQL
+        server instance using the
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_compression"><code class="literal">binlog_transaction_compression</code></a>
+        system variable, which defaults to <code class="literal">OFF</code>. You
+        can also use the
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_compression_level_zstd"><code class="literal">binlog_transaction_compression_level_zstd</code></a>
+        system variable to set the level for the zstd algorithm that is
+        used for compression. This value determines the compression
+        effort, from 1 (the lowest effort) to 22 (the highest effort).
+        As the compression level increases, the compression ratio
+        increases, which reduces the storage space and network bandwidth
+        required for the transaction payload. However, the effort
+        required for data compression also increases, taking time and
+        CPU and memory resources on the originating server. Increases in
+        the compression effort do not have a linear relationship to
+        increases in the compression ratio.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          <span class="emphasis"><em>Prior to NDB 8.0.31</em></span>: Binary log
+          transaction compression can be enabled in NDB Cluster, but
+          only when starting the server using the
+          --binlog-transaction-compression option (and possibly
+          --binlog-transaction-compression-level-zstd as well); changing
+          the value of either or both of the system variables
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_compression"><code class="literal">binlog_transaction_compression</code></a>
+          and
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_compression_level_zstd"><code class="literal">binlog_transaction_compression_level_zstd</code></a>
+          at run time has no effect on the logging of
+          <a class="link" href="mysql-cluster.html" title="Chapter&nbsp;23&nbsp;MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> tables.
+        </p><p>
+          <span class="emphasis"><em>NDB 8.0.31 and later</em></span>: You can enable
+          binary logging of compressed transactions for tables using the
+          <code class="literal">NDB</code> storage engine at run time using the
+          <a class="link" href="mysql-cluster-options-variables.html#sysvar_ndb_log_transaction_compression"><code class="literal">ndb_log_transaction_compression</code></a>
+          system variable introduced in that release, and control the
+          level of compression using
+          <a class="link" href="mysql-cluster-options-variables.html#sysvar_ndb_log_transaction_compression_level_zstd"><code class="literal">ndb_log_transaction_compression_level_zstd</code></a>.
+          Starting <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> with
+          <code class="option">--binlog-transaction-compression</code> on the
+          command line or in a <code class="filename">my.cnf</code> file causes
+          <code class="literal">ndb_log_transaction_compression</code> to be
+          enabled automatically and any setting for the
+          <code class="option">--ndb-log-transaction-compression</code> option to
+          be ignored; to disable binary log transaction compression for
+          the <code class="literal">NDB</code> storage engine
+          <span class="emphasis"><em>only</em></span>, set
+          <code class="literal">ndb_log_transaction_compression=OFF</code> in a
+          client session after starting <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>.
+        </p></div><p>
+        The following types of event are excluded from binary log
+        transaction compression, so are always written uncompressed to
+        the binary log:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Events relating to the GTID for the transaction (including
+            anonymous GTID events).
+          </p></li><li class="listitem"><p>
+            Other types of control event, such as view change events and
+            heartbeat events.
+          </p></li><li class="listitem"><p>
+            Incident events and the whole of any transactions that
+            contain them.
+          </p></li><li class="listitem"><p>
+            Non-transactional events and the whole of any transactions
+            that contain them. A transaction involving a mix of
+            non-transactional and transactional storage engines does not
+            have its payload compressed.
+          </p></li><li class="listitem"><p>
+            Events that are logged using statement-based binary logging.
+            Binary log transaction compression is only applied for the
+            row-based binary logging format.
+          </p></li></ul></div><p>
+        Binary log encryption can be used on binary log files that
+        contain compressed transactions.
+      </p><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="binary-log-transaction-compression-enabled"></a>5.4.4.5.1&nbsp;Behaviors When Binary Log Transaction Compression is Enabled</h5></div></div></div><p>
+          Transactions with payloads that are compressed can be rolled
+          back like any other transaction, and they can also be filtered
+          out on a replica by the usual filtering options. Binary log
+          transaction compression can be applied to XA transactions.
+        </p><p>
+          When binary log transaction compression is enabled, the
+          <a class="link" href="server-system-variables.html#sysvar_max_allowed_packet"><code class="literal">max_allowed_packet</code></a> and
+          <a class="link" href="replication-options-replica.html#sysvar_replica_max_allowed_packet"><code class="literal">replica_max_allowed_packet</code></a> or
+          <a class="link" href="replication-options-replica.html#sysvar_slave_max_allowed_packet"><code class="literal">slave_max_allowed_packet</code></a>
+          limits for the server still apply, and are measured on the
+          compressed size of the
+          <code class="literal">Transaction_payload_event</code>, plus the bytes
+          used for the event header.
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            Compressed transaction payloads are sent as a single packet,
+            rather than each event of the transaction being sent in an
+            individual packet, as is the case when binary log
+            transaction compression is not in use. If your replication
+            topology handles large transactions, be aware that a large
+            transaction which can be replicated successfully when binary
+            log transaction compression is not in use, might stop
+            replication due to its size when binary log transaction
+            compression is in use.
+          </p></div><p>
+          For multithreaded workers, each transaction (including its
+          GTID event and <code class="literal">Transaction_payload_event</code>)
+          is assigned to a worker thread. The worker thread decompresses
+          the transaction payload and applies the individual events in
+          it one by one. If an error is found applying any event within
+          the <code class="literal">Transaction_payload_event</code>, the complete
+          transaction is reported to the co-ordinator as having failed.
+          When <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_type"><code class="literal">replica_parallel_type</code></a> or
+          <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_type"><code class="literal">slave_parallel_type</code></a> is set to
+          <code class="literal">DATABASE</code>, all the databases affected by the
+          transaction are mapped before the transaction is scheduled.
+          The use of binary log transaction compression with the
+          <code class="literal">DATABASE</code> policy can reduce parallelism
+          compared to uncompressed transactions, which are mapped and
+          scheduled for each event.
+        </p><p>
+          For semisynchronous replication (see
+          <a class="xref" href="replication-semisync.html" title="17.4.10&nbsp;Semisynchronous Replication">Section&nbsp;17.4.10, &ldquo;Semisynchronous Replication&rdquo;</a>), the replica
+          acknowledges the transaction when the complete
+          <code class="literal">Transaction_payload_event</code> has been
+          received.
+        </p><p>
+          When binary log checksums are enabled (which is the default),
+          the replication source server does not write checksums for
+          individual events in a compressed transaction payload.
+          Instead, a checksum is written for the complete
+          <code class="literal">Transaction_payload_event</code>, and individual
+          checksums are written for any events that were not compressed,
+          such as events relating to GTIDs.
+        </p><p>
+          For the <a class="link" href="show-binlog-events.html" title="13.7.7.2&nbsp;SHOW BINLOG EVENTS Statement"><code class="literal">SHOW BINLOG EVENTS</code></a> and
+          <a class="link" href="show-relaylog-events.html" title="13.7.7.32&nbsp;SHOW RELAYLOG EVENTS Statement"><code class="literal">SHOW RELAYLOG EVENTS</code></a>
+          statements, the <code class="literal">Transaction_payload_event</code>
+          is first printed as a single unit, then it is unpacked and
+          each event inside it is printed.
+        </p><p>
+          For operations that reference the end position of an event,
+          such as <a class="link" href="start-replica.html" title="13.4.2.8&nbsp;START REPLICA Statement"><code class="literal">START
+          REPLICA</code></a> (or before MySQL 8.0.22,
+          <a class="link" href="start-slave.html" title="13.4.2.9&nbsp;START SLAVE Statement"><code class="literal">START
+          SLAVE</code></a>) with the <code class="literal">UNTIL</code> clause,
+          <a class="link" href="miscellaneous-functions.html#function_source-pos-wait"><code class="literal">SOURCE_POS_WAIT()</code></a> or
+          <a class="link" href="miscellaneous-functions.html#function_master-pos-wait"><code class="literal">MASTER_POS_WAIT()</code></a>, and
+          <a class="link" href="replication-options-replica.html#sysvar_sql_replica_skip_counter"><code class="literal">sql_replica_skip_counter</code></a> or
+          <a class="link" href="replication-options-replica.html#sysvar_sql_slave_skip_counter"><code class="literal">sql_slave_skip_counter</code></a>, you
+          must specify the end position of the compressed transaction
+          payload (the <code class="literal">Transaction_payload_event</code>).
+          When skipping events using
+          <a class="link" href="replication-options-replica.html#sysvar_sql_replica_skip_counter"><code class="literal">sql_replica_skip_counter</code></a> or
+          <a class="link" href="replication-options-replica.html#sysvar_sql_slave_skip_counter"><code class="literal">sql_slave_skip_counter</code></a>, a
+          compressed transaction payload is counted as a single counter
+          value, so all the events inside it are skipped as a unit.
+        </p></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="binary-log-transaction-compression-uncompressed"></a>5.4.4.5.2&nbsp;Combining Compressed and Uncompressed Transaction Payloads</h5></div></div></div><p>
+          MySQL Server releases that support binary log transaction
+          compression can handle a mix of compressed and uncompressed
+          transaction payloads.
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The system variables relating to binary log transaction
+              compression do not need to be set the same on all Group
+              Replication group members, and are not replicated from
+              sources to replicas in a replication topology. You can
+              decide whether or not binary log transaction compression
+              is appropriate for each MySQL Server instance that has a
+              binary log.
+            </p></li><li class="listitem"><p>
+              If transaction compression is enabled then disabled on a
+              server, compression is not applied to future transactions
+              originated on that server, but transaction payloads that
+              have been compressed can still be handled and displayed.
+            </p></li><li class="listitem"><p>
+              If transaction compression is specified for individual
+              sessions by setting the session value of
+              <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_compression"><code class="literal">binlog_transaction_compression</code></a>,
+              the binary log can contain a mix of compressed and
+              uncompressed transaction payloads.
+            </p></li></ul></div><p>
+          When a source in a replication topology and its replica both
+          have binary log transaction compression enabled, the replica
+          receives compressed transaction payloads and writes them
+          compressed to its relay log. It decompresses the transaction
+          payloads to apply the transactions, and then compresses them
+          again after applying for writing to its binary log. Any
+          downstream replicas receive the compressed transaction
+          payloads.
+        </p><p>
+          When a source in a replication topology has binary log
+          transaction compression enabled but its replica does not, the
+          replica receives compressed transaction payloads and writes
+          them compressed to its relay log. It decompresses the
+          transaction payloads to apply the transactions, and then
+          writes them uncompressed to its own binary log, if it has one.
+          Any downstream replicas receive the uncompressed transaction
+          payloads.
+        </p><p>
+          When a source in a replication topology does not have binary
+          log transaction compression enabled but its replica does, if
+          the replica has a binary log, it compresses the transaction
+          payloads after applying them, and writes the compressed
+          transaction payloads to its binary log. Any downstream
+          replicas receive the compressed transaction payloads.
+        </p><p>
+          When a MySQL server instance has no binary log, if it is at a
+          release from MySQL 8.0.20, it can receive, handle, and display
+          compressed transaction payloads regardless of its value for
+          <a class="link" href="replication-options-binary-log.html#sysvar_binlog_transaction_compression"><code class="literal">binlog_transaction_compression</code></a>.
+          Compressed transaction payloads received by such server
+          instances are written in their compressed state to the relay
+          log, so they benefit indirectly from compression that was
+          carried out by other servers in the replication topology.
+        </p><p>
+          A replica at a release before MySQL 8.0.20 cannot replicate
+          from a source with binary log transaction compression enabled.
+          A replica at or above MySQL 8.0.20 can replicate from a source
+          at an earlier release that does not support binary log
+          transaction compression, and can carry out its own compression
+          on transactions received from that source when writing them to
+          its own binary log.
+        </p></div><div class="section"><div class="titlepage"><div><div><h5 class="title"><a id="binary-log-transaction-compression-monitoring"></a>5.4.4.5.3&nbsp;Monitoring Binary Log Transaction Compression</h5></div></div></div><p>
+          You can monitor the effects of binary log transaction
+          compression using the Performance Schema table
+          <a class="link" href="performance-schema-binary-log-transaction-compression-stats-table.html" title="27.12.11.16&nbsp;The binary_log_transaction_compression_stats Table"><code class="literal">binary_log_transaction_compression_stats</code></a>.
+          The statistics include the data compression ratio for the
+          monitored period, and you can also view the effect of
+          compression on the last transaction on the server. You can
+          reset the statistics by truncating the table. Statistics for
+          binary logs and relay logs are split out so you can see the
+          impact of compression for each log type. The MySQL server
+          instance must have a binary log to produce these statistics.
+        </p><p>
+          The Performance Schema table
+          <a class="link" href="performance-schema-events-stages-current-table.html" title="27.12.5.1&nbsp;The events_stages_current Table"><code class="literal">events_stages_current</code></a> shows when
+          a transaction is in the stage of decompression or compression
+          for its transaction payload, and displays its progress for
+          this stage. Compression is carried out by the worker thread
+          handling the transaction, just before the transaction is
+          committed, provided that there are no events in the finalized
+          capture cache that exclude the transaction from binary log
+          transaction compression (for example, incident events). When
+          decompression is required, it is carried out for one event
+          from the payload at a time.
+        </p><p>
+          <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> with the
+          <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_verbose"><code class="option">--verbose</code></a> option includes
+          comments stating the compressed size and the uncompressed size
+          for compressed transaction payloads, and the compression
+          algorithm that was used.
+        </p><p>
+          You can enable connection compression at the protocol level
+          for replication connections, using the
+          <code class="literal">SOURCE_COMPRESSION_ALGORITHMS</code> |
+          <code class="literal">MASTER_COMPRESSION_ALGORITHMS</code> and
+          <code class="literal">SOURCE_ZSTD_COMPRESSION_LEVEL</code> |
+          <code class="literal">MASTER_ZSTD_COMPRESSION_LEVEL</code>options of the
+          <a class="link" href="change-replication-source-to.html" title="13.4.2.3&nbsp;CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>
+          statement (from MySQL 8.0.23) or <a class="link" href="change-master-to.html" title="13.4.2.1&nbsp;CHANGE MASTER TO Statement"><code class="literal">CHANGE
+          MASTER TO</code></a> statement (before MySQL 8.0.23), or the
+          <a class="link" href="replication-options-replica.html#sysvar_replica_compressed_protocol"><code class="literal">replica_compressed_protocol</code></a>
+          or <a class="link" href="replication-options-replica.html#sysvar_slave_compressed_protocol"><code class="literal">slave_compressed_protocol</code></a>
+          system variable. If you enable binary log transaction
+          compression in a system where connection compression is also
+          enabled, the impact of connection compression is reduced, as
+          there might be little opportunity to further compress the
+          compressed transaction payloads. However, connection
+          compression can still operate on uncompressed events and on
+          message headers. Binary log transaction compression can be
+          enabled in combination with connection compression if you need
+          to save storage space as well as network bandwidth. For more
+          information on connection compression for replication
+          connections, see
+          <a class="xref" href="connection-compression-control.html" title="4.2.8&nbsp;Connection Compression Control">Section&nbsp;4.2.8, &ldquo;Connection Compression Control&rdquo;</a>.
+        </p><p>
+          For Group Replication, compression is enabled by default for
+          messages that exceed the threshold set by the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_compression_threshold"><code class="literal">group_replication_compression_threshold</code></a>
+          system variable. You can also configure compression for
+          messages sent for distributed recovery by the method of state
+          transfer from a donor&#39;s binary log, using the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_compression_algorithms"><code class="literal">group_replication_recovery_compression_algorithms</code></a>
+          and
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_zstd_compression_level"><code class="literal">group_replication_recovery_zstd_compression_level</code></a>
+          system variables. If you enable binary log transaction
+          compression in a system where these are configured, Group
+          Replication&#39;s message compression can still operate on
+          uncompressed events and on message headers, but its impact is
+          reduced. For more information on message compression for Group
+          Replication, see
+          <a class="xref" href="group-replication-message-compression.html" title="18.7.4&nbsp;Message Compression">Section&nbsp;18.7.4, &ldquo;Message Compression&rdquo;</a>.
+        </p></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="binary-log-mysql-database.html">Previous <span class="navHint"> Logging Format for Changes to mysql Database Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="binary-log.html">Up <span class="navHint"> The Binary Log </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="slow-query-log.html">Next <span class="navHint"> The Slow Query Log </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

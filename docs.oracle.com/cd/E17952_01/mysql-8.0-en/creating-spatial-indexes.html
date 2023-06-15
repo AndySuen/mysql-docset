@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>11.4.10 Creating Spatial Indexes</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="spatial-types.html" title="11.4 Spatial Data Types" /><link rel="prev" href="optimizing-spatial-analysis.html" title="11.4.9 Optimizing Spatial Analysis" /><link rel="next" href="using-spatial-indexes.html" title="11.4.11 Using Spatial Indexes" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="creating-spatial-indexes.html#creating-spatial-indexes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="optimizing-spatial-analysis.html">Previous <span class="navHint"> Optimizing Spatial Analysis </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="spatial-types.html">Up <span class="navHint"> Spatial Data Types </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="using-spatial-indexes.html">Next <span class="navHint"> Using Spatial Indexes </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="creating-spatial-indexes"></a>11.4.10 Creating Spatial Indexes</h3></div></div></div><p>
+        For <code class="literal">InnoDB</code> and <code class="literal">MyISAM</code>
+        tables, MySQL can create spatial indexes using syntax similar to
+        that for creating regular indexes, but using the
+        <code class="literal">SPATIAL</code> keyword. Columns in spatial indexes
+        must be declared <code class="literal">NOT NULL</code>. The following
+        examples demonstrate how to create spatial indexes:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            With <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>:
+          </p><pre class="programlisting">CREATE TABLE geom (g GEOMETRY NOT NULL SRID 4326, SPATIAL INDEX(g));
+</pre></li><li class="listitem"><p>
+            With <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>:
+          </p><pre class="programlisting">CREATE TABLE geom (g GEOMETRY NOT NULL SRID 4326);
+ALTER TABLE geom ADD SPATIAL INDEX(g);
+</pre></li><li class="listitem"><p>
+            With <a class="link" href="create-index.html" title="13.1.15 CREATE INDEX Statement"><code class="literal">CREATE INDEX</code></a>:
+          </p><pre class="programlisting">CREATE TABLE geom (g GEOMETRY NOT NULL SRID 4326);
+CREATE SPATIAL INDEX g ON geom (g);
+</pre></li></ul></div><p>
+        <code class="literal">SPATIAL INDEX</code> creates an R-tree index. For
+        storage engines that support nonspatial indexing of spatial
+        columns, the engine creates a B-tree index. A B-tree index on
+        spatial values is useful for exact-value lookups, but not for
+        range scans.
+      </p><p>
+        The optimizer can use spatial indexes defined on columns that
+        are SRID-restricted. For more information, see
+        <a class="xref" href="spatial-type-overview.html" title="11.4.1 Spatial Data Types">Section 11.4.1, “Spatial Data Types”</a>, and
+        <a class="xref" href="spatial-index-optimization.html" title="8.3.3 SPATIAL Index Optimization">Section 8.3.3, “SPATIAL Index Optimization”</a>.
+      </p><p>
+        For more information on indexing spatial columns, see
+        <a class="xref" href="create-index.html" title="13.1.15 CREATE INDEX Statement">Section 13.1.15, “CREATE INDEX Statement”</a>.
+      </p><p>
+        To drop spatial indexes, use <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER
+        TABLE</code></a> or <a class="link" href="drop-index.html" title="13.1.27 DROP INDEX Statement"><code class="literal">DROP INDEX</code></a>:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            With <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>:
+          </p><pre class="programlisting">ALTER TABLE geom DROP INDEX g;
+</pre></li><li class="listitem"><p>
+            With <a class="link" href="drop-index.html" title="13.1.27 DROP INDEX Statement"><code class="literal">DROP INDEX</code></a>:
+          </p><pre class="programlisting">DROP INDEX g ON geom;
+</pre></li></ul></div><p>
+        Example: Suppose that a table <code class="literal">geom</code> contains
+        more than 32,000 geometries, which are stored in the column
+        <code class="literal">g</code> of type <code class="literal">GEOMETRY</code>. The
+        table also has an <code class="literal">AUTO_INCREMENT</code> column
+        <code class="literal">fid</code> for storing object ID values.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>DESCRIBE geom;</code></strong>
++-------+----------+------+-----+---------+----------------+
+| Field | Type     | Null | Key | Default | Extra          |
++-------+----------+------+-----+---------+----------------+
+| fid   | int(11)  |      | PRI | NULL    | auto_increment |
+| g     | geometry |      |     |         |                |
++-------+----------+------+-----+---------+----------------+
+2 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT COUNT(*) FROM geom;</code></strong>
++----------+
+| count(*) |
++----------+
+|    32376 |
++----------+
+1 row in set (0.00 sec)
+</pre><p>
+        To add a spatial index on the column <code class="literal">g</code>, use
+        this statement:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER TABLE geom ADD SPATIAL INDEX(g);</code></strong>
+Query OK, 32376 rows affected (4.05 sec)
+Records: 32376  Duplicates: 0  Warnings: 0
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="optimizing-spatial-analysis.html">Previous <span class="navHint"> Optimizing Spatial Analysis </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="spatial-types.html">Up <span class="navHint"> Spatial Data Types </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="using-spatial-indexes.html">Next <span class="navHint"> Using Spatial Indexes </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

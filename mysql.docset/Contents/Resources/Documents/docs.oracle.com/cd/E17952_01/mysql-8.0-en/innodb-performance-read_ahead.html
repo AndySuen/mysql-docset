@@ -1,0 +1,79 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1621"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/15.8.3.4%C2%A0Configuring%20InnoDB%20Buffer%20Pool%20Prefetching%20%28Read-Ahead%29"></a><title>15.8.3.4&nbsp;Configuring InnoDB Buffer Pool Prefetching (Read-Ahead)</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="innodb-performance-buffer-pool.html" title="15.8.3&nbsp;InnoDB Buffer Pool Configuration"/><link rel="prev" href="innodb-performance-midpoint_insertion.html" title="15.8.3.3&nbsp;Making the Buffer Pool Scan Resistant"/><link rel="next" href="innodb-buffer-pool-flushing.html" title="15.8.3.5&nbsp;Configuring Buffer Pool Flushing"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="innodb-performance-read_ahead.html#innodb-performance-read_ahead">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="innodb-performance-midpoint_insertion.html">Previous <span class="navHint"> Making the Buffer Pool Scan Resistant </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="innodb-performance-buffer-pool.html">Up <span class="navHint"> InnoDB Buffer Pool Configuration </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="innodb-buffer-pool-flushing.html">Next <span class="navHint"> Configuring Buffer Pool Flushing </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1622"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/15.8.3.4%C2%A0Configuring%20InnoDB%20Buffer%20Pool%20Prefetching%20%28Read-Ahead%29"></a><h4 class="title"><a id="innodb-performance-read_ahead"></a>15.8.3.4&nbsp;Configuring InnoDB Buffer Pool Prefetching (Read-Ahead)</h4></div></div></div><a id="idm45828888144976" class="indexterm"></a><a id="idm45828888143904" class="indexterm"></a><a id="idm45828888142832" class="indexterm"></a><a id="idm45828888141792" class="indexterm"></a><a id="idm45828888140304" class="indexterm"></a><p>
+        A <a class="link" href="glossary.html#glos_read_ahead" title="read-ahead">read-ahead</a> request is
+        an I/O request to prefetch multiple pages in the
+        <a class="link" href="glossary.html#glos_buffer_pool" title="buffer pool">buffer pool</a>
+        asynchronously, in anticipation of impending need for these
+        pages. The requests bring in all the pages in one
+        <a class="link" href="glossary.html#glos_extent" title="extent">extent</a>.
+        <code class="literal">InnoDB</code> uses two read-ahead algorithms to
+        improve I/O performance:
+      </p><p>
+        <span class="strong"><strong>Linear</strong></span> read-ahead is a
+        technique that predicts what pages might be needed soon based on
+        pages in the buffer pool being accessed sequentially. You
+        control when <code class="literal">InnoDB</code> performs a read-ahead
+        operation by adjusting the number of sequential page accesses
+        required to trigger an asynchronous read request, using the
+        configuration parameter
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_read_ahead_threshold"><code class="literal">innodb_read_ahead_threshold</code></a>.
+        Before this parameter was added, <code class="literal">InnoDB</code> would
+        only calculate whether to issue an asynchronous prefetch request
+        for the entire next extent when it read the last page of the
+        current extent.
+      </p><p>
+        The configuration parameter
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_read_ahead_threshold"><code class="literal">innodb_read_ahead_threshold</code></a>
+        controls how sensitive <code class="literal">InnoDB</code> is in detecting
+        patterns of sequential page access. If the number of pages read
+        sequentially from an extent is greater than or equal to
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_read_ahead_threshold"><code class="literal">innodb_read_ahead_threshold</code></a>,
+        <code class="literal">InnoDB</code> initiates an asynchronous read-ahead
+        operation of the entire following extent.
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_read_ahead_threshold"><code class="literal">innodb_read_ahead_threshold</code></a> can
+        be set to any value from 0-64. The default value is 56. The
+        higher the value, the more strict the access pattern check. For
+        example, if you set the value to 48, <code class="literal">InnoDB</code>
+        triggers a linear read-ahead request only when 48 pages in the
+        current extent have been accessed sequentially. If the value is
+        8, <code class="literal">InnoDB</code> triggers an asynchronous read-ahead
+        even if as few as 8 pages in the extent are accessed
+        sequentially. You can set the value of this parameter in the
+        MySQL <a class="link" href="glossary.html#glos_configuration_file" title="configuration file">configuration
+        file</a>, or change it dynamically with the
+        <a class="link" href="set-variable.html" title="13.7.6.1&nbsp;SET Syntax for Variable Assignment"><code class="literal">SET
+        GLOBAL</code></a> statement, which requires privileges sufficient
+        to set global system variables. See
+        <a class="xref" href="system-variable-privileges.html" title="5.1.9.1&nbsp;System Variable Privileges">Section&nbsp;5.1.9.1, &ldquo;System Variable Privileges&rdquo;</a>.
+      </p><p>
+        <span class="strong"><strong>Random</strong></span> read-ahead is a
+        technique that predicts when pages might be needed soon based on
+        pages already in the buffer pool, regardless of the order in
+        which those pages were read. If 13 consecutive pages from the
+        same extent are found in the buffer pool,
+        <code class="literal">InnoDB</code> asynchronously issues a request to
+        prefetch the remaining pages of the extent. To enable this
+        feature, set the configuration variable
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_random_read_ahead"><code class="literal">innodb_random_read_ahead</code></a> to
+        <code class="literal">ON</code>.
+      </p><p>
+        The <code class="literal">SHOW ENGINE INNODB STATUS</code> command
+        displays statistics to help you evaluate the effectiveness of
+        the read-ahead algorithm. Statistics include counter information
+        for the following global status variables:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="server-status-variables.html#statvar_Innodb_buffer_pool_read_ahead"><code class="literal">Innodb_buffer_pool_read_ahead</code></a>
+          </p></li><li class="listitem"><p>
+            <a class="link" href="server-status-variables.html#statvar_Innodb_buffer_pool_read_ahead_evicted"><code class="literal">Innodb_buffer_pool_read_ahead_evicted</code></a>
+          </p></li><li class="listitem"><p>
+            <a class="link" href="server-status-variables.html#statvar_Innodb_buffer_pool_read_ahead_rnd"><code class="literal">Innodb_buffer_pool_read_ahead_rnd</code></a>
+          </p></li></ul></div><p>
+        This information can be useful when fine-tuning the
+        <a class="link" href="innodb-parameters.html#sysvar_innodb_random_read_ahead"><code class="literal">innodb_random_read_ahead</code></a>
+        setting.
+      </p><p>
+        For more information about I/O performance, see
+        <a class="xref" href="optimizing-innodb-diskio.html" title="8.5.8&nbsp;Optimizing InnoDB Disk I/O">Section&nbsp;8.5.8, &ldquo;Optimizing InnoDB Disk I/O&rdquo;</a> and
+        <a class="xref" href="disk-issues.html" title="8.12.1&nbsp;Optimizing Disk I/O">Section&nbsp;8.12.1, &ldquo;Optimizing Disk I/O&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="innodb-performance-midpoint_insertion.html">Previous <span class="navHint"> Making the Buffer Pool Scan Resistant </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="innodb-performance-buffer-pool.html">Up <span class="navHint"> InnoDB Buffer Pool Configuration </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="innodb-buffer-pool-flushing.html">Next <span class="navHint"> Configuring Buffer Pool Flushing </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

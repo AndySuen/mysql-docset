@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>8.2.1.1 WHERE Clause Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="select-optimization.html" title="8.2.1 Optimizing SELECT Statements" /><link rel="prev" href="select-optimization.html" title="8.2.1 Optimizing SELECT Statements" /><link rel="next" href="range-optimization.html" title="8.2.1.2 Range Optimization" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="where-optimization.html#where-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="select-optimization.html">Previous <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="range-optimization.html">Next <span class="navHint"> Range Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="where-optimization"></a>8.2.1.1 WHERE Clause Optimization</h4></div></div></div><a id="idm45828957200400" class="indexterm"></a><a id="idm45828957199360" class="indexterm"></a><p>
+          This section discusses optimizations that can be made for
+          processing <code class="literal">WHERE</code> clauses. The examples use
+          <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements, but the same
+          optimizations apply for <code class="literal">WHERE</code> clauses in
+          <a class="link" href="delete.html" title="13.2.2 DELETE Statement"><code class="literal">DELETE</code></a> and
+          <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> statements.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            Because work on the MySQL optimizer is ongoing, not all of
+            the optimizations that MySQL performs are documented here.
+          </p></div><p>
+          You might be tempted to rewrite your queries to make
+          arithmetic operations faster, while sacrificing readability.
+          Because MySQL does similar optimizations automatically, you
+          can often avoid this work, and leave the query in a more
+          understandable and maintainable form. Some of the
+          optimizations performed by MySQL follow:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              Removal of unnecessary parentheses:
+            </p><pre class="programlisting">   ((a AND b) AND c OR (((a AND b) AND (c AND d))))
+-&gt; (a AND b AND c) OR (a AND b AND c AND d)
+</pre></li><li class="listitem"><p>
+              Constant folding:
+            </p><pre class="programlisting">   (a&lt;b AND b=c) AND a=5
+-&gt; b&gt;5 AND b=c AND a=5
+</pre></li><li class="listitem"><p>
+              Constant condition removal:
+            </p><pre class="programlisting">   (b&gt;=5 AND b=5) OR (b=6 AND 5=5) OR (b=7 AND 5=6)
+-&gt; b=5 OR b=6
+</pre><p>
+              In MySQL 8.0.14 and later, this takes place during
+              preparation rather than during the optimization phase,
+              which helps in simplification of joins. See
+              <a class="xref" href="outer-join-optimization.html" title="8.2.1.9 Outer Join Optimization">Section 8.2.1.9, “Outer Join Optimization”</a>, for further
+              information and examples.
+            </p></li><li class="listitem"><p>
+              Constant expressions used by indexes are evaluated only
+              once.
+            </p></li><li class="listitem"><p>
+              Beginning with MySQL 8.0.16, comparisons of columns of
+              numeric types with constant values are checked and folded
+              or removed for invalid or out-of-rage values:
+            </p><pre class="programlisting"># CREATE TABLE t (c TINYINT UNSIGNED NOT NULL);
+  SELECT * FROM t WHERE c ≪ 256;
+-≫ SELECT * FROM t WHERE 1;
+</pre><p>
+              See <a class="xref" href="constant-folding-optimization.html" title="8.2.1.14 Constant-Folding Optimization">Section 8.2.1.14, “Constant-Folding Optimization”</a>, for
+              more information.
+            </p></li><li class="listitem"><p>
+              <a class="link" href="aggregate-functions.html#function_count"><code class="literal">COUNT(*)</code></a> on a single table
+              without a <code class="literal">WHERE</code> is retrieved directly
+              from the table information for <code class="literal">MyISAM</code>
+              and <code class="literal">MEMORY</code> tables. This is also done
+              for any <code class="literal">NOT NULL</code> expression when used
+              with only one table.
+            </p></li><li class="listitem"><p>
+              Early detection of invalid constant expressions. MySQL
+              quickly detects that some
+              <a class="link" href="select.html" title="13.2.13 SELECT Statement"><code class="literal">SELECT</code></a> statements are
+              impossible and returns no rows.
+            </p></li><li class="listitem"><p>
+              <code class="literal">HAVING</code> is merged with
+              <code class="literal">WHERE</code> if you do not use <code class="literal">GROUP
+              BY</code> or aggregate functions
+              (<a class="link" href="aggregate-functions.html#function_count"><code class="literal">COUNT()</code></a>,
+              <a class="link" href="aggregate-functions.html#function_min"><code class="literal">MIN()</code></a>, and so on).
+            </p></li><li class="listitem"><p>
+              For each table in a join, a simpler
+              <code class="literal">WHERE</code> is constructed to get a fast
+              <code class="literal">WHERE</code> evaluation for the table and also
+              to skip rows as soon as possible.
+            </p></li><li class="listitem"><p>
+              <a id="idm45828957163552" class="indexterm"></a>
+
+              <a id="idm45828957162480" class="indexterm"></a>
+
+              All constant tables are read first before any other tables
+              in the query. A constant table is any of the following:
+            </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+                  An empty table or a table with one row.
+                </p></li><li class="listitem"><p>
+                  A table that is used with a <code class="literal">WHERE</code>
+                  clause on a <code class="literal">PRIMARY KEY</code> or a
+                  <code class="literal">UNIQUE</code> index, where all index parts
+                  are compared to constant expressions and are defined
+                  as <code class="literal">NOT NULL</code>.
+                </p></li></ul></div><p>
+              All of the following tables are used as constant tables:
+            </p><pre class="programlisting">SELECT * FROM t WHERE <em class="replaceable"><code>primary_key</code></em>=1;
+SELECT * FROM t1,t2
+  WHERE t1.<em class="replaceable"><code>primary_key</code></em>=1 AND t2.<em class="replaceable"><code>primary_key</code></em>=t1.id;
+</pre></li><li class="listitem"><p>
+              The best join combination for joining the tables is found
+              by trying all possibilities. If all columns in
+              <code class="literal">ORDER BY</code> and <code class="literal">GROUP
+              BY</code> clauses come from the same table, that table
+              is preferred first when joining.
+            </p></li><li class="listitem"><p>
+              If there is an <code class="literal">ORDER BY</code> clause and a
+              different <code class="literal">GROUP BY</code> clause, or if the
+              <code class="literal">ORDER BY</code> or <code class="literal">GROUP BY</code>
+              contains columns from tables other than the first table in
+              the join queue, a temporary table is created.
+            </p></li><li class="listitem"><p>
+              If you use the <code class="literal">SQL_SMALL_RESULT</code>
+              modifier, MySQL uses an in-memory temporary table.
+            </p></li><li class="listitem"><p>
+              Each table index is queried, and the best index is used
+              unless the optimizer believes that it is more efficient to
+              use a table scan. At one time, a scan was used based on
+              whether the best index spanned more than 30% of the table,
+              but a fixed percentage no longer determines the choice
+              between using an index or a scan. The optimizer now is
+              more complex and bases its estimate on additional factors
+              such as table size, number of rows, and I/O block size.
+            </p></li><li class="listitem"><p>
+              In some cases, MySQL can read rows from the index without
+              even consulting the data file. If all columns used from
+              the index are numeric, only the index tree is used to
+              resolve the query.
+            </p></li><li class="listitem"><p>
+              Before each row is output, those that do not match the
+              <code class="literal">HAVING</code> clause are skipped.
+            </p></li></ul></div><p>
+          Some examples of queries that are very fast:
+        </p><pre class="programlisting">SELECT COUNT(*) FROM <em class="replaceable"><code>tbl_name</code></em>;
+
+SELECT MIN(<em class="replaceable"><code>key_part1</code></em>),MAX(<em class="replaceable"><code>key_part1</code></em>) FROM <em class="replaceable"><code>tbl_name</code></em>;
+
+SELECT MAX(<em class="replaceable"><code>key_part2</code></em>) FROM <em class="replaceable"><code>tbl_name</code></em>
+  WHERE <em class="replaceable"><code>key_part1</code></em>=<em class="replaceable"><code>constant</code></em>;
+
+SELECT ... FROM <em class="replaceable"><code>tbl_name</code></em>
+  ORDER BY <em class="replaceable"><code>key_part1</code></em>,<em class="replaceable"><code>key_part2</code></em>,... LIMIT 10;
+
+SELECT ... FROM <em class="replaceable"><code>tbl_name</code></em>
+  ORDER BY <em class="replaceable"><code>key_part1</code></em> DESC, <em class="replaceable"><code>key_part2</code></em> DESC, ... LIMIT 10;
+</pre><p>
+          MySQL resolves the following queries using only the index
+          tree, assuming that the indexed columns are numeric:
+        </p><pre class="programlisting">SELECT <em class="replaceable"><code>key_part1</code></em>,<em class="replaceable"><code>key_part2</code></em> FROM <em class="replaceable"><code>tbl_name</code></em> WHERE <em class="replaceable"><code>key_part1</code></em>=<em class="replaceable"><code>val</code></em>;
+
+SELECT COUNT(*) FROM <em class="replaceable"><code>tbl_name</code></em>
+  WHERE <em class="replaceable"><code>key_part1</code></em>=<em class="replaceable"><code>val1</code></em> AND <em class="replaceable"><code>key_part2</code></em>=<em class="replaceable"><code>val2</code></em>;
+
+SELECT MAX(<em class="replaceable"><code>key_part2</code></em>) FROM <em class="replaceable"><code>tbl_name</code></em> GROUP BY <em class="replaceable"><code>key_part1</code></em>;
+</pre><p>
+          The following queries use indexing to retrieve the rows in
+          sorted order without a separate sorting pass:
+        </p><pre class="programlisting">SELECT ... FROM <em class="replaceable"><code>tbl_name</code></em>
+  ORDER BY <em class="replaceable"><code>key_part1</code></em>,<em class="replaceable"><code>key_part2</code></em>,... ;
+
+SELECT ... FROM <em class="replaceable"><code>tbl_name</code></em>
+  ORDER BY <em class="replaceable"><code>key_part1</code></em> DESC, <em class="replaceable"><code>key_part2</code></em> DESC, ... ;
+</pre></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="select-optimization.html">Previous <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="range-optimization.html">Next <span class="navHint"> Range Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

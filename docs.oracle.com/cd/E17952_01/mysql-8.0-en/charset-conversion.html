@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>10.7 Column Character Set Conversion</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="charset.html" title="Chapter 10 Character Sets, Collations, Unicode" /><link rel="prev" href="charset-errors.html" title="10.6 Error Message Character Set" /><link rel="next" href="charset-collations.html" title="10.8 Collation Issues" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="charset-conversion.html#charset-conversion">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="charset-errors.html">Previous <span class="navHint"> Error Message Character Set </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="charset.html">Up <span class="navHint"> Character Sets, Collations, Unicode </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="charset-collations.html">Next <span class="navHint"> Collation Issues </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="charset-conversion"></a>10.7 Column Character Set Conversion</h2></div></div></div><p>
+      To convert a binary or nonbinary string column to use a particular
+      character set, use <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>. For
+      successful conversion to occur, one of the following conditions
+      must apply:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          If the column has a binary data type
+          (<a class="link" href="binary-varbinary.html" title="11.3.3 The BINARY and VARBINARY Types"><code class="literal">BINARY</code></a>,
+          <a class="link" href="binary-varbinary.html" title="11.3.3 The BINARY and VARBINARY Types"><code class="literal">VARBINARY</code></a>,
+          <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">BLOB</code></a>), all the values that it
+          contains must be encoded using a single character set (the
+          character set you're converting the column to). If you use a
+          binary column to store information in multiple character sets,
+          MySQL has no way to know which values use which character set
+          and cannot convert the data properly.
+        </p></li><li class="listitem"><p>
+          If the column has a nonbinary data type
+          (<a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">CHAR</code></a>,
+          <a class="link" href="char.html" title="11.3.2 The CHAR and VARCHAR Types"><code class="literal">VARCHAR</code></a>,
+          <a class="link" href="blob.html" title="11.3.4 The BLOB and TEXT Types"><code class="literal">TEXT</code></a>), its contents should be
+          encoded in the column character set, not some other character
+          set. If the contents are encoded in a different character set,
+          you can convert the column to use a binary data type first,
+          and then to a nonbinary column with the desired character set.
+        </p></li></ul></div><p>
+      Suppose that a table <code class="literal">t</code> has a binary column
+      named <code class="literal">col1</code> defined as
+      <code class="literal">VARBINARY(50)</code>. Assuming that the information in
+      the column is encoded using a single character set, you can
+      convert it to a nonbinary column that has that character set. For
+      example, if <code class="literal">col1</code> contains binary data
+      representing characters in the <code class="literal">greek</code> character
+      set, you can convert it as follows:
+    </p><pre class="programlisting">ALTER TABLE t MODIFY col1 VARCHAR(50) CHARACTER SET greek;
+</pre><p>
+      If your original column has a type of
+      <code class="literal">BINARY(50)</code>, you could convert it to
+      <code class="literal">CHAR(50)</code>, but the resulting values are padded
+      with <code class="literal">0x00</code> bytes at the end, which may be
+      undesirable. To remove these bytes, use the
+      <a class="link" href="string-functions.html#function_trim"><code class="literal">TRIM()</code></a> function:
+    </p><pre class="programlisting">UPDATE t SET col1 = TRIM(TRAILING 0x00 FROM col1);
+</pre><p>
+      Suppose that table <code class="literal">t</code> has a nonbinary column
+      named <code class="literal">col1</code> defined as <code class="literal">CHAR(50)
+      CHARACTER SET latin1</code> but you want to convert it to use
+      <code class="literal">utf8mb4</code> so that you can store values from many
+      languages. The following statement accomplishes this:
+    </p><pre class="programlisting">ALTER TABLE t MODIFY col1 CHAR(50) CHARACTER SET utf8mb4;
+</pre><p>
+      Conversion may be lossy if the column contains characters that are
+      not in both character sets.
+    </p><p>
+      A special case occurs if you have old tables from before MySQL 4.1
+      where a nonbinary column contains values that actually are encoded
+      in a character set different from the server's default character
+      set. For example, an application might have stored
+      <code class="literal">sjis</code> values in a column, even though MySQL's
+      default character set was different. It is possible to convert the
+      column to use the proper character set but an additional step is
+      required. Suppose that the server's default character set was
+      <code class="literal">latin1</code> and <code class="literal">col1</code> is defined
+      as <code class="literal">CHAR(50)</code> but its contents are
+      <code class="literal">sjis</code> values. The first step is to convert the
+      column to a binary data type, which removes the existing character
+      set information without performing any character conversion:
+    </p><pre class="programlisting">ALTER TABLE t MODIFY col1 BLOB;
+</pre><p>
+      The next step is to convert the column to a nonbinary data type
+      with the proper character set:
+    </p><pre class="programlisting">ALTER TABLE t MODIFY col1 CHAR(50) CHARACTER SET sjis;
+</pre><p>
+      This procedure requires that the table not have been modified
+      already with statements such as
+      <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> or
+      <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> after an upgrade to MySQL
+      4.1 or higher. In that case, MySQL would store new values in the
+      column using <code class="literal">latin1</code>, and the column would
+      contain a mix of <code class="literal">sjis</code> and
+      <code class="literal">latin1</code> values and cannot be converted properly.
+    </p><p>
+      If you specified attributes when creating a column initially, you
+      should also specify them when altering the table with
+      <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a>. For example, if you
+      specified <code class="literal">NOT NULL</code> and an explicit
+      <code class="literal">DEFAULT</code> value, you should also provide them in
+      the <a class="link" href="alter-table.html" title="13.1.9 ALTER TABLE Statement"><code class="literal">ALTER TABLE</code></a> statement.
+      Otherwise, the resulting column definition does not include those
+      attributes.
+    </p><p>
+      To convert all character columns in a table, the <code class="literal">ALTER
+      TABLE ... CONVERT TO CHARACTER SET
+      <em class="replaceable"><code>charset</code></em></code> statement may be
+      useful. See <a class="xref" href="alter-table.html" title="13.1.9 ALTER TABLE Statement">Section 13.1.9, “ALTER TABLE Statement”</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="charset-errors.html">Previous <span class="navHint"> Error Message Character Set </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="charset.html">Up <span class="navHint"> Character Sets, Collations, Unicode </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="charset-collations.html">Next <span class="navHint"> Collation Issues </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

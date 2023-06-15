@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.2.5.3 Interactions Between Replication Filtering Options</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-rules.html" title="17.2.5 How Servers Evaluate Replication Filtering Rules" /><link rel="prev" href="replication-rules-table-options.html" title="17.2.5.2 Evaluation of Table-Level Replication Options" /><link rel="next" href="replication-rules-channel-based-filters.html" title="17.2.5.4 Replication Channel Based Filters" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-rules-examples.html#replication-rules-examples">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-rules-table-options.html">Previous <span class="navHint"> Evaluation of Table-Level Replication Options </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-rules.html">Up <span class="navHint"> How Servers Evaluate Replication Filtering Rules </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-rules-channel-based-filters.html">Next <span class="navHint"> Replication Channel Based Filters </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-rules-examples"></a>17.2.5.3 Interactions Between Replication Filtering Options</h4></div></div></div><p>
+        If you use a combination of database-level and table-level
+        replication filtering options, the replica first accepts or
+        ignores events using the database options, then it evaluates all
+        events permitted by those options according to the table
+        options. This can sometimes lead to results that seem
+        counterintuitive. It is also important to note that the results
+        vary depending on whether the operation is logged using
+        statement-based or row-based binary logging format. If you want
+        to be sure that your replication filters always operate in the
+        same way independently of the binary logging format, which is
+        particularly important if you are using mixed binary logging
+        format, follow the guidance in this topic.
+      </p><p>
+        The effect of the replication filtering options differs between
+        binary logging formats because of the way the database name is
+        identified. With statement-based format, DML statements are
+        handled based on the current database, as specified by the
+        <a class="link" href="use.html" title="13.8.4 USE Statement"><code class="literal">USE</code></a> statement. With row-based
+        format, DML statements are handled based on the database where
+        the modified table exists. DDL statements are always filtered
+        based on the current database, as specified by the
+        <a class="link" href="use.html" title="13.8.4 USE Statement"><code class="literal">USE</code></a> statement, regardless of the
+        binary logging format.
+      </p><p>
+        An operation that involves multiple tables can also be affected
+        differently by replication filtering options depending on the
+        binary logging format. Operations to watch out for include
+        transactions involving multi-table
+        <a class="link" href="update.html" title="13.2.17 UPDATE Statement"><code class="literal">UPDATE</code></a> statements, triggers,
+        cascading foreign keys, stored functions that update multiple
+        tables, and DML statements that invoke stored functions that
+        update one or more tables. If these operations update both
+        filtered-in and filtered-out tables, the results can vary with
+        the binary logging format.
+      </p><p>
+        If you need to guarantee that your replication filters operate
+        consistently regardless of the binary logging format,
+        particularly if you are using mixed binary logging format
+        (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=MIXED</code></a>), use only
+        table-level replication filtering options, and do not use
+        database-level replication filtering options. Also, do not use
+        multi-table DML statements that update both filtered-in and
+        filtered-out tables.
+      </p><p>
+        If you need to use a combination of database-level and
+        table-level replication filters, and want these to operate as
+        consistently as possible, choose one of the following
+        strategies:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            If you use row-based binary logging format
+            (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a>), for
+            DDL statements, rely on the
+            <a class="link" href="use.html" title="13.8.4 USE Statement"><code class="literal">USE</code></a> statement to set the
+            database and do not specify the database name. You can
+            consider changing to row-based binary logging format for
+            improved consistency with replication filtering. See
+            <a class="xref" href="binary-log-setting.html" title="5.4.4.2 Setting The Binary Log Format">Section 5.4.4.2, “Setting The Binary Log Format”</a> for the conditions that
+            apply to changing the binary logging format.
+          </p></li><li class="listitem"><p>
+            If you use statement-based or mixed binary logging format
+            (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=STATEMENT</code></a> or
+            <code class="literal">MIXED</code>), for both DML and DDL statements,
+            rely on the <a class="link" href="use.html" title="13.8.4 USE Statement"><code class="literal">USE</code></a> statement and
+            do not use the database name. Also, do not use multi-table
+            DML statements that update both filtered-in and filtered-out
+            tables.
+          </p></li></ol></div><div class="example"><a id="idm45828858623120"></a><p class="title"><strong>Example 17.7 A <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-db"><code class="option">--replicate-ignore-db</code></a> option and a
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-table"><code class="option">--replicate-do-table</code></a> option</strong></p><div class="example-contents"><p>
+          On the replication source server, the following statements are
+          issued:
+        </p><pre class="programlisting">USE db1;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO db2.t3 VALUES (1);
+</pre><p>
+          The replica has the following replication filtering options
+          set:
+        </p><pre class="programlisting">replicate-ignore-db = db1
+replicate-do-table = db2.t3
+</pre><p>
+          The DDL statement <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>
+          creates the table in <code class="literal">db1</code>, as specified by
+          the preceding <a class="link" href="use.html" title="13.8.4 USE Statement"><code class="literal">USE</code></a> statement.
+          The replica filters out this statement according to its
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-db"><code class="option">--replicate-ignore-db = db1</code></a>
+          option, because <code class="literal">db1</code> is the current
+          database. This result is the same whatever the binary logging
+          format is on the replication source server. However, the
+          result of the DML <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a>
+          statement is different depending on the binary logging format:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              If row-based binary logging format is in use on the source
+              (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=ROW</code></a>), the
+              replica evaluates the
+              <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operation using the
+              database where the table exists, which is named as
+              <code class="literal">db2</code>. The database-level option
+              <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-db"><code class="option">--replicate-ignore-db =
+              db1</code></a>, which is evaluated first, therefore does not
+              apply. The table-level option
+              <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-table"><code class="option">--replicate-do-table =
+              db2.t3</code></a> does apply, so the replica applies the
+              change to table <code class="literal">t3</code>.
+            </p></li><li class="listitem"><p>
+              If statement-based binary logging format is in use on the
+              source
+              (<a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format=STATEMENT</code></a>),
+              the replica evaluates the
+              <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> operation using the
+              default database, which was set by the
+              <a class="link" href="use.html" title="13.8.4 USE Statement"><code class="literal">USE</code></a> statement to
+              <code class="literal">db1</code> and has not been changed. According
+              to its database-level
+              <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-db"><code class="option">--replicate-ignore-db = db1</code></a>
+              option, it therefore ignores the operation and does not
+              apply the change to table <code class="literal">t3</code>. The
+              table-level option
+              <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-table"><code class="option">--replicate-do-table =
+              db2.t3</code></a> is not checked, because the statement
+              already matched a database-level option and was ignored.
+            </p></li></ul></div><p>
+          If the <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-db"><code class="option">--replicate-ignore-db =
+          db1</code></a> option on the replica is necessary, and the use
+          of statement-based (or mixed) binary logging format on the
+          source is also necessary, the results can be made consistent
+          by omitting the database name from the
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement and relying on
+          a <a class="link" href="use.html" title="13.8.4 USE Statement"><code class="literal">USE</code></a> statement instead, as
+          follows:
+        </p><pre class="programlisting">USE db1;
+CREATE TABLE t2 LIKE t1;
+USE db2;
+INSERT INTO t3 VALUES (1);
+</pre><p>
+          In this case, the replica always evaluates the
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement based on the
+          database <code class="literal">db2</code>. Whether the operation is
+          logged in statement-based or row-based binary format, the
+          results remain the same.
+        </p></div></div><br class="example-break" /></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-rules-table-options.html">Previous <span class="navHint"> Evaluation of Table-Level Replication Options </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-rules.html">Up <span class="navHint"> How Servers Evaluate Replication Filtering Rules </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-rules-channel-based-filters.html">Next <span class="navHint"> Replication Channel Based Filters </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

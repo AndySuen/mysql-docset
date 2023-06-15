@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>5.4.2.8 Error Logging to the System Log</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="error-log.html" title="5.4.2 The Error Log" /><link rel="prev" href="error-log-json.html" title="5.4.2.7 Error Logging in JSON Format" /><link rel="next" href="error-log-format.html" title="5.4.2.9 Error Log Output Format" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="error-log-syslog.html#error-log-syslog">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="error-log-json.html">Previous <span class="navHint"> Error Logging in JSON Format </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="error-log.html">Up <span class="navHint"> The Error Log </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="error-log-format.html">Next <span class="navHint"> Error Log Output Format </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="error-log-syslog"></a>5.4.2.8 Error Logging to the System Log</h4></div></div></div><p>
+        It is possible to have <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> write the error
+        log to the system log (the Event Log on Windows, and
+        <code class="literal">syslog</code> on Unix and Unix-like systems).
+      </p><p>
+        This section describes how to configure error logging using the
+        built-in filter, <code class="literal">log_filter_internal</code>, and the
+        system log sink, <code class="literal">log_sink_syseventlog</code>, to
+        take effect immediately and for subsequent server startups. For
+        general information about configuring error logging, see
+        <a class="xref" href="error-log-configuration.html" title="5.4.2.1 Error Log Configuration">Section 5.4.2.1, “Error Log Configuration”</a>.
+      </p><p>
+        To enable the system log sink, first load the sink component,
+        then modify the
+        <a class="link" href="server-system-variables.html#sysvar_log_error_services"><code class="literal">log_error_services</code></a> value:
+      </p><pre class="programlisting">INSTALL COMPONENT 'file://component_log_sink_syseventlog';
+SET PERSIST log_error_services = 'log_filter_internal; log_sink_syseventlog';
+</pre><p>
+        To set <a class="link" href="server-system-variables.html#sysvar_log_error_services"><code class="literal">log_error_services</code></a> to
+        take effect at server startup, use the instructions at
+        <a class="xref" href="error-log-configuration.html" title="5.4.2.1 Error Log Configuration">Section 5.4.2.1, “Error Log Configuration”</a>. Those instructions
+        apply to other error-logging system variables as well.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          For MySQL 8.0 configuration, you must enable
+          error logging to the system log explicitly. This differs from
+          MySQL 5.7 and earlier, for which error logging to the system
+          log is enabled by default on Windows, and on all platforms
+          requires no component loading.
+        </p><p>
+          Error logging to the system log may require additional system
+          configuration. Consult the system log documentation for your
+          platform.
+        </p></div><p>
+        On Windows, error messages written to the Event Log within the
+        Application log have these characteristics:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Entries marked as <code class="literal">Error</code>,
+            <code class="literal">Warning</code>, and <code class="literal">Note</code> are
+            written to the Event Log, but not messages such as
+            information statements from individual storage engines.
+          </p></li><li class="listitem"><p>
+            Event Log entries have a source of <code class="literal">MySQL</code>
+            (or <code class="literal">MySQL-<em class="replaceable"><code>tag</code></em></code>
+            if <a class="link" href="server-system-variables.html#sysvar_syseventlog.tag"><code class="literal">syseventlog.tag</code></a> is
+            defined as <em class="replaceable"><code>tag</code></em>).
+          </p></li></ul></div><p>
+        On Unix and Unix-like systems, logging to the system log uses
+        <code class="literal">syslog</code>. The following system variables affect
+        <code class="literal">syslog</code> messages:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <a class="link" href="server-system-variables.html#sysvar_syseventlog.facility"><code class="literal">syseventlog.facility</code></a>: The
+            default facility for <code class="literal">syslog</code> messages is
+            <code class="literal">daemon</code>. Set this variable to specify a
+            different facility.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="server-system-variables.html#sysvar_syseventlog.include_pid"><code class="literal">syseventlog.include_pid</code></a>:
+            Whether to include the server process ID in each line of
+            <code class="literal">syslog</code> output.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="server-system-variables.html#sysvar_syseventlog.tag"><code class="literal">syseventlog.tag</code></a>: This
+            variable defines a tag to add to the server identifier
+            (<code class="literal">mysqld</code>) in <code class="literal">syslog</code>
+            messages. If defined, the tag is appended to the identifier
+            with a leading hyphen.
+          </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Prior to MySQL 8.0.13, use the
+          <a class="link" href="server-system-variables.html#sysvar_log_syslog_facility"><code class="literal">log_syslog_facility</code></a>,
+          <a class="link" href="server-system-variables.html#sysvar_log_syslog_include_pid"><code class="literal">log_syslog_include_pid</code></a>, and
+          <a class="link" href="server-system-variables.html#sysvar_log_syslog_tag"><code class="literal">log_syslog_tag</code></a> system
+          variables rather than the
+          <code class="literal">syseventlog.<em class="replaceable"><code>xxx</code></em></code>
+          variables.
+        </p></div><p>
+        MySQL uses the custom label <span class="quote">“<span class="quote">System</span>”</span> for important
+        system messages about non-error situations, such as startup,
+        shutdown, and some significant changes to settings. In logs that
+        do not support custom labels, including the Event Log on
+        Windows, and <code class="literal">syslog</code> on Unix and Unix-like
+        systems, system messages are assigned the label used for the
+        information priority level. However, these messages are printed
+        to the log even if the MySQL
+        <a class="link" href="server-system-variables.html#sysvar_log_error_verbosity"><code class="literal">log_error_verbosity</code></a> setting
+        normally excludes messages at the information level.
+      </p><p>
+        When a log sink must fall back to a label of
+        <span class="quote">“<span class="quote">Information</span>”</span> instead of <span class="quote">“<span class="quote">System</span>”</span> in
+        this way, and the log event is further processed outside of the
+        MySQL server (for example, filtered or forwarded by a
+        <code class="literal">syslog</code> configuration), these events may by
+        default be processed by the secondary application as being of
+        <span class="quote">“<span class="quote">Information</span>”</span> priority rather than
+        <span class="quote">“<span class="quote">System</span>”</span> priority.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="error-log-json.html">Previous <span class="navHint"> Error Logging in JSON Format </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="error-log.html">Up <span class="navHint"> The Error Log </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="error-log-format.html">Next <span class="navHint"> Error Log Output Format </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

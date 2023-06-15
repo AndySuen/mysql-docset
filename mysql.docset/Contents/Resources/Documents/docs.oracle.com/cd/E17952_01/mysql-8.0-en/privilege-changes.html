@@ -1,0 +1,69 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3413"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/6.2.13%C2%A0When%20Privilege%20Changes%20Take%20Effect"></a><title>6.2.13&nbsp;When Privilege Changes Take Effect</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="access-control.html" title="6.2&nbsp;Access Control and Account Management"/><link rel="prev" href="partial-revokes.html" title="6.2.12&nbsp;Privilege Restriction Using Partial Revokes"/><link rel="next" href="assigning-passwords.html" title="6.2.14&nbsp;Assigning Account Passwords"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="privilege-changes.html#privilege-changes">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="partial-revokes.html">Previous <span class="navHint"> Privilege Restriction Using Partial Revokes </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="assigning-passwords.html">Next <span class="navHint"> Assigning Account Passwords </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="privilege-changes"></a>6.2.13&nbsp;When Privilege Changes Take Effect</h3></div></div></div><a id="idm45828976456240" class="indexterm"></a><a id="idm45828976454784" class="indexterm"></a><p>
+      If the <a class="link" href="mysqld.html" title="4.3.1&nbsp;mysqld &mdash; The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> server is started without the
+      <a class="link" href="server-options.html#option_mysqld_skip-grant-tables"><code class="option">--skip-grant-tables</code></a> option, it
+      reads all grant table contents into memory during its startup
+      sequence. The in-memory tables become effective for access control
+      at that point.
+    </p><p>
+      If you modify the grant tables indirectly using an
+      account-management statement, the server notices these changes and
+      loads the grant tables into memory again immediately.
+      Account-management statements are described in
+      <a class="xref" href="account-management-statements.html" title="13.7.1&nbsp;Account Management Statements">Section&nbsp;13.7.1, &ldquo;Account Management Statements&rdquo;</a>. Examples include
+      <a class="link" href="grant.html" title="13.7.1.6&nbsp;GRANT Statement"><code class="literal">GRANT</code></a>,
+      <a class="link" href="revoke.html" title="13.7.1.8&nbsp;REVOKE Statement"><code class="literal">REVOKE</code></a>, <a class="link" href="set-password.html" title="13.7.1.10&nbsp;SET PASSWORD Statement"><code class="literal">SET
+      PASSWORD</code></a>, and <a class="link" href="rename-user.html" title="13.7.1.7&nbsp;RENAME USER Statement"><code class="literal">RENAME
+      USER</code></a>.
+    </p><p>
+      If you modify the grant tables directly using statements such as
+      <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a>,
+      <a class="link" href="update.html" title="13.2.17&nbsp;UPDATE Statement"><code class="literal">UPDATE</code></a>, or
+      <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a> (which is not recommended),
+      the changes have no effect on privilege checking until you either
+      tell the server to reload the tables or restart it. Thus, if you
+      change the grant tables directly but forget to reload them, the
+      changes have <span class="emphasis"><em>no effect</em></span> until you restart the
+      server. This may leave you wondering why your changes seem to make
+      no difference!
+    </p><p>
+      To tell the server to reload the grant tables, perform a
+      flush-privileges operation. This can be done by issuing a
+      <a class="link" href="flush.html#flush-privileges"><code class="literal">FLUSH PRIVILEGES</code></a> statement or by
+      executing a <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin flush-privileges</strong></span></a> or
+      <a class="link" href="mysqladmin.html" title="4.5.2&nbsp;mysqladmin &mdash; A MySQL Server Administration Program"><span class="command"><strong>mysqladmin reload</strong></span></a> command.
+    </p><p>
+      A grant table reload affects privileges for each existing client
+      session as follows:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Table and column privilege changes take effect with the
+          client&#39;s next request.
+        </p></li><li class="listitem"><p>
+          Database privilege changes take effect the next time the
+          client executes a <code class="literal">USE
+          <em class="replaceable"><code>db_name</code></em></code> statement.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            Client applications may cache the database name; thus, this
+            effect may not be visible to them without actually changing
+            to a different database.
+          </p></div></li><li class="listitem"><p>
+          Static global privileges and passwords are unaffected for a
+          connected client. These changes take effect only in sessions
+          for subsequent connections. Changes to dynamic global
+          privileges apply immediately. For information about the
+          differences between static and dynamic privileges, see
+          <a class="xref" href="privileges-provided.html#static-dynamic-privileges" title="Static Versus Dynamic Privileges">Static Versus Dynamic Privileges</a>.)
+        </p></li></ul></div><p>
+      Changes to the set of active roles within a session take effect
+      immediately, for that session only. The <a class="link" href="set-role.html" title="13.7.1.11&nbsp;SET ROLE Statement"><code class="literal">SET
+      ROLE</code></a> statement performs session role activation and
+      deactivation (see <a class="xref" href="set-role.html" title="13.7.1.11&nbsp;SET ROLE Statement">Section&nbsp;13.7.1.11, &ldquo;SET ROLE Statement&rdquo;</a>).
+    </p><p>
+      If the server is started with the
+      <a class="link" href="server-options.html#option_mysqld_skip-grant-tables"><code class="option">--skip-grant-tables</code></a> option, it does
+      not read the grant tables or implement any access control. Any
+      user can connect and perform any operation, <span class="emphasis"><em>which is
+      insecure.</em></span> To cause a server thus started to read the
+      tables and enable access checking, flush the privileges.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partial-revokes.html">Previous <span class="navHint"> Privilege Restriction Using Partial Revokes </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="access-control.html">Up <span class="navHint"> Access Control and Account Management </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="assigning-passwords.html">Next <span class="navHint"> Assigning Account Passwords </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

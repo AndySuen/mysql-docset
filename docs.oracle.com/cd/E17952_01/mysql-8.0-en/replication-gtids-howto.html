@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.1.3.4 Setting Up Replication Using GTIDs</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-gtids.html" title="17.1.3 Replication with Global Transaction Identifiers" /><link rel="prev" href="replication-gtids-auto-positioning.html" title="17.1.3.3 GTID Auto-Positioning" /><link rel="next" href="replication-gtids-failover.html" title="17.1.3.5 Using GTIDs for Failover and Scaleout" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-gtids-howto.html#replication-gtids-howto">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-gtids-auto-positioning.html">Previous <span class="navHint"> GTID Auto-Positioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-gtids-failover.html">Next <span class="navHint"> Using GTIDs for Failover and Scaleout </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-gtids-howto"></a>17.1.3.4 Setting Up Replication Using GTIDs</h4></div></div></div><a id="idm45828868657600" class="indexterm"></a><p>
+      This section describes a process for configuring and starting
+      GTID-based replication in MySQL 8.0. This is a
+      <span class="quote">“<span class="quote">cold start</span>”</span> procedure that assumes either that you
+      are starting the source server for the first time, or that it is
+      possible to stop it; for information about provisioning replicas
+      using GTIDs from a running source server, see
+      <a class="xref" href="replication-gtids-failover.html" title="17.1.3.5 Using GTIDs for Failover and Scaleout">Section 17.1.3.5, “Using GTIDs for Failover and Scaleout”</a>. For information
+      about changing GTID mode on servers online, see
+      <a class="xref" href="replication-mode-change-online.html" title="17.1.4 Changing GTID Mode on Online Servers">Section 17.1.4, “Changing GTID Mode on Online Servers”</a>.
+    </p><p>
+      The key steps in this startup process for the simplest possible
+      GTID replication topology, consisting of one source and one
+      replica, are as follows:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          If replication is already running, synchronize both servers by
+          making them read-only.
+        </p></li><li class="listitem"><p>
+          Stop both servers.
+        </p></li><li class="listitem"><p>
+          Restart both servers with GTIDs enabled and the correct
+          options configured.
+        </p><p>
+          The <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> options necessary to start the
+          servers as described are discussed in the example that follows
+          later in this section.
+        </p></li><li class="listitem"><p>
+          Instruct the replica to use the source as the replication data
+          source and to use auto-positioning. The SQL statements needed
+          to accomplish this step are described in the example that
+          follows later in this section.
+        </p></li><li class="listitem"><p>
+          Take a new backup. Binary logs containing transactions without
+          GTIDs cannot be used on servers where GTIDs are enabled, so
+          backups taken before this point cannot be used with your new
+          configuration.
+        </p></li><li class="listitem"><p>
+          Start the replica, then disable read-only mode on both
+          servers, so that they can accept updates.
+        </p></li></ol></div><p>
+      In the following example, two servers are already running as
+      source and replica, using MySQL's binary log position-based
+      replication protocol. If you are starting with new servers, see
+      <a class="xref" href="replication-howto-repuser.html" title="17.1.2.3 Creating a User for Replication">Section 17.1.2.3, “Creating a User for Replication”</a> for information about
+      adding a specific user for replication connections and
+      <a class="xref" href="replication-howto-masterbaseconfig.html" title="17.1.2.1 Setting the Replication Source Configuration">Section 17.1.2.1, “Setting the Replication Source Configuration”</a> for
+      information about setting the
+      <a class="link" href="replication-options.html#sysvar_server_id"><code class="literal">server_id</code></a> variable. The following
+      examples show how to store <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> startup
+      options in server's option file, see
+      <a class="xref" href="option-files.html" title="4.2.2.2 Using Option Files">Section 4.2.2.2, “Using Option Files”</a> for more information. Alternatively
+      you can use startup options when running
+      <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>.
+    </p><p>
+      Most of the steps that follow require the use of the MySQL
+      <code class="literal">root</code> account or another MySQL user account that
+      has the <a class="link" href="privileges-provided.html#priv_super"><code class="literal">SUPER</code></a> privilege.
+      <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin</strong></span></a> <code class="literal">shutdown</code> requires
+      either the <code class="literal">SUPER</code> privilege or the
+      <a class="link" href="privileges-provided.html#priv_shutdown"><code class="literal">SHUTDOWN</code></a> privilege.
+    </p><p><strong>Step 1: Synchronize the servers. </strong>
+        This step is only required when working with servers which are
+        already replicating without using GTIDs. For new servers proceed
+        to Step 3. Make the servers read-only by setting the
+        <a class="link" href="server-system-variables.html#sysvar_read_only"><code class="literal">read_only</code></a> system variable to
+        <code class="literal">ON</code> on each server by issuing the following:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @@GLOBAL.read_only = ON;</code></strong>
+</pre><p>
+      Wait for all ongoing transactions to commit or roll back. Then,
+      allow the replica to catch up with the source. <span class="emphasis"><em>It is
+      extremely important that you make sure the replica has processed
+      all updates before continuing</em></span>.
+
+      
+    </p><p>
+      If you use binary logs for anything other than replication, for
+      example to do point in time backup and restore, wait until you do
+      not need the old binary logs containing transactions without
+      GTIDs. Ideally, wait for the server to purge all binary logs, and
+      wait for any existing backup to expire.
+    </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        It is important to understand that logs containing transactions
+        without GTIDs cannot be used on servers where GTIDs are enabled.
+        Before proceeding, you must be sure that transactions without
+        GTIDs do not exist anywhere in the topology.
+      </p></div><p><strong>Step 2: Stop both servers. </strong>
+        Stop each server using <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin</strong></span></a> as shown
+        here, where <em class="replaceable"><code>username</code></em> is the user name
+        for a MySQL user having sufficient privileges to shut down the
+        server:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>mysqladmin -u<em class="replaceable"><code>username</code></em> -p shutdown</code></strong>
+</pre><p>
+      Then supply this user's password at the prompt.
+    </p><p><strong>Step 3: Start both servers with GTIDs enabled. </strong>
+        To enable GTID-based replication, each server must be started
+        with GTID mode enabled by setting the
+        <a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">gtid_mode</code></a> variable to
+        <code class="literal">ON</code>, and with the
+        <a class="link" href="replication-options-gtids.html#sysvar_enforce_gtid_consistency"><code class="literal">enforce_gtid_consistency</code></a>
+        variable enabled to ensure that only statements which are safe
+        for GTID-based replication are logged. For example:
+      </p><pre class="programlisting">gtid_mode=ON
+enforce-gtid-consistency=ON
+</pre><p>
+      Start each replica with the
+      <a class="link" href="replication-options-replica.html#option_mysqld_skip-slave-start"><code class="option">--skip-slave-start</code></a> option, or from
+      MySQL 8.0.24, the
+      <a class="link" href="replication-options-replica.html#sysvar_skip_slave_start"><code class="literal">skip_slave_start</code></a> system variable,
+      to ensure that replication does not start until you have
+      configured the replica settings. From MySQL 8.0.26, use
+      <a class="link" href="replication-options-replica.html#option_mysqld_skip-replica-start"><code class="option">--skip-replica-start</code></a> or
+      <a class="link" href="replication-options-replica.html#sysvar_skip_replica_start"><code class="literal">skip_replica_start</code></a> instead. For
+      more information on GTID related options and variables, see
+      <a class="xref" href="replication-options-gtids.html" title="17.1.6.5 Global Transaction ID System Variables">Section 17.1.6.5, “Global Transaction ID System Variables”</a>.
+    </p><p>
+      It is not mandatory to have binary logging enabled in order to use
+      GTIDs when using the
+      <a class="xref" href="replication-gtids-concepts.html#replication-gtids-gtid-executed-table" title="mysql.gtid_executed Table">mysql.gtid_executed Table</a>. Source
+      servers must always have binary logging enabled in order to be
+      able to replicate. However, replica servers can use GTIDs but
+      without binary logging. If you need to disable binary logging on a
+      replica server, you can do this by specifying the
+      <a class="link" href="replication-options-binary-log.html#option_mysqld_log-bin"><code class="option">--skip-log-bin</code></a>
+      and <a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="option">--log-replica-updates=OFF</code></a> or
+      <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="option">--log-slave-updates=OFF</code></a> options for
+      the replica.
+    </p><p><strong>Step 4: Configure the replica to use GTID-based auto-positioning. </strong>
+        Tell the replica to use the source with GTID based transactions
+        as the replication data source, and to use GTID-based
+        auto-positioning rather than file-based positioning. Issue a
+        <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>
+        statement (from MySQL 8.0.23) or <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE
+        MASTER TO</code></a> statement (before MySQL 8.0.23) on the
+        replica, including the <code class="literal">SOURCE_AUTO_POSITION</code> |
+        <code class="literal">MASTER_AUTO_POSITION</code> option in the statement
+        to tell the replica that the source's transactions are
+        identified by GTIDs.
+      </p><p>
+      You may also need to supply appropriate values for the
+      source's host name and port number as well as the user name
+      and password for a replication user account which can be used by
+      the replica to connect to the source; if these have already been
+      set prior to Step 1 and no further changes need to be made, the
+      corresponding options can safely be omitted from the statement
+      shown here.
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CHANGE MASTER TO</code></strong>
+     &gt;     <strong class="userinput"><code>MASTER_HOST = <em class="replaceable"><code>host</code></em>,</code></strong>
+     &gt;     <strong class="userinput"><code>MASTER_PORT = <em class="replaceable"><code>port</code></em>,</code></strong>
+     &gt;     <strong class="userinput"><code>MASTER_USER = <em class="replaceable"><code>user</code></em>,</code></strong>
+     &gt;     <strong class="userinput"><code>MASTER_PASSWORD = <em class="replaceable"><code>password</code></em>,</code></strong>
+     &gt;     <strong class="userinput"><code>MASTER_AUTO_POSITION = 1;</code></strong>
+
+Or from MySQL 8.0.23:
+
+mysql&gt; <strong class="userinput"><code>CHANGE REPLICATION SOURCE TO</code></strong>
+     &gt;     <strong class="userinput"><code>SOURCE_HOST = <em class="replaceable"><code>host</code></em>,</code></strong>
+     &gt;     <strong class="userinput"><code>SOURCE_PORT = <em class="replaceable"><code>port</code></em>,</code></strong>
+     &gt;     <strong class="userinput"><code>SOURCE_USER = <em class="replaceable"><code>user</code></em>,</code></strong>
+     &gt;     <strong class="userinput"><code>SOURCE_PASSWORD = <em class="replaceable"><code>password</code></em>,</code></strong>
+     &gt;     <strong class="userinput"><code>SOURCE_AUTO_POSITION = 1;</code></strong>
+</pre><p><strong>Step 5: Take a new backup. </strong>
+        Existing backups that were made before you enabled GTIDs can no
+        longer be used on these servers now that you have enabled GTIDs.
+        Take a new backup at this point, so that you are not left
+        without a usable backup.
+      </p><p>
+      For instance, you can execute <a class="link" href="flush.html#flush-logs"><code class="literal">FLUSH
+      LOGS</code></a> on the server where you are taking backups. Then
+      either explicitly take a backup or wait for the next iteration of
+      any periodic backup routine you may have set up.
+    </p><p><strong>Step 6: Start the replica and disable read-only mode. </strong>
+        Start the replica like this:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>START SLAVE;</code></strong>
+Or from MySQL 8.0.22:
+mysql&gt; <strong class="userinput"><code>START REPLICA;</code></strong>
+</pre><p>
+      The following step is only necessary if you configured a server to
+      be read-only in Step 1. To allow the server to begin accepting
+      updates again, issue the following statement:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @@GLOBAL.read_only = OFF;</code></strong>
+</pre><p>
+      GTID-based replication should now be running, and you can begin
+      (or resume) activity on the source as before.
+      <a class="xref" href="replication-gtids-failover.html" title="17.1.3.5 Using GTIDs for Failover and Scaleout">Section 17.1.3.5, “Using GTIDs for Failover and Scaleout”</a>, discusses creation
+      of new replicas when using GTIDs.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-gtids-auto-positioning.html">Previous <span class="navHint"> GTID Auto-Positioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-gtids.html">Up <span class="navHint"> Replication with Global Transaction Identifiers </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-gtids-failover.html">Next <span class="navHint"> Using GTIDs for Failover and Scaleout </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

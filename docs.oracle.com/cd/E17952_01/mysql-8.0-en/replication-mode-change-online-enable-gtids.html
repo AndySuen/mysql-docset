@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.1.4.2 Enabling GTID Transactions Online</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-mode-change-online.html" title="17.1.4 Changing GTID Mode on Online Servers" /><link rel="prev" href="replication-mode-change-online-concepts.html" title="17.1.4.1 Replication Mode Concepts" /><link rel="next" href="replication-mode-change-online-disable-gtids.html" title="17.1.4.3 Disabling GTID Transactions Online" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-mode-change-online-enable-gtids.html#replication-mode-change-online-enable-gtids">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-mode-change-online-concepts.html">Previous <span class="navHint"> Replication Mode Concepts </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-mode-change-online.html">Up <span class="navHint"> Changing GTID Mode on Online Servers </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-mode-change-online-disable-gtids.html">Next <span class="navHint"> Disabling GTID Transactions Online </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-mode-change-online-enable-gtids"></a>17.1.4.2 Enabling GTID Transactions Online</h4></div></div></div><a id="idm45828867974320" class="indexterm"></a><p>
+      This section describes how to enable GTID transactions, and
+      optionally auto-positioning, on servers that are already online
+      and using anonymous transactions. This procedure does not require
+      taking the server offline and is suited to use in production.
+      However, if you have the possibility to take the servers offline
+      when enabling GTID transactions that process is easier.
+    </p><p>
+      From MySQL 8.0.23, you can set up replication channels to assign a
+      GTID to replicated transactions that do not already have one. This
+      feature enables replication from a source server that does not use
+      GTID-based replication, to a replica that does. If it is possible
+      to enable GTIDs on the replication source server, as described in
+      this procedure, use this approach instead. Assigning GTIDs is
+      designed for replication source servers where you cannot enable
+      GTIDs. For more information on this option, see
+      <a class="xref" href="replication-gtids-assign-anon.html" title="17.1.3.6 Replication From a Source Without GTIDs to a Replica With GTIDs">Section 17.1.3.6, “Replication From a Source Without GTIDs to a Replica With GTIDs”</a>.
+    </p><p>
+      Before you start, ensure that the servers meet the following
+      pre-conditions:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <span class="emphasis"><em>All</em></span> servers in your topology must use
+          MySQL 5.7.6 or later. You cannot enable GTID transactions
+          online on any single server unless <span class="emphasis"><em>all</em></span>
+          servers which are in the topology are using this version.
+
+          
+        </p></li><li class="listitem"><p>
+          All servers have <a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">gtid_mode</code></a>
+          set to the default value <code class="literal">OFF</code>.
+        </p></li></ul></div><p>
+      The following procedure can be paused at any time and later
+      resumed where it was, or reversed by jumping to the corresponding
+      step of
+      <a class="xref" href="replication-mode-change-online-disable-gtids.html" title="17.1.4.3 Disabling GTID Transactions Online">Section 17.1.4.3, “Disabling GTID Transactions Online”</a>,
+      the online procedure to disable GTIDs. This makes the procedure
+      fault-tolerant because any unrelated issues that may appear in the
+      middle of the procedure can be handled as usual, and then the
+      procedure continued where it was left off.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        It is crucial that you complete every step before continuing to
+        the next step.
+      </p></div><p>
+      To enable GTID transactions:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          On each server, execute:
+        </p><pre class="programlisting">SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY = WARN;</pre><p>
+          Let the server run for a while with your normal workload and
+          monitor the logs. If this step causes any warnings in the log,
+          adjust your application so that it only uses GTID-compatible
+          features and does not generate any warnings.
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            This is the first important step. You must ensure that no
+            warnings are being generated in the error logs before going
+            to the next step.
+          </p></div></li><li class="listitem"><p>
+          On each server, execute:
+        </p><pre class="programlisting">SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY = ON;</pre></li><li class="listitem"><p>
+          On each server, execute:
+        </p><pre class="programlisting">SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;</pre><p>
+          It does not matter which server executes this statement first,
+          but it is important that all servers complete this step before
+          any server begins the next step.
+        </p></li><li class="listitem"><p>
+          On each server, execute:
+        </p><pre class="programlisting">SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE;</pre><p>
+          It does not matter which server executes this statement first.
+        </p></li><li class="listitem"><p>
+          On each server, wait until the status variable
+          <code class="literal">ONGOING_ANONYMOUS_TRANSACTION_COUNT</code> is
+          zero. This can be checked using:
+        </p><pre class="programlisting">SHOW STATUS LIKE 'ONGOING_ANONYMOUS_TRANSACTION_COUNT';</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            On a replica, it is theoretically possible that this shows
+            zero and then nonzero again. This is not a problem, it
+            suffices that it shows zero once.
+          </p></div></li><li class="listitem"><p>
+          Wait for all transactions generated up to step 5 to replicate
+          to all servers. You can do this without stopping updates: the
+          only important thing is that all anonymous transactions get
+          replicated.
+        </p><p>
+          See
+          <a class="xref" href="replication-mode-change-online-verify-transactions.html" title="17.1.4.4 Verifying Replication of Anonymous Transactions">Section 17.1.4.4, “Verifying Replication of Anonymous Transactions”</a>
+          for one method of checking that all anonymous transactions
+          have replicated to all servers.
+        </p></li><li class="listitem"><p>
+          If you use binary logs for anything other than replication,
+          for example point in time backup and restore, wait until you
+          do not need the old binary logs having transactions without
+          GTIDs.
+        </p><p>
+          For instance, after step 6 has completed, you can execute
+          <a class="link" href="flush.html#flush-logs"><code class="literal">FLUSH LOGS</code></a> on the server where
+          you are taking backups. Then either explicitly take a backup
+          or wait for the next iteration of any periodic backup routine
+          you may have set up.
+        </p><p>
+          Ideally, wait for the server to purge all binary logs that
+          existed when step 6 was completed. Also wait for any backup
+          taken before step 6 to expire.
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            This is the second important point. It is vital to
+            understand that binary logs containing anonymous
+            transactions, without GTIDs cannot be used after the next
+            step. After this step, you must be sure that transactions
+            without GTIDs do not exist anywhere in the topology.
+          </p></div></li><li class="listitem"><p>
+          On each server, execute:
+        </p><pre class="programlisting">SET @@GLOBAL.GTID_MODE = ON;</pre></li><li class="listitem"><p>
+          On each server, add <code class="literal">gtid_mode=ON</code> and
+          <code class="literal">enforce_gtid_consistency=ON</code> to
+          <code class="filename">my.cnf</code>.
+        </p><p>
+          You are now guaranteed that all transactions have a GTID
+          (except transactions generated in step 5 or earlier, which
+          have already been processed). To start using the GTID protocol
+          so that you can later perform automatic fail-over, execute the
+          following on each replica. Optionally, if you use multi-source
+          replication, do this for each channel and include the
+          <code class="literal">FOR CHANNEL
+          <em class="replaceable"><code>channel</code></em></code> clause:
+        </p><pre class="programlisting">STOP SLAVE [FOR CHANNEL 'channel'];
+CHANGE MASTER TO MASTER_AUTO_POSITION = 1 [FOR CHANNEL 'channel'];
+START SLAVE [FOR CHANNEL 'channel'];
+
+Or from MySQL 8.0.22 / 8.0.23:
+STOP REPLICA [FOR CHANNEL 'channel'];
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1 [FOR CHANNEL 'channel'];
+START REPLICA [FOR CHANNEL 'channel'];
+</pre></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-mode-change-online-concepts.html">Previous <span class="navHint"> Replication Mode Concepts </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-mode-change-online.html">Up <span class="navHint"> Changing GTID Mode on Online Servers </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-mode-change-online-disable-gtids.html">Next <span class="navHint"> Disabling GTID Transactions Online </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,938 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.6.15 NDB API Statistics Counters and Variables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-management.html" title="23.6 Management of NDB Cluster" /><link rel="prev" href="mysql-cluster-tde-limitations.html" title="23.6.14.3 NDB File System Encryption Limitations" /><link rel="next" href="mysql-cluster-ndbinfo.html" title="23.6.16 ndbinfo: The NDB Cluster Information Database" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-ndb-api-statistics.html#mysql-cluster-ndb-api-statistics">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-tde-limitations.html">Previous <span class="navHint"> NDB File System Encryption Limitations </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-management.html">Up <span class="navHint"> Management of NDB Cluster </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-ndbinfo.html">Next <span class="navHint"> ndbinfo: The NDB Cluster Information Database </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-ndb-api-statistics"></a>23.6.15 NDB API Statistics Counters and Variables</h3></div></div></div><a id="idm45828808563360" class="indexterm"></a><a id="idm45828808561872" class="indexterm"></a><a id="idm45828808560832" class="indexterm"></a><p>
+      A number of types of statistical counters relating to actions
+      performed by or affecting <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndb.html" target="_top"><code class="literal">Ndb</code></a>
+      objects are available. Such actions include starting and closing
+      (or aborting) transactions; primary key and unique key operations;
+      table, range, and pruned scans; threads blocked while waiting for
+      the completion of various operations; and data and events sent and
+      received by <code class="literal">NDBCLUSTER</code>. The counters are
+      incremented inside the NDB kernel whenever NDB API calls are made
+      or data is sent to or received by the data nodes.
+      <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> exposes these counters as system status
+      variables; their values can be read in the output of
+      <a class="link" href="show-status.html" title="13.7.7.37 SHOW STATUS Statement"><code class="literal">SHOW STATUS</code></a>, or by querying the
+      Performance Schema <a class="link" href="performance-schema-status-variable-tables.html" title="27.12.15 Performance Schema Status Variable Tables"><code class="literal">session_status</code></a> or
+      <a class="link" href="performance-schema-status-variable-tables.html" title="27.12.15 Performance Schema Status Variable Tables"><code class="literal">global_status</code></a> table. By comparing the
+      values before and after statements operating on
+      <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> tables, you can observe the
+      corresponding actions taken on the API level, and thus the cost of
+      performing the statement.
+    </p><p>
+      You can list all of these status variables using the following
+      <a class="link" href="show-status.html" title="13.7.7.37 SHOW STATUS Statement"><code class="literal">SHOW STATUS</code></a> statement:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW STATUS LIKE 'ndb_api%';</code></strong>
++----------------------------------------------+-----------+
+| Variable_name                                | Value     |
++----------------------------------------------+-----------+
+| Ndb_api_wait_exec_complete_count             | 297       |
+| Ndb_api_wait_scan_result_count               | 0         |
+| Ndb_api_wait_meta_request_count              | 321       |
+| Ndb_api_wait_nanos_count                     | 228438645 |
+| Ndb_api_bytes_sent_count                     | 33988     |
+| Ndb_api_bytes_received_count                 | 66236     |
+| Ndb_api_trans_start_count                    | 148       |
+| Ndb_api_trans_commit_count                   | 148       |
+| Ndb_api_trans_abort_count                    | 0         |
+| Ndb_api_trans_close_count                    | 148       |
+| Ndb_api_pk_op_count                          | 151       |
+| Ndb_api_uk_op_count                          | 0         |
+| Ndb_api_table_scan_count                     | 0         |
+| Ndb_api_range_scan_count                     | 0         |
+| Ndb_api_pruned_scan_count                    | 0         |
+| Ndb_api_scan_batch_count                     | 0         |
+| Ndb_api_read_row_count                       | 147       |
+| Ndb_api_trans_local_read_row_count           | 37        |
+| Ndb_api_adaptive_send_forced_count           | 3         |
+| Ndb_api_adaptive_send_unforced_count         | 294       |
+| Ndb_api_adaptive_send_deferred_count         | 0         |
+| Ndb_api_event_data_count                     | 0         |
+| Ndb_api_event_nondata_count                  | 0         |
+| Ndb_api_event_bytes_count                    | 0         |
+| Ndb_api_wait_exec_complete_count_slave       | 0         |
+| Ndb_api_wait_scan_result_count_slave         | 0         |
+| Ndb_api_wait_meta_request_count_slave        | 0         |
+| Ndb_api_wait_nanos_count_slave               | 0         |
+| Ndb_api_bytes_sent_count_slave               | 0         |
+| Ndb_api_bytes_received_count_slave           | 0         |
+| Ndb_api_trans_start_count_slave              | 0         |
+| Ndb_api_trans_commit_count_slave             | 0         |
+| Ndb_api_trans_abort_count_slave              | 0         |
+| Ndb_api_trans_close_count_slave              | 0         |
+| Ndb_api_pk_op_count_slave                    | 0         |
+| Ndb_api_uk_op_count_slave                    | 0         |
+| Ndb_api_table_scan_count_slave               | 0         |
+| Ndb_api_range_scan_count_slave               | 0         |
+| Ndb_api_pruned_scan_count_slave              | 0         |
+| Ndb_api_scan_batch_count_slave               | 0         |
+| Ndb_api_read_row_count_slave                 | 0         |
+| Ndb_api_trans_local_read_row_count_slave     | 0         |
+| Ndb_api_adaptive_send_forced_count_slave     | 0         |
+| Ndb_api_adaptive_send_unforced_count_slave   | 0         |
+| Ndb_api_adaptive_send_deferred_count_slave   | 0         |
+| Ndb_api_wait_exec_complete_count_replica     | 0         |
+| Ndb_api_wait_scan_result_count_replica       | 0         |
+| Ndb_api_wait_meta_request_count_replica      | 0         |
+| Ndb_api_wait_nanos_count_replica             | 0         |
+| Ndb_api_bytes_sent_count_replica             | 0         |
+| Ndb_api_bytes_received_count_replica         | 0         |
+| Ndb_api_trans_start_count_replica            | 0         |
+| Ndb_api_trans_commit_count_replica           | 0         |
+| Ndb_api_trans_abort_count_replica            | 0         |
+| Ndb_api_trans_close_count_replica            | 0         |
+| Ndb_api_pk_op_count_replica                  | 0         |
+| Ndb_api_uk_op_count_replica                  | 0         |
+| Ndb_api_table_scan_count_replica             | 0         |
+| Ndb_api_range_scan_count_replica             | 0         |
+| Ndb_api_pruned_scan_count_replica            | 0         |
+| Ndb_api_scan_batch_count_replica             | 0         |
+| Ndb_api_read_row_count_replica               | 0         |
+| Ndb_api_trans_local_read_row_count_replica   | 0         |
+| Ndb_api_adaptive_send_forced_count_replica   | 0         |
+| Ndb_api_adaptive_send_unforced_count_replica | 0         |
+| Ndb_api_adaptive_send_deferred_count_replica | 0         |
+| Ndb_api_event_data_count_injector            | 0         |
+| Ndb_api_event_nondata_count_injector         | 0         |
+| Ndb_api_event_bytes_count_injector           | 0         |
+| Ndb_api_wait_exec_complete_count_session     | 0         |
+| Ndb_api_wait_scan_result_count_session       | 0         |
+| Ndb_api_wait_meta_request_count_session      | 0         |
+| Ndb_api_wait_nanos_count_session             | 0         |
+| Ndb_api_bytes_sent_count_session             | 0         |
+| Ndb_api_bytes_received_count_session         | 0         |
+| Ndb_api_trans_start_count_session            | 0         |
+| Ndb_api_trans_commit_count_session           | 0         |
+| Ndb_api_trans_abort_count_session            | 0         |
+| Ndb_api_trans_close_count_session            | 0         |
+| Ndb_api_pk_op_count_session                  | 0         |
+| Ndb_api_uk_op_count_session                  | 0         |
+| Ndb_api_table_scan_count_session             | 0         |
+| Ndb_api_range_scan_count_session             | 0         |
+| Ndb_api_pruned_scan_count_session            | 0         |
+| Ndb_api_scan_batch_count_session             | 0         |
+| Ndb_api_read_row_count_session               | 0         |
+| Ndb_api_trans_local_read_row_count_session   | 0         |
+| Ndb_api_adaptive_send_forced_count_session   | 0         |
+| Ndb_api_adaptive_send_unforced_count_session | 0         |
+| Ndb_api_adaptive_send_deferred_count_session | 0         |
++----------------------------------------------+-----------+
+90 rows in set (0.01 sec)
+</pre><p>
+      These status variables are also available from the Performance
+      Schema <a class="link" href="performance-schema-status-variable-tables.html" title="27.12.15 Performance Schema Status Variable Tables"><code class="literal">session_status</code></a> and
+      <a class="link" href="performance-schema-status-variable-tables.html" title="27.12.15 Performance Schema Status Variable Tables"><code class="literal">global_status</code></a> tables, as shown here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.session_status</code></strong>
+    -&gt;   <strong class="userinput"><code>WHERE VARIABLE_NAME LIKE 'ndb_api%';</code></strong>
++----------------------------------------------+----------------+
+| VARIABLE_NAME                                | VARIABLE_VALUE |
++----------------------------------------------+----------------+
+| Ndb_api_wait_exec_complete_count             | 617            |
+| Ndb_api_wait_scan_result_count               | 0              |
+| Ndb_api_wait_meta_request_count              | 649            |
+| Ndb_api_wait_nanos_count                     | 335663491      |
+| Ndb_api_bytes_sent_count                     | 65764          |
+| Ndb_api_bytes_received_count                 | 86940          |
+| Ndb_api_trans_start_count                    | 308            |
+| Ndb_api_trans_commit_count                   | 308            |
+| Ndb_api_trans_abort_count                    | 0              |
+| Ndb_api_trans_close_count                    | 308            |
+| Ndb_api_pk_op_count                          | 311            |
+| Ndb_api_uk_op_count                          | 0              |
+| Ndb_api_table_scan_count                     | 0              |
+| Ndb_api_range_scan_count                     | 0              |
+| Ndb_api_pruned_scan_count                    | 0              |
+| Ndb_api_scan_batch_count                     | 0              |
+| Ndb_api_read_row_count                       | 307            |
+| Ndb_api_trans_local_read_row_count           | 77             |
+| Ndb_api_adaptive_send_forced_count           | 3              |
+| Ndb_api_adaptive_send_unforced_count         | 614            |
+| Ndb_api_adaptive_send_deferred_count         | 0              |
+| Ndb_api_event_data_count                     | 0              |
+| Ndb_api_event_nondata_count                  | 0              |
+| Ndb_api_event_bytes_count                    | 0              |
+| Ndb_api_wait_exec_complete_count_slave       | 0              |
+| Ndb_api_wait_scan_result_count_slave         | 0              |
+| Ndb_api_wait_meta_request_count_slave        | 0              |
+| Ndb_api_wait_nanos_count_slave               | 0              |
+| Ndb_api_bytes_sent_count_slave               | 0              |
+| Ndb_api_bytes_received_count_slave           | 0              |
+| Ndb_api_trans_start_count_slave              | 0              |
+| Ndb_api_trans_commit_count_slave             | 0              |
+| Ndb_api_trans_abort_count_slave              | 0              |
+| Ndb_api_trans_close_count_slave              | 0              |
+| Ndb_api_pk_op_count_slave                    | 0              |
+| Ndb_api_uk_op_count_slave                    | 0              |
+| Ndb_api_table_scan_count_slave               | 0              |
+| Ndb_api_range_scan_count_slave               | 0              |
+| Ndb_api_pruned_scan_count_slave              | 0              |
+| Ndb_api_scan_batch_count_slave               | 0              |
+| Ndb_api_read_row_count_slave                 | 0              |
+| Ndb_api_trans_local_read_row_count_slave     | 0              |
+| Ndb_api_adaptive_send_forced_count_slave     | 0              |
+| Ndb_api_adaptive_send_unforced_count_slave   | 0              |
+| Ndb_api_adaptive_send_deferred_count_slave   | 0              |
+| Ndb_api_wait_exec_complete_count_replica     | 0              |
+| Ndb_api_wait_scan_result_count_replica       | 0              |
+| Ndb_api_wait_meta_request_count_replica      | 0              |
+| Ndb_api_wait_nanos_count_replica             | 0              |
+| Ndb_api_bytes_sent_count_replica             | 0              |
+| Ndb_api_bytes_received_count_replica         | 0              |
+| Ndb_api_trans_start_count_replica            | 0              |
+| Ndb_api_trans_commit_count_replica           | 0              |
+| Ndb_api_trans_abort_count_replica            | 0              |
+| Ndb_api_trans_close_count_replica            | 0              |
+| Ndb_api_pk_op_count_replica                  | 0              |
+| Ndb_api_uk_op_count_replica                  | 0              |
+| Ndb_api_table_scan_count_replica             | 0              |
+| Ndb_api_range_scan_count_replica             | 0              |
+| Ndb_api_pruned_scan_count_replica            | 0              |
+| Ndb_api_scan_batch_count_replica             | 0              |
+| Ndb_api_read_row_count_replica               | 0              |
+| Ndb_api_trans_local_read_row_count_replica   | 0              |
+| Ndb_api_adaptive_send_forced_count_replica   | 0              |
+| Ndb_api_adaptive_send_unforced_count_replica | 0              |
+| Ndb_api_adaptive_send_deferred_count_replica | 0              |
+| Ndb_api_event_data_count_injector            | 0              |
+| Ndb_api_event_nondata_count_injector         | 0              |
+| Ndb_api_event_bytes_count_injector           | 0              |
+| Ndb_api_wait_exec_complete_count_session     | 0              |
+| Ndb_api_wait_scan_result_count_session       | 0              |
+| Ndb_api_wait_meta_request_count_session      | 0              |
+| Ndb_api_wait_nanos_count_session             | 0              |
+| Ndb_api_bytes_sent_count_session             | 0              |
+| Ndb_api_bytes_received_count_session         | 0              |
+| Ndb_api_trans_start_count_session            | 0              |
+| Ndb_api_trans_commit_count_session           | 0              |
+| Ndb_api_trans_abort_count_session            | 0              |
+| Ndb_api_trans_close_count_session            | 0              |
+| Ndb_api_pk_op_count_session                  | 0              |
+| Ndb_api_uk_op_count_session                  | 0              |
+| Ndb_api_table_scan_count_session             | 0              |
+| Ndb_api_range_scan_count_session             | 0              |
+| Ndb_api_pruned_scan_count_session            | 0              |
+| Ndb_api_scan_batch_count_session             | 0              |
+| Ndb_api_read_row_count_session               | 0              |
+| Ndb_api_trans_local_read_row_count_session   | 0              |
+| Ndb_api_adaptive_send_forced_count_session   | 0              |
+| Ndb_api_adaptive_send_unforced_count_session | 0              |
+| Ndb_api_adaptive_send_deferred_count_session | 0              |
++----------------------------------------------+----------------+
+90 rows in set (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.global_status</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE VARIABLE_NAME LIKE 'ndb_api%';</code></strong>
++----------------------------------------------+----------------+
+| VARIABLE_NAME                                | VARIABLE_VALUE |
++----------------------------------------------+----------------+
+| Ndb_api_wait_exec_complete_count             | 741            |
+| Ndb_api_wait_scan_result_count               | 0              |
+| Ndb_api_wait_meta_request_count              | 777            |
+| Ndb_api_wait_nanos_count                     | 373888309      |
+| Ndb_api_bytes_sent_count                     | 78124          |
+| Ndb_api_bytes_received_count                 | 94988          |
+| Ndb_api_trans_start_count                    | 370            |
+| Ndb_api_trans_commit_count                   | 370            |
+| Ndb_api_trans_abort_count                    | 0              |
+| Ndb_api_trans_close_count                    | 370            |
+| Ndb_api_pk_op_count                          | 373            |
+| Ndb_api_uk_op_count                          | 0              |
+| Ndb_api_table_scan_count                     | 0              |
+| Ndb_api_range_scan_count                     | 0              |
+| Ndb_api_pruned_scan_count                    | 0              |
+| Ndb_api_scan_batch_count                     | 0              |
+| Ndb_api_read_row_count                       | 369            |
+| Ndb_api_trans_local_read_row_count           | 93             |
+| Ndb_api_adaptive_send_forced_count           | 3              |
+| Ndb_api_adaptive_send_unforced_count         | 738            |
+| Ndb_api_adaptive_send_deferred_count         | 0              |
+| Ndb_api_event_data_count                     | 0              |
+| Ndb_api_event_nondata_count                  | 0              |
+| Ndb_api_event_bytes_count                    | 0              |
+| Ndb_api_wait_exec_complete_count_slave       | 0              |
+| Ndb_api_wait_scan_result_count_slave         | 0              |
+| Ndb_api_wait_meta_request_count_slave        | 0              |
+| Ndb_api_wait_nanos_count_slave               | 0              |
+| Ndb_api_bytes_sent_count_slave               | 0              |
+| Ndb_api_bytes_received_count_slave           | 0              |
+| Ndb_api_trans_start_count_slave              | 0              |
+| Ndb_api_trans_commit_count_slave             | 0              |
+| Ndb_api_trans_abort_count_slave              | 0              |
+| Ndb_api_trans_close_count_slave              | 0              |
+| Ndb_api_pk_op_count_slave                    | 0              |
+| Ndb_api_uk_op_count_slave                    | 0              |
+| Ndb_api_table_scan_count_slave               | 0              |
+| Ndb_api_range_scan_count_slave               | 0              |
+| Ndb_api_pruned_scan_count_slave              | 0              |
+| Ndb_api_scan_batch_count_slave               | 0              |
+| Ndb_api_read_row_count_slave                 | 0              |
+| Ndb_api_trans_local_read_row_count_slave     | 0              |
+| Ndb_api_adaptive_send_forced_count_slave     | 0              |
+| Ndb_api_adaptive_send_unforced_count_slave   | 0              |
+| Ndb_api_adaptive_send_deferred_count_slave   | 0              |
+| Ndb_api_wait_exec_complete_count_replica     | 0              |
+| Ndb_api_wait_scan_result_count_replica       | 0              |
+| Ndb_api_wait_meta_request_count_replica      | 0              |
+| Ndb_api_wait_nanos_count_replica             | 0              |
+| Ndb_api_bytes_sent_count_replica             | 0              |
+| Ndb_api_bytes_received_count_replica         | 0              |
+| Ndb_api_trans_start_count_replica            | 0              |
+| Ndb_api_trans_commit_count_replica           | 0              |
+| Ndb_api_trans_abort_count_replica            | 0              |
+| Ndb_api_trans_close_count_replica            | 0              |
+| Ndb_api_pk_op_count_replica                  | 0              |
+| Ndb_api_uk_op_count_replica                  | 0              |
+| Ndb_api_table_scan_count_replica             | 0              |
+| Ndb_api_range_scan_count_replica             | 0              |
+| Ndb_api_pruned_scan_count_replica            | 0              |
+| Ndb_api_scan_batch_count_replica             | 0              |
+| Ndb_api_read_row_count_replica               | 0              |
+| Ndb_api_trans_local_read_row_count_replica   | 0              |
+| Ndb_api_adaptive_send_forced_count_replica   | 0              |
+| Ndb_api_adaptive_send_unforced_count_replica | 0              |
+| Ndb_api_adaptive_send_deferred_count_replica | 0              |
+| Ndb_api_event_data_count_injector            | 0              |
+| Ndb_api_event_nondata_count_injector         | 0              |
+| Ndb_api_event_bytes_count_injector           | 0              |
+| Ndb_api_wait_exec_complete_count_session     | 0              |
+| Ndb_api_wait_scan_result_count_session       | 0              |
+| Ndb_api_wait_meta_request_count_session      | 0              |
+| Ndb_api_wait_nanos_count_session             | 0              |
+| Ndb_api_bytes_sent_count_session             | 0              |
+| Ndb_api_bytes_received_count_session         | 0              |
+| Ndb_api_trans_start_count_session            | 0              |
+| Ndb_api_trans_commit_count_session           | 0              |
+| Ndb_api_trans_abort_count_session            | 0              |
+| Ndb_api_trans_close_count_session            | 0              |
+| Ndb_api_pk_op_count_session                  | 0              |
+| Ndb_api_uk_op_count_session                  | 0              |
+| Ndb_api_table_scan_count_session             | 0              |
+| Ndb_api_range_scan_count_session             | 0              |
+| Ndb_api_pruned_scan_count_session            | 0              |
+| Ndb_api_scan_batch_count_session             | 0              |
+| Ndb_api_read_row_count_session               | 0              |
+| Ndb_api_trans_local_read_row_count_session   | 0              |
+| Ndb_api_adaptive_send_forced_count_session   | 0              |
+| Ndb_api_adaptive_send_unforced_count_session | 0              |
+| Ndb_api_adaptive_send_deferred_count_session | 0              |
++----------------------------------------------+----------------+
+90 rows in set (0.01 sec)
+</pre><a id="idm45828808505648" class="indexterm"></a><a id="idm45828808504144" class="indexterm"></a><p>
+      Each <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndb.html" target="_top"><code class="literal">Ndb</code></a> object has its own
+      counters. NDB API applications can read the values of the counters
+      for use in optimization or monitoring. For multithreaded clients
+      which use more than one <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndb.html" target="_top"><code class="literal">Ndb</code></a>
+      object concurrently, it is also possible to obtain a summed view
+      of counters from all <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndb.html" target="_top"><code class="literal">Ndb</code></a> objects
+      belonging to a given
+      <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndb-cluster-connection.html" target="_top"><code class="literal">Ndb_cluster_connection</code></a>.
+    </p><p>
+      Four sets of these counters are exposed. One set applies to the
+      current session only; the other 3 are global. <span class="emphasis"><em>This is in
+      spite of the fact that their values can be obtained as either
+      session or global status variables in the <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a>
+      client</em></span>. This means that specifying the
+      <code class="literal">SESSION</code> or <code class="literal">GLOBAL</code> keyword
+      with <a class="link" href="show-status.html" title="13.7.7.37 SHOW STATUS Statement"><code class="literal">SHOW STATUS</code></a> has no effect on
+      the values reported for NDB API statistics status variables, and
+      the value for each of these variables is the same whether the
+      value is obtained from the equivalent column of the
+      <a class="link" href="performance-schema-status-variable-tables.html" title="27.12.15 Performance Schema Status Variable Tables"><code class="literal">session_status</code></a> or the
+      <a class="link" href="performance-schema-status-variable-tables.html" title="27.12.15 Performance Schema Status Variable Tables"><code class="literal">global_status</code></a> table.
+    </p><a id="idm45828808489472" class="indexterm"></a><a id="idm45828808487968" class="indexterm"></a><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <span class="emphasis"><em>Session counters (session specific)</em></span>
+        </p><p>
+          Session counters relate to the
+          <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndb.html" target="_top"><code class="literal">Ndb</code></a> objects in use by (only)
+          the current session. Use of such objects by other MySQL
+          clients does not influence these counts.
+        </p><p>
+          In order to minimize confusion with standard MySQL session
+          variables, we refer to the variables that correspond to these
+          NDB API session counters as <span class="quote">“<span class="quote"><code class="literal">_session</code>
+          variables</span>”</span>, with a leading underscore.
+        </p></li><li class="listitem"><p>
+          <span class="emphasis"><em>Replica counters (global)</em></span>
+        </p><p>
+          This set of counters relates to the
+          <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndb.html" target="_top"><code class="literal">Ndb</code></a> objects used by the
+          replica SQL thread, if any. If this <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+          does not act as a replica, or does not use
+          <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> tables, then all of these
+          counts are 0.
+        </p><p>
+          We refer to the related status variables as
+          <span class="quote">“<span class="quote"><code class="literal">_slave</code> variables</span>”</span> (with a
+          leading underscore).
+        </p></li><li class="listitem"><p>
+          <span class="emphasis"><em>Injector counters (global)</em></span>
+        </p><p>
+          Injector counters relate to the
+          <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndb.html" target="_top"><code class="literal">Ndb</code></a> object used to listen to
+          cluster events by the binary log injector thread. Even when
+          not writing a binary log, <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> processes
+          attached to an NDB Cluster continue to listen for some events,
+          such as schema changes.
+        </p><p>
+          We refer to the status variables that correspond to NDB API
+          injector counters as <span class="quote">“<span class="quote"><code class="literal">_injector</code>
+          variables</span>”</span> (with a leading underscore).
+        </p></li><li class="listitem"><p>
+          <span class="emphasis"><em>Server (Global) counters (global)</em></span>
+        </p><p>
+          This set of counters relates to all
+          <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndb.html" target="_top"><code class="literal">Ndb</code></a> objects currently used by
+          this <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>. This includes all MySQL client
+          applications, the replica SQL thread (if any), the binary log
+          injector, and the <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> utility
+          thread.
+        </p><p>
+          We refer to the status variables that correspond to these
+          counters as <span class="quote">“<span class="quote">global variables</span>”</span> or
+          <span class="quote">“<span class="quote"><a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>-level variables</span>”</span>.
+        </p></li></ul></div><p>
+      You can obtain values for a particular set of variables by
+      additionally filtering for the substring
+      <code class="literal">session</code>, <code class="literal">slave</code>, or
+      <code class="literal">injector</code> in the variable name (along with the
+      common prefix <code class="literal">Ndb_api</code>). For
+      <code class="literal">_session</code> variables, this can be done as shown
+      here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW STATUS LIKE 'ndb_api%session';</code></strong>
++--------------------------------------------+---------+
+| Variable_name                              | Value   |
++--------------------------------------------+---------+
+| Ndb_api_wait_exec_complete_count_session   | 2       |
+| Ndb_api_wait_scan_result_count_session     | 0       |
+| Ndb_api_wait_meta_request_count_session    | 1       |
+| Ndb_api_wait_nanos_count_session           | 8144375 |
+| Ndb_api_bytes_sent_count_session           | 68      |
+| Ndb_api_bytes_received_count_session       | 84      |
+| Ndb_api_trans_start_count_session          | 1       |
+| Ndb_api_trans_commit_count_session         | 1       |
+| Ndb_api_trans_abort_count_session          | 0       |
+| Ndb_api_trans_close_count_session          | 1       |
+| Ndb_api_pk_op_count_session                | 1       |
+| Ndb_api_uk_op_count_session                | 0       |
+| Ndb_api_table_scan_count_session           | 0       |
+| Ndb_api_range_scan_count_session           | 0       |
+| Ndb_api_pruned_scan_count_session          | 0       |
+| Ndb_api_scan_batch_count_session           | 0       |
+| Ndb_api_read_row_count_session             | 1       |
+| Ndb_api_trans_local_read_row_count_session | 1       |
++--------------------------------------------+---------+
+18 rows in set (0.50 sec)
+</pre><p>
+      To obtain a listing of the NDB API <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>-level
+      status variables, filter for variable names beginning with
+      <code class="literal">ndb_api</code> and ending in
+      <code class="literal">_count</code>, like this:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.session_status</code></strong>
+    -&gt;     <strong class="userinput"><code>WHERE VARIABLE_NAME LIKE 'ndb_api%count';</code></strong>
++------------------------------------+----------------+
+| VARIABLE_NAME                      | VARIABLE_VALUE |
++------------------------------------+----------------+
+| NDB_API_WAIT_EXEC_COMPLETE_COUNT   | 4              |
+| NDB_API_WAIT_SCAN_RESULT_COUNT     | 3              |
+| NDB_API_WAIT_META_REQUEST_COUNT    | 28             |
+| NDB_API_WAIT_NANOS_COUNT           | 53756398       |
+| NDB_API_BYTES_SENT_COUNT           | 1060           |
+| NDB_API_BYTES_RECEIVED_COUNT       | 9724           |
+| NDB_API_TRANS_START_COUNT          | 3              |
+| NDB_API_TRANS_COMMIT_COUNT         | 2              |
+| NDB_API_TRANS_ABORT_COUNT          | 0              |
+| NDB_API_TRANS_CLOSE_COUNT          | 3              |
+| NDB_API_PK_OP_COUNT                | 2              |
+| NDB_API_UK_OP_COUNT                | 0              |
+| NDB_API_TABLE_SCAN_COUNT           | 1              |
+| NDB_API_RANGE_SCAN_COUNT           | 0              |
+| NDB_API_PRUNED_SCAN_COUNT          | 0              |
+| NDB_API_SCAN_BATCH_COUNT           | 0              |
+| NDB_API_READ_ROW_COUNT             | 2              |
+| NDB_API_TRANS_LOCAL_READ_ROW_COUNT | 2              |
+| NDB_API_EVENT_DATA_COUNT           | 0              |
+| NDB_API_EVENT_NONDATA_COUNT        | 0              |
+| NDB_API_EVENT_BYTES_COUNT          | 0              |
++------------------------------------+----------------+
+21 rows in set (0.09 sec)
+</pre><p>
+      Not all counters are reflected in all 4 sets of status variables.
+      For the event counters <code class="literal">DataEventsRecvdCount</code>,
+      <code class="literal">NondataEventsRecvdCount</code>, and
+      <code class="literal">EventBytesRecvdCount</code>, only
+      <code class="literal">_injector</code> and <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>-level
+      NDB API status variables are available:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW STATUS LIKE 'ndb_api%event%';</code></strong>
++--------------------------------------+-------+
+| Variable_name                        | Value |
++--------------------------------------+-------+
+| Ndb_api_event_data_count_injector    | 0     |
+| Ndb_api_event_nondata_count_injector | 0     |
+| Ndb_api_event_bytes_count_injector   | 0     |
+| Ndb_api_event_data_count             | 0     |
+| Ndb_api_event_nondata_count          | 0     |
+| Ndb_api_event_bytes_count            | 0     |
++--------------------------------------+-------+
+6 rows in set (0.00 sec)
+</pre><p>
+      <code class="literal">_injector</code> status variables are not implemented
+      for any other NDB API counters, as shown here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW STATUS LIKE 'ndb_api%injector%';</code></strong>
++--------------------------------------+-------+
+| Variable_name                        | Value |
++--------------------------------------+-------+
+| Ndb_api_event_data_count_injector    | 0     |
+| Ndb_api_event_nondata_count_injector | 0     |
+| Ndb_api_event_bytes_count_injector   | 0     |
++--------------------------------------+-------+
+3 rows in set (0.00 sec)
+</pre><a id="idm45828808435584" class="indexterm"></a><a id="idm45828808434064" class="indexterm"></a><p>
+      The names of the status variables can easily be associated with
+      the names of the corresponding counters. Each NDB API statistics
+      counter is listed in the following table with a description as
+      well as the names of any MySQL server status variables
+      corresponding to this counter.
+    </p><div class="table"><a id="idm45828808431840"></a><p class="title"><strong>Table 23.67 NDB API statistics counters</strong></p><div class="table-contents"><table summary="NDB API statistics counters"><col style="width: 30%" /><col style="width: 35%" /><col style="width: 40%" /><thead><tr>
+          <th scope="col">Counter Name</th>
+          <th scope="col">Description</th>
+          <th scope="col">Status Variables (by statistic type):<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  Session
+                </p></li><li class="listitem"><p>
+                  Slave (replica)
+                </p></li><li class="listitem"><p>
+                  Injector
+                </p></li><li class="listitem"><p>
+                  Server
+                </p></li></ul></div></th>
+        </tr></thead><tbody><tr>
+          <th scope="row"><code class="literal">WaitExecCompleteCount</code></th>
+          <td>Number of times thread has been blocked while waiting for execution of
+            an operation to complete. Includes all
+            <a class="ulink" href="https://docs.oracle.com/cd/E17952_01/ndbapi-en/ndb-ndbtransaction.html#ndb-ndbtransaction-execute" target="_top"><code class="literal">execute()</code></a>
+            calls as well as implicit executes for blob operations and
+            auto-increment not visible to clients.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_exec_complete_count_session"><code class="literal">Ndb_api_wait_exec_complete_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_exec_complete_count_slave"><code class="literal">Ndb_api_wait_exec_complete_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_exec_complete_count"><code class="literal">Ndb_api_wait_exec_complete_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">WaitScanResultCount</code></th>
+          <td>Number of times thread has been blocked while waiting for a scan-based
+            signal, such waiting for additional results, or for a scan
+            to close.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_scan_result_count_session"><code class="literal">Ndb_api_wait_scan_result_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_scan_result_count_slave"><code class="literal">Ndb_api_wait_scan_result_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_scan_result_count"><code class="literal">Ndb_api_wait_scan_result_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">WaitMetaRequestCount</code></th>
+          <td>Number of times thread has been blocked waiting for a metadata-based
+            signal; this can occur when waiting for a DDL operation or
+            for an epoch to be started (or ended).</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_meta_request_count_session"><code class="literal">Ndb_api_wait_meta_request_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_meta_request_count_slave"><code class="literal">Ndb_api_wait_meta_request_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_meta_request_count"><code class="literal">Ndb_api_wait_meta_request_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">WaitNanosCount</code></th>
+          <td>Total time (in nanoseconds) spent waiting for some type of signal from
+            the data nodes.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_nanos_count_session"><code class="literal">Ndb_api_wait_nanos_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_nanos_count_slave"><code class="literal">Ndb_api_wait_nanos_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_nanos_count"><code class="literal">Ndb_api_wait_nanos_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">BytesSentCount</code></th>
+          <td>Amount of data (in bytes) sent to the data nodes</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_bytes_sent_count_session"><code class="literal">Ndb_api_bytes_sent_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_bytes_sent_count_slave"><code class="literal">Ndb_api_bytes_sent_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_bytes_sent_count"><code class="literal">Ndb_api_bytes_sent_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">BytesRecvdCount</code></th>
+          <td>Amount of data (in bytes) received from the data nodes</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_bytes_received_count_session"><code class="literal">Ndb_api_bytes_received_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_bytes_received_count_slave"><code class="literal">Ndb_api_bytes_received_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_bytes_received_count"><code class="literal">Ndb_api_bytes_received_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">TransStartCount</code></th>
+          <td>Number of transactions started.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_start_count_session"><code class="literal">Ndb_api_trans_start_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_start_count_slave"><code class="literal">Ndb_api_trans_start_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_start_count"><code class="literal">Ndb_api_trans_start_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">TransCommitCount</code></th>
+          <td>Number of transactions committed.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_commit_count_session"><code class="literal">Ndb_api_trans_commit_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_commit_count_slave"><code class="literal">Ndb_api_trans_commit_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_commit_count"><code class="literal">Ndb_api_trans_commit_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">TransAbortCount</code></th>
+          <td>Number of transactions aborted.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_abort_count_session"><code class="literal">Ndb_api_trans_abort_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_abort_count_slave"><code class="literal">Ndb_api_trans_abort_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_abort_count"><code class="literal">Ndb_api_trans_abort_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">TransCloseCount</code></th>
+          <td>Number of transactions aborted. (This value may be greater than the sum
+            of <code class="literal">TransCommitCount</code> and
+            <code class="literal">TransAbortCount</code>.)</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_close_count_session"><code class="literal">Ndb_api_trans_close_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_close_count_slave"><code class="literal">Ndb_api_trans_close_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_close_count"><code class="literal">Ndb_api_trans_close_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">PkOpCount</code></th>
+          <td>Number of operations based on or using primary keys. This count includes
+            blob-part table operations, implicit unlocking operations,
+            and auto-increment operations, as well as primary key
+            operations normally visible to MySQL clients.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_pk_op_count_session"><code class="literal">Ndb_api_pk_op_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_pk_op_count_slave"><code class="literal">Ndb_api_pk_op_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_pk_op_count"><code class="literal">Ndb_api_pk_op_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">UkOpCount</code></th>
+          <td>Number of operations based on or using unique keys.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_uk_op_count_session"><code class="literal">Ndb_api_uk_op_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_uk_op_count_slave"><code class="literal">Ndb_api_uk_op_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_uk_op_count"><code class="literal">Ndb_api_uk_op_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">TableScanCount</code></th>
+          <td>Number of table scans that have been started. This includes scans of
+            internal tables.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_table_scan_count_session"><code class="literal">Ndb_api_table_scan_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_table_scan_count_slave"><code class="literal">Ndb_api_table_scan_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_table_scan_count"><code class="literal">Ndb_api_table_scan_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">RangeScanCount</code></th>
+          <td>Number of range scans that have been started.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_range_scan_count_session"><code class="literal">Ndb_api_range_scan_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_range_scan_count_slave"><code class="literal">Ndb_api_range_scan_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_range_scan_count"><code class="literal">Ndb_api_range_scan_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">PrunedScanCount</code></th>
+          <td>Number of scans that have been pruned to a single partition.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_pruned_scan_count_session"><code class="literal">Ndb_api_pruned_scan_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_pruned_scan_count_slave"><code class="literal">Ndb_api_pruned_scan_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_pruned_scan_count"><code class="literal">Ndb_api_pruned_scan_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">ScanBatchCount</code></th>
+          <td>Number of batches of rows received. (A
+            <span class="firstterm">batch</span> in this context
+            is a set of scan results from a single fragment.)</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_scan_batch_count_session"><code class="literal">Ndb_api_scan_batch_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_scan_batch_count_slave"><code class="literal">Ndb_api_scan_batch_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_scan_batch_count"><code class="literal">Ndb_api_scan_batch_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">ReadRowCount</code></th>
+          <td>Total number of rows that have been read. Includes rows read using
+            primary key, unique key, and scan operations.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_read_row_count_session"><code class="literal">Ndb_api_read_row_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_read_row_count_slave"><code class="literal">Ndb_api_read_row_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_read_row_count"><code class="literal">Ndb_api_read_row_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">TransLocalReadRowCount</code></th>
+          <td>Number of rows read from the data same node on which the transaction was
+            being run.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_local_read_row_count_session"><code class="literal">Ndb_api_trans_local_read_row_count_session</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_local_read_row_count_slave"><code class="literal">Ndb_api_trans_local_read_row_count_slave</code></a>
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_local_read_row_count"><code class="literal">Ndb_api_trans_local_read_row_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">DataEventsRecvdCount</code></th>
+          <td>Number of row change events received.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_event_data_count_injector"><code class="literal">Ndb_api_event_data_count_injector</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_event_data_count"><code class="literal">Ndb_api_event_data_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">NondataEventsRecvdCount</code></th>
+          <td>Number of events received, other than row change events.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_event_nondata_count_injector"><code class="literal">Ndb_api_event_nondata_count_injector</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_event_nondata_count"><code class="literal">Ndb_api_event_nondata_count</code></a>
+                </p></li></ul></div></td>
+        </tr><tr>
+          <th scope="row"><code class="literal">EventBytesRecvdCount</code></th>
+          <td>Number of bytes of events received.</td>
+          <td><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  [none]
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_event_bytes_count_injector"><code class="literal">Ndb_api_event_bytes_count_injector</code></a>
+                </p></li><li class="listitem"><p>
+                  <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_event_bytes_count"><code class="literal">Ndb_api_event_bytes_count</code></a>
+                </p></li></ul></div></td>
+        </tr></tbody></table></div></div><br class="table-break" /><p>
+      To see all counts of committed transactions—that is, all
+      <code class="literal">TransCommitCount</code> counter status
+      variables—you can filter the results of
+      <a class="link" href="show-status.html" title="13.7.7.37 SHOW STATUS Statement"><code class="literal">SHOW STATUS</code></a> for the substring
+      <code class="literal">trans_commit_count</code>, like this:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW STATUS LIKE '%trans_commit_count%';</code></strong>
++------------------------------------+-------+
+| Variable_name                      | Value |
++------------------------------------+-------+
+| Ndb_api_trans_commit_count_session | 1     |
+| Ndb_api_trans_commit_count_slave   | 0     |
+| Ndb_api_trans_commit_count         | 2     |
++------------------------------------+-------+
+3 rows in set (0.00 sec)
+</pre><p>
+      From this you can determine that 1 transaction has been committed
+      in the current <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client session, and 2
+      transactions have been committed on this <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+      since it was last restarted.
+    </p><p>
+      You can see how various NDB API counters are incremented by a
+      given SQL statement by comparing the values of the corresponding
+      <code class="literal">_session</code> status variables immediately before
+      and after performing the statement. In this example, after getting
+      the initial values from <a class="link" href="show-status.html" title="13.7.7.37 SHOW STATUS Statement"><code class="literal">SHOW
+      STATUS</code></a>, we create in the <code class="literal">test</code>
+      database an <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> table, named
+      <code class="literal">t</code>, that has a single column:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW STATUS LIKE 'ndb_api%session%';</code></strong>
++--------------------------------------------+--------+
+| Variable_name                              | Value  |
++--------------------------------------------+--------+
+| Ndb_api_wait_exec_complete_count_session   | 2      |
+| Ndb_api_wait_scan_result_count_session     | 0      |
+| Ndb_api_wait_meta_request_count_session    | 3      |
+| Ndb_api_wait_nanos_count_session           | 820705 |
+| Ndb_api_bytes_sent_count_session           | 132    |
+| Ndb_api_bytes_received_count_session       | 372    |
+| Ndb_api_trans_start_count_session          | 1      |
+| Ndb_api_trans_commit_count_session         | 1      |
+| Ndb_api_trans_abort_count_session          | 0      |
+| Ndb_api_trans_close_count_session          | 1      |
+| Ndb_api_pk_op_count_session                | 1      |
+| Ndb_api_uk_op_count_session                | 0      |
+| Ndb_api_table_scan_count_session           | 0      |
+| Ndb_api_range_scan_count_session           | 0      |
+| Ndb_api_pruned_scan_count_session          | 0      |
+| Ndb_api_scan_batch_count_session           | 0      |
+| Ndb_api_read_row_count_session             | 1      |
+| Ndb_api_trans_local_read_row_count_session | 1      |
++--------------------------------------------+--------+
+18 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>USE test;</code></strong>
+Database changed
+mysql&gt; <strong class="userinput"><code>CREATE TABLE t (c INT) ENGINE NDBCLUSTER;</code></strong>
+Query OK, 0 rows affected (0.85 sec)
+</pre><p>
+      Now you can execute a new <a class="link" href="show-status.html" title="13.7.7.37 SHOW STATUS Statement"><code class="literal">SHOW
+      STATUS</code></a> statement and observe the changes, as shown here
+      (with the changed rows highlighted in the output):
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW STATUS LIKE 'ndb_api%session%';</code></strong>
++--------------------------------------------+-----------+
+| Variable_name                              | Value     |
++--------------------------------------------+-----------+<span class="emphasis"><em>
+| Ndb_api_wait_exec_complete_count_session   | 8         |</em></span>
+| Ndb_api_wait_scan_result_count_session     | 0         |
+<span class="emphasis"><em>| Ndb_api_wait_meta_request_count_session    | 17        |</em></span>
+<span class="emphasis"><em>| Ndb_api_wait_nanos_count_session           | 706871709 |</em></span>
+<span class="emphasis"><em>| Ndb_api_bytes_sent_count_session           | 2376      |</em></span>
+<span class="emphasis"><em>| Ndb_api_bytes_received_count_session       | 3844      |</em></span>
+<span class="emphasis"><em>| Ndb_api_trans_start_count_session          | 4         |</em></span>
+<span class="emphasis"><em>| Ndb_api_trans_commit_count_session         | 4         |</em></span>
+| Ndb_api_trans_abort_count_session          | 0         |
+<span class="emphasis"><em>| Ndb_api_trans_close_count_session          | 4         |</em></span>
+<span class="emphasis"><em>| Ndb_api_pk_op_count_session                | 6         |</em></span>
+| Ndb_api_uk_op_count_session                | 0         |
+| Ndb_api_table_scan_count_session           | 0         |
+| Ndb_api_range_scan_count_session           | 0         |
+| Ndb_api_pruned_scan_count_session          | 0         |
+| Ndb_api_scan_batch_count_session           | 0         |
+<span class="emphasis"><em>| Ndb_api_read_row_count_session             | 2         |</em></span>
+| Ndb_api_trans_local_read_row_count_session | 1         |
++--------------------------------------------+-----------+
+18 rows in set (0.00 sec)
+</pre><p>
+      Similarly, you can see the changes in the NDB API statistics
+      counters caused by inserting a row into <code class="literal">t</code>:
+      Insert the row, then run the same <a class="link" href="show-status.html" title="13.7.7.37 SHOW STATUS Statement"><code class="literal">SHOW
+      STATUS</code></a> statement used in the previous example, as shown
+      here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO t VALUES (100);</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SHOW STATUS LIKE 'ndb_api%session%';</code></strong>
++--------------------------------------------+-----------+
+| Variable_name                              | Value     |
++--------------------------------------------+-----------+
+<span class="emphasis"><em>| Ndb_api_wait_exec_complete_count_session   | 11        |</em></span>
+<span class="emphasis"><em>| Ndb_api_wait_scan_result_count_session     | 6         |</em></span>
+<span class="emphasis"><em>| Ndb_api_wait_meta_request_count_session    | 20        |</em></span>
+<span class="emphasis"><em>| Ndb_api_wait_nanos_count_session           | 707370418 |</em></span>
+<span class="emphasis"><em>| Ndb_api_bytes_sent_count_session           | 2724      |</em></span>
+<span class="emphasis"><em>| Ndb_api_bytes_received_count_session       | 4116      |</em></span>
+<span class="emphasis"><em>| Ndb_api_trans_start_count_session          | 7         |</em></span>
+<span class="emphasis"><em>| Ndb_api_trans_commit_count_session         | 6         |</em></span>
+| Ndb_api_trans_abort_count_session          | 0         |
+<span class="emphasis"><em>| Ndb_api_trans_close_count_session          | 7         |</em></span>
+<span class="emphasis"><em>| Ndb_api_pk_op_count_session                | 8         |</em></span>
+| Ndb_api_uk_op_count_session                | 0         |
+<span class="emphasis"><em>| Ndb_api_table_scan_count_session           | 1         |</em></span>
+| Ndb_api_range_scan_count_session           | 0         |
+| Ndb_api_pruned_scan_count_session          | 0         |
+| Ndb_api_scan_batch_count_session           | 0         |
+<span class="emphasis"><em>| Ndb_api_read_row_count_session             | 3         |</em></span>
+<span class="emphasis"><em>| Ndb_api_trans_local_read_row_count_session | 2         |</em></span>
++--------------------------------------------+-----------+
+18 rows in set (0.00 sec)
+</pre><p>
+      We can make a number of observations from these results:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Although we created <code class="literal">t</code> with no explicit
+          primary key, 5 primary key operations were performed in doing
+          so (the difference in the <span class="quote">“<span class="quote">before</span>”</span> and
+          <span class="quote">“<span class="quote">after</span>”</span> values of
+          <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_pk_op_count_session"><code class="literal">Ndb_api_pk_op_count_session</code></a>,
+          or 6 minus 1). This reflects the creation of the hidden
+          primary key that is a feature of all tables using the
+          <a class="link" href="mysql-cluster.html" title="Chapter 23 MySQL NDB Cluster 8.0"><code class="literal">NDB</code></a> storage engine.
+        </p></li><li class="listitem"><p>
+          By comparing successive values for
+          <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_nanos_count_session"><code class="literal">Ndb_api_wait_nanos_count_session</code></a>,
+          we can see that the NDB API operations implementing the
+          <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement waited
+          much longer (706871709 - 820705 = 706051004 nanoseconds, or
+          approximately 0.7 second) for responses from the data nodes
+          than those executed by the
+          <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> (707370418 - 706871709 =
+          498709 ns or roughly .0005 second). The execution times
+          reported for these statements in the <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a>
+          client correlate roughly with these figures.
+        </p><p>
+          On platforms without sufficient (nanosecond) time resolution,
+          small changes in the value of the
+          <code class="literal">WaitNanosCount</code> NDB API counter due to SQL
+          statements that execute very quickly may not always be visible
+          in the values of
+          <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_nanos_count_session"><code class="literal">Ndb_api_wait_nanos_count_session</code></a>,
+          <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_nanos_count_slave"><code class="literal">Ndb_api_wait_nanos_count_slave</code></a>,
+          or <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_wait_nanos_count"><code class="literal">Ndb_api_wait_nanos_count</code></a>.
+        </p></li><li class="listitem"><p>
+          The <a class="link" href="insert.html" title="13.2.7 INSERT Statement"><code class="literal">INSERT</code></a> statement
+          incremented both the <code class="literal">ReadRowCount</code> and
+          <code class="literal">TransLocalReadRowCount</code> NDB API statistics
+          counters, as reflected by the increased values of
+          <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_read_row_count_session"><code class="literal">Ndb_api_read_row_count_session</code></a>
+          and
+          <a class="link" href="mysql-cluster-options-variables.html#statvar_Ndb_api_trans_local_read_row_count_session"><code class="literal">Ndb_api_trans_local_read_row_count_session</code></a>.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-tde-limitations.html">Previous <span class="navHint"> NDB File System Encryption Limitations </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-management.html">Up <span class="navHint"> Management of NDB Cluster </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-ndbinfo.html">Next <span class="navHint"> ndbinfo: The NDB Cluster Information Database </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

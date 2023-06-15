@@ -1,0 +1,189 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3059"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/24.2.2%C2%A0LIST%20Partitioning"></a><title>24.2.2&nbsp;LIST Partitioning</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="partitioning-types.html" title="24.2&nbsp;Partitioning Types"/><link rel="prev" href="partitioning-range.html" title="24.2.1&nbsp;RANGE Partitioning"/><link rel="next" href="partitioning-columns.html" title="24.2.3&nbsp;COLUMNS Partitioning"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="partitioning-list.html#partitioning-list">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="partitioning-range.html">Previous <span class="navHint"> RANGE Partitioning </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="partitioning-types.html">Up <span class="navHint"> Partitioning Types </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="partitioning-columns.html">Next <span class="navHint"> COLUMNS Partitioning </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="partitioning-list"></a>24.2.2&nbsp;LIST Partitioning</h3></div></div></div><a id="idm45828802379152" class="indexterm"></a><a id="idm45828802377664" class="indexterm"></a><p>
+        List partitioning in MySQL is similar to range partitioning in
+        many ways. As in partitioning by <code class="literal">RANGE</code>, each
+        partition must be explicitly defined. The chief difference
+        between the two types of partitioning is that, in list
+        partitioning, each partition is defined and selected based on
+        the membership of a column value in one of a set of value lists,
+        rather than in one of a set of contiguous ranges of values. This
+        is done by using <code class="literal">PARTITION BY
+        LIST(<em class="replaceable"><code>expr</code></em>)</code> where
+        <em class="replaceable"><code>expr</code></em> is a column value or an
+        expression based on a column value and returning an integer
+        value, and then defining each partition by means of a
+        <code class="literal">VALUES IN
+        (<em class="replaceable"><code>value_list</code></em>)</code>, where
+        <em class="replaceable"><code>value_list</code></em> is a comma-separated list
+        of integers.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          In MySQL 8.0, it is possible to match against
+          only a list of integers (and possibly
+          <code class="literal">NULL</code>&mdash;see
+          <a class="xref" href="partitioning-handling-nulls.html" title="24.2.7&nbsp;How MySQL Partitioning Handles NULL">Section&nbsp;24.2.7, &ldquo;How MySQL Partitioning Handles NULL&rdquo;</a>) when
+          partitioning by <code class="literal">LIST</code>.
+        </p><p>
+          However, other column types may be used in value lists when
+          employing <code class="literal">LIST COLUMN</code> partitioning, which
+          is described later in this section.
+        </p></div><p>
+        Unlike the case with partitions defined by range, list
+        partitions do not need to be declared in any particular order.
+        For more detailed syntactical information, see
+        <a class="xref" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement">Section&nbsp;13.1.20, &ldquo;CREATE TABLE Statement&rdquo;</a>.
+      </p><p>
+        For the examples that follow, we assume that the basic
+        definition of the table to be partitioned is provided by the
+        <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a> statement shown
+        here:
+      </p><pre class="programlisting">CREATE TABLE employees (
+    id INT NOT NULL,
+    fname VARCHAR(30),
+    lname VARCHAR(30),
+    hired DATE NOT NULL DEFAULT &#39;1970-01-01&#39;,
+    separated DATE NOT NULL DEFAULT &#39;9999-12-31&#39;,
+    job_code INT,
+    store_id INT
+);
+</pre><p>
+        (This is the same table used as a basis for the examples in
+        <a class="xref" href="partitioning-range.html" title="24.2.1&nbsp;RANGE Partitioning">Section&nbsp;24.2.1, &ldquo;RANGE Partitioning&rdquo;</a>. As with the other
+        partitioning examples, we assume that the
+        <a class="link" href="server-system-variables.html#sysvar_default_storage_engine"><code class="literal">default_storage_engine</code></a> is
+        <code class="literal">InnoDB</code>.)
+      </p><p>
+        Suppose that there are 20 video stores distributed among 4
+        franchises as shown in the following table.
+      </p><div class="informaltable"><table summary="An example of 20 video stores distributed among 4 regional franchises, as described in the preceding text."><colgroup><col style="width: 30%"/><col style="width: 70%"/></colgroup><thead><tr>
+            <th>Region</th>
+            <th>Store ID Numbers</th>
+          </tr></thead><tbody><tr>
+            <td>North</td>
+            <td>3, 5, 6, 9, 17</td>
+          </tr><tr>
+            <td>East</td>
+            <td>1, 2, 10, 11, 19, 20</td>
+          </tr><tr>
+            <td>West</td>
+            <td>4, 12, 13, 14, 18</td>
+          </tr><tr>
+            <td>Central</td>
+            <td>7, 8, 15, 16</td>
+          </tr></tbody></table></div><p>
+        To partition this table in such a way that rows for stores
+        belonging to the same region are stored in the same partition,
+        you could use the <a class="link" href="create-table.html" title="13.1.20&nbsp;CREATE TABLE Statement"><code class="literal">CREATE TABLE</code></a>
+        statement shown here:
+      </p><pre class="programlisting">CREATE TABLE employees (
+    id INT NOT NULL,
+    fname VARCHAR(30),
+    lname VARCHAR(30),
+    hired DATE NOT NULL DEFAULT &#39;1970-01-01&#39;,
+    separated DATE NOT NULL DEFAULT &#39;9999-12-31&#39;,
+    job_code INT,
+    store_id INT
+)
+PARTITION BY LIST(store_id) (
+    PARTITION pNorth VALUES IN (3,5,6,9,17),
+    PARTITION pEast VALUES IN (1,2,10,11,19,20),
+    PARTITION pWest VALUES IN (4,12,13,14,18),
+    PARTITION pCentral VALUES IN (7,8,15,16)
+);
+</pre><p>
+        This makes it easy to add or drop employee records relating to
+        specific regions to or from the table. For instance, suppose
+        that all stores in the West region are sold to another company.
+        In MySQL 8.0, all rows relating to employees
+        working at stores in that region can be deleted with the query
+        <code class="literal">ALTER TABLE employees TRUNCATE PARTITION
+        pWest</code>, which can be executed much more efficiently
+        than the equivalent <a class="link" href="delete.html" title="13.2.2&nbsp;DELETE Statement"><code class="literal">DELETE</code></a>
+        statement <code class="literal">DELETE FROM employees WHERE store_id IN
+        (4,12,13,14,18);</code>. (Using <code class="literal">ALTER TABLE
+        employees DROP PARTITION pWest</code> would also delete all
+        of these rows, but would also remove the partition
+        <code class="literal">pWest</code> from the definition of the table; you
+        would need to use an <code class="literal">ALTER TABLE ... ADD
+        PARTITION</code> statement to restore the table&#39;s
+        original partitioning scheme.)
+      </p><p>
+        As with <code class="literal">RANGE</code> partitioning, it is possible to
+        combine <code class="literal">LIST</code> partitioning with partitioning
+        by hash or key to produce a composite partitioning
+        (subpartitioning). See
+        <a class="xref" href="partitioning-subpartitions.html" title="24.2.6&nbsp;Subpartitioning">Section&nbsp;24.2.6, &ldquo;Subpartitioning&rdquo;</a>.
+      </p><p>
+        Unlike the case with <code class="literal">RANGE</code> partitioning,
+        there is no <span class="quote">&ldquo;<span class="quote">catch-all</span>&rdquo;</span> such as
+        <code class="literal">MAXVALUE</code>; all expected values for the
+        partitioning expression should be covered in <code class="literal">PARTITION
+        ... VALUES IN (...)</code> clauses. An
+        <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> statement containing an
+        unmatched partitioning column value fails with an error, as
+        shown in this example:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE h2 (</code></strong>
+    -&gt;   <strong class="userinput"><code>c1 INT,</code></strong>
+    -&gt;   <strong class="userinput"><code>c2 INT</code></strong>
+    -&gt; <strong class="userinput"><code>)</code></strong>
+    -&gt; <strong class="userinput"><code>PARTITION BY LIST(c1) (</code></strong>
+    -&gt;   <strong class="userinput"><code>PARTITION p0 VALUES IN (1, 4, 7),</code></strong>
+    -&gt;   <strong class="userinput"><code>PARTITION p1 VALUES IN (2, 5, 8)</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.11 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT INTO h2 VALUES (3, 5);</code></strong>
+<span class="errortext">ERROR 1525 (HY000): Table has no partition for value 3</span>
+</pre><p>
+        When inserting multiple rows using a single
+        <a class="link" href="insert.html" title="13.2.7&nbsp;INSERT Statement"><code class="literal">INSERT</code></a> statement into a single
+        <a class="link" href="innodb-storage-engine.html" title="Chapter&nbsp;15&nbsp;The InnoDB Storage Engine"><code class="literal">InnoDB</code></a> table,
+        <code class="literal">InnoDB</code> considers the statement a single
+        transaction, so that the presence of any unmatched values causes
+        the statement to fail completely, and so no rows are inserted.
+      </p><p>
+        You can cause this type of error to be ignored by using the
+        <code class="literal">IGNORE</code> keyword, although a warning is issued
+        for each row containing unmatched partitioning column values, as
+        shown here.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>TRUNCATE h2;</code></strong>
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>TABLE h2;</code></strong>
+Empty set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>INSERT IGNORE INTO h2 VALUES (2, 5), (6, 10), (7, 5), (3, 1), (1, 9);</code></strong>
+Query OK, 3 rows affected, 2 warnings (0.01 sec)
+Records: 5  Duplicates: 2  Warnings: 2
+
+mysql&gt; <strong class="userinput"><code>SHOW WARNINGS;</code></strong>
++---------+------+------------------------------------+
+| Level   | Code | Message                            |
++---------+------+------------------------------------+
+| Warning | 1526 | Table has no partition for value 6 |
+| Warning | 1526 | Table has no partition for value 3 |
++---------+------+------------------------------------+
+2 rows in set (0.00 sec)
+</pre><p>
+        You can see in the output of the following
+        <a class="link" href="table.html" title="13.2.16&nbsp;TABLE Statement"><code class="literal">TABLE</code></a> statement that rows
+        containing unmatched partitioning column values were silently
+        rejected, while rows containing no unmatched values were
+        inserted into the table:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>TABLE h2;</code></strong>
++------+------+
+| c1   | c2   |
++------+------+
+|    7 |    5 |
+|    1 |    9 |
+|    2 |    5 |
++------+------+
+3 rows in set (0.00 sec)
+</pre><p>
+        MySQL also provides support for <code class="literal">LIST COLUMNS</code>
+        partitioning, a variant of <code class="literal">LIST</code> partitioning
+        that enables you to use columns of types other than integer for
+        partitioning columns, and to use multiple columns as
+        partitioning keys. For more information, see
+        <a class="xref" href="partitioning-columns-list.html" title="24.2.3.2&nbsp;LIST COLUMNS partitioning">Section&nbsp;24.2.3.2, &ldquo;LIST COLUMNS partitioning&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="partitioning-range.html">Previous <span class="navHint"> RANGE Partitioning </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="partitioning-types.html">Up <span class="navHint"> Partitioning Types </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="partitioning-columns.html">Next <span class="navHint"> COLUMNS Partitioning </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

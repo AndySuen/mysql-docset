@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>18.6.1 Communication Stack for Connection Security Management</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="group-replication-security.html" title="18.6 Group Replication Security" /><link rel="prev" href="group-replication-security.html" title="18.6 Group Replication Security" /><link rel="next" href="group-replication-secure-socket-layer-support-ssl.html" title="18.6.2 Securing Group Communication Connections with Secure Socket Layer (SSL)" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="group-replication-connection-security.html#group-replication-connection-security">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="group-replication-security.html">Previous <span class="navHint"> Group Replication Security </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="group-replication-security.html">Up <span class="navHint"> Group Replication Security </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="group-replication-secure-socket-layer-support-ssl.html">Next <span class="navHint"> Securing Group Communication Connections with Secure Socket Layer (SSL) </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="group-replication-connection-security"></a>18.6.1 Communication Stack for Connection Security Management</h3></div></div></div><p>
+      From MySQL 8.0.27, Group Replication can secure group
+      communication connections between members by one of the following
+      methods:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Using its own implementation of the security protocols,
+          including TLS/SSL and the use of an allowlist for incoming
+          Group Communication System (GCS) connections. This is the only
+          option for MySQL 8.0.26 and earlier.
+        </p></li><li class="listitem"><p>
+          Using MySQL Server’s own connection security in place of
+          Group Replication’s implementation. Using the MySQL protocol
+          means that standard methods of user authentication can be used
+          for granting (or revoking) access to the group in place of the
+          allowlist, and the latest functionality of the server’s
+          protocol is always available on release. This option is
+          available from MySQL 8.0.27.
+        </p></li></ul></div><p>
+      The choice is made by setting the system variable
+      <a class="link" href="group-replication-options.html#sysvar_group_replication_communication_stack"><code class="literal">group_replication_communication_stack</code></a>
+      to <code class="literal">XCOM</code> to use Group Replication's own
+      implementation (this is the default choice), or to
+      <code class="literal">MYSQL</code> to use MySQL Server's connection
+      security.
+    </p><p>
+      The following additional configuration is required for a
+      replication group to use the MySQL communication stack. It is
+      especially important to make sure these requirements are all
+      fulfilled when you switch from using the XCom communication stack
+      to the MySQL communication stack for your group.
+    </p><div class="itemizedlist"><a id="group-replication-configure-mysql-stack"></a><p class="title"><strong>Group Replication Requirements For The MySQL Communication Stack</strong></p><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          The network address configured by the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>
+          system variable for each group member must be set to one of
+          the IP addresses and ports that MySQL Server is listening on,
+          as specified by the
+          <a class="link" href="server-system-variables.html#sysvar_bind_address"><code class="literal">bind_address</code></a> system variable
+          for the server. The combination of IP address and port for
+          each member must be unique in the group. It is recommended
+          that the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_group_seeds"><code class="literal">group_replication_group_seeds</code></a>
+          system variable for each group member be configured to contain
+          all the local addresses for all the group members.
+        </p></li><li class="listitem"><p>
+          The MySQL communication stack supports network namespaces,
+          which the XCom communication stack does not support. If
+          network namespaces are used with the Group Replication local
+          addresses for the group members
+          (<a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>),
+          these must be configured for each group member using the
+          <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>
+          statement. Also, the
+          <a class="link" href="replication-options-replica.html#sysvar_report_host"><code class="literal">report_host</code></a> server
+          system variable for each group member must be set to report
+          the namespace. All group members must use the same namespace
+          to avoid possible issues with address resolution during
+          distributed recovery.
+        </p></li><li class="listitem"><p>
+          The
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_ssl_mode"><code class="literal">group_replication_ssl_mode</code></a>
+          system variable must be set to the required setting for group
+          communications. This system variable controls whether TLS/SSL
+          is enabled or disabled for group communications. For MySQL
+          8.0.26 and earlier, the TLS/SSL configuration is always taken
+          from the server’s SSL settings; for MySQL 8.0.27 and later,
+          when the MySQL communication stack is used, the TLS/SSL
+          configuration is taken from Group Replication’s distributed
+          recovery settings. This setting should be the same on all the
+          group members, to avoid potential conflicts.
+        </p></li><li class="listitem"><p>
+          The settings for the <a class="link" href="server-options.html#option_mysqld_ssl"><code class="option">--ssl</code></a> or
+          <a class="link" href="server-options.html#option_mysqld_ssl"><code class="option">--skip-ssl</code></a>
+          server option and for the
+          <a class="link" href="server-system-variables.html#sysvar_require_secure_transport"><code class="literal">require_secure_transport</code></a>
+          server system variable should be the same on all the group
+          members, to avoid potential conflicts. If
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_ssl_mode"><code class="literal">group_replication_ssl_mode</code></a> is
+          set to <code class="literal">REQUIRED</code>,
+          <code class="literal">VERIFY_CA</code>, or
+          <code class="literal">VERIFY_IDENTITY</code>, use
+          <a class="link" href="server-options.html#option_mysqld_ssl"><code class="option">--ssl</code></a> and
+          <a class="link" href="server-system-variables.html#sysvar_require_secure_transport"><code class="literal">require_secure_transport=ON</code></a>.
+          If <a class="link" href="group-replication-options.html#sysvar_group_replication_ssl_mode"><code class="literal">group_replication_ssl_mode</code></a>
+          is set to <code class="literal">DISABLED</code>,
+          use<a class="link" href="server-system-variables.html#sysvar_require_secure_transport"><code class="literal">
+          require_secure_transport=OFF</code></a>.
+        </p></li><li class="listitem"><p>
+          If TLS/SSL is enabled for group communications, Group
+          Replication’s settings for securing distributed recovery
+          must be configured if they are not already in place, or
+          validated if they already are. The MySQL communication stack
+          uses these settings not just for member-to-member distributed
+          recovery connections, but also for TLS/SSL configuration in
+          general group communications.
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_use_ssl"><code class="literal">group_replication_recovery_use_ssl</code></a>
+          and the other <code class="literal">group_replication_recovery_*</code>
+          system variables are explained in
+          <a class="xref" href="group-replication-configuring-ssl-for-recovery.html" title="18.6.3.2 Secure Socket Layer (SSL) Connections for Distributed Recovery">Section 18.6.3.2, “Secure Socket Layer (SSL) Connections for Distributed Recovery”</a>.
+        </p></li><li class="listitem"><p>
+          The Group Replication allowlist is not used when the group is
+          using the MySQL communication stack, so the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_ip_allowlist"><code class="literal">group_replication_ip_allowlist</code></a>
+          and
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_ip_whitelist"><code class="literal">group_replication_ip_whitelist</code></a>
+          system variables are ignored and need not be configured.
+        </p></li><li class="listitem"><p>
+          The replication user account that Group Replication uses for
+          distributed recovery, as configured using the
+          <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>
+          statement, is used for authentication by the MySQL
+          communication stack when setting up Group Replication
+          connections. This user account, which is the same on all group
+          members, must be given the following privileges:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              <a class="link" href="privileges-provided.html#priv_group-replication-stream"><code class="literal">GROUP_REPLICATION_STREAM</code></a>.
+              This privilege is required for the user account to be able
+              to establish connections for Group Replication using the
+              MySQL communication stack.
+            </p></li><li class="listitem"><p>
+              <a class="link" href="privileges-provided.html#priv_connection-admin"><code class="literal">CONNECTION_ADMIN</code></a>. This
+              privilege is required so that Group Replication
+              connections are not terminated if one of the servers
+              involved is placed in offline mode. If the MySQL
+              communication stack is in use without this privilege, a
+              member that is placed in offline mode is expelled from the
+              group.
+            </p></li></ul></div><p>
+          These are in addition to the privileges
+          <a class="link" href="privileges-provided.html#priv_replication-slave"><code class="literal">REPLICATION SLAVE</code></a> and
+          <a class="link" href="privileges-provided.html#priv_backup-admin"><code class="literal">BACKUP_ADMIN</code></a> that all
+          replication user accounts must have (see
+          <a class="xref" href="group-replication-user-credentials.html" title="18.2.1.3 User Credentials For Distributed Recovery">Section 18.2.1.3, “User Credentials For Distributed Recovery”</a>). When
+          you add the new privileges, ensure that you skip binary
+          logging on each group member by issuing <code class="literal">SET
+          SQL_LOG_BIN=0</code> before you issue the
+          <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statements, and
+          <code class="literal">SET SQL_LOG_BIN=1</code> after them, so that the
+          local transaction does not interfere with restarting Group
+          Replication.
+        </p></li></ul></div><p>
+      <a class="link" href="group-replication-options.html#sysvar_group_replication_communication_stack"><code class="literal">group_replication_communication_stack</code></a>
+      is effectively a group-wide configuration setting, and the setting
+      must be the same on all group members. However, this is not
+      policed by Group Replication’s own checks for group-wide
+      configuration settings. A member with a different value from the
+      rest of the group cannot communicate with the other members at
+      all, because the communication protocols are incompatible, so it
+      cannot exchange information about its configuration settings.
+    </p><p>
+      This means that although the value of the system variable can be
+      changed while Group Replication is running, and takes effect after
+      you restart Group Replication on the group member, the member
+      still cannot rejoin the group until the setting has been changed
+      on all the members. You must therefore stop Group Replication on
+      all of the members and change the value of the system variable on
+      them all before you can restart the group. Because all of the
+      members are stopped, a full reboot of the group (a bootstrap by a
+      server with
+      <a class="link" href="group-replication-options.html#sysvar_group_replication_bootstrap_group"><code class="literal">group_replication_bootstrap_group=ON</code></a>)
+      is required in order for the value change to take effect. You can
+      make the other required changes to settings on the group members
+      while they are stopped.
+    </p><p>
+      For a running group, follow this procedure to change the value of
+      <a class="link" href="group-replication-options.html#sysvar_group_replication_communication_stack"><code class="literal">group_replication_communication_stack</code></a>
+      and the other required settings to migrate a group from the XCom
+      communication stack to the MySQL communication stack, or from the
+      MySQL communication stack to the XCom communication stack:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Stop Group Replication on each of the group members, using a
+          <a class="link" href="stop-group-replication.html" title="13.4.3.2 STOP GROUP_REPLICATION Statement"><code class="literal">STOP GROUP_REPLICATION</code></a>
+          statement. Stop the primary member last, so that you do not
+          trigger a new primary election and have to wait for that to
+          complete.
+        </p></li><li class="listitem"><p>
+          On each of the group members, set the system variable
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_communication_stack"><code class="literal">group_replication_communication_stack</code></a>
+          to the new communication stack, <code class="literal">MYSQL</code> or
+          <code class="literal">XCOM</code> as appropriate. You can do this by
+          editing the MySQL Server configuration file (typically named
+          <code class="filename">my.cnf</code> on Linux and Unix systems, or
+          <code class="filename">my.ini</code> on Windows systems), or by using a
+          <a class="link" href="set.html" title="11.3.6 The SET Type"><code class="literal">SET</code></a> statement. For
+          example:
+        </p><pre class="programlisting">SET PERSIST group_replication_communication_stack="MYSQL";
+</pre></li><li class="listitem"><p>
+          If you are migrating the replication group from the XCom
+          communication stack (the default) to the MySQL communication
+          stack, on each of the group members, configure or reconfigure
+          the required system variables to appropriate settings, as
+          described in the listing above. For example, the
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>
+          system variable must be set to one of the IP addresses and
+          ports that MySQL Server is listening on. Also configure any
+          network namespaces using a <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE
+          REPLICATION SOURCE TO</code></a> statement.
+        </p></li><li class="listitem"><p>
+          If you are migrating the replication group from the XCom
+          communication stack (the default) to the MySQL communication
+          stack, on each of the group members, issue
+          <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statements to give the
+          replication user account the
+          <a class="link" href="privileges-provided.html#priv_group-replication-stream"><code class="literal">GROUP_REPLICATION_STREAM</code></a> and
+          <a class="link" href="privileges-provided.html#priv_connection-admin"><code class="literal">CONNECTION_ADMIN</code></a> privileges.
+          You will need to take the group members out of the read-only
+          state that is applied when Group Replication is stopped. Also
+          ensure that you skip binary logging on each group member by
+          issuing <code class="literal">SET SQL_LOG_BIN=0</code> before you issue
+          the <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statements, and
+          <code class="literal">SET SQL_LOG_BIN=1</code> after them, so that the
+          local transaction does not interfere with restarting Group
+          Replication. For example:
+        </p><pre class="programlisting">SET GLOBAL SUPER_READ_ONLY=OFF;
+SET SQL_LOG_BIN=0; 
+GRANT GROUP_REPLICATION_STREAM ON *.* TO rpl_user@'%';
+GRANT CONNECTION_ADMIN ON *.* TO rpl_user@'%';
+SET SQL_LOG_BIN=1;
+</pre></li><li class="listitem"><p>
+          If you are migrating the replication group from the MySQL
+          communication stack back to the XCom communication stack, on
+          each of the group members, reconfigure the system variables in
+          the requirements listing above to settings suitable for the
+          XCom communication stack.
+          <a class="xref" href="group-replication-options.html" title="18.9 Group Replication System Variables">Section 18.9, “Group Replication System Variables”</a> lists the system
+          variables with their defaults and requirements for the XCom
+          communication stack.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+                The XCom communication stack does not support network
+                namespaces, so the Group Replication local address
+                (<a class="link" href="group-replication-options.html#sysvar_group_replication_local_address"><code class="literal">group_replication_local_address</code></a>
+                system variable) cannot use these. Unset them by issuing
+                a <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+                TO</code></a> statement.
+              </p></li><li class="listitem"><p>
+                When you move back to the XCom communication stack, the
+                settings specified by
+                <a class="link" href="group-replication-options.html#sysvar_group_replication_recovery_use_ssl"><code class="literal">group_replication_recovery_use_ssl</code></a>
+                and the other
+                <code class="literal">group_replication_recovery_*</code> system
+                variables are not used to secure group communications.
+                Instead, the Group Replication system variable
+                <a class="link" href="group-replication-options.html#sysvar_group_replication_ssl_mode"><code class="literal">group_replication_ssl_mode</code></a>
+                is used to activate the use of SSL for group
+                communication connections and specify the security mode
+                for the connections, and the remainder of the
+                configuration is taken from the server's SSL
+                configuration. For details, see
+                <a class="xref" href="group-replication-secure-socket-layer-support-ssl.html" title="18.6.2 Securing Group Communication Connections with Secure Socket Layer (SSL)">Section 18.6.2, “Securing Group Communication Connections with Secure Socket Layer (SSL)”</a>.
+              </p></li></ul></div></div></li><li class="listitem"><p>
+          To restart the group, follow the process in
+          <a class="xref" href="group-replication-restarting-group.html" title="18.5.2 Restarting a Group">Section 18.5.2, “Restarting a Group”</a>, which
+          explains how to safely bootstrap a group where transactions
+          have been executed and certified. A bootstrap by a server with
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_bootstrap_group"><code class="literal">group_replication_bootstrap_group=ON</code></a>
+          is necessary to change the communication stack, because all of
+          the members must be shut down.
+        </p></li><li class="listitem"><p>
+          Members now connect to each other using the new communication
+          stack. Any server that has
+          <a class="link" href="group-replication-options.html#sysvar_group_replication_communication_stack"><code class="literal">group_replication_communication_stack</code></a>
+          set (or defaulted, in the case of XCom) to the previous
+          communication stack is no longer able to join the group. It is
+          important to note that because Group Replication cannot even
+          see the joining attempt, it does not check and reject the
+          joining member with an error message. Instead, the attempted
+          join fails silently when the previous communication stack
+          gives up trying to contact the new one.
+        </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="group-replication-security.html">Previous <span class="navHint"> Group Replication Security </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="group-replication-security.html">Up <span class="navHint"> Group Replication Security </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="group-replication-secure-socket-layer-support-ssl.html">Next <span class="navHint"> Securing Group Communication Connections with Secure Socket Layer (SSL) </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

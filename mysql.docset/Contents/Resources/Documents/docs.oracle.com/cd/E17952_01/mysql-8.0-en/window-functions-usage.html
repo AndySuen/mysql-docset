@@ -1,0 +1,285 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-4564"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/12.20.2%C2%A0Window%20Function%20Concepts%20and%20Syntax"></a><title>12.20.2&nbsp;Window Function Concepts and Syntax</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="window-functions.html" title="12.20&nbsp;Window Functions"/><link rel="prev" href="window-function-descriptions.html" title="12.20.1&nbsp;Window Function Descriptions"/><link rel="next" href="window-functions-frames.html" title="12.20.3&nbsp;Window Function Frame Specification"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="window-functions-usage.html#window-functions-usage">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="window-function-descriptions.html">Previous <span class="navHint"> Window Function Descriptions </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="window-functions.html">Up <span class="navHint"> Window Functions </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="window-functions-frames.html">Next <span class="navHint"> Window Function Frame Specification </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="window-functions-usage"></a>12.20.2&nbsp;Window Function Concepts and Syntax</h3></div></div></div><a id="idm45828918748368" class="indexterm"></a><p>
+        This section describes how to use window functions. Examples use
+        the same sales information data set as found in the discussion
+        of the <a class="link" href="miscellaneous-functions.html#function_grouping"><code class="literal">GROUPING()</code></a> function in
+        <a class="xref" href="group-by-modifiers.html" title="12.19.2&nbsp;GROUP BY Modifiers">Section&nbsp;12.19.2, &ldquo;GROUP BY Modifiers&rdquo;</a>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM sales ORDER BY country, year, product;</code></strong>
++------+---------+------------+--------+
+| year | country | product    | profit |
++------+---------+------------+--------+
+| 2000 | Finland | Computer   |   1500 |
+| 2000 | Finland | Phone      |    100 |
+| 2001 | Finland | Phone      |     10 |
+| 2000 | India   | Calculator |     75 |
+| 2000 | India   | Calculator |     75 |
+| 2000 | India   | Computer   |   1200 |
+| 2000 | USA     | Calculator |     75 |
+| 2000 | USA     | Computer   |   1500 |
+| 2001 | USA     | Calculator |     50 |
+| 2001 | USA     | Computer   |   1500 |
+| 2001 | USA     | Computer   |   1200 |
+| 2001 | USA     | TV         |    150 |
+| 2001 | USA     | TV         |    100 |
++------+---------+------------+--------+
+</pre><a id="idm45828918742736" class="indexterm"></a><a id="idm45828918741248" class="indexterm"></a><p>
+        A window function performs an aggregate-like operation on a set
+        of query rows. However, whereas an aggregate operation groups
+        query rows into a single result row, a window function produces
+        a result for each query row:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The row for which function evaluation occurs is called the
+            current row.
+          </p></li><li class="listitem"><p>
+            The query rows related to the current row over which
+            function evaluation occurs comprise the window for the
+            current row.
+          </p></li></ul></div><p>
+        For example, using the sales information table, these two
+        queries perform aggregate operations that produce a single
+        global sum for all rows taken as a group, and sums grouped per
+        country:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT SUM(profit) AS total_profit</code></strong>
+       <strong class="userinput"><code>FROM sales;</code></strong>
++--------------+
+| total_profit |
++--------------+
+|         7535 |
++--------------+
+mysql&gt; <strong class="userinput"><code>SELECT country, SUM(profit) AS country_profit</code></strong>
+       <strong class="userinput"><code>FROM sales</code></strong>
+       <strong class="userinput"><code>GROUP BY country</code></strong>
+       <strong class="userinput"><code>ORDER BY country;</code></strong>
++---------+----------------+
+| country | country_profit |
++---------+----------------+
+| Finland |           1610 |
+| India   |           1350 |
+| USA     |           4575 |
++---------+----------------+
+</pre><p>
+        By contrast, window operations do not collapse groups of query
+        rows to a single output row. Instead, they produce a result for
+        each row. Like the preceding queries, the following query uses
+        <a class="link" href="aggregate-functions.html#function_sum"><code class="literal">SUM()</code></a>, but this time as a window
+        function:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+         <strong class="userinput"><code>year, country, product, profit,</code></strong>
+         <strong class="userinput"><code>SUM(profit) OVER() AS total_profit,</code></strong>
+         <strong class="userinput"><code>SUM(profit) OVER(PARTITION BY country) AS country_profit</code></strong>
+       <strong class="userinput"><code>FROM sales</code></strong>
+       <strong class="userinput"><code>ORDER BY country, year, product, profit;</code></strong>
++------+---------+------------+--------+--------------+----------------+
+| year | country | product    | profit | total_profit | country_profit |
++------+---------+------------+--------+--------------+----------------+
+| 2000 | Finland | Computer   |   1500 |         7535 |           1610 |
+| 2000 | Finland | Phone      |    100 |         7535 |           1610 |
+| 2001 | Finland | Phone      |     10 |         7535 |           1610 |
+| 2000 | India   | Calculator |     75 |         7535 |           1350 |
+| 2000 | India   | Calculator |     75 |         7535 |           1350 |
+| 2000 | India   | Computer   |   1200 |         7535 |           1350 |
+| 2000 | USA     | Calculator |     75 |         7535 |           4575 |
+| 2000 | USA     | Computer   |   1500 |         7535 |           4575 |
+| 2001 | USA     | Calculator |     50 |         7535 |           4575 |
+| 2001 | USA     | Computer   |   1200 |         7535 |           4575 |
+| 2001 | USA     | Computer   |   1500 |         7535 |           4575 |
+| 2001 | USA     | TV         |    100 |         7535 |           4575 |
+| 2001 | USA     | TV         |    150 |         7535 |           4575 |
++------+---------+------------+--------+--------------+----------------+
+</pre><a id="idm45828918722384" class="indexterm"></a><p>
+        Each window operation in the query is signified by inclusion of
+        an <code class="literal">OVER</code> clause that specifies how to
+        partition query rows into groups for processing by the window
+        function:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            The first <code class="literal">OVER</code> clause is empty, which
+            treats the entire set of query rows as a single partition.
+            The window function thus produces a global sum, but does so
+            for each row.
+          </p></li><li class="listitem"><p>
+            The second <code class="literal">OVER</code> clause partitions rows by
+            country, producing a sum per partition (per country). The
+            function produces this sum for each partition row.
+          </p></li></ul></div><p>
+        Window functions are permitted only in the select list and
+        <code class="literal">ORDER BY</code> clause. Query result rows are
+        determined from the <code class="literal">FROM</code> clause, after
+        <code class="literal">WHERE</code>, <code class="literal">GROUP BY</code>, and
+        <code class="literal">HAVING</code> processing, and windowing execution
+        occurs before <code class="literal">ORDER BY</code>,
+        <code class="literal">LIMIT</code>, and <code class="literal">SELECT
+        DISTINCT</code>.
+      </p><p>
+        The <code class="literal">OVER</code> clause is permitted for many
+        aggregate functions, which therefore can be used as window or
+        nonwindow functions, depending on whether the
+        <code class="literal">OVER</code> clause is present or absent:
+      </p><pre class="programlisting">AVG()
+BIT_AND()
+BIT_OR()
+BIT_XOR()
+COUNT()
+JSON_ARRAYAGG()
+JSON_OBJECTAGG()
+MAX()
+MIN()
+STDDEV_POP(), STDDEV(), STD()
+STDDEV_SAMP()
+SUM()
+VAR_POP(), VARIANCE()
+VAR_SAMP()
+</pre><p>
+        For details about each aggregate function, see
+        <a class="xref" href="aggregate-functions.html" title="12.19.1&nbsp;Aggregate Function Descriptions">Section&nbsp;12.19.1, &ldquo;Aggregate Function Descriptions&rdquo;</a>.
+      </p><p>
+        MySQL also supports nonaggregate functions that are used only as
+        window functions. For these, the <code class="literal">OVER</code> clause
+        is mandatory:
+      </p><pre class="programlisting">CUME_DIST()
+DENSE_RANK()
+FIRST_VALUE()
+LAG()
+LAST_VALUE()
+LEAD()
+NTH_VALUE()
+NTILE()
+PERCENT_RANK()
+RANK()
+ROW_NUMBER()
+</pre><p>
+        For details about each nonaggregate function, see
+        <a class="xref" href="window-function-descriptions.html" title="12.20.1&nbsp;Window Function Descriptions">Section&nbsp;12.20.1, &ldquo;Window Function Descriptions&rdquo;</a>.
+      </p><p>
+        As an example of one of those nonaggregate window functions,
+        this query uses <a class="link" href="window-function-descriptions.html#function_row-number"><code class="literal">ROW_NUMBER()</code></a>,
+        which produces the row number of each row within its partition.
+        In this case, rows are numbered per country. By default,
+        partition rows are unordered and row numbering is
+        nondeterministic. To sort partition rows, include an
+        <code class="literal">ORDER BY</code> clause within the window definition.
+        The query uses unordered and ordered partitions (the
+        <code class="literal">row_num1</code> and <code class="literal">row_num2</code>
+        columns) to illustrate the difference between omitting and
+        including <code class="literal">ORDER BY</code>:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+         <strong class="userinput"><code>year, country, product, profit,</code></strong>
+         <strong class="userinput"><code>ROW_NUMBER() OVER(PARTITION BY country) AS row_num1,</code></strong>
+         <strong class="userinput"><code>ROW_NUMBER() OVER(PARTITION BY country ORDER BY year, product) AS row_num2</code></strong>
+       <strong class="userinput"><code>FROM sales;</code></strong>
++------+---------+------------+--------+----------+----------+
+| year | country | product    | profit | row_num1 | row_num2 |
++------+---------+------------+--------+----------+----------+
+| 2000 | Finland | Computer   |   1500 |        2 |        1 |
+| 2000 | Finland | Phone      |    100 |        1 |        2 |
+| 2001 | Finland | Phone      |     10 |        3 |        3 |
+| 2000 | India   | Calculator |     75 |        2 |        1 |
+| 2000 | India   | Calculator |     75 |        3 |        2 |
+| 2000 | India   | Computer   |   1200 |        1 |        3 |
+| 2000 | USA     | Calculator |     75 |        5 |        1 |
+| 2000 | USA     | Computer   |   1500 |        4 |        2 |
+| 2001 | USA     | Calculator |     50 |        2 |        3 |
+| 2001 | USA     | Computer   |   1500 |        3 |        4 |
+| 2001 | USA     | Computer   |   1200 |        7 |        5 |
+| 2001 | USA     | TV         |    150 |        1 |        6 |
+| 2001 | USA     | TV         |    100 |        6 |        7 |
++------+---------+------------+--------+----------+----------+
+</pre><p>
+        As mentioned previously, to use a window function (or treat an
+        aggregate function as a window function), include an
+        <code class="literal">OVER</code> clause following the function call. The
+        <code class="literal">OVER</code> clause has two forms:
+      </p><pre class="programlisting"><em class="replaceable"><code>over_clause</code></em>:
+    {OVER (<em class="replaceable"><code>window_spec</code></em>) | OVER <em class="replaceable"><code>window_name</code></em>}
+</pre><p>
+        Both forms define how the window function should process query
+        rows. They differ in whether the window is defined directly in
+        the <code class="literal">OVER</code> clause, or supplied by a reference
+        to a named window defined elsewhere in the query:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            In the first case, the window specification appears directly
+            in the <code class="literal">OVER</code> clause, between the
+            parentheses.
+          </p></li><li class="listitem"><p>
+            In the second case, <em class="replaceable"><code>window_name</code></em>
+            is the name for a window specification defined by a
+            <code class="literal">WINDOW</code> clause elsewhere in the query. For
+            details, see
+            <a class="xref" href="window-functions-named-windows.html" title="12.20.4&nbsp;Named Windows">Section&nbsp;12.20.4, &ldquo;Named Windows&rdquo;</a>.
+          </p></li></ul></div><p>
+        For <code class="literal">OVER
+        (<em class="replaceable"><code>window_spec</code></em>)</code> syntax, the
+        window specification has several parts, all optional:
+      </p><pre class="programlisting"><em class="replaceable"><code>window_spec</code></em>:
+    [<em class="replaceable"><code>window_name</code></em>] [<em class="replaceable"><code>partition_clause</code></em>] [<em class="replaceable"><code>order_clause</code></em>] [<em class="replaceable"><code>frame_clause</code></em>]
+</pre><p>
+        If <code class="literal">OVER()</code> is empty, the window consists of
+        all query rows and the window function computes a result using
+        all rows. Otherwise, the clauses present within the parentheses
+        determine which query rows are used to compute the function
+        result and how they are partitioned and ordered:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <em class="replaceable"><code>window_name</code></em>: The name of a window
+            defined by a <code class="literal">WINDOW</code> clause elsewhere in
+            the query. If <em class="replaceable"><code>window_name</code></em> appears
+            by itself within the <code class="literal">OVER</code> clause, it
+            completely defines the window. If partitioning, ordering, or
+            framing clauses are also given, they modify interpretation
+            of the named window. For details, see
+            <a class="xref" href="window-functions-named-windows.html" title="12.20.4&nbsp;Named Windows">Section&nbsp;12.20.4, &ldquo;Named Windows&rdquo;</a>.
+          </p></li><li class="listitem"><p>
+            <em class="replaceable"><code>partition_clause</code></em>: A
+            <code class="literal">PARTITION BY</code> clause indicates how to
+            divide the query rows into groups. The window function
+            result for a given row is based on the rows of the partition
+            that contains the row. If <code class="literal">PARTITION BY</code> is
+            omitted, there is a single partition consisting of all query
+            rows.
+          </p><a id="idm45828918667536" class="indexterm"></a><a id="idm45828918666048" class="indexterm"></a><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              Partitioning for window functions differs from table
+              partitioning. For information about table partitioning,
+              see <a class="xref" href="partitioning.html" title="Chapter&nbsp;24&nbsp;Partitioning">Chapter&nbsp;24, <em>Partitioning</em></a>.
+            </p></div><p>
+            <em class="replaceable"><code>partition_clause</code></em> has this syntax:
+          </p><pre class="programlisting"><em class="replaceable"><code>partition_clause</code></em>:
+    PARTITION BY <em class="replaceable"><code>expr</code></em> [, <em class="replaceable"><code>expr</code></em>] ...
+</pre><p>
+            Standard SQL requires <code class="literal">PARTITION BY</code> to be
+            followed by column names only. A MySQL extension is to
+            permit expressions, not just column names. For example, if a
+            table contains a <a class="link" href="datetime.html" title="11.2.2&nbsp;The DATE, DATETIME, and TIMESTAMP Types"><code class="literal">TIMESTAMP</code></a>
+            column named <code class="literal">ts</code>, standard SQL permits
+            <code class="literal">PARTITION BY ts</code> but not
+            <code class="literal">PARTITION BY HOUR(ts)</code>, whereas MySQL
+            permits both.
+          </p></li><li class="listitem"><p>
+            <em class="replaceable"><code>order_clause</code></em>: An <code class="literal">ORDER
+            BY</code> clause indicates how to sort rows in each
+            partition. Partition rows that are equal according to the
+            <code class="literal">ORDER BY</code> clause are considered peers. If
+            <code class="literal">ORDER BY</code> is omitted, partition rows are
+            unordered, with no processing order implied, and all
+            partition rows are peers.
+          </p><a id="idm45828918651584" class="indexterm"></a><a id="idm45828918650096" class="indexterm"></a><p>
+            <em class="replaceable"><code>order_clause</code></em> has this syntax:
+          </p><pre class="programlisting"><em class="replaceable"><code>order_clause</code></em>:
+    ORDER BY <em class="replaceable"><code>expr</code></em> [ASC|DESC] [, <em class="replaceable"><code>expr</code></em> [ASC|DESC]] ...
+</pre><p>
+            Each <code class="literal">ORDER BY</code> expression optionally can
+            be followed by <code class="literal">ASC</code> or
+            <code class="literal">DESC</code> to indicate sort direction. The
+            default is <code class="literal">ASC</code> if no direction is
+            specified. <code class="literal">NULL</code> values sort first for
+            ascending sorts, last for descending sorts.
+          </p><p>
+            An <code class="literal">ORDER BY</code> in a window definition
+            applies within individual partitions. To sort the result set
+            as a whole, include an <code class="literal">ORDER BY</code> at the
+            query top level.
+          </p></li><li class="listitem"><p>
+            <em class="replaceable"><code>frame_clause</code></em>: A frame is a subset
+            of the current partition and the frame clause specifies how
+            to define the subset. The frame clause has many subclauses
+            of its own. For details, see
+            <a class="xref" href="window-functions-frames.html" title="12.20.3&nbsp;Window Function Frame Specification">Section&nbsp;12.20.3, &ldquo;Window Function Frame Specification&rdquo;</a>.
+          </p><a id="idm45828918637296" class="indexterm"></a></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="window-function-descriptions.html">Previous <span class="navHint"> Window Function Descriptions </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="window-functions.html">Up <span class="navHint"> Window Functions </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="window-functions-frames.html">Next <span class="navHint"> Window Function Frame Specification </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

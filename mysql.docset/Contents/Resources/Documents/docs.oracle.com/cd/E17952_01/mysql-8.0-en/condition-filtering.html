@@ -1,0 +1,165 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-353"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.13%C2%A0Condition%20Filtering"></a><title>8.2.1.13&nbsp;Condition Filtering</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="bnl-bka-optimization.html" title="8.2.1.12&nbsp;Block Nested-Loop and Batched Key Access Joins"/><link rel="next" href="constant-folding-optimization.html" title="8.2.1.14&nbsp;Constant-Folding Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="condition-filtering.html#condition-filtering">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="bnl-bka-optimization.html">Previous <span class="navHint"> Block Nested-Loop and Batched Key Access Joins </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="constant-folding-optimization.html">Next <span class="navHint"> Constant-Folding Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-352"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.13%C2%A0Condition%20Filtering"></a><h4 class="title"><a id="condition-filtering"></a>8.2.1.13&nbsp;Condition Filtering</h4></div></div></div><p>
+          In join processing, prefix rows are those rows passed from one
+          table in a join to the next. In general, the optimizer
+          attempts to put tables with low prefix counts early in the
+          join order to keep the number of row combinations from
+          increasing rapidly. To the extent that the optimizer can use
+          information about conditions on rows selected from one table
+          and passed to the next, the more accurately it can compute row
+          estimates and choose the best execution plan.
+        </p><p>
+          Without condition filtering, the prefix row count for a table
+          is based on the estimated number of rows selected by the
+          <code class="literal">WHERE</code> clause according to whichever access
+          method the optimizer chooses. Condition filtering enables the
+          optimizer to use other relevant conditions in the
+          <code class="literal">WHERE</code> clause not taken into account by the
+          access method, and thus improve its prefix row count
+          estimates. For example, even though there might be an
+          index-based access method that can be used to select rows from
+          the current table in a join, there might also be additional
+          conditions for the table in the <code class="literal">WHERE</code>
+          clause that can filter (further restrict) the estimate for
+          qualifying rows passed to the next table.
+        </p><p>
+          A condition contributes to the filtering estimate only if:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              It refers to the current table.
+            </p></li><li class="listitem"><p>
+              It depends on a constant value or values from earlier
+              tables in the join sequence.
+            </p></li><li class="listitem"><p>
+              It was not already taken into account by the access
+              method.
+            </p></li></ul></div><p>
+          In <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> output, the
+          <code class="literal">rows</code> column indicates the row estimate for
+          the chosen access method, and the <code class="literal">filtered</code>
+          column reflects the effect of condition filtering.
+          <code class="literal">filtered</code> values are expressed as
+          percentages. The maximum value is 100, which means no
+          filtering of rows occurred. Values decreasing from 100
+          indicate increasing amounts of filtering.
+        </p><p>
+          The prefix row count (the number of rows estimated to be
+          passed from the current table in a join to the next) is the
+          product of the <code class="literal">rows</code> and
+          <code class="literal">filtered</code> values. That is, the prefix row
+          count is the estimated row count, reduced by the estimated
+          filtering effect. For example, if <code class="literal">rows</code> is
+          1000 and <code class="literal">filtered</code> is 20%, condition
+          filtering reduces the estimated row count of 1000 to a prefix
+          row count of 1000 &times; 20% = 1000 &times; .2 = 200.
+        </p><p>
+          Consider the following query:
+        </p><pre class="programlisting">SELECT *
+  FROM employee JOIN department ON employee.dept_no = department.dept_no
+  WHERE employee.first_name = &#39;John&#39;
+  AND employee.hire_date BETWEEN &#39;2018-01-01&#39; AND &#39;2018-06-01&#39;;
+</pre><p>
+          Suppose that the data set has these characteristics:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              The <code class="literal">employee</code> table has 1024 rows.
+            </p></li><li class="listitem"><p>
+              The <code class="literal">department</code> table has 12 rows.
+            </p></li><li class="listitem"><p>
+              Both tables have an index on <code class="literal">dept_no</code>.
+            </p></li><li class="listitem"><p>
+              The <code class="literal">employee</code> table has an index on
+              <code class="literal">first_name</code>.
+            </p></li><li class="listitem"><p>
+              8 rows satisfy this condition on
+              <code class="literal">employee.first_name</code>:
+            </p><pre class="programlisting">employee.first_name = &#39;John&#39;
+</pre></li><li class="listitem"><p>
+              150 rows satisfy this condition on
+              <code class="literal">employee.hire_date</code>:
+            </p><pre class="programlisting">employee.hire_date BETWEEN &#39;2018-01-01&#39; AND &#39;2018-06-01&#39;
+</pre></li><li class="listitem"><p>
+              1 row satisfies both conditions:
+            </p><pre class="programlisting">employee.first_name = &#39;John&#39;
+AND employee.hire_date BETWEEN &#39;2018-01-01&#39; AND &#39;2018-06-01&#39;
+</pre></li></ul></div><p>
+          Without condition filtering,
+          <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> produces output like
+          this:
+        </p><pre class="programlisting">+----+------------+--------+------------------+---------+---------+------+----------+
+| id | table      | type   | possible_keys    | key     | ref     | rows | filtered |
++----+------------+--------+------------------+---------+---------+------+----------+
+| 1  | employee   | ref    | name,h_date,dept | name    | const   | 8    | 100.00   |
+| 1  | department | eq_ref | PRIMARY          | PRIMARY | dept_no | 1    | 100.00   |
++----+------------+--------+------------------+---------+---------+------+----------+
+</pre><p>
+          For <code class="literal">employee</code>, the access method on the
+          <code class="literal">name</code> index picks up the 8 rows that match a
+          name of <code class="literal">&#39;John&#39;</code>. No filtering is done
+          (<code class="literal">filtered</code> is 100%), so all rows are prefix
+          rows for the next table: The prefix row count is
+          <code class="literal">rows</code> &times; <code class="literal">filtered</code> =
+          8 &times; 100% = 8.
+        </p><p>
+          With condition filtering, the optimizer additionally takes
+          into account conditions from the <code class="literal">WHERE</code>
+          clause not taken into account by the access method. In this
+          case, the optimizer uses heuristics to estimate a filtering
+          effect of 16.31% for the <a class="link" href="comparison-operators.html#operator_between"><code class="literal">BETWEEN</code></a>
+          condition on <code class="literal">employee.hire_date</code>. As a
+          result, <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a> produces output
+          like this:
+        </p><pre class="programlisting">+----+------------+--------+------------------+---------+---------+------+----------+
+| id | table      | type   | possible_keys    | key     | ref     | rows | filtered |
++----+------------+--------+------------------+---------+---------+------+----------+
+| 1  | employee   | ref    | name,h_date,dept | name    | const   | 8    | 16.31    |
+| 1  | department | eq_ref | PRIMARY          | PRIMARY | dept_no | 1    | 100.00   |
++----+------------+--------+------------------+---------+---------+------+----------+
+</pre><p>
+          Now the prefix row count is <code class="literal">rows</code> &times;
+          <code class="literal">filtered</code> = 8 &times; 16.31% = 1.3, which
+          more closely reflects actual data set.
+        </p><p>
+          Normally, the optimizer does not calculate the condition
+          filtering effect (prefix row count reduction) for the last
+          joined table because there is no next table to pass rows to.
+          An exception occurs for
+          <a class="link" href="explain.html" title="13.8.2&nbsp;EXPLAIN Statement"><code class="literal">EXPLAIN</code></a>: To provide more
+          information, the filtering effect is calculated for all joined
+          tables, including the last one.
+        </p><p>
+          To control whether the optimizer considers additional
+          filtering conditions, use the
+          <a class="link" href="switchable-optimizations.html#optflag_condition-fanout-filter"><code class="literal">condition_fanout_filter</code></a> flag
+          of the <a class="link" href="server-system-variables.html#sysvar_optimizer_switch"><code class="literal">optimizer_switch</code></a>
+          system variable (see
+          <a class="xref" href="switchable-optimizations.html" title="8.9.2&nbsp;Switchable Optimizations">Section&nbsp;8.9.2, &ldquo;Switchable Optimizations&rdquo;</a>). This flag is
+          enabled by default but can be disabled to suppress condition
+          filtering (for example, if a particular query is found to
+          yield better performance without it).
+        </p><p>
+          If the optimizer overestimates the effect of condition
+          filtering, performance may be worse than if condition
+          filtering is not used. In such cases, these techniques may
+          help:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+              If a column is not indexed, index it so that the optimizer
+              has some information about the distribution of column
+              values and can improve its row estimates.
+            </p></li><li class="listitem"><p>
+              Similarly, if no column histogram information is
+              available, generate a histogram (see
+              <a class="xref" href="optimizer-statistics.html" title="8.9.6&nbsp;Optimizer Statistics">Section&nbsp;8.9.6, &ldquo;Optimizer Statistics&rdquo;</a>).
+            </p></li><li class="listitem"><p>
+              Change the join order. Ways to accomplish this include
+              join-order optimizer hints (see
+              <a class="xref" href="optimizer-hints.html" title="8.9.3&nbsp;Optimizer Hints">Section&nbsp;8.9.3, &ldquo;Optimizer Hints&rdquo;</a>),
+              <code class="literal">STRAIGHT_JOIN</code> immediately following the
+              <code class="literal">SELECT</code>, and the
+              <code class="literal">STRAIGHT_JOIN</code> join operator.
+            </p></li><li class="listitem"><p>
+              Disable condition filtering for the session:
+            </p><pre class="programlisting">SET optimizer_switch = &#39;condition_fanout_filter=off&#39;;
+</pre><p>
+              Or, for a given query, using an optimizer hint:
+            </p><pre class="programlisting">SELECT /*+ SET_VAR(optimizer_switch = &#39;condition_fanout_filter=off&#39;) */ ...
+</pre></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="bnl-bka-optimization.html">Previous <span class="navHint"> Block Nested-Loop and Batched Key Access Joins </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="constant-folding-optimization.html">Next <span class="navHint"> Constant-Folding Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

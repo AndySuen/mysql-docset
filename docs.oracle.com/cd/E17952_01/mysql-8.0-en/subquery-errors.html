@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>13.2.15.10 Subquery Errors</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="subqueries.html" title="13.2.15 Subqueries" /><link rel="prev" href="lateral-derived-tables.html" title="13.2.15.9 Lateral Derived Tables" /><link rel="next" href="optimizing-subqueries.html" title="13.2.15.11 Optimizing Subqueries" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="subquery-errors.html#subquery-errors">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="lateral-derived-tables.html">Previous <span class="navHint"> Lateral Derived Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="optimizing-subqueries.html">Next <span class="navHint"> Optimizing Subqueries </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="subquery-errors"></a>13.2.15.10 Subquery Errors</h4></div></div></div><a id="idm45828906075104" class="indexterm"></a><a id="idm45828906073616" class="indexterm"></a><p>
+        There are some errors that apply only to subqueries. This
+        section describes them.
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Unsupported subquery syntax:
+          </p><pre class="programlisting">ERROR 1235 (ER_NOT_SUPPORTED_YET)
+SQLSTATE = 42000
+Message = "This version of MySQL doesn't yet support
+'LIMIT &amp; IN/ALL/ANY/SOME subquery'"
+</pre><p>
+            This means that MySQL does not support statements like the
+            following:
+          </p><pre class="programlisting">SELECT * FROM t1 WHERE s1 IN (SELECT s2 FROM t2 ORDER BY s1 LIMIT 1)
+</pre></li><li class="listitem"><p>
+            Incorrect number of columns from subquery:
+          </p><pre class="programlisting">ERROR 1241 (ER_OPERAND_COL)
+SQLSTATE = 21000
+Message = "Operand should contain 1 column(s)"
+</pre><p>
+            This error occurs in cases like this:
+          </p><pre class="programlisting">SELECT (SELECT column1, column2 FROM t2) FROM t1;
+</pre><p>
+            You may use a subquery that returns multiple columns, if the
+            purpose is row comparison. In other contexts, the subquery
+            must be a scalar operand. See
+            <a class="xref" href="row-subqueries.html" title="13.2.15.5 Row Subqueries">Section 13.2.15.5, “Row Subqueries”</a>.
+          </p></li><li class="listitem"><p>
+            Incorrect number of rows from subquery:
+          </p><pre class="programlisting">ERROR 1242 (ER_SUBSELECT_NO_1_ROW)
+SQLSTATE = 21000
+Message = "Subquery returns more than 1 row"
+</pre><p>
+            This error occurs for statements where the subquery must
+            return at most one row but returns multiple rows. Consider
+            the following example:
+          </p><pre class="programlisting">SELECT * FROM t1 WHERE column1 = (SELECT column1 FROM t2);
+</pre><p>
+            If <code class="literal">SELECT column1 FROM t2</code> returns just
+            one row, the previous query works. If the subquery returns
+            more than one row, error 1242 occurs. In that case, the
+            query should be rewritten as:
+          </p><pre class="programlisting">SELECT * FROM t1 WHERE column1 = ANY (SELECT column1 FROM t2);
+</pre></li><li class="listitem"><p>
+            Incorrectly used table in subquery:
+          </p><pre class="programlisting">Error 1093 (ER_UPDATE_TABLE_USED)
+SQLSTATE = HY000
+Message = "You can't specify target table 'x'
+for update in FROM clause"
+</pre><p>
+            This error occurs in cases such as the following, which
+            attempts to modify a table and select from the same table in
+            the subquery:
+          </p><pre class="programlisting">UPDATE t1 SET column2 = (SELECT MAX(column1) FROM t1);
+</pre><p>
+            You can use a common table expression or derived table to
+            work around this. See
+            <a class="xref" href="subquery-restrictions.html" title="13.2.15.12 Restrictions on Subqueries">Section 13.2.15.12, “Restrictions on Subqueries”</a>.
+          </p></li></ul></div><p>
+        In MySQL 8.0.19 and later, all of the errors described in this
+        section also apply when using
+        <a class="link" href="table.html" title="13.2.16 TABLE Statement"><code class="literal">TABLE</code></a> in subqueries.
+      </p><p>
+        For transactional storage engines, the failure of a subquery
+        causes the entire statement to fail. For nontransactional
+        storage engines, data modifications made before the error was
+        encountered are preserved.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="lateral-derived-tables.html">Previous <span class="navHint"> Lateral Derived Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="subqueries.html">Up <span class="navHint"> Subqueries </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="optimizing-subqueries.html">Next <span class="navHint"> Optimizing Subqueries </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.5.1.34 Replication and Transaction Inconsistencies</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-features.html" title="17.5.1 Replication Features and Issues" /><link rel="prev" href="replication-features-timezone.html" title="17.5.1.33 Replication and Time Zones" /><link rel="next" href="replication-features-transactions.html" title="17.5.1.35 Replication and Transactions" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-transaction-inconsistencies.html#replication-features-transaction-inconsistencies">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-features-timezone.html">Previous <span class="navHint"> Replication and Time Zones </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-features-transactions.html">Next <span class="navHint"> Replication and Transactions </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-features-transaction-inconsistencies"></a>17.5.1.34 Replication and Transaction Inconsistencies</h4></div></div></div><p>
+        Inconsistencies in the sequence of transactions that have been
+        executed from the relay log can occur depending on your
+        replication configuration. This section explains how to avoid
+        inconsistencies and solve any problems they cause.
+      </p><p>
+        The following types of inconsistencies can exist:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <span class="emphasis"><em>Half-applied transactions</em></span>. A
+            transaction which updates non-transactional tables has
+            applied some but not all of its changes.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Gaps</em></span>. A gap in the externalized
+            transaction set appears when, given an ordered sequence of
+            transactions, a transaction that is later in the sequence is
+            applied before some other transaction that is prior in the
+            sequence. Gaps can only appear when using a multithreaded
+            replica.
+          </p><p>
+            To avoid gaps occurring on a multithreaded replica, set
+            <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order=ON</code></a>
+            (from MySQL 8.0.26) or
+            <a class="link" href="replication-options-replica.html#sysvar_slave_preserve_commit_order"><code class="literal">slave_preserve_commit_order=ON</code></a>
+            (before MySQL 8.0.26). From MySQL 8.0.27, this setting is
+            the default, because all replicas are multithreaded by
+            default from that release.
+          </p><p>
+            Up to and including MySQL 8.0.18, preserving the commit
+            order requires that binary logging
+            (<a class="link" href="replication-options-binary-log.html#sysvar_log_bin"><code class="literal">log_bin</code></a>) and replica
+            update logging
+            (<a class="link" href="replication-options-binary-log.html#sysvar_log_replica_updates"><code class="literal">log_replica_updates</code></a> or
+            <a class="link" href="replication-options-binary-log.html#sysvar_log_slave_updates"><code class="literal">log_slave_updates</code></a>) are also
+            enabled, which are the default settings from MySQL 8.0. From
+            MySQL 8.0.19, binary logging and replica update logging are
+            not required on the replica to set
+            <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order=ON</code></a>
+            or
+            <a class="link" href="replication-options-replica.html#sysvar_slave_preserve_commit_order"><code class="literal">slave_preserve_commit_order=ON</code></a>,
+            and can be disabled if wanted.
+          </p><p>
+            In all releases, setting
+            <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order=ON</code></a>
+            or
+            <a class="link" href="replication-options-replica.html#sysvar_slave_preserve_commit_order"><code class="literal">slave_preserve_commit_order=ON</code></a>
+            requires that
+            <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_type"><code class="literal">replica_parallel_type</code></a> (from
+            MySQL 8.0.26) or
+            <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_type"><code class="literal">slave_parallel_type</code></a> (before
+            MySQL 8.0.26) is set to <code class="literal">LOGICAL_CLOCK</code>.
+            From MySQL 8.0.27 (but not for earlier releases), this is
+            the default setting.
+          </p><p>
+            In some specific situations, as listed in the description
+            for
+            <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order</code></a>
+            and
+            <a class="link" href="replication-options-replica.html#sysvar_slave_preserve_commit_order"><code class="literal">slave_preserve_commit_order</code></a>,
+            setting
+            <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order=ON</code></a>
+            or
+            <a class="link" href="replication-options-replica.html#sysvar_slave_preserve_commit_order"><code class="literal">slave_preserve_commit_order=ON</code></a>
+            cannot preserve commit order on the replica, so in these
+            cases gaps might still appear in the sequence of
+            transactions that have been executed from the replica's
+            relay log.
+          </p><p>
+            Setting <code class="literal">replica_preserve_commit_order=ON</code>
+            or <code class="literal">slave_preserve_commit_order=ON</code> does
+            not prevent source binary log position lag.
+          </p></li><li class="listitem"><p>
+            <span class="emphasis"><em>Source binary log position lag</em></span>. Even in
+            the absence of gaps, it is possible that transactions after
+            <code class="literal">Exec_master_log_pos</code> have been applied.
+            That is, all transactions up to point <code class="literal">N</code>
+            have been applied, and no transactions after
+            <code class="literal">N</code> have been applied, but
+            <code class="literal">Exec_master_log_pos</code> has a value smaller
+            than <code class="literal">N</code>. In this situation,
+            <code class="literal">Exec_master_log_pos</code> is a <span class="quote">“<span class="quote">low-water
+            mark</span>”</span> of the transactions applied, and lags behind
+            the position of the most recently applied transaction. This
+            can only happen on multithreaded replicas. Enabling
+            <a class="link" href="replication-options-replica.html#sysvar_replica_preserve_commit_order"><code class="literal">replica_preserve_commit_order</code></a>
+            or
+            <a class="link" href="replication-options-replica.html#sysvar_slave_preserve_commit_order"><code class="literal">slave_preserve_commit_order</code></a>
+            does not prevent source binary log position lag.
+          </p></li></ul></div><p>
+        The following scenarios are relevant to the existence of
+        half-applied transactions, gaps, and source binary log position
+        lag:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            While replication threads are running, there may be gaps and
+            half-applied transactions.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> shuts down. Both clean and unclean
+            shutdown abort ongoing transactions and may leave gaps and
+            half-applied transactions.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="kill.html" title="13.7.8.4 KILL Statement"><code class="literal">KILL</code></a> of replication threads
+            (the SQL thread when using a single-threaded replica, the
+            coordinator thread when using a multithreaded replica). This
+            aborts ongoing transactions and may leave gaps and
+            half-applied transactions.
+          </p></li><li class="listitem"><p>
+            Error in applier threads. This may leave gaps. If the error
+            is in a mixed transaction, that transaction is half-applied.
+            When using a multithreaded replica, workers which have not
+            received an error complete their queues, so it may take time
+            to stop all threads.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+            REPLICA</code></a> when using a multithreaded replica. After
+            issuing <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+            REPLICA</code></a>, the replica waits for any gaps to be
+            filled and then updates
+            <code class="literal">Exec_master_log_pos</code>. This ensures it
+            never leaves gaps or source binary log position lag, unless
+            any of the cases above applies, in other words, before
+            <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+            REPLICA</code></a> completes, either an error happens, or
+            another thread issues <a class="link" href="kill.html" title="13.7.8.4 KILL Statement"><code class="literal">KILL</code></a>,
+            or the server restarts. In these cases,
+            <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+            REPLICA</code></a> returns successfully.
+          </p></li><li class="listitem"><p>
+            If the last transaction in the relay log is only
+            half-received and the multithreaded replica's coordinator
+            thread has started to schedule the transaction to a worker,
+            then <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+            REPLICA</code></a> waits up to 60 seconds for the transaction
+            to be received. After this timeout, the coordinator gives up
+            and aborts the transaction. If the transaction is mixed, it
+            may be left half-completed.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+            REPLICA</code></a> when the ongoing transaction updates
+            transactional tables only, in which case it is rolled back
+            and <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+            REPLICA</code></a> stops immediately. If the ongoing
+            transaction is mixed,
+            <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+            REPLICA</code></a> waits up to 60 seconds for the transaction
+            to complete. After this timeout, it aborts the transaction,
+            so it may be left half-completed.
+          </p></li></ol></div><p>
+        The global setting for the system variable
+        <a class="link" href="replication-options-replica.html#sysvar_rpl_stop_replica_timeout"><code class="literal">rpl_stop_replica_timeout</code></a> (from
+        MySQL 8.0.26) or
+        <a class="link" href="replication-options-replica.html#sysvar_rpl_stop_slave_timeout"><code class="literal">rpl_stop_slave_timeout</code></a> (before
+        MySQL 8.0.26) is unrelated to the process of stopping the
+        replication threads. It only makes the client that issues
+        <a class="link" href="stop-replica.html" title="13.4.2.10 STOP REPLICA Statement"><code class="literal">STOP
+        REPLICA</code></a> return to the client, but the replication
+        threads continue to try to stop.
+      </p><p>
+        If a replication channel has gaps, it has the following
+        consequences:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            The replica database is in a state that may never have
+            existed on the source.
+          </p></li><li class="listitem"><p>
+            The field <code class="literal">Exec_master_log_pos</code> in
+            <a class="link" href="show-replica-status.html" title="13.7.7.35 SHOW REPLICA STATUS Statement"><code class="literal">SHOW
+            REPLICA STATUS</code></a> is only a <span class="quote">“<span class="quote">low-water
+            mark</span>”</span>. In other words, transactions appearing before
+            the position are guaranteed to have committed, but
+            transactions after the position may have committed or not.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>
+            and <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a>
+            statements for that channel fail with an error, unless the
+            applier threads are running and the statement only sets
+            receiver options.
+          </p></li><li class="listitem"><p>
+            If <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> is started with
+            <a class="link" href="replication-options-replica.html#sysvar_relay_log_recovery"><code class="option">--relay-log-recovery</code></a>, no
+            recovery is done for that channel, and a warning is printed.
+          </p></li><li class="listitem"><p>
+            If <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> is used with
+            <a class="link" href="mysqldump.html#option_mysqldump_dump-replica"><code class="option">--dump-replica</code></a> or
+            <a class="link" href="mysqldump.html#option_mysqldump_dump-slave"><code class="option">--dump-slave</code></a>, it does not
+            record the existence of gaps; thus it prints
+            <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>
+            | <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> with
+            <code class="literal">RELAY_LOG_POS</code> set to the <span class="quote">“<span class="quote">low-water
+            mark</span>”</span> position in
+            <code class="literal">Exec_master_log_pos</code>.
+          </p><p>
+            After applying the dump on another server, and starting the
+            replication threads, transactions appearing after the
+            position are replicated again. Note that this is harmless if
+            GTIDs are enabled (however, in that case it is not
+            recommended to use
+            <a class="link" href="mysqldump.html#option_mysqldump_dump-replica"><code class="option">--dump-replica</code></a> or
+            <a class="link" href="mysqldump.html#option_mysqldump_dump-slave"><code class="option">--dump-slave</code></a>).
+          </p></li></ol></div><p>
+        If a replication channel has source binary log position lag but
+        no gaps, cases 2 to 5 above apply, but case 1 does not.
+      </p><p>
+        The source binary log position information is persisted in
+        binary format in the internal table
+        <code class="literal">mysql.slave_worker_info</code>.
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START REPLICA
+        [SQL_THREAD]</code></a> always consults this information so that
+        it applies only the correct transactions. This remains true even
+        if <a class="link" href="replication-options-replica.html#sysvar_replica_parallel_workers"><code class="literal">replica_parallel_workers</code></a> or
+        <a class="link" href="replication-options-replica.html#sysvar_slave_parallel_workers"><code class="literal">slave_parallel_workers</code></a> has been
+        changed to 0 before
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+        REPLICA</code></a>, and even if
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+        REPLICA</code></a> is used with <code class="literal">UNTIL</code> clauses.
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START REPLICA
+        UNTIL SQL_AFTER_MTS_GAPS</code></a> only applies as many
+        transactions as needed in order to fill in the gaps. If
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START
+        REPLICA</code></a> is used with <code class="literal">UNTIL</code> clauses
+        that tell it to stop before it has consumed all the gaps, then
+        it leaves remaining gaps.
+      </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Warning</div><p>
+          <a class="link" href="reset-replica.html" title="13.4.2.5 RESET REPLICA Statement"><code class="literal">RESET
+          REPLICA</code></a> removes the relay logs and resets the
+          replication position. Thus issuing
+          <a class="link" href="reset-replica.html" title="13.4.2.5 RESET REPLICA Statement"><code class="literal">RESET
+          REPLICA</code></a> on a multithreaded replica with gaps means
+          the replica loses any information about the gaps, without
+          correcting the gaps. In this situation, if binary log position
+          based replication is in use, the recovery process fails.
+        </p></div><p>
+        When GTID-based replication is in use
+        (<a class="link" href="replication-options-gtids.html#sysvar_gtid_mode"><code class="literal">GTID_MODE=ON</code></a>) and
+        <code class="literal">SOURCE_AUTO_POSITION</code> is set for the
+        replication channel using the <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE
+        REPLICATION SOURCE TO</code></a> statement, the old relay logs
+        are not required for the recovery process. Instead, the replica
+        can use GTID auto-positioning to calculate what transactions it
+        is missing compared to the source. From MySQL 8.0.26, the
+        process used for binary log position based replication to
+        resolve gaps on a multithreaded replica is skipped entirely when
+        GTID-based replication is in use. When the process is skipped, a
+        <a class="link" href="start-replica.html" title="13.4.2.8 START REPLICA Statement"><code class="literal">START REPLICA
+        UNTIL SQL_AFTER_MTS_GAPS</code></a> statement behaves
+        differently, and does not attempt to check for gaps in the
+        sequence of transactions. You can also issue
+        <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE TO</code></a>
+        statements, which are not permitted on a non-GTID replica where
+        there are gaps.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-timezone.html">Previous <span class="navHint"> Replication and Time Zones </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-transactions.html">Next <span class="navHint"> Replication and Transactions </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

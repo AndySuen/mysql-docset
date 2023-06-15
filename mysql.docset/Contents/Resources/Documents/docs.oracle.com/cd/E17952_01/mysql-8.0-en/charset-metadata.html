@@ -1,0 +1,109 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-246"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/10.2.2%C2%A0UTF-8%20for%20Metadata"></a><title>10.2.2&nbsp;UTF-8 for Metadata</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="charset-mysql.html" title="10.2&nbsp;Character Sets and Collations in MySQL"/><link rel="prev" href="charset-repertoire.html" title="10.2.1&nbsp;Character Set Repertoire"/><link rel="next" href="charset-syntax.html" title="10.3&nbsp;Specifying Character Sets and Collations"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="charset-metadata.html#charset-metadata">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="charset-repertoire.html">Previous <span class="navHint"> Character Set Repertoire </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="charset-mysql.html">Up <span class="navHint"> Character Sets and Collations in MySQL </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="charset-syntax.html">Next <span class="navHint"> Specifying Character Sets and Collations </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="charset-metadata"></a>10.2.2&nbsp;UTF-8 for Metadata</h3></div></div></div><a id="idm45828944867440" class="indexterm"></a><a id="idm45828944865952" class="indexterm"></a><a id="idm45828944864464" class="indexterm"></a><p>
+        <span class="firstterm">Metadata</span> is <span class="quote">&ldquo;<span class="quote">the
+        data about the data.</span>&rdquo;</span> Anything that
+        <span class="emphasis"><em>describes</em></span> the database&mdash;as opposed to
+        being the <span class="emphasis"><em>contents</em></span> of the database&mdash;is
+        metadata. Thus column names, database names, user names, version
+        names, and most of the string results from
+        <a class="link" href="show.html" title="13.7.7&nbsp;SHOW Statements"><code class="literal">SHOW</code></a> are metadata. This is also
+        true of the contents of tables in
+        <code class="literal">INFORMATION_SCHEMA</code> because those tables by
+        definition contain information about database objects.
+      </p><p>
+        Representation of metadata must satisfy these requirements:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            All metadata must be in the same character set. Otherwise,
+            neither the <a class="link" href="show.html" title="13.7.7&nbsp;SHOW Statements"><code class="literal">SHOW</code></a> statements
+            nor <a class="link" href="select.html" title="13.2.13&nbsp;SELECT Statement"><code class="literal">SELECT</code></a> statements for
+            tables in <code class="literal">INFORMATION_SCHEMA</code> would work
+            properly because different rows in the same column of the
+            results of these operations would be in different character
+            sets.
+          </p></li><li class="listitem"><p>
+            Metadata must include all characters in all languages.
+            Otherwise, users would not be able to name columns and
+            tables using their own languages.
+          </p></li></ul></div><p>
+        To satisfy both requirements, MySQL stores metadata in a Unicode
+        character set, namely UTF-8. This does not cause any disruption
+        if you never use accented or non-Latin characters. But if you
+        do, you should be aware that metadata is in UTF-8.
+      </p><p>
+        The metadata requirements mean that the return values of the
+        <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a>,
+        <a class="link" href="information-functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a>,
+        <a class="link" href="information-functions.html#function_session-user"><code class="literal">SESSION_USER()</code></a>,
+        <a class="link" href="information-functions.html#function_system-user"><code class="literal">SYSTEM_USER()</code></a>,
+        <a class="link" href="information-functions.html#function_database"><code class="literal">DATABASE()</code></a>, and
+        <a class="link" href="information-functions.html#function_version"><code class="literal">VERSION()</code></a> functions have the
+        UTF-8 character set by default.
+      </p><p>
+        The server sets the
+        <a class="link" href="server-system-variables.html#sysvar_character_set_system"><code class="literal">character_set_system</code></a> system
+        variable to the name of the metadata character set:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW VARIABLES LIKE &#39;character_set_system&#39;;</code></strong>
++----------------------+---------+
+| Variable_name        | Value   |
++----------------------+---------+
+| character_set_system | utf8mb3 |
++----------------------+---------+
+</pre><p>
+        Storage of metadata using Unicode does <span class="emphasis"><em>not</em></span>
+        mean that the server returns headers of columns and the results
+        of <a class="link" href="describe.html" title="13.8.1&nbsp;DESCRIBE Statement"><code class="literal">DESCRIBE</code></a> functions in the
+        <a class="link" href="server-system-variables.html#sysvar_character_set_system"><code class="literal">character_set_system</code></a> character
+        set by default. When you use <code class="literal">SELECT column1 FROM
+        t</code>, the name <code class="literal">column1</code> itself is
+        returned from the server to the client in the character set
+        determined by the value of the
+        <a class="link" href="server-system-variables.html#sysvar_character_set_results"><code class="literal">character_set_results</code></a> system
+        variable, which has a default value of
+        <code class="literal">utf8mb4</code>. If you want the server to pass
+        metadata results back in a different character set, use the
+        <a class="link" href="set-names.html" title="13.7.6.3&nbsp;SET NAMES Statement"><code class="literal">SET NAMES</code></a> statement to force the
+        server to perform character set conversion.
+        <a class="link" href="set-names.html" title="13.7.6.3&nbsp;SET NAMES Statement"><code class="literal">SET NAMES</code></a> sets the
+        <a class="link" href="server-system-variables.html#sysvar_character_set_results"><code class="literal">character_set_results</code></a> and other
+        related system variables. (See
+        <a class="xref" href="charset-connection.html" title="10.4&nbsp;Connection Character Sets and Collations">Section&nbsp;10.4, &ldquo;Connection Character Sets and Collations&rdquo;</a>.) Alternatively, a client
+        program can perform the conversion after receiving the result
+        from the server. It is more efficient for the client to perform
+        the conversion, but this option is not always available for all
+        clients.
+      </p><p>
+        If <a class="link" href="server-system-variables.html#sysvar_character_set_results"><code class="literal">character_set_results</code></a> is set
+        to <code class="literal">NULL</code>, no conversion is performed and the
+        server returns metadata using its original character set (the
+        set indicated by
+        <a class="link" href="server-system-variables.html#sysvar_character_set_system"><code class="literal">character_set_system</code></a>).
+      </p><p>
+        Error messages returned from the server to the client are
+        converted to the client character set automatically, as with
+        metadata.
+      </p><p>
+        If you are using (for example) the
+        <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> function for comparison or
+        assignment within a single statement, don&#39;t worry. MySQL
+        performs some automatic conversion for you.
+      </p><pre class="programlisting">SELECT * FROM t1 WHERE USER() = latin1_column;
+</pre><p>
+        This works because the contents of
+        <code class="literal">latin1_column</code> are automatically converted to
+        UTF-8 before the comparison.
+      </p><pre class="programlisting">INSERT INTO t1 (latin1_column) SELECT USER();
+</pre><p>
+        This works because the contents of
+        <a class="link" href="information-functions.html#function_user"><code class="literal">USER()</code></a> are automatically
+        converted to <code class="literal">latin1</code> before the assignment.
+      </p><p>
+        Although automatic conversion is not in the SQL standard, the
+        standard does say that every character set is (in terms of
+        supported characters) a <span class="quote">&ldquo;<span class="quote">subset</span>&rdquo;</span> of Unicode.
+        Because it is a well-known principle that <span class="quote">&ldquo;<span class="quote">what applies to
+        a superset can apply to a subset,</span>&rdquo;</span> we believe that a
+        collation for Unicode can apply for comparisons with non-Unicode
+        strings. For more information about coercion of strings, see
+        <a class="xref" href="charset-collation-coercibility.html" title="10.8.4&nbsp;Collation Coercibility in Expressions">Section&nbsp;10.8.4, &ldquo;Collation Coercibility in Expressions&rdquo;</a>.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="charset-repertoire.html">Previous <span class="navHint"> Character Set Repertoire </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="charset-mysql.html">Up <span class="navHint"> Character Sets and Collations in MySQL </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="charset-syntax.html">Next <span class="navHint"> Specifying Character Sets and Collations </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

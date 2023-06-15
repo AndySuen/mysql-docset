@@ -1,0 +1,837 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>12.11 XML Functions</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="functions.html" title="Chapter 12 Functions and Operators" /><link rel="prev" href="cast-functions.html" title="12.10 Cast Functions and Operators" /><link rel="next" href="bit-functions.html" title="12.12 Bit Functions and Operators" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="xml-functions.html#xml-functions">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="cast-functions.html">Previous <span class="navHint"> Cast Functions and Operators </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="functions.html">Up <span class="navHint"> Functions and Operators </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="bit-functions.html">Next <span class="navHint"> Bit Functions and Operators </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="xml-functions"></a>12.11 XML Functions</h2></div></div></div><div class="table"><a id="idm45828926753920"></a><p class="title"><strong>Table 12.16 XML Functions</strong></p><div class="table-contents"><table frame="box" rules="all" summary="A reference that lists XML functions."><col style="width: 28%" /><col style="width: 71%" /><thead><tr><th>Name</th>
+<th>Description</th>
+</tr></thead><tbody><tr><td><a class="link" href="xml-functions.html#function_extractvalue"><code class="literal">ExtractValue()</code></a></td>
+<td>
+      Extract a value from an XML string using XPath notation
+    </td>
+</tr><tr><td><a class="link" href="xml-functions.html#function_updatexml"><code class="literal">UpdateXML()</code></a></td>
+<td>
+      Return replaced XML fragment
+    </td>
+</tr></tbody></table></div></div><br class="table-break" /><p>
+      This section discusses XML and related functionality in MySQL.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        It is possible to obtain XML-formatted output from MySQL in the
+        <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> and <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>
+        clients by invoking them with the
+        <a class="link" href="mysql-command-options.html#option_mysql_xml"><code class="option">--xml</code></a> option. See
+        <a class="xref" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client">Section 4.5.1, “mysql — The MySQL Command-Line Client”</a>, and <a class="xref" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program">Section 4.5.4, “mysqldump — A Database Backup Program”</a>.
+      </p></div><p>
+      Two functions providing basic XPath 1.0 (XML Path Language,
+      version 1.0) capabilities are available. Some basic information
+      about XPath syntax and usage is provided later in this section;
+      however, an in-depth discussion of these topics is beyond the
+      scope of this manual, and you should refer to the
+      <a class="ulink" href="http://www.w3.org/TR/xpath" target="_top">XML Path Language (XPath)
+      1.0 standard</a> for definitive information. A useful resource
+      for those new to XPath or who desire a refresher in the basics is
+      the <a class="ulink" href="http://www.zvon.org/xxl/XPathTutorial/" target="_top">Zvon.org
+      XPath Tutorial</a>, which is available in several languages.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        These functions remain under development. We continue to improve
+        these and other aspects of XML and XPath functionality in MySQL
+        8.0 and onwards. You may discuss these, ask
+        questions about them, and obtain help from other users with them
+        in the <a class="ulink" href="https://forums.mysql.com/list.php?44" target="_top">MySQL XML User
+        Forum</a>.
+      </p></div><p>
+      XPath expressions used with these functions support user variables
+      and local stored program variables. User variables are weakly
+      checked; variables local to stored programs are strongly checked
+      (see also Bug #26518):
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><strong>User variables (weak checking). </strong>
+            
+
+            Variables using the syntax
+            <code class="literal">$@<em class="replaceable"><code>variable_name</code></em></code>
+            (that is, user variables) are not checked. No warnings or
+            errors are issued by the server if a variable has the wrong
+            type or has previously not been assigned a value. This also
+            means the user is fully responsible for any typographical
+            errors, since no warnings are given if (for example)
+            <code class="literal">$@myvairable</code> is used where
+            <code class="literal">$@myvariable</code> was intended.
+          </p><p>
+          Example:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @xml = '&lt;a&gt;&lt;b&gt;X&lt;/b&gt;&lt;b&gt;Y&lt;/b&gt;&lt;/a&gt;';</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SET @i =1, @j = 2;</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @i, ExtractValue(@xml, '//b[$@i]');</code></strong>
++------+--------------------------------+
+| @i   | ExtractValue(@xml, '//b[$@i]') |
++------+--------------------------------+
+|    1 | X                              |
++------+--------------------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @j, ExtractValue(@xml, '//b[$@j]');</code></strong>
++------+--------------------------------+
+| @j   | ExtractValue(@xml, '//b[$@j]') |
++------+--------------------------------+
+|    2 | Y                              |
++------+--------------------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @k, ExtractValue(@xml, '//b[$@k]');</code></strong>
++------+--------------------------------+
+| @k   | ExtractValue(@xml, '//b[$@k]') |
++------+--------------------------------+
+| NULL |                                |
++------+--------------------------------+
+1 row in set (0.00 sec)
+</pre></li><li class="listitem"><p><strong>Variables in stored programs (strong checking). </strong>
+            Variables using the syntax
+            <code class="literal">$<em class="replaceable"><code>variable_name</code></em></code>
+            can be declared and used with these functions when they are
+            called inside stored programs. Such variables are local to
+            the stored program in which they are defined, and are
+            strongly checked for type and value.
+          </p><p>
+          Example:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>DELIMITER |</code></strong>
+
+mysql&gt; <strong class="userinput"><code>CREATE PROCEDURE myproc ()</code></strong>
+    -&gt; <strong class="userinput"><code>BEGIN</code></strong>
+    -&gt;   <strong class="userinput"><code>DECLARE i INT DEFAULT 1;</code></strong>
+    -&gt;   <strong class="userinput"><code>DECLARE xml VARCHAR(25) DEFAULT '&lt;a&gt;X&lt;/a&gt;&lt;a&gt;Y&lt;/a&gt;&lt;a&gt;Z&lt;/a&gt;';</code></strong>
+    -&gt;
+    -&gt;   <strong class="userinput"><code>WHILE i &lt; 4 DO</code></strong>
+    -&gt;     <strong class="userinput"><code>SELECT xml, i, ExtractValue(xml, '//a[$i]');</code></strong>
+    -&gt;     <strong class="userinput"><code>SET i = i+1;</code></strong>
+    -&gt;   <strong class="userinput"><code>END WHILE;</code></strong>
+    -&gt; <strong class="userinput"><code>END |</code></strong>
+Query OK, 0 rows affected (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>DELIMITER ;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>CALL myproc();</code></strong>
++--------------------------+---+------------------------------+
+| xml                      | i | ExtractValue(xml, '//a[$i]') |
++--------------------------+---+------------------------------+
+| &lt;a&gt;X&lt;/a&gt;&lt;a&gt;Y&lt;/a&gt;&lt;a&gt;Z&lt;/a&gt; | 1 | X                            |
++--------------------------+---+------------------------------+
+1 row in set (0.00 sec)
+
++--------------------------+---+------------------------------+
+| xml                      | i | ExtractValue(xml, '//a[$i]') |
++--------------------------+---+------------------------------+
+| &lt;a&gt;X&lt;/a&gt;&lt;a&gt;Y&lt;/a&gt;&lt;a&gt;Z&lt;/a&gt; | 2 | Y                            |
++--------------------------+---+------------------------------+
+1 row in set (0.01 sec)
+
++--------------------------+---+------------------------------+
+| xml                      | i | ExtractValue(xml, '//a[$i]') |
++--------------------------+---+------------------------------+
+| &lt;a&gt;X&lt;/a&gt;&lt;a&gt;Y&lt;/a&gt;&lt;a&gt;Z&lt;/a&gt; | 3 | Z                            |
++--------------------------+---+------------------------------+
+1 row in set (0.01 sec)
+</pre><p><strong>Parameters. </strong>
+            Variables used in XPath expressions inside stored routines
+            that are passed in as parameters are also subject to strong
+            checking.
+          </p></li></ul></div><p>
+      Expressions containing user variables or variables local to stored
+      programs must otherwise (except for notation) conform to the rules
+      for XPath expressions containing variables as given in the XPath
+      1.0 specification.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        A user variable used to store an XPath expression is treated as
+        an empty string. Because of this, it is not possible to store an
+        XPath expression as a user variable. (Bug #32911)
+      </p></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><a id="function_extractvalue"></a><p>
+          <a class="link" href="xml-functions.html#function_extractvalue"><code class="literal">ExtractValue(<em class="replaceable"><code>xml_frag</code></em>,
+          <em class="replaceable"><code>xpath_expr</code></em>)</code></a>
+        </p><a id="idm45828926695232" class="indexterm"></a><p>
+          <a class="link" href="xml-functions.html#function_extractvalue"><code class="literal">ExtractValue()</code></a> takes two string
+          arguments, a fragment of XML markup
+          <em class="replaceable"><code>xml_frag</code></em> and an XPath expression
+          <em class="replaceable"><code>xpath_expr</code></em> (also known as a
+          <span class="firstterm">locator</span>); it returns the
+          text (<code class="literal">CDATA</code>) of the first text node which
+          is a child of the element or elements matched by the XPath
+          expression.
+        </p><p>
+          Using this function is the equivalent of performing a match
+          using the <em class="replaceable"><code>xpath_expr</code></em> after
+          appending <code class="literal">/text()</code>. In other words,
+          <a class="link" href="xml-functions.html#function_extractvalue"><code class="literal">ExtractValue('&lt;a&gt;&lt;b&gt;Sakila&lt;/b&gt;&lt;/a&gt;',
+          '/a/b')</code></a> and
+          <a class="link" href="xml-functions.html#function_extractvalue"><code class="literal">ExtractValue('&lt;a&gt;&lt;b&gt;Sakila&lt;/b&gt;&lt;/a&gt;',
+          '/a/b/text()')</code></a> produce the same result. If
+          <em class="replaceable"><code>xml_frag</code></em> or
+          <em class="replaceable"><code>xpath_expr</code></em> is
+          <code class="literal">NULL</code>, the function returns
+          <code class="literal">NULL</code>.
+        </p><p>
+          If multiple matches are found, the content of the first child
+          text node of each matching element is returned (in the order
+          matched) as a single, space-delimited string.
+        </p><p>
+          If no matching text node is found for the expression
+          (including the implicit <code class="literal">/text()</code>)—for
+          whatever reason, as long as
+          <em class="replaceable"><code>xpath_expr</code></em> is valid, and
+          <em class="replaceable"><code>xml_frag</code></em> consists of elements which
+          are properly nested and closed—an empty string is
+          returned. No distinction is made between a match on an empty
+          element and no match at all. This is by design.
+        </p><p>
+          If you need to determine whether no matching element was found
+          in <em class="replaceable"><code>xml_frag</code></em> or such an element was
+          found but contained no child text nodes, you should test the
+          result of an expression that uses the XPath
+          <code class="literal">count()</code> function. For example, both of
+          these statements return an empty string, as shown here:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;&lt;b/&gt;&lt;/a&gt;', '/a/b');</code></strong>
++-------------------------------------+
+| ExtractValue('&lt;a&gt;&lt;b/&gt;&lt;/a&gt;', '/a/b') |
++-------------------------------------+
+|                                     |
++-------------------------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;&lt;c/&gt;&lt;/a&gt;', '/a/b');</code></strong>
++-------------------------------------+
+| ExtractValue('&lt;a&gt;&lt;c/&gt;&lt;/a&gt;', '/a/b') |
++-------------------------------------+
+|                                     |
++-------------------------------------+
+1 row in set (0.00 sec)
+</pre><p>
+          However, you can determine whether there was actually a
+          matching element using the following:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;&lt;b/&gt;&lt;/a&gt;', 'count(/a/b)');</code></strong>
++-------------------------------------+
+| ExtractValue('&lt;a&gt;&lt;b/&gt;&lt;/a&gt;', 'count(/a/b)') |
++-------------------------------------+
+| 1                                   |
++-------------------------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;&lt;c/&gt;&lt;/a&gt;', 'count(/a/b)');</code></strong>
++-------------------------------------+
+| ExtractValue('&lt;a&gt;&lt;c/&gt;&lt;/a&gt;', 'count(/a/b)') |
++-------------------------------------+
+| 0                                   |
++-------------------------------------+
+1 row in set (0.01 sec)
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+            <a class="link" href="xml-functions.html#function_extractvalue"><code class="literal">ExtractValue()</code></a> returns only
+            <code class="literal">CDATA</code>, and does not return any tags that
+            might be contained within a matching tag, nor any of their
+            content (see the result returned as <code class="literal">val1</code>
+            in the following example).
+          </p></div><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+    -&gt; <strong class="userinput"><code>  ExtractValue('&lt;a&gt;ccc&lt;b&gt;ddd&lt;/b&gt;&lt;/a&gt;', '/a') AS val1,</code></strong>
+    -&gt; <strong class="userinput"><code>  ExtractValue('&lt;a&gt;ccc&lt;b&gt;ddd&lt;/b&gt;&lt;/a&gt;', '/a/b') AS val2,</code></strong>
+    -&gt; <strong class="userinput"><code>  ExtractValue('&lt;a&gt;ccc&lt;b&gt;ddd&lt;/b&gt;&lt;/a&gt;', '//b') AS val3,</code></strong>
+    -&gt; <strong class="userinput"><code>  ExtractValue('&lt;a&gt;ccc&lt;b&gt;ddd&lt;/b&gt;&lt;/a&gt;', '/b') AS val4,</code></strong>
+    -&gt; <strong class="userinput"><code>  ExtractValue('&lt;a&gt;ccc&lt;b&gt;ddd&lt;/b&gt;&lt;b&gt;eee&lt;/b&gt;&lt;/a&gt;', '//b') AS val5;</code></strong>
+
++------+------+------+------+---------+
+| val1 | val2 | val3 | val4 | val5    |
++------+------+------+------+---------+
+| ccc  | ddd  | ddd  |      | ddd eee |
++------+------+------+------+---------+
+</pre><p>
+          This function uses the current SQL collation for making
+          comparisons with <code class="literal">contains()</code>, performing the
+          same collation aggregation as other string functions (such as
+          <a class="link" href="string-functions.html#function_concat"><code class="literal">CONCAT()</code></a>), in taking into
+          account the collation coercibility of their arguments; see
+          <a class="xref" href="charset-collation-coercibility.html" title="10.8.4 Collation Coercibility in Expressions">Section 10.8.4, “Collation Coercibility in Expressions”</a>, for an
+          explanation of the rules governing this behavior.
+        </p><p>
+          (Previously, binary—that is,
+          case-sensitive—comparison was always used.)
+        </p><p>
+          <code class="literal">NULL</code> is returned if
+          <em class="replaceable"><code>xml_frag</code></em> contains elements which
+          are not properly nested or closed, and a warning is generated,
+          as shown in this example:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;c&lt;/a&gt;&lt;b', '//a');</code></strong>
++-----------------------------------+
+| ExtractValue('&lt;a&gt;c&lt;/a&gt;&lt;b', '//a') |
++-----------------------------------+
+| NULL                              |
++-----------------------------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SHOW WARNINGS\G</code></strong>
+*************************** 1. row ***************************
+  Level: Warning
+   Code: 1525
+Message: Incorrect XML value: 'parse error at line 1 pos 11:
+         END-OF-INPUT unexpected ('&gt;' wanted)'
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;c&lt;/a&gt;&lt;b/&gt;', '//a');</code></strong>
++-------------------------------------+
+| ExtractValue('&lt;a&gt;c&lt;/a&gt;&lt;b/&gt;', '//a') |
++-------------------------------------+
+| c                                   |
++-------------------------------------+
+1 row in set (0.00 sec)
+</pre></li><li class="listitem"><a id="function_updatexml"></a><p>
+          <a class="link" href="xml-functions.html#function_updatexml"><code class="literal">UpdateXML(<em class="replaceable"><code>xml_target</code></em>,
+          <em class="replaceable"><code>xpath_expr</code></em>,
+          <em class="replaceable"><code>new_xml</code></em>)</code></a>
+        </p><a id="idm45828926642960" class="indexterm"></a><p>
+          This function replaces a single portion of a given fragment of
+          XML markup <em class="replaceable"><code>xml_target</code></em> with a new
+          XML fragment <em class="replaceable"><code>new_xml</code></em>, and then
+          returns the changed XML. The portion of
+          <em class="replaceable"><code>xml_target</code></em> that is replaced matches
+          an XPath expression <em class="replaceable"><code>xpath_expr</code></em>
+          supplied by the user.
+        </p><p>
+          If no expression matching
+          <em class="replaceable"><code>xpath_expr</code></em> is found, or if multiple
+          matches are found, the function returns the original
+          <em class="replaceable"><code>xml_target</code></em> XML fragment. All three
+          arguments should be strings. If any of the arguments to
+          <code class="literal">UpdateXML()</code> are <code class="literal">NULL</code>,
+          the function returns <code class="literal">NULL</code>.
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT</code></strong>
+    -&gt; <strong class="userinput"><code>  UpdateXML('&lt;a&gt;&lt;b&gt;ccc&lt;/b&gt;&lt;d&gt;&lt;/d&gt;&lt;/a&gt;', '/a', '&lt;e&gt;fff&lt;/e&gt;') AS val1,</code></strong>
+    -&gt; <strong class="userinput"><code>  UpdateXML('&lt;a&gt;&lt;b&gt;ccc&lt;/b&gt;&lt;d&gt;&lt;/d&gt;&lt;/a&gt;', '/b', '&lt;e&gt;fff&lt;/e&gt;') AS val2,</code></strong>
+    -&gt; <strong class="userinput"><code>  UpdateXML('&lt;a&gt;&lt;b&gt;ccc&lt;/b&gt;&lt;d&gt;&lt;/d&gt;&lt;/a&gt;', '//b', '&lt;e&gt;fff&lt;/e&gt;') AS val3,</code></strong>
+    -&gt; <strong class="userinput"><code>  UpdateXML('&lt;a&gt;&lt;b&gt;ccc&lt;/b&gt;&lt;d&gt;&lt;/d&gt;&lt;/a&gt;', '/a/d', '&lt;e&gt;fff&lt;/e&gt;') AS val4,</code></strong>
+    -&gt; <strong class="userinput"><code>  UpdateXML('&lt;a&gt;&lt;d&gt;&lt;/d&gt;&lt;b&gt;ccc&lt;/b&gt;&lt;d&gt;&lt;/d&gt;&lt;/a&gt;', '/a/d', '&lt;e&gt;fff&lt;/e&gt;') AS val5</code></strong>
+    -&gt; <strong class="userinput"><code>\G</code></strong>
+
+*************************** 1. row ***************************
+val1: &lt;e&gt;fff&lt;/e&gt;
+val2: &lt;a&gt;&lt;b&gt;ccc&lt;/b&gt;&lt;d&gt;&lt;/d&gt;&lt;/a&gt;
+val3: &lt;a&gt;&lt;e&gt;fff&lt;/e&gt;&lt;d&gt;&lt;/d&gt;&lt;/a&gt;
+val4: &lt;a&gt;&lt;b&gt;ccc&lt;/b&gt;&lt;e&gt;fff&lt;/e&gt;&lt;/a&gt;
+val5: &lt;a&gt;&lt;d&gt;&lt;/d&gt;&lt;b&gt;ccc&lt;/b&gt;&lt;d&gt;&lt;/d&gt;&lt;/a&gt;
+</pre></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        A discussion in depth of XPath syntax and usage are beyond the
+        scope of this manual. Please see the
+        <a class="ulink" href="http://www.w3.org/TR/xpath" target="_top">XML Path Language
+        (XPath) 1.0 specification</a> for definitive information. A
+        useful resource for those new to XPath or who are wishing a
+        refresher in the basics is the
+        <a class="ulink" href="http://www.zvon.org/xxl/XPathTutorial/" target="_top">Zvon.org
+        XPath Tutorial</a>, which is available in several languages.
+      </p></div><p>
+      Descriptions and examples of some basic XPath expressions follow:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          <code class="literal">/<em class="replaceable"><code>tag</code></em></code>
+        </p><p>
+          Matches
+          <code class="literal">&lt;<em class="replaceable"><code>tag</code></em>/&gt;</code> if
+          and only if
+          <code class="literal">&lt;<em class="replaceable"><code>tag</code></em>/&gt;</code> is
+          the root element.
+        </p><p>
+          Example: <code class="literal">/a</code> has a match in
+          <code class="literal">&lt;a&gt;&lt;b/&gt;&lt;/a&gt;</code> because it
+          matches the outermost (root) tag. It does not match the inner
+          <em class="replaceable"><code>a</code></em> element in
+          <code class="literal">&lt;b&gt;&lt;a/&gt;&lt;/b&gt;</code> because in
+          this instance it is the child of another element.
+        </p></li><li class="listitem"><p>
+          <code class="literal">/<em class="replaceable"><code>tag1</code></em>/<em class="replaceable"><code>tag2</code></em></code>
+        </p><p>
+          Matches
+          <code class="literal">&lt;<em class="replaceable"><code>tag2</code></em>/&gt;</code> if
+          and only if it is a child of
+          <code class="literal">&lt;<em class="replaceable"><code>tag1</code></em>/&gt;</code>,
+          and
+          <code class="literal">&lt;<em class="replaceable"><code>tag1</code></em>/&gt;</code> is
+          the root element.
+        </p><p>
+          Example: <code class="literal">/a/b</code> matches the
+          <em class="replaceable"><code>b</code></em> element in the XML fragment
+          <code class="literal">&lt;a&gt;&lt;b/&gt;&lt;/a&gt;</code> because it is
+          a child of the root element <em class="replaceable"><code>a</code></em>. It
+          does not have a match in
+          <code class="literal">&lt;b&gt;&lt;a/&gt;&lt;/b&gt;</code> because in
+          this case, <em class="replaceable"><code>b</code></em> is the root element
+          (and hence the child of no other element). Nor does the XPath
+          expression have a match in
+          <code class="literal">&lt;a&gt;&lt;c&gt;&lt;b/&gt;&lt;/c&gt;&lt;/a&gt;</code>;
+          here, <em class="replaceable"><code>b</code></em> is a descendant of
+          <em class="replaceable"><code>a</code></em>, but not actually a child of
+          <em class="replaceable"><code>a</code></em>.
+        </p><p>
+          This construct is extendable to three or more elements. For
+          example, the XPath expression <code class="literal">/a/b/c</code>
+          matches the <em class="replaceable"><code>c</code></em> element in the
+          fragment
+          <code class="literal">&lt;a&gt;&lt;b&gt;&lt;c/&gt;&lt;/b&gt;&lt;/a&gt;</code>.
+        </p></li><li class="listitem"><p>
+          <code class="literal">//<em class="replaceable"><code>tag</code></em></code>
+        </p><p>
+          Matches any instance of
+          <code class="literal">&lt;<em class="replaceable"><code>tag</code></em>&gt;</code>.
+        </p><p>
+          Example: <code class="literal">//a</code> matches the
+          <em class="replaceable"><code>a</code></em> element in any of the following:
+          <code class="literal">&lt;a&gt;&lt;b&gt;&lt;c/&gt;&lt;/b&gt;&lt;/a&gt;</code>;
+          <code class="literal">&lt;c&gt;&lt;a&gt;&lt;b/&gt;&lt;/a&gt;&lt;/b&gt;</code>;
+          <code class="literal">&lt;c&gt;&lt;b&gt;&lt;a/&gt;&lt;/b&gt;&lt;/c&gt;</code>.
+        </p><p>
+          <code class="literal">//</code> can be combined with
+          <code class="literal">/</code>. For example, <code class="literal">//a/b</code>
+          matches the <em class="replaceable"><code>b</code></em> element in either of
+          the fragments <code class="literal">&lt;a&gt;&lt;b/&gt;&lt;/a&gt;</code>
+          or
+          <code class="literal">&lt;c&gt;&lt;a&gt;&lt;b/&gt;&lt;/a&gt;&lt;/c&gt;</code>.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            <code class="literal">//<em class="replaceable"><code>tag</code></em></code> is the
+            equivalent of
+            <code class="literal">/descendant-or-self::*/<em class="replaceable"><code>tag</code></em></code>.
+            A common error is to confuse this with
+            <code class="literal">/descendant-or-self::<em class="replaceable"><code>tag</code></em></code>,
+            although the latter expression can actually lead to very
+            different results, as can be seen here:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @xml = '&lt;a&gt;&lt;b&gt;&lt;c&gt;w&lt;/c&gt;&lt;b&gt;x&lt;/b&gt;&lt;d&gt;y&lt;/d&gt;z&lt;/b&gt;&lt;/a&gt;';</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @xml;</code></strong>
++-----------------------------------------+
+| @xml                                    |
++-----------------------------------------+
+| &lt;a&gt;&lt;b&gt;&lt;c&gt;w&lt;/c&gt;&lt;b&gt;x&lt;/b&gt;&lt;d&gt;y&lt;/d&gt;z&lt;/b&gt;&lt;/a&gt; |
++-----------------------------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue(@xml, '//b[1]');</code></strong>
++------------------------------+
+| ExtractValue(@xml, '//b[1]') |
++------------------------------+
+| x z                          |
++------------------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue(@xml, '//b[2]');</code></strong>
++------------------------------+
+| ExtractValue(@xml, '//b[2]') |
++------------------------------+
+|                              |
++------------------------------+
+1 row in set (0.01 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue(@xml, '/descendant-or-self::*/b[1]');</code></strong>
++---------------------------------------------------+
+| ExtractValue(@xml, '/descendant-or-self::*/b[1]') |
++---------------------------------------------------+
+| x z                                               |
++---------------------------------------------------+
+1 row in set (0.06 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue(@xml, '/descendant-or-self::*/b[2]');</code></strong>
++---------------------------------------------------+
+| ExtractValue(@xml, '/descendant-or-self::*/b[2]') |
++---------------------------------------------------+
+|                                                   |
++---------------------------------------------------+
+1 row in set (0.00 sec)
+
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue(@xml, '/descendant-or-self::b[1]');</code></strong>
++-------------------------------------------------+
+| ExtractValue(@xml, '/descendant-or-self::b[1]') |
++-------------------------------------------------+
+| z                                               |
++-------------------------------------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue(@xml, '/descendant-or-self::b[2]');</code></strong>
++-------------------------------------------------+
+| ExtractValue(@xml, '/descendant-or-self::b[2]') |
++-------------------------------------------------+
+| x                                               |
++-------------------------------------------------+
+1 row in set (0.00 sec)
+</pre></div></li><li class="listitem"><p>
+          The <code class="literal">*</code> operator acts as a
+          <span class="quote">“<span class="quote">wildcard</span>”</span> that matches any element. For example,
+          the expression <code class="literal">/*/b</code> matches the
+          <em class="replaceable"><code>b</code></em> element in either of the XML
+          fragments <code class="literal">&lt;a&gt;&lt;b/&gt;&lt;/a&gt;</code> or
+          <code class="literal">&lt;c&gt;&lt;b/&gt;&lt;/c&gt;</code>. However, the
+          expression does not produce a match in the fragment
+          <code class="literal">&lt;b&gt;&lt;a/&gt;&lt;/b&gt;</code> because
+          <em class="replaceable"><code>b</code></em> must be a child of some other
+          element. The wildcard may be used in any position: The
+          expression <code class="literal">/*/b/*</code> matches any child of a
+          <em class="replaceable"><code>b</code></em> element that is itself not the
+          root element.
+        </p></li><li class="listitem"><p>
+          You can match any of several locators using the
+          <code class="literal">|</code> (<a class="link" href="union.html" title="13.2.18 UNION Clause"><code class="literal">UNION</code></a>)
+          operator. For example, the expression
+          <code class="literal">//b|//c</code> matches all
+          <em class="replaceable"><code>b</code></em> and <em class="replaceable"><code>c</code></em>
+          elements in the XML target.
+        </p></li><li class="listitem"><p>
+          It is also possible to match an element based on the value of
+          one or more of its attributes. This done using the syntax
+          <code class="literal"><em class="replaceable"><code>tag</code></em>[@<em class="replaceable"><code>attribute</code></em>="<em class="replaceable"><code>value</code></em>"]</code>.
+          For example, the expression <code class="literal">//b[@id="idB"]</code>
+          matches the second <em class="replaceable"><code>b</code></em> element in the
+          fragment <code class="literal">&lt;a&gt;&lt;b id="idA"/&gt;&lt;c/&gt;&lt;b
+          id="idB"/&gt;&lt;/a&gt;</code>. To match against
+          <span class="emphasis"><em>any</em></span> element having
+          <code class="literal"><em class="replaceable"><code>attribute</code></em>="<em class="replaceable"><code>value</code></em>"</code>,
+          use the XPath expression
+          <code class="literal">//*[<em class="replaceable"><code>attribute</code></em>="<em class="replaceable"><code>value</code></em>"]</code>.
+        </p><p>
+          To filter multiple attribute values, simply use multiple
+          attribute-comparison clauses in succession. For example, the
+          expression <code class="literal">//b[@c="x"][@d="y"]</code> matches the
+          element <code class="literal">&lt;b c="x" d="y"/&gt;</code> occurring
+          anywhere in a given XML fragment.
+        </p><p>
+          To find elements for which the same attribute matches any of
+          several values, you can use multiple locators joined by the
+          <code class="literal">|</code> operator. For example, to match all
+          <em class="replaceable"><code>b</code></em> elements whose
+          <em class="replaceable"><code>c</code></em> attributes have either of the
+          values 23 or 17, use the expression
+          <code class="literal">//b[@c="23"]|//b[@c="17"]</code>. You can also use
+          the logical <code class="literal">or</code> operator for this purpose:
+          <code class="literal">//b[@c="23" or @c="17"]</code>.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            The difference between <code class="literal">or</code> and
+            <code class="literal">|</code> is that <code class="literal">or</code> joins
+            conditions, while <code class="literal">|</code> joins result sets.
+          </p></div></li></ul></div><p><strong>XPath Limitations. </strong>
+        The XPath syntax supported by these functions is currently
+        subject to the following limitations:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Nodeset-to-nodeset comparison (such as
+          <code class="literal">'/a/b[@c=@d]'</code>) is not supported.
+        </p></li><li class="listitem"><p>
+          All of the standard XPath comparison operators are supported.
+          (Bug #22823)
+        </p></li><li class="listitem"><p>
+          Relative locator expressions are resolved in the context of
+          the root node. For example, consider the following query and
+          result:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ExtractValue(</code></strong>
+    -&gt;   <strong class="userinput"><code>'&lt;a&gt;&lt;b c="1"&gt;X&lt;/b&gt;&lt;b c="2"&gt;Y&lt;/b&gt;&lt;/a&gt;',</code></strong>
+    -&gt;    <strong class="userinput"><code>'a/b'</code></strong>
+    -&gt; <strong class="userinput"><code>) AS result;</code></strong>
++--------+
+| result |
++--------+
+| X Y    |
++--------+
+1 row in set (0.03 sec)
+</pre><p>
+          In this case, the locator <code class="literal">a/b</code> resolves to
+          <code class="literal">/a/b</code>.
+        </p><p>
+          Relative locators are also supported within predicates. In the
+          following example, <code class="literal">d[../@c="1"]</code> is resolved
+          as <code class="literal">/a/b[@c="1"]/d</code>:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ExtractValue(</code></strong>
+    -&gt;      <strong class="userinput"><code>'&lt;a&gt;</code></strong>
+    -&gt;        <strong class="userinput"><code>&lt;b c="1"&gt;&lt;d&gt;X&lt;/d&gt;&lt;/b&gt;</code></strong>
+    -&gt;        <strong class="userinput"><code>&lt;b c="2"&gt;&lt;d&gt;X&lt;/d&gt;&lt;/b&gt;</code></strong>
+    -&gt;      <strong class="userinput"><code>&lt;/a&gt;',</code></strong>
+    -&gt;      <strong class="userinput"><code>'a/b/d[../@c="1"]')</code></strong>
+    -&gt; <strong class="userinput"><code>AS result;</code></strong>
++--------+
+| result |
++--------+
+| X      |
++--------+
+1 row in set (0.00 sec)
+</pre></li><li class="listitem"><p>
+          Locators prefixed with expressions that evaluate as scalar
+          values—including variable references, literals, numbers,
+          and scalar function calls—are not permitted, and their
+          use results in an error.
+        </p></li><li class="listitem"><p>
+          The <code class="literal">::</code> operator is not supported in
+          combination with node types such as the following:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              <code class="literal"><em class="replaceable"><code>axis</code></em>::comment()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal"><em class="replaceable"><code>axis</code></em>::text()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal"><em class="replaceable"><code>axis</code></em>::processing-instructions()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal"><em class="replaceable"><code>axis</code></em>::node()</code>
+            </p></li></ul></div><p>
+          However, name tests (such as
+          <code class="literal"><em class="replaceable"><code>axis</code></em>::<em class="replaceable"><code>name</code></em></code>
+          and <code class="literal"><em class="replaceable"><code>axis</code></em>::*</code>) are
+          supported, as shown in these examples:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;&lt;b&gt;x&lt;/b&gt;&lt;c&gt;y&lt;/c&gt;&lt;/a&gt;','/a/child::b');</code></strong>
++-------------------------------------------------------+
+| ExtractValue('&lt;a&gt;&lt;b&gt;x&lt;/b&gt;&lt;c&gt;y&lt;/c&gt;&lt;/a&gt;','/a/child::b') |
++-------------------------------------------------------+
+| x                                                     |
++-------------------------------------------------------+
+1 row in set (0.02 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;&lt;b&gt;x&lt;/b&gt;&lt;c&gt;y&lt;/c&gt;&lt;/a&gt;','/a/child::*');</code></strong>
++-------------------------------------------------------+
+| ExtractValue('&lt;a&gt;&lt;b&gt;x&lt;/b&gt;&lt;c&gt;y&lt;/c&gt;&lt;/a&gt;','/a/child::*') |
++-------------------------------------------------------+
+| x y                                                   |
++-------------------------------------------------------+
+1 row in set (0.01 sec)
+</pre></li><li class="listitem"><p>
+          <span class="quote">“<span class="quote">Up-and-down</span>”</span> navigation is not supported in
+          cases where the path would lead <span class="quote">“<span class="quote">above</span>”</span> the root
+          element. That is, you cannot use expressions which match on
+          descendants of ancestors of a given element, where one or more
+          of the ancestors of the current element is also an ancestor of
+          the root element (see Bug #16321).
+        </p></li><li class="listitem"><p>
+          The following XPath functions are not supported, or have known
+          issues as indicated:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              <code class="literal">id()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">lang()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">local-name()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">name()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">namespace-uri()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">normalize-space()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">starts-with()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">string()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">substring-after()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">substring-before()</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">translate()</code>
+            </p></li></ul></div></li><li class="listitem"><p>
+          The following axes are not supported:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              <code class="literal">following-sibling</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">following</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">preceding-sibling</code>
+            </p></li><li class="listitem"><p>
+              <code class="literal">preceding</code>
+            </p></li></ul></div></li></ul></div><p>
+      XPath expressions passed as arguments to
+      <a class="link" href="xml-functions.html#function_extractvalue"><code class="literal">ExtractValue()</code></a> and
+      <a class="link" href="xml-functions.html#function_updatexml"><code class="literal">UpdateXML()</code></a> may contain the colon
+      character (<code class="literal">:</code>) in element selectors, which
+      enables their use with markup employing XML namespaces notation.
+      For example:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @xml = '&lt;a&gt;111&lt;b:c&gt;222&lt;d&gt;333&lt;/d&gt;&lt;e:f&gt;444&lt;/e:f&gt;&lt;/b:c&gt;&lt;/a&gt;';</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue(@xml, '//e:f');</code></strong>
++-----------------------------+
+| ExtractValue(@xml, '//e:f') |
++-----------------------------+
+| 444                         |
++-----------------------------+
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT UpdateXML(@xml, '//b:c', '&lt;g:h&gt;555&lt;/g:h&gt;');</code></strong>
++--------------------------------------------+
+| UpdateXML(@xml, '//b:c', '&lt;g:h&gt;555&lt;/g:h&gt;') |
++--------------------------------------------+
+| &lt;a&gt;111&lt;g:h&gt;555&lt;/g:h&gt;&lt;/a&gt;                   |
++--------------------------------------------+
+1 row in set (0.00 sec)
+</pre><p>
+      This is similar in some respects to what is permitted by
+      <a class="ulink" href="http://xalan.apache.org/" target="_top">Apache Xalan</a> and
+      some other parsers, and is much simpler than requiring namespace
+      declarations or the use of the <code class="literal">namespace-uri()</code>
+      and <code class="literal">local-name()</code> functions.
+    </p><p><strong>Error handling. </strong>
+        For both <a class="link" href="xml-functions.html#function_extractvalue"><code class="literal">ExtractValue()</code></a> and
+        <a class="link" href="xml-functions.html#function_updatexml"><code class="literal">UpdateXML()</code></a>, the XPath locator
+        used must be valid and the XML to be searched must consist of
+        elements which are properly nested and closed. If the locator is
+        invalid, an error is generated:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;c&lt;/a&gt;&lt;b/&gt;', '/&amp;a');</code></strong>
+<span class="errortext">ERROR 1105 (HY000): XPATH syntax error: '&amp;a'</span>
+</pre><p>
+      If <em class="replaceable"><code>xml_frag</code></em> does not consist of
+      elements which are properly nested and closed,
+      <code class="literal">NULL</code> is returned and a warning is generated, as
+      shown in this example:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;c&lt;/a&gt;&lt;b', '//a');</code></strong>
++-----------------------------------+
+| ExtractValue('&lt;a&gt;c&lt;/a&gt;&lt;b', '//a') |
++-----------------------------------+
+| NULL                              |
++-----------------------------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SHOW WARNINGS\G</code></strong>
+*************************** 1. row ***************************
+  Level: Warning
+   Code: 1525
+Message: Incorrect XML value: 'parse error at line 1 pos 11:
+         END-OF-INPUT unexpected ('&gt;' wanted)'
+1 row in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT ExtractValue('&lt;a&gt;c&lt;/a&gt;&lt;b/&gt;', '//a');</code></strong>
++-------------------------------------+
+| ExtractValue('&lt;a&gt;c&lt;/a&gt;&lt;b/&gt;', '//a') |
++-------------------------------------+
+| c                                   |
++-------------------------------------+
+1 row in set (0.00 sec)
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Important</div><p>
+        The replacement XML used as the third argument to
+        <a class="link" href="xml-functions.html#function_updatexml"><code class="literal">UpdateXML()</code></a> is
+        <span class="emphasis"><em>not</em></span> checked to determine whether it
+        consists solely of elements which are properly nested and
+        closed.
+      </p></div><p><strong>XPath Injection. </strong>
+        <span class="firstterm">code injection</span> occurs when
+        malicious code is introduced into the system to gain
+        unauthorized access to privileges and data. It is based on
+        exploiting assumptions made by developers about the type and
+        content of data input from users. XPath is no exception in this
+        regard.
+      </p><a id="idm45828926455680" class="indexterm"></a><a id="idm45828926454608" class="indexterm"></a><a id="idm45828926453120" class="indexterm"></a><p>
+      A common scenario in which this can happen is the case of
+      application which handles authorization by matching the
+      combination of a login name and password with those found in an
+      XML file, using an XPath expression like this one:
+    </p><pre class="programlisting">//user[login/text()='neapolitan' and password/text()='1c3cr34m']/attribute::id
+</pre><p>
+      This is the XPath equivalent of an SQL statement like this one:
+    </p><pre class="programlisting">SELECT id FROM users WHERE login='neapolitan' AND password='1c3cr34m';
+</pre><p>
+      A PHP application employing XPath might handle the login process
+      like this:
+    </p><pre class="programlisting">&lt;?php
+
+  $file     =   "users.xml";
+
+  $login    =   $POST["login"];
+  $password =   $POST["password"];
+
+  $xpath = "//user[login/text()=$login and password/text()=$password]/attribute::id";
+
+  if( file_exists($file) )
+  {
+    $xml = simplexml_load_file($file);
+
+    if($result = $xml-&gt;xpath($xpath))
+      echo "You are now logged in as user $result[0].";
+    else
+      echo "Invalid login name or password.";
+  }
+  else
+    exit("Failed to open $file.");
+
+?&gt;
+</pre><p>
+      No checks are performed on the input. This means that a malevolent
+      user can <span class="quote">“<span class="quote">short-circuit</span>”</span> the test by entering
+      <code class="literal">' or 1=1</code> for both the login name and password,
+      resulting in <code class="varname">$xpath</code> being evaluated as shown
+      here:
+    </p><pre class="programlisting">//user[login/text()='' or 1=1 and password/text()='' or 1=1]/attribute::id
+</pre><p>
+      Since the expression inside the square brackets always evaluates
+      as <code class="literal">true</code>, it is effectively the same as this
+      one, which matches the <code class="literal">id</code> attribute of every
+      <code class="literal">user</code> element in the XML document:
+    </p><pre class="programlisting">//user/attribute::id
+</pre><p>
+      One way in which this particular attack can be circumvented is
+      simply by quoting the variable names to be interpolated in the
+      definition of <code class="literal">$xpath</code>, forcing the values passed
+      from a Web form to be converted to strings:
+    </p><pre class="programlisting">$xpath = "//user[login/text()='$login' and password/text()='$password']/attribute::id";
+</pre><p>
+      This is the same strategy that is often recommended for preventing
+      SQL injection attacks. In general, the practices you should follow
+      for preventing XPath injection attacks are the same as for
+      preventing SQL injection:
+    </p><a id="idm45828926436592" class="indexterm"></a><a id="idm45828926435520" class="indexterm"></a><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Never accepted untested data from users in your application.
+        </p></li><li class="listitem"><p>
+          Check all user-submitted data for type; reject or convert data
+          that is of the wrong type
+        </p></li><li class="listitem"><p>
+          Test numeric data for out of range values; truncate, round, or
+          reject values that are out of range. Test strings for illegal
+          characters and either strip them out or reject input
+          containing them.
+        </p></li><li class="listitem"><p>
+          Do not output explicit error messages that might provide an
+          unauthorized user with clues that could be used to compromise
+          the system; log these to a file or database table instead.
+        </p></li></ul></div><p>
+      Just as SQL injection attacks can be used to obtain information
+      about database schemas, so can XPath injection be used to traverse
+      XML files to uncover their structure, as discussed in Amit
+      Klein's paper
+      <a class="ulink" href="http://www.packetstormsecurity.org/papers/bypass/Blind_XPath_Injection_20040518.pdf" target="_top">Blind
+      XPath Injection</a> (PDF file, 46KB).
+    </p><p>
+      It is also important to check the output being sent back to the
+      client. Consider what can happen when we use the MySQL
+      <a class="link" href="xml-functions.html#function_extractvalue"><code class="literal">ExtractValue()</code></a> function:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT ExtractValue(</code></strong>
+    -&gt;     <strong class="userinput"><code>LOAD_FILE('users.xml'),</code></strong>
+    -&gt;     <strong class="userinput"><code>'//user[login/text()="" or 1=1 and password/text()="" or 1=1]/attribute::id'</code></strong>
+    -&gt; <strong class="userinput"><code>) AS id;</code></strong>
++-------------------------------+
+| id                            |
++-------------------------------+
+| 00327 13579 02403 42354 28570 |
++-------------------------------+
+1 row in set (0.01 sec)
+</pre><p>
+      Because <a class="link" href="xml-functions.html#function_extractvalue"><code class="literal">ExtractValue()</code></a> returns
+      multiple matches as a single space-delimited string, this
+      injection attack provides every valid ID contained within
+      <code class="filename">users.xml</code> to the user as a single row of
+      output. As an extra safeguard, you should also test output before
+      returning it to the user. Here is a simple example:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT @id = ExtractValue(</code></strong>
+    -&gt;     <strong class="userinput"><code>LOAD_FILE('users.xml'),</code></strong>
+    -&gt;     <strong class="userinput"><code>'//user[login/text()="" or 1=1 and password/text()="" or 1=1]/attribute::id'</code></strong>
+    -&gt; <strong class="userinput"><code>);</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT IF(</code></strong>
+    -&gt;     <strong class="userinput"><code>INSTR(@id, ' ') = 0,</code></strong>
+    -&gt;     <strong class="userinput"><code>@id,</code></strong>
+    -&gt;     <strong class="userinput"><code>'Unable to retrieve user ID')</code></strong>
+    -&gt; <strong class="userinput"><code>AS singleID;</code></strong>
++----------------------------+
+| singleID                   |
++----------------------------+
+| Unable to retrieve user ID |
++----------------------------+
+1 row in set (0.00 sec)
+</pre><p>
+      In general, the guidelines for returning data to users securely
+      are the same as for accepting user input. These can be summed up
+      as:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          Always test outgoing data for type and permissible values.
+        </p></li><li class="listitem"><p>
+          Never permit unauthorized users to view error messages that
+          might provide information about the application that could be
+          used to exploit it.
+        </p></li></ul></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="cast-functions.html">Previous <span class="navHint"> Cast Functions and Operators </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="functions.html">Up <span class="navHint"> Functions and Operators </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="bit-functions.html">Next <span class="navHint"> Bit Functions and Operators </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

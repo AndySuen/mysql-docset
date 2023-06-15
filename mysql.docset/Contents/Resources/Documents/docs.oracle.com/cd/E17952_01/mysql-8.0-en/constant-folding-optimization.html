@@ -1,0 +1,158 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-401"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.2.1.14%C2%A0Constant-Folding%20Optimization"></a><title>8.2.1.14&nbsp;Constant-Folding Optimization</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="select-optimization.html" title="8.2.1&nbsp;Optimizing SELECT Statements"/><link rel="prev" href="condition-filtering.html" title="8.2.1.13&nbsp;Condition Filtering"/><link rel="next" href="is-null-optimization.html" title="8.2.1.15&nbsp;IS NULL Optimization"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="constant-folding-optimization.html#constant-folding-optimization">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="condition-filtering.html">Previous <span class="navHint"> Condition Filtering </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="is-null-optimization.html">Next <span class="navHint"> IS NULL Optimization </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-391"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.2.1.14%C2%A0Constant-Folding%20Optimization"></a><h4 class="title"><a id="constant-folding-optimization"></a>8.2.1.14&nbsp;Constant-Folding Optimization</h4></div></div></div><p>
+          Comparisons between constants and column values in which the
+          constant value is out of range or of the wrong type with
+          respect to the column type are now handled once during query
+          optimization rather row-by-row than during execution. The
+          comparisons that can be treated in this manner are
+          <code class="literal">&gt;</code>, <code class="literal">&gt;=</code>,
+          <code class="literal">&lt;</code>, <code class="literal">&lt;=</code>,
+          <code class="literal">&lt;&gt;</code>/<code class="literal">!=</code>,
+          <code class="literal">=</code>, and <code class="literal">&lt;=&gt;</code>.
+        </p><p>
+          Consider the table created by the following statement:
+        </p><pre class="programlisting">CREATE TABLE t (c TINYINT UNSIGNED NOT NULL);
+</pre><p>
+          The <code class="literal">WHERE</code> condition in the query
+          <code class="literal">SELECT * FROM t WHERE c &lt; 256</code> contains
+          the integral constant 256 which is out of range for a
+          <code class="literal">TINYINT UNSIGNED</code> column. Previously, this
+          was handled by treating both operands as the larger type, but
+          now, since any allowed value for <code class="literal">c</code> is less
+          than the constant, the <code class="literal">WHERE</code> expression can
+          instead be folded as <code class="literal">WHERE 1</code>, so that the
+          query is rewritten as <code class="literal">SELECT * FROM t WHERE
+          1</code>.
+        </p><p>
+          This makes it possible for the optimizer to remove the
+          <code class="literal">WHERE</code> expression altogether. If the column
+          <code class="literal">c</code> were nullable (that is, defined only as
+          <code class="literal">TINYINT UNSIGNED</code>) the query would be
+          rewritten like this:
+        </p><pre class="programlisting">SELECT * FROM t WHERE ti IS NOT NULL
+</pre><p>
+          Folding is performed for constants compared to supported MySQL
+          column types as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-392"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Integer%20column%20type."></a><strong>Integer column type.&nbsp;</strong>
+                Integer types are compared with constants of the
+                following types as described here:
+              </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-393"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Integer%20value."></a><strong>Integer value.&nbsp;</strong>
+                    If the constant is out of range for the column type,
+                    the comparison is folded to <code class="literal">1</code> or
+                    <code class="literal">IS NOT NULL</code>, as already shown.
+                  </p><p>
+                  If the constant is a range boundary, the comparison is
+                  folded to <code class="literal">=</code>. For example (using the
+                  same table as already defined):
+                </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>EXPLAIN SELECT * FROM t WHERE c &gt;= 255;</code></strong>
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: t
+   partitions: NULL
+         type: ALL
+possible_keys: NULL
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 5
+     filtered: 20.00
+        Extra: Using where
+1 row in set, 1 warning (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SHOW WARNINGS;</code></strong>
+*************************** 1. row ***************************
+  Level: Note
+   Code: 1003
+Message: /* select#1 */ select `test`.`t`.`ti` AS `ti` from `test`.`t` where (`test`.`t`.`ti` = 255)
+1 row in set (0.00 sec)
+</pre></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-394"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Floating-%20or%20fixed-point%20value."></a><strong>Floating- or fixed-point value.&nbsp;</strong>
+                    If the constant is one of the decimal types (such as
+                    <code class="literal">DECIMAL</code>, <code class="literal">REAL</code>,
+                    <code class="literal">DOUBLE</code>, or
+                    <code class="literal">FLOAT</code>) and has a nonzero decimal
+                    portion, it cannot be equal; fold accordingly. For
+                    other comparisons, round up or down to an integer
+                    value according to the sign, then perform a range
+                    check and handle as already described for
+                    integer-integer comparisons.
+                  </p><p>
+                  A <code class="literal">REAL</code> value that is too small to
+                  be represented as <code class="literal">DECIMAL</code> is
+                  rounded to .01 or -.01 depending on the sign, then
+                  handled as a <code class="literal">DECIMAL</code>.
+                </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-395"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/String%20types."></a><strong>String types.&nbsp;</strong>
+                    Try to interpret the string value as an integer
+                    type, then handle the comparison as between integer
+                    values. If this fails, attempt to handle the value
+                    as a <code class="literal">REAL</code>.
+                  </p></li></ul></div></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-396"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/DECIMAL%20or%20REAL%20column."></a><strong>DECIMAL or REAL column.&nbsp;</strong>
+                Decimal types are compared with constants of the
+                following types as described here:
+              </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p><a class="dashingAutolink" name="autolink-397"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/Integer%20value."></a><strong>Integer value.&nbsp;</strong>
+                    Perform a range check against the column
+                    value&#39;s integer part. If no folding results,
+                    convert the constant to <code class="literal">DECIMAL</code>
+                    with the same number of decimal places as the column
+                    value, then check it as a <code class="literal">DECIMAL</code>
+                    (see next).
+                  </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-398"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/DECIMAL%20or%20REAL%20value."></a><strong>DECIMAL or REAL value.&nbsp;</strong>
+                    Check for overflow (that is, whether the constant
+                    has more digits in its integer part than allowed for
+                    the column&#39;s decimal type). If so, fold.
+                  </p><p>
+                  If the constant has more significant fractional digits
+                  than column&#39;s type, truncate the constant. If the
+                  comparison operator is <code class="literal">=</code> or
+                  <code class="literal">&lt;&gt;</code>, fold. If the operator is
+                  <code class="literal">&gt;=</code> or <code class="literal">&lt;=</code>,
+                  adjust the operator due to truncation. For example, if
+                  column&#39;s type is <code class="literal">DECIMAL(3,1)</code>,
+                  <code class="literal">SELECT * FROM t WHERE f &gt;= 10.13</code>
+                  becomes <code class="literal">SELECT * FROM t WHERE f &gt;
+                  10.1</code>.
+                </p><p>
+                  If the constant has fewer decimal digits than the
+                  column&#39;s type, convert it to a constant with same
+                  number of digits. For underflow of a
+                  <code class="literal">REAL</code> value (that is, too few
+                  fractional digits to represent it), convert the
+                  constant to decimal 0.
+                </p></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-399"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/String%20value."></a><strong>String value.&nbsp;</strong>
+                    If the value can be interpreted as an integer type,
+                    handle it as such. Otherwise, try to handle it as
+                    <code class="literal">REAL</code>.
+                  </p></li></ul></div></li><li class="listitem"><p><a class="dashingAutolink" name="autolink-400"></a><a class="dashAnchor" name="//apple_ref/cpp/Notation/FLOAT%20or%20DOUBLE%20column."></a><strong>FLOAT or DOUBLE column.&nbsp;</strong>
+                <code class="literal">FLOAT(<em class="replaceable"><code>m</code></em>,<em class="replaceable"><code>n</code></em>)</code>
+                or
+                <code class="literal">DOUBLE(<em class="replaceable"><code>m</code></em>,<em class="replaceable"><code>n</code></em>)</code>
+                values compared with constants are handled as follows:
+              </p><p>
+              If the value overflows the range of the column, fold.
+            </p><p>
+              If the value has more than <em class="replaceable"><code>n</code></em>
+              decimals, truncate, compensating during folding. For
+              <code class="literal">=</code> and <code class="literal">&lt;&gt;</code>
+              comparisons, fold to <code class="literal">TRUE</code>,
+              <code class="literal">FALSE</code>, or <code class="literal">IS [NOT]
+              NULL</code> as described previously; for other
+              operators, adjust the operator.
+            </p><p>
+              If the value has more than <code class="literal">m</code> integer
+              digits, fold.
+            </p></li></ul></div><p><strong>Limitations.&nbsp;</strong>
+            This optimization cannot be used in the following cases:
+          </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              With comparisons using <code class="literal">BETWEEN</code> or
+              <code class="literal">IN</code>.
+            </p></li><li class="listitem"><p>
+              With <code class="literal">BIT</code> columns or columns using date
+              or time types.
+            </p></li><li class="listitem"><p>
+              During the preparation phase for a prepared statement,
+              although it can be applied during the optimization phase
+              when the prepared statement is actually executed. This due
+              to the fact that, during statement preparation, the value
+              of the constant is not yet known.
+            </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="condition-filtering.html">Previous <span class="navHint"> Condition Filtering </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="select-optimization.html">Up <span class="navHint"> Optimizing SELECT Statements </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="is-null-optimization.html">Next <span class="navHint"> IS NULL Optimization </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>23.7.5 Preparing the NDB Cluster for Replication</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="mysql-cluster-replication.html" title="23.7 NDB Cluster Replication" /><link rel="prev" href="mysql-cluster-replication-schema.html" title="23.7.4 NDB Cluster Replication Schema and Tables" /><link rel="next" href="mysql-cluster-replication-starting.html" title="23.7.6 Starting NDB Cluster Replication (Single Replication Channel)" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="mysql-cluster-replication-preparation.html#mysql-cluster-replication-preparation">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="mysql-cluster-replication-schema.html">Previous <span class="navHint"> NDB Cluster Replication Schema and Tables </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="mysql-cluster-replication-starting.html">Next <span class="navHint"> Starting NDB Cluster Replication (Single Replication Channel) </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="mysql-cluster-replication-preparation"></a>23.7.5 Preparing the NDB Cluster for Replication</h3></div></div></div><a id="idm45828803989824" class="indexterm"></a><a id="idm45828803988336" class="indexterm"></a><p>
+      Preparing the NDB Cluster for replication consists of the
+      following steps:
+    </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+          Check all MySQL servers for version compatibility (see
+          <a class="xref" href="mysql-cluster-replication-general.html" title="23.7.2 General Requirements for NDB Cluster Replication">Section 23.7.2, “General Requirements for NDB Cluster Replication”</a>).
+        </p></li><li class="listitem"><p>
+          Create a replication account on the source Cluster with the
+          appropriate privileges, using the following two SQL
+          statements:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>S</code></em>&gt; <strong class="userinput"><code>CREATE USER '<em class="replaceable"><code>replica_user</code></em>'@'<em class="replaceable"><code>replica_host</code></em>'</code></strong>
+     -&gt; <strong class="userinput"><code>IDENTIFIED BY '<em class="replaceable"><code>replica_password</code></em>';</code></strong>
+
+mysql<em class="replaceable"><code>S</code></em>&gt; <strong class="userinput"><code>GRANT REPLICATION SLAVE ON *.*</code></strong>
+     -&gt; <strong class="userinput"><code>TO '<em class="replaceable"><code>replica_user</code></em>'@'<em class="replaceable"><code>replica_host</code></em>';</code></strong>
+</pre><p>
+          In the previous statement,
+          <em class="replaceable"><code>replica_user</code></em> is the replication
+          account user name, <em class="replaceable"><code>replica_host</code></em> is
+          the host name or IP address of the replica, and
+          <em class="replaceable"><code>replica_password</code></em> is the password to
+          assign to this account.
+        </p><p>
+          For example, to create a replica user account with the name
+          <code class="literal">myreplica</code>, logging in from the host named
+          <code class="literal">replica-host</code>, and using the password
+          <code class="literal">53cr37</code>, use the following
+          <a class="link" href="create-user.html" title="13.7.1.3 CREATE USER Statement"><code class="literal">CREATE USER</code></a> and
+          <a class="link" href="grant.html" title="13.7.1.6 GRANT Statement"><code class="literal">GRANT</code></a> statements:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>S</code></em>&gt; <strong class="userinput"><code>CREATE USER 'myreplica'@'replica-host'</code></strong>
+     -&gt; <strong class="userinput"><code>IDENTIFIED BY '53cr37';</code></strong>
+
+mysql<em class="replaceable"><code>S</code></em>&gt; <strong class="userinput"><code>GRANT REPLICATION SLAVE ON *.*</code></strong>
+     -&gt; <strong class="userinput"><code>TO 'myreplica'@'replica-host';</code></strong>
+</pre><p>
+          For security reasons, it is preferable to use a unique user
+          account—not employed for any other purpose—for the
+          replication account.
+        </p></li><li class="listitem"><p>
+          <a id="idm45828803963344" class="indexterm"></a>
+
+          <a id="idm45828803961856" class="indexterm"></a>
+
+          Set up the replica to use the source. Using the
+          <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client, this can be accomplished with
+          the <a class="link" href="change-replication-source-to.html" title="13.4.2.3 CHANGE REPLICATION SOURCE TO Statement"><code class="literal">CHANGE REPLICATION SOURCE
+          TO</code></a> statement (beginning with NDB 8.0.23) or
+          <a class="link" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement"><code class="literal">CHANGE MASTER TO</code></a> statement
+          (prior to NDB 8.0.23):
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>CHANGE MASTER TO</code></strong>
+     -&gt; <strong class="userinput"><code>MASTER_HOST='<em class="replaceable"><code>source_host</code></em>',</code></strong>
+     -&gt; <strong class="userinput"><code>MASTER_PORT=<em class="replaceable"><code>source_port</code></em>,</code></strong>
+     -&gt; <strong class="userinput"><code>MASTER_USER='<em class="replaceable"><code>replica_user</code></em>',</code></strong>
+     -&gt; <strong class="userinput"><code>MASTER_PASSWORD='<em class="replaceable"><code>replica_password</code></em>';</code></strong>
+
+</pre><p>
+          Beginning with NDB 8.0.23, you can also use the following
+          statement:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>CHANGE REPLICATION SOURCE TO</code></strong>
+     -&gt; <strong class="userinput"><code>SOURCE_HOST='<em class="replaceable"><code>source_host</code></em>',</code></strong>
+     -&gt; <strong class="userinput"><code>SOURCE_PORT=<em class="replaceable"><code>source_port</code></em>,</code></strong>
+     -&gt; <strong class="userinput"><code>SOURCE_USER='<em class="replaceable"><code>replica_user</code></em>',</code></strong>
+     -&gt; <strong class="userinput"><code>SOURCE_PASSWORD='<em class="replaceable"><code>replica_password</code></em>';</code></strong>
+</pre><p>
+          In the previous statement,
+          <em class="replaceable"><code>source_host</code></em> is the host name or IP
+          address of the replication source,
+          <em class="replaceable"><code>source_port</code></em> is the port for the
+          replica to use when connecting to the source,
+          <em class="replaceable"><code>replica_user</code></em> is the user name set
+          up for the replica on the source, and
+          <em class="replaceable"><code>replica_password</code></em> is the password
+          set for that user account in the previous step.
+        </p><p>
+          For example, to tell the replica to use the MySQL server whose
+          host name is <code class="literal">rep-source</code> with the
+          replication account created in the previous step, use the
+          following statement:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>CHANGE MASTER TO</code></strong>
+     -&gt; <strong class="userinput"><code>MASTER_HOST='rep-source',</code></strong>
+     -&gt; <strong class="userinput"><code>MASTER_PORT=3306,</code></strong>
+     -&gt; <strong class="userinput"><code>MASTER_USER='myreplica',</code></strong>
+     -&gt; <strong class="userinput"><code>MASTER_PASSWORD='53cr37';</code></strong>
+
+</pre><p>
+          Beginning with NDB 8.0.23, you can also use the following
+          statement:
+        </p><pre class="programlisting">mysql<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>CHANGE REPLICATION SOURCE TO</code></strong>
+     -&gt; <strong class="userinput"><code>SOURCE_HOST='rep-source',</code></strong>
+     -&gt; <strong class="userinput"><code>SOURCE_PORT=3306,</code></strong>
+     -&gt; <strong class="userinput"><code>SOURCE_USER='myreplica',</code></strong>
+     -&gt; <strong class="userinput"><code>SOURCE_PASSWORD='53cr37';</code></strong>
+</pre><p>
+          For a complete list of options that can be used with this
+          statement, see <a class="xref" href="change-master-to.html" title="13.4.2.1 CHANGE MASTER TO Statement">Section 13.4.2.1, “CHANGE MASTER TO Statement”</a>.
+        </p><p>
+          To provide replication backup capability, you also need to add
+          an <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-connectstring"><code class="option">--ndb-connectstring</code></a> option
+          to the replica's <code class="filename">my.cnf</code> file prior
+          to starting the replication process. See
+          <a class="xref" href="mysql-cluster-replication-backups.html" title="23.7.9 NDB Cluster Backups With NDB Cluster Replication">Section 23.7.9, “NDB Cluster Backups With NDB Cluster Replication”</a>, for
+          details.
+        </p><p>
+          For additional options that can be set in
+          <code class="filename">my.cnf</code> for replicas, see
+          <a class="xref" href="replication-options.html" title="17.1.6 Replication and Binary Logging Options and Variables">Section 17.1.6, “Replication and Binary Logging Options and Variables”</a>.
+        </p></li><li class="listitem"><p>
+          If the source cluster is already in use, you can create a
+          backup of the source and load this onto the replica to cut
+          down on the amount of time required for the replica to
+          synchronize itself with the source. If the replica is also
+          running NDB Cluster, this can be accomplished using the backup
+          and restore procedure described in
+          <a class="xref" href="mysql-cluster-replication-backups.html" title="23.7.9 NDB Cluster Backups With NDB Cluster Replication">Section 23.7.9, “NDB Cluster Backups With NDB Cluster Replication”</a>.
+        </p><pre class="programlisting">ndb-connectstring=<em class="replaceable"><code>management_host</code></em>[:<em class="replaceable"><code>port</code></em>]
+</pre><p>
+          In the event that you are <span class="emphasis"><em>not</em></span> using NDB
+          Cluster on the replica, you can create a backup with this
+          command on the source:
+        </p><pre class="programlisting">shell<em class="replaceable"><code>S</code></em>&gt; <strong class="userinput"><code>mysqldump --master-data=1</code></strong>
+</pre><p>
+          Then import the resulting data dump onto the replica by
+          copying the dump file over to it. After this, you can use the
+          <a class="link" href="mysql.html" title="4.5.1 mysql — The MySQL Command-Line Client"><span class="command"><strong>mysql</strong></span></a> client to import the data from the
+          dumpfile into the replica database as shown here, where
+          <em class="replaceable"><code>dump_file</code></em> is the name of the file
+          that was generated using <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a> on the
+          source, and <em class="replaceable"><code>db_name</code></em> is the name of
+          the database to be replicated:
+        </p><pre class="programlisting">shell<em class="replaceable"><code>R</code></em>&gt; <strong class="userinput"><code>mysql -u root -p <em class="replaceable"><code>db_name</code></em> &lt; <em class="replaceable"><code>dump_file</code></em></code></strong>
+</pre><p>
+          For a complete list of options to use with
+          <a class="link" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program"><span class="command"><strong>mysqldump</strong></span></a>, see <a class="xref" href="mysqldump.html" title="4.5.4 mysqldump — A Database Backup Program">Section 4.5.4, “mysqldump — A Database Backup Program”</a>.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+            If you copy the data to the replica in this fashion, make
+            sure that you stop the replica from trying to connect to the
+            source to begin replicating before all the data has been
+            loaded. You can do this by starting the replica with the
+            <a class="link" href="replication-options-replica.html#option_mysqld_skip-slave-start"><code class="option">--skip-slave-start</code></a> option on
+            the command line, by including
+            <code class="literal">skip-slave-start</code> in the replica's
+            <code class="filename">my.cnf</code> file, or beginning with NDB
+            8.0.24, by setting the
+            <a class="link" href="replication-options-replica.html#sysvar_skip_slave_start"><code class="literal">skip_slave_start</code></a> system
+            variable. Beginning with NDB 8.0.26, use
+            <a class="link" href="replication-options-replica.html#option_mysqld_skip-replica-start"><code class="option">--skip-replica-start</code></a> or
+            <a class="link" href="replication-options-replica.html#sysvar_skip_replica_start"><code class="literal">skip_replica_start</code></a> instead.
+            Once the data loading has completed, follow the additional
+            steps outlined in the next two sections.
+          </p></div></li><li class="listitem"><p>
+          Ensure that each MySQL server acting as a replication source
+          is assigned a unique server ID, and has binary logging
+          enabled, using the row-based format. (See
+          <a class="xref" href="replication-formats.html" title="17.2.1 Replication Formats">Section 17.2.1, “Replication Formats”</a>.) In addition, we
+          strongly recommend enabling the
+          <a class="link" href="mysql-cluster-options-variables.html#sysvar_replica_allow_batching"><code class="literal">replica_allow_batching</code></a> system
+          variable (NDB 8.0.26 and later; prior to NDB 8.0.26, use
+          <a class="link" href="mysql-cluster-options-variables.html#sysvar_slave_allow_batching"><code class="literal">slave_allow_batching</code></a>).
+          Beginning with NDB 8.0.30, this is enabled by default.
+        </p><p>
+          If you are using a release of NDB Cluster prior to NDB 8.0.30,
+          you should also consider increasing the values used with the
+          <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-batch-size"><code class="option">--ndb-batch-size</code></a> and
+          <a class="link" href="mysql-cluster-options-variables.html#option_mysqld_ndb-blob-write-batch-bytes"><code class="option">--ndb-blob-write-batch-bytes</code></a>
+          options as well. In NDB 8.0.30 and later, use
+          <a class="link" href="mysql-cluster-options-variables.html#sysvar_ndb_replica_batch_size"><code class="option">--ndb-replica-batch-size</code></a> to set
+          the batch size used for writes on the replica instead of
+          <code class="option">--ndb-batch-size</code>, and
+          <a class="link" href="mysql-cluster-options-variables.html#sysvar_ndb_replica_blob_write_batch_bytes"><code class="option">--ndb-replica-blob-write-batch-bytes</code></a>
+          rather than <code class="option">--ndb-blob-write-batch-bytes</code> to
+          determine the batch size used by the replication applier for
+          writing blob data. All of these options can be set either in
+          the source server's <code class="filename">my.cnf</code> file, or
+          on the command line when starting the source
+          <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> process. See
+          <a class="xref" href="mysql-cluster-replication-starting.html" title="23.7.6 Starting NDB Cluster Replication (Single Replication Channel)">Section 23.7.6, “Starting NDB Cluster Replication (Single Replication Channel)”</a>, for more
+          information.
+        </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="mysql-cluster-replication-schema.html">Previous <span class="navHint"> NDB Cluster Replication Schema and Tables </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="mysql-cluster-replication.html">Up <span class="navHint"> NDB Cluster Replication </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="mysql-cluster-replication-starting.html">Next <span class="navHint"> Starting NDB Cluster Replication (Single Replication Channel) </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

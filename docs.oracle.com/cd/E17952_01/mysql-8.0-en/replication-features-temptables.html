@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.5.1.31 Replication and Temporary Tables</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-features.html" title="17.5.1 Replication Features and Issues" /><link rel="prev" href="replication-features-sql-mode.html" title="17.5.1.30 Replication and Server SQL Mode" /><link rel="next" href="replication-features-timeout.html" title="17.5.1.32 Replication Retries and Timeouts" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-features-temptables.html#replication-features-temptables">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-features-sql-mode.html">Previous <span class="navHint"> Replication and Server SQL Mode </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-features-timeout.html">Next <span class="navHint"> Replication Retries and Timeouts </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-features-temptables"></a>17.5.1.31 Replication and Temporary Tables</h4></div></div></div><a id="idm45828856223216" class="indexterm"></a><a id="idm45828856221728" class="indexterm"></a><a id="idm45828856220240" class="indexterm"></a><p>
+        In MySQL 8.0, when
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> is set to
+        <code class="literal">ROW</code> or <code class="literal">MIXED</code>, statements
+        that exclusively use temporary tables are not logged on the
+        source, and therefore the temporary tables are not replicated.
+        Statements that involve a mix of temporary and nontemporary
+        tables are logged on the source only for the operations on
+        nontemporary tables, and the operations on temporary tables are
+        not logged. This means that there are never any temporary tables
+        on the replica to be lost in the event of an unplanned shutdown
+        by the replica. For more information about row-based replication
+        and temporary tables, see
+        <a class="xref" href="replication-rbr-usage.html#replication-rbr-usage-temptables" title="Row-based logging of temporary tables">Row-based logging of temporary tables</a>.
+
+
+      </p><p>
+        When <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> is set to
+        <code class="literal">STATEMENT</code>, operations on temporary tables are
+        logged on the source and replicated on the replica, provided
+        that the statements involving temporary tables can be logged
+        safely using statement-based format. In this situation, loss of
+        replicated temporary tables on the replica can be an issue. In
+        statement-based replication mode,
+        <a class="link" href="create-table.html" title="13.1.20 CREATE TABLE Statement"><code class="literal">CREATE TEMPORARY
+        TABLE</code></a> and
+        <a class="link" href="drop-table.html" title="13.1.32 DROP TABLE Statement"><code class="literal">DROP TEMPORARY
+        TABLE</code></a> statements cannot be used inside a transaction,
+        procedure, function, or trigger when GTIDs are in use on the
+        server (that is, when the
+        <a class="link" href="replication-options-gtids.html#sysvar_enforce_gtid_consistency"><code class="literal">enforce_gtid_consistency</code></a> system
+        variable is set to <code class="literal">ON</code>). They can be used
+        outside these contexts when GTIDs are in use, provided that
+        <a class="link" href="server-system-variables.html#sysvar_autocommit"><code class="literal">autocommit=1</code></a> is set.
+      </p><p>
+        Because of the differences in behavior between row-based or
+        mixed replication mode and statement-based replication mode
+        regarding temporary tables, you cannot switch the replication
+        format at runtime, if the change applies to a context (global or
+        session) that contains any open temporary tables. For more
+        details, see the description of the
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_format"><code class="literal">binlog_format</code></a> option.
+      </p><p><strong>Safe replica shutdown when using temporary tables. </strong>
+          In statement-based replication mode, temporary tables are
+          replicated except in the case where you stop the replica
+          server (not just the replication threads) and you have
+          replicated temporary tables that are open for use in updates
+          that have not yet been executed on the replica. If you stop
+          the replica server, the temporary tables needed by those
+          updates are no longer available when the replica is restarted.
+          To avoid this problem, do not shut down the replica while it
+          has temporary tables open. Instead, use the following
+          procedure:
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            Issue a <code class="literal">STOP REPLICA
+            SQL_THREAD</code> statement.
+          </p></li><li class="listitem"><p>
+            Use <a class="link" href="show-status.html" title="13.7.7.37 SHOW STATUS Statement"><code class="literal">SHOW STATUS</code></a> to check the
+            value of the
+            <a class="link" href="server-status-variables.html#statvar_Replica_open_temp_tables"><code class="literal">Replica_open_temp_tables</code></a>
+            or <a class="link" href="server-status-variables.html#statvar_Slave_open_temp_tables"><code class="literal">Slave_open_temp_tables</code></a>
+            status variable.
+          </p></li><li class="listitem"><p>
+            If the value is not 0, restart the replication SQL thread
+            with <code class="literal">START REPLICA
+            SQL_THREAD</code> and repeat the procedure later.
+          </p></li><li class="listitem"><p>
+            When the value is 0, issue a <a class="link" href="mysqladmin.html" title="4.5.2 mysqladmin — A MySQL Server Administration Program"><span class="command"><strong>mysqladmin
+            shutdown</strong></span></a> command to stop the replica.
+          </p></li></ol></div><p><strong>Temporary tables and replication options. </strong>
+          By default, with statement-based replication, all temporary
+          tables are replicated; this happens whether or not there are
+          any matching <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-db"><code class="option">--replicate-do-db</code></a>,
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-do-table"><code class="option">--replicate-do-table</code></a>, or
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-do-table"><code class="option">--replicate-wild-do-table</code></a>
+          options in effect. However, the
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-ignore-table"><code class="option">--replicate-ignore-table</code></a> and
+          <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-ignore-table"><code class="option">--replicate-wild-ignore-table</code></a>
+          options are honored for temporary tables. The exception is
+          that to enable correct removal of temporary tables at the end
+          of a session, a replica always replicates a <code class="literal">DROP
+          TEMPORARY TABLE IF EXISTS</code> statement, regardless of
+          any exclusion rules that would normally apply for the
+          specified table.
+        </p><p>
+        A recommended practice when using statement-based replication is
+        to designate a prefix for exclusive use in naming temporary
+        tables that you do not want replicated, then employ a
+        <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-ignore-table"><code class="option">--replicate-wild-ignore-table</code></a>
+        option to match that prefix. For example, you might give all
+        such tables names beginning with <code class="literal">norep</code> (such
+        as <code class="literal">norepmytable</code>,
+        <code class="literal">norepyourtable</code>, and so on), then use
+        <a class="link" href="replication-options-replica.html#option_mysqld_replicate-wild-ignore-table"><code class="option">--replicate-wild-ignore-table=norep%</code></a>
+        to prevent them from being replicated.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-features-sql-mode.html">Previous <span class="navHint"> Replication and Server SQL Mode </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-features.html">Up <span class="navHint"> Replication Features and Issues </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-features-timeout.html">Next <span class="navHint"> Replication Retries and Timeouts </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

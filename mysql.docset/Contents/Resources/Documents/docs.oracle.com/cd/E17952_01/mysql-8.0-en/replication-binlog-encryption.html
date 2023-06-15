@@ -1,0 +1,88 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-3511"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/17.3.2%C2%A0Encrypting%20Binary%20Log%20Files%20and%20Relay%20Log%20Files"></a><title>17.3.2&nbsp;Encrypting Binary Log Files and Relay Log Files</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="replication-security.html" title="17.3&nbsp;Replication Security"/><link rel="prev" href="replication-encrypted-connections.html" title="17.3.1&nbsp;Setting Up Replication to Use Encrypted Connections"/><link rel="next" href="replication-binlog-encryption-scope.html" title="17.3.2.1&nbsp;Scope of Binary Log Encryption"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-binlog-encryption.html#replication-binlog-encryption">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="replication-encrypted-connections.html">Previous <span class="navHint"> Setting Up Replication to Use Encrypted Connections </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="replication-security.html">Up <span class="navHint"> Replication Security </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="replication-binlog-encryption-scope.html">Next <span class="navHint"> Scope of Binary Log Encryption </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="replication-binlog-encryption"></a>17.3.2&nbsp;Encrypting Binary Log Files and Relay Log Files</h3></div></div></div><div class="toc"><ul class="toc"><li><span class="section"><a href="replication-binlog-encryption-scope.html">17.3.2.1 Scope of Binary Log Encryption</a></span></li><li><span class="section"><a href="replication-binlog-encryption-encryption-keys.html">17.3.2.2 Binary Log Encryption Keys</a></span></li><li><span class="section"><a href="replication-binlog-encryption-key-rotation.html">17.3.2.3 Binary Log Master Key Rotation</a></span></li></ul></div><a id="idm45828858378672" class="indexterm"></a><a id="idm45828858377600" class="indexterm"></a><p>
+      From MySQL 8.0.14, binary log files and relay log files can be
+      encrypted, helping to protect these files and the potentially
+      sensitive data contained in them from being misused by outside
+      attackers, and also from unauthorized viewing by users of the
+      operating system where they are stored. The encryption algorithm
+      used for the files, the AES (Advanced Encryption Standard) cipher
+      algorithm, is built in to MySQL Server and cannot be configured.
+    </p><p>
+      You enable this encryption on a MySQL server by setting the
+      <a class="link" href="replication-options-binary-log.html#sysvar_binlog_encryption"><code class="literal">binlog_encryption</code></a> system variable
+      to <code class="literal">ON</code>. <code class="literal">OFF</code> is the default.
+      The system variable sets encryption on for binary log files and
+      relay log files. Binary logging does not need to be enabled on the
+      server to enable encryption, so you can encrypt the relay log
+      files on a replica that has no binary log. To use encryption, a
+      keyring component or plugin must be installed and configured to
+      supply MySQL Server&#39;s keyring service. For instructions to do
+      this, see <a class="xref" href="keyring.html" title="6.4.4&nbsp;The MySQL Keyring">Section&nbsp;6.4.4, &ldquo;The MySQL Keyring&rdquo;</a>. Any supported keyring
+      component or plugin can be used to store binary log encryption
+      keys.
+    </p><p>
+      When you first start the server with encryption enabled, a new
+      binary log encryption key is generated before the binary log and
+      relay logs are initialized. This key is used to encrypt a file
+      password for each binary log file (if the server has binary
+      logging enabled) and relay log file (if the server has replication
+      channels), and further keys generated from the file passwords are
+      used to encrypt the data in the files. The binary log encryption
+      key that is currently in use on the server is called the binary
+      log master key. The two tier encryption key architecture means
+      that the binary log master key can be rotated (replaced by a new
+      master key) as required, and only the file password for each file
+      needs to be re-encrypted with the new master key, not the whole
+      file. Relay log files are encrypted for all channels, including
+      new channels that are created after encryption is activated. The
+      binary log index file and relay log index file are never
+      encrypted.
+    </p><p>
+      If you activate encryption while the server is running, a new
+      binary log encryption key is generated at that time. The exception
+      is if encryption was active previously on the server and was then
+      disabled, in which case the binary log encryption key that was in
+      use before is used again. The binary log file and relay log files
+      are rotated immediately, and file passwords for the new files and
+      all subsequent binary log files and relay log files are encrypted
+      using this binary log encryption key. Existing binary log files
+      and relay log files still present on the server are not encrypted,
+      but you can purge them if they are no longer needed.
+    </p><p>
+      If you deactivate encryption by changing the
+      <a class="link" href="replication-options-binary-log.html#sysvar_binlog_encryption"><code class="literal">binlog_encryption</code></a> system variable
+      to <code class="literal">OFF</code>, the binary log file and relay log files
+      are rotated immediately and all subsequent logging is unencrypted.
+      Previously encrypted files are not automatically decrypted, but
+      the server is still able to read them. The
+      <a class="link" href="privileges-provided.html#priv_binlog-encryption-admin"><code class="literal">BINLOG_ENCRYPTION_ADMIN</code></a> privilege
+      is required to activate or deactivate encryption while the server
+      is running.
+    </p><p>
+      Encrypted and unencrypted binary log files can be distinguished
+      using the magic number at the start of the file header for
+      encrypted log files (<code class="literal">0xFD62696E</code>), which differs
+      from that used for unencrypted log files
+      (<code class="literal">0xFE62696E</code>). The <a class="link" href="show-binary-logs.html" title="13.7.7.1&nbsp;SHOW BINARY LOGS Statement"><code class="literal">SHOW
+      BINARY LOGS</code></a> statement shows whether each binary log file
+      is encrypted or unencrypted.
+    </p><p>
+      When binary log files have been encrypted,
+      <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> cannot read them directly, but can
+      read them from the server using the
+      <a class="link" href="mysqlbinlog.html#option_mysqlbinlog_read-from-remote-server"><code class="option">--read-from-remote-server</code></a>
+      option. From MySQL 8.0.14, <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> returns
+      a suitable error if you attempt to read an encrypted binary log
+      file directly, but older versions of
+      <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> do not recognize the file as a
+      binary log file at all. If you back up encrypted binary log files
+      using <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a>, note that the copies of the
+      files that are generated using <a class="link" href="mysqlbinlog.html" title="4.6.9&nbsp;mysqlbinlog &mdash; Utility for Processing Binary Log Files"><span class="command"><strong>mysqlbinlog</strong></span></a> are
+      stored in an unencrypted format.
+    </p><p>
+      Binary log encryption can be combined with binary log transaction
+      compression (available as of MySQL 8.0.20). For more information
+      on binary log transaction compression, see
+      <a class="xref" href="binary-log-transaction-compression.html" title="5.4.4.5&nbsp;Binary Log Transaction Compression">Section&nbsp;5.4.4.5, &ldquo;Binary Log Transaction Compression&rdquo;</a>.
+    </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-encrypted-connections.html">Previous <span class="navHint"> Setting Up Replication to Use Encrypted Connections </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-security.html">Up <span class="navHint"> Replication Security </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-binlog-encryption-scope.html">Next <span class="navHint"> Scope of Binary Log Encryption </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

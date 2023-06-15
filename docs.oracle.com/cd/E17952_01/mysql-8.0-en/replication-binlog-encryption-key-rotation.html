@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>17.3.2.3 Binary Log Master Key Rotation</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="replication-binlog-encryption.html" title="17.3.2 Encrypting Binary Log Files and Relay Log Files" /><link rel="prev" href="replication-binlog-encryption-encryption-keys.html" title="17.3.2.2 Binary Log Encryption Keys" /><link rel="next" href="replication-privilege-checks.html" title="17.3.3 Replication Privilege Checks" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="replication-binlog-encryption-key-rotation.html#replication-binlog-encryption-key-rotation">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="replication-binlog-encryption-encryption-keys.html">Previous <span class="navHint"> Binary Log Encryption Keys </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="replication-binlog-encryption.html">Up <span class="navHint"> Encrypting Binary Log Files and Relay Log Files </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="replication-privilege-checks.html">Next <span class="navHint"> Replication Privilege Checks </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="replication-binlog-encryption-key-rotation"></a>17.3.2.3 Binary Log Master Key Rotation</h4></div></div></div><p>
+        When binary log encryption is enabled, you can rotate the binary
+        log master key at any time while the server is running by
+        issuing <a class="link" href="alter-instance.html#alter-instance-rotate-binlog-master-key"><code class="literal">ALTER INSTANCE ROTATE BINLOG MASTER
+        KEY</code></a>. When the binary log master key is rotated
+        manually using this statement, the passwords for the new and
+        subsequent files are encrypted using the new binary log master
+        key, and also the file passwords for existing encrypted binary
+        log files and relay log files are re-encrypted using the new
+        binary log master key, so the encryption is renewed completely.
+        You can rotate the binary log master key on a regular basis to
+        comply with your organization's security policy, and also if you
+        suspect that the current or any of the previous binary log
+        master keys might have been compromised.
+      </p><p>
+        When you rotate the binary log master key manually, MySQL Server
+        takes the following actions in sequence:
+      </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+            A new binary log encryption key is generated with the next
+            available sequence number, stored on the keyring, and used
+            as the new binary log master key.
+          </p></li><li class="listitem"><p>
+            The binary log and relay log files are rotated on all
+            channels.
+          </p></li><li class="listitem"><p>
+            The new binary log master key is used to encrypt the file
+            passwords for the new binary log and relay log files, and
+            subsequent files until the key is changed again.
+          </p></li><li class="listitem"><p>
+            The file passwords for existing encrypted binary log files
+            and relay log files on the server are re-encrypted in turn
+            using the new binary log master key, starting with the most
+            recent files. Any unencrypted files are skipped.
+          </p></li><li class="listitem"><p>
+            Binary log encryption keys that are no longer in use for any
+            files after the re-encryption process are removed from the
+            keyring.
+          </p></li></ol></div><p>
+        The <a class="link" href="privileges-provided.html#priv_binlog-encryption-admin"><code class="literal">BINLOG_ENCRYPTION_ADMIN</code></a>
+        privilege is required to issue <a class="link" href="alter-instance.html#alter-instance-rotate-binlog-master-key"><code class="literal">ALTER
+        INSTANCE ROTATE BINLOG MASTER KEY</code></a>, and the statement
+        cannot be used if the
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_encryption"><code class="literal">binlog_encryption</code></a> system
+        variable is set to <code class="literal">OFF</code>.
+      </p><p>
+        As the final step of the binary log master key rotation process,
+        all binary log encryption keys that no longer apply to any
+        retained binary log files or relay log files are cleaned up from
+        the keyring. If a retained binary log file or relay log file
+        cannot be initialized for re-encryption, the relevant binary log
+        encryption keys are not deleted in case the files can be
+        recovered in the future. For example, this might be the case if
+        a file listed in a binary log index file is currently
+        unreadable, or if a channel fails to initialize. If the server
+        UUID changes, for example because a backup created using MySQL
+        Enterprise Backup is used to set up a new replica, issuing
+        <a class="link" href="alter-instance.html#alter-instance-rotate-binlog-master-key"><code class="literal">ALTER INSTANCE ROTATE BINLOG MASTER
+        KEY</code></a> on the new server does not delete any earlier
+        binary log encryption keys that include the original server
+        UUID.
+      </p><p>
+        If any of the first four steps of the binary log master key
+        rotation process cannot be completed correctly, an error message
+        is issued explaining the situation and the consequences for the
+        encryption status of the binary log files and relay log files.
+        Files that were previously encrypted are always left in an
+        encrypted state, but their file passwords might still be
+        encrypted using an old binary log master key. If you see these
+        errors, first retry the process by issuing
+        <a class="link" href="alter-instance.html#alter-instance-rotate-binlog-master-key"><code class="literal">ALTER INSTANCE ROTATE BINLOG MASTER
+        KEY</code></a> again. Then investigate the status of individual
+        files to see what is blocking the process, especially if you
+        suspect that the current or any of the previous binary log
+        master keys might have been compromised.
+      </p><p>
+        If the final step of the binary log master key rotation process
+        cannot be completed correctly, a warning message is issued
+        explaining the situation. The warning message identifies whether
+        the process could not clean up the auxiliary keys in the keyring
+        for rotating the binary log master key, or could not clean up
+        unused binary log encryption keys. You can choose to ignore the
+        message as the keys are auxiliary keys or no longer in use, or
+        you can issue <a class="link" href="alter-instance.html#alter-instance-rotate-binlog-master-key"><code class="literal">ALTER INSTANCE ROTATE BINLOG
+        MASTER KEY</code></a> again to retry the process.
+      </p><p>
+        If the server stops and is restarted with binary log encryption
+        still set to <code class="literal">ON</code> during the binary log master
+        key rotation process, new binary log files and relay log files
+        after the restart are encrypted using the new binary log master
+        key. However, the re-encryption of existing files is not
+        continued, so files that did not get re-encrypted before the
+        server stopped are left encrypted using the previous binary log
+        master key. To complete re-encryption and clean up unused binary
+        log encryption keys, issue <a class="link" href="alter-instance.html#alter-instance-rotate-binlog-master-key"><code class="literal">ALTER INSTANCE
+        ROTATE BINLOG MASTER KEY</code></a> again after the restart.
+      </p><p>
+        <a class="link" href="alter-instance.html#alter-instance-rotate-binlog-master-key"><code class="literal">ALTER INSTANCE ROTATE BINLOG MASTER
+        KEY</code></a> actions are not written to the binary log and are
+        not executed on replicas. Binary log master key rotation can
+        therefore be carried out in replication environments including a
+        mix of MySQL versions. To schedule regular rotation of the
+        binary log master key on all applicable source and replica
+        servers, you can enable the MySQL Event Scheduler on each server
+        and issue the <a class="link" href="alter-instance.html#alter-instance-rotate-binlog-master-key"><code class="literal">ALTER INSTANCE ROTATE BINLOG
+        MASTER KEY</code></a> statement using a
+        <a class="link" href="create-event.html" title="13.1.13 CREATE EVENT Statement"><code class="literal">CREATE EVENT</code></a> statement. If you
+        rotate the binary log master key because you suspect that the
+        current or any of the previous binary log master keys might have
+        been compromised, issue the statement on every applicable source
+        and replica server. Issuing the statement on individual servers
+        ensures that you can verify immediate compliance, even in the
+        case of replicas that are lagging, belong to multiple
+        replication topologies, or are not currently active in the
+        replication topology but have binary log and relay log files.
+      </p><p>
+        The
+        <a class="link" href="replication-options-binary-log.html#sysvar_binlog_rotate_encryption_master_key_at_startup"><code class="literal">binlog_rotate_encryption_master_key_at_startup</code></a>
+        system variable controls whether the binary log master key is
+        automatically rotated when the server is restarted. If this
+        system variable is set to <code class="literal">ON</code>, a new binary
+        log encryption key is generated and used as the new binary log
+        master key whenever the server is restarted. If it is set to
+        <code class="literal">OFF</code>, which is the default, the existing
+        binary log master key is used again after the restart. When the
+        binary log master key is rotated at startup, the file passwords
+        for the new binary log and relay log files are encrypted using
+        the new key. The file passwords for the existing encrypted
+        binary log files and relay log files are not re-encrypted, so
+        they remain encrypted using the old key, which remains available
+        on the keyring.
+      </p></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="replication-binlog-encryption-encryption-keys.html">Previous <span class="navHint"> Binary Log Encryption Keys </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="replication-binlog-encryption.html">Up <span class="navHint"> Encrypting Binary Log Files and Relay Log Files </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="replication-privilege-checks.html">Next <span class="navHint"> Replication Privilege Checks </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

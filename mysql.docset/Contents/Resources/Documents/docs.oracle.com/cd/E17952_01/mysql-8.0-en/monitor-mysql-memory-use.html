@@ -1,0 +1,164 @@
+<!--?xml version="1.0" encoding="UTF-8" standalone="no"?--><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/><a class="dashingAutolink" name="autolink-1932"></a><a class="dashAnchor" name="//apple_ref/cpp/Package/8.12.3.2%C2%A0Monitoring%20MySQL%20Memory%20Usage"></a><title>8.12.3.2&nbsp;Monitoring MySQL Memory Usage</title><link rel="stylesheet" type="text/css" href="mvl-otn.css"/><meta name="generator" content="DocBook XSL Stylesheets V1.79.1"/><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual"/><link rel="up" href="optimizing-memory.html" title="8.12.3&nbsp;Optimizing Memory Use"/><link rel="prev" href="memory-use.html" title="8.12.3.1&nbsp;How MySQL Uses Memory"/><link rel="next" href="large-page-support.html" title="8.12.3.3&nbsp;Enabling Large Page Support"/><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="monitor-mysql-memory-use.html#monitor-mysql-memory-use">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page&nbsp;[access key: p]" href="memory-use.html">Previous <span class="navHint"> How MySQL Uses Memory </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page&nbsp;[access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation&nbsp;[access key: u]" href="optimizing-memory.html">Up <span class="navHint"> Optimizing Memory Use </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page&nbsp;[access key: n]" href="large-page-support.html">Next <span class="navHint"> Enabling Large Page Support </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><a class="dashingAutolink" name="autolink-1931"></a><a class="dashAnchor" name="//apple_ref/cpp/Section/8.12.3.2%C2%A0Monitoring%20MySQL%20Memory%20Usage"></a><h4 class="title"><a id="monitor-mysql-memory-use"></a>8.12.3.2&nbsp;Monitoring MySQL Memory Usage</h4></div></div></div><a id="idm45828949008352" class="indexterm"></a><a id="idm45828949006864" class="indexterm"></a><p>
+          The following example demonstrates how to use
+          <a class="link" href="performance-schema.html" title="Chapter&nbsp;27&nbsp;MySQL Performance Schema">Performance Schema</a>
+          and <a class="link" href="sys-schema.html" title="Chapter&nbsp;28&nbsp;MySQL sys Schema">sys schema</a> to monitor
+          MySQL memory usage.
+        </p><p>
+          Most Performance Schema memory instrumentation is disabled by
+          default. Instruments can be enabled by updating the
+          <code class="literal">ENABLED</code> column of the Performance Schema
+          <a class="link" href="performance-schema-setup-instruments-table.html" title="27.12.2.3&nbsp;The setup_instruments Table"><code class="literal">setup_instruments</code></a> table. Memory
+          instruments have names in the form of
+          <code class="literal">memory/<em class="replaceable"><code>code_area</code></em>/<em class="replaceable"><code>instrument_name</code></em></code>,
+          where <em class="replaceable"><code>code_area</code></em> is a value such as
+          <code class="literal">sql</code> or <code class="literal">innodb</code>, and
+          <em class="replaceable"><code>instrument_name</code></em> is the instrument
+          detail.
+        </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+              To view available MySQL memory instruments, query the
+              Performance Schema
+              <a class="link" href="performance-schema-setup-instruments-table.html" title="27.12.2.3&nbsp;The setup_instruments Table"><code class="literal">setup_instruments</code></a> table. The
+              following query returns hundreds of memory instruments for
+              all code areas.
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE &#39;%memory%&#39;;</code></strong></pre><p>
+              You can narrow results by specifying a code area. For
+              example, you can limit results to
+              <code class="literal">InnoDB</code> memory instruments by specifying
+              <code class="literal">innodb</code> as the code area.
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE &#39;%memory/innodb%&#39;;</code></strong>
++-------------------------------------------+---------+-------+
+| NAME                                      | ENABLED | TIMED |
++-------------------------------------------+---------+-------+
+| memory/innodb/adaptive hash index         | NO      | NO    |
+| memory/innodb/buf_buf_pool                | NO      | NO    |
+| memory/innodb/dict_stats_bg_recalc_pool_t | NO      | NO    |
+| memory/innodb/dict_stats_index_map_t      | NO      | NO    |
+| memory/innodb/dict_stats_n_diff_on_level  | NO      | NO    |
+| memory/innodb/other                       | NO      | NO    |
+| memory/innodb/row_log_buf                 | NO      | NO    |
+| memory/innodb/row_merge_sort              | NO      | NO    |
+| memory/innodb/std                         | NO      | NO    |
+| memory/innodb/trx_sys_t::rw_trx_ids       | NO      | NO    |
+...
+</pre><p>
+              Depending on your MySQL installation, code areas may
+              include <code class="literal">performance_schema</code>,
+              <code class="literal">sql</code>, <code class="literal">client</code>,
+              <code class="literal">innodb</code>, <code class="literal">myisam</code>,
+              <code class="literal">csv</code>, <code class="literal">memory</code>,
+              <code class="literal">blackhole</code>, <code class="literal">archive</code>,
+              <code class="literal">partition</code>, and others.
+            </p></li><li class="listitem"><p>
+              To enable memory instruments, add a
+              <code class="literal">performance-schema-instrument</code> rule to
+              your MySQL configuration file. For example, to enable all
+              memory instruments, add this rule to your configuration
+              file and restart the server:
+            </p><pre class="programlisting">performance-schema-instrument=&#39;memory/%=COUNTED&#39;</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+                Enabling memory instruments at startup ensures that
+                memory allocations that occur at startup are counted.
+              </p></div><p>
+              After restarting the server, the
+              <code class="literal">ENABLED</code> column of the Performance
+              Schema <a class="link" href="performance-schema-setup-instruments-table.html" title="27.12.2.3&nbsp;The setup_instruments Table"><code class="literal">setup_instruments</code></a>
+              table should report <code class="literal">YES</code> for memory
+              instruments that you enabled. The <code class="literal">TIMED</code>
+              column in the
+              <a class="link" href="performance-schema-setup-instruments-table.html" title="27.12.2.3&nbsp;The setup_instruments Table"><code class="literal">setup_instruments</code></a> table is
+              ignored for memory instruments because memory operations
+              are not timed.
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.setup_instruments</code></strong>
+       <strong class="userinput"><code>WHERE NAME LIKE &#39;%memory/innodb%&#39;;</code></strong>
++-------------------------------------------+---------+-------+
+| NAME                                      | ENABLED | TIMED |
++-------------------------------------------+---------+-------+
+| memory/innodb/adaptive hash index         | NO      | NO    |
+| memory/innodb/buf_buf_pool                | NO      | NO    |
+| memory/innodb/dict_stats_bg_recalc_pool_t | NO      | NO    |
+| memory/innodb/dict_stats_index_map_t      | NO      | NO    |
+| memory/innodb/dict_stats_n_diff_on_level  | NO      | NO    |
+| memory/innodb/other                       | NO      | NO    |
+| memory/innodb/row_log_buf                 | NO      | NO    |
+| memory/innodb/row_merge_sort              | NO      | NO    |
+| memory/innodb/std                         | NO      | NO    |
+| memory/innodb/trx_sys_t::rw_trx_ids       | NO      | NO    |
+...
+</pre></li><li class="listitem"><p>
+              Query memory instrument data. In this example, memory
+              instrument data is queried in the Performance Schema
+              <a class="link" href="performance-schema-memory-summary-tables.html" title="27.12.20.10&nbsp;Memory Summary Tables"><code class="literal">memory_summary_global_by_event_name</code></a>
+              table, which summarizes data by
+              <code class="literal">EVENT_NAME</code>. The
+              <code class="literal">EVENT_NAME</code> is the name of the
+              instrument.
+            </p><p>
+              The following query returns memory data for the
+              <code class="literal">InnoDB</code> buffer pool. For column
+              descriptions, see
+              <a class="xref" href="performance-schema-memory-summary-tables.html" title="27.12.20.10&nbsp;Memory Summary Tables">Section&nbsp;27.12.20.10, &ldquo;Memory Summary Tables&rdquo;</a>.
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM performance_schema.memory_summary_global_by_event_name</code></strong>
+       <strong class="userinput"><code>WHERE EVENT_NAME LIKE &#39;memory/innodb/buf_buf_pool&#39;\G</code></strong>
+                  EVENT_NAME: memory/innodb/buf_buf_pool
+                 COUNT_ALLOC: 1
+                  COUNT_FREE: 0
+   SUM_NUMBER_OF_BYTES_ALLOC: 137428992
+    SUM_NUMBER_OF_BYTES_FREE: 0
+              LOW_COUNT_USED: 0
+          CURRENT_COUNT_USED: 1
+             HIGH_COUNT_USED: 1
+    LOW_NUMBER_OF_BYTES_USED: 0
+CURRENT_NUMBER_OF_BYTES_USED: 137428992
+   HIGH_NUMBER_OF_BYTES_USED: 137428992
+</pre><p>
+              The same underlying data can be queried using the
+              <a class="link" href="sys-schema.html" title="Chapter&nbsp;28&nbsp;MySQL sys Schema"><code class="literal">sys</code></a> schema
+              <a class="link" href="sys-memory-global-by-current-bytes.html" title="28.4.3.19&nbsp;The memory_global_by_current_bytes and x$memory_global_by_current_bytes Views"><code class="literal">memory_global_by_current_bytes</code></a>
+              table, which shows current memory usage within the server
+              globally, broken down by allocation type.
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM sys.memory_global_by_current_bytes</code></strong>
+       <strong class="userinput"><code>WHERE event_name LIKE &#39;memory/innodb/buf_buf_pool&#39;\G</code></strong>
+*************************** 1. row ***************************
+       event_name: memory/innodb/buf_buf_pool
+    current_count: 1
+    current_alloc: 131.06 MiB
+current_avg_alloc: 131.06 MiB
+       high_count: 1
+       high_alloc: 131.06 MiB
+   high_avg_alloc: 131.06 MiB
+</pre><p>
+              This <a class="link" href="sys-schema.html" title="Chapter&nbsp;28&nbsp;MySQL sys Schema"><code class="literal">sys</code></a> schema query
+              aggregates currently allocated memory
+              (<code class="literal">current_alloc</code>) by code area:
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT SUBSTRING_INDEX(event_name,&#39;/&#39;,2) AS</code></strong>
+       <strong class="userinput"><code>code_area, FORMAT_BYTES(SUM(current_alloc))</code></strong>
+       <strong class="userinput"><code>AS current_alloc</code></strong>
+       <strong class="userinput"><code>FROM sys.x$memory_global_by_current_bytes</code></strong>
+       <strong class="userinput"><code>GROUP BY SUBSTRING_INDEX(event_name,&#39;/&#39;,2)</code></strong>
+       <strong class="userinput"><code>ORDER BY SUM(current_alloc) DESC;</code></strong>
++---------------------------+---------------+
+| code_area                 | current_alloc |
++---------------------------+---------------+
+| memory/innodb             | 843.24 MiB    |
+| memory/performance_schema | 81.29 MiB     |
+| memory/mysys              | 8.20 MiB      |
+| memory/sql                | 2.47 MiB      |
+| memory/memory             | 174.01 KiB    |
+| memory/myisam             | 46.53 KiB     |
+| memory/blackhole          | 512 bytes     |
+| memory/federated          | 512 bytes     |
+| memory/csv                | 512 bytes     |
+| memory/vio                | 496 bytes     |
++---------------------------+---------------+
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+                Prior to MySQL 8.0.16,
+                <code class="literal">sys.format_bytes()</code> was used for
+                <a class="link" href="performance-schema-functions.html#function_format-bytes"><code class="literal">FORMAT_BYTES()</code></a>.
+              </p></div><p>
+              For more information about
+              <a class="link" href="sys-schema.html" title="Chapter&nbsp;28&nbsp;MySQL sys Schema"><code class="literal">sys</code></a> schema, see
+              <a class="xref" href="sys-schema.html" title="Chapter&nbsp;28&nbsp;MySQL sys Schema">Chapter&nbsp;28, <em>MySQL sys Schema</em></a>.
+            </p></li></ol></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="memory-use.html">Previous <span class="navHint"> How MySQL Uses Memory </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="optimizing-memory.html">Up <span class="navHint"> Optimizing Memory Use </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="large-page-support.html">Next <span class="navHint"> Enabling Large Page Support </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>

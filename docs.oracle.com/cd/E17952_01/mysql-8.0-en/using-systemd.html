@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>2.5.9 Managing MySQL Server with systemd</title><link rel="stylesheet" type="text/css" href="mvl-otn.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /><link rel="home" href="performance-schema" title="MySQL 8.0 Reference Manual" /><link rel="up" href="linux-installation.html" title="2.5 Installing MySQL on Linux" /><link rel="prev" href="linux-installation-juju.html" title="2.5.8 Installing MySQL on Linux with Juju" /><link rel="next" href="uln-installation.html" title="2.6 Installing MySQL Using Unbreakable Linux Network (ULN)" /><script>window.ohcglobal || document.write('<script src="../../../en/dcommon/js/global.js">\x3C/script>')</script></head><body><div class="skip-link"><a href="using-systemd.html#using-systemd">Skip to Main Content</a></div><div class="DocTitle"><p>MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0</p></div><div class="navigation"><ul><li class="navLinkPrevious"><a accesskey="p" title="Go To Previous Page [access key: p]" href="linux-installation-juju.html">Previous <span class="navHint"> Installing MySQL on Linux with Juju </span></a></li><li class="navLinkHome"><a accesskey="h" title="Go To Home Page [access key: h]" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a accesskey="u" title="Go Up A Level In The Navigation [access key: u]" href="linux-installation.html">Up <span class="navHint"> Installing MySQL on Linux </span></a></li><li class="navLinkNext"><a accesskey="n" title="Go To Next Page [access key: n]" href="uln-installation.html">Next <span class="navHint"> Installing MySQL Using Unbreakable Linux Network (ULN) </span></a></li></ul></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="using-systemd"></a>2.5.9 Managing MySQL Server with systemd</h3></div></div></div><a id="idm45829056393360" class="indexterm"></a><p>
+      If you install MySQL using an RPM or Debian package on the
+      following Linux platforms, server startup and shutdown is managed
+      by systemd:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+          RPM package platforms:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              Enterprise Linux variants version 7 and higher
+            </p></li><li class="listitem"><p>
+              SUSE Linux Enterprise Server 12 and higher
+            </p></li><li class="listitem"><p>
+              Fedora 29 and higher
+            </p></li></ul></div></li><li class="listitem"><p>
+          Debian family platforms:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+              Debian platforms
+            </p></li><li class="listitem"><p>
+              Ubuntu platforms
+            </p></li></ul></div></li></ul></div><p>
+      If you install MySQL from a generic binary distribution on a
+      platform that uses systemd, you can manually configure systemd
+      support for MySQL following the instructions provided in the
+      post-installation setup section of the
+      <a class="ulink" href="https://dev.mysql.com/doc/mysql-secure-deployment-guide/en/" target="_top">MySQL
+      8.0 Secure Deployment Guide</a>.
+    </p><p>
+      If you install MySQL from a source distribution on a platform that
+      uses systemd, obtain systemd support for MySQL by configuring the
+      distribution using the
+      <a class="link" href="source-configuration-options.html#option_cmake_with_systemd"><code class="option">-DWITH_SYSTEMD=1</code></a>
+      <span class="command"><strong>CMake</strong></span> option. See
+      <a class="xref" href="source-configuration-options.html" title="2.8.7 MySQL Source-Configuration Options">Section 2.8.7, “MySQL Source-Configuration Options”</a>.
+    </p><p>
+      The following discussion covers these topics:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p><a class="xref" href="using-systemd.html#systemd-overview" title="Overview of systemd">Overview of systemd</a></p></li><li class="listitem"><p><a class="xref" href="using-systemd.html#systemd-mysql-configuration" title="Configuring systemd for MySQL">Configuring systemd for MySQL</a></p></li><li class="listitem"><p><a class="xref" href="using-systemd.html#systemd-multiple-mysql-instances" title="Configuring Multiple MySQL Instances Using systemd">Configuring Multiple MySQL Instances Using systemd</a></p></li><li class="listitem"><p><a class="xref" href="using-systemd.html#mysqld-safe-to-systemd-migration" title="Migrating from mysqld_safe to systemd">Migrating from mysqld_safe to systemd</a></p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+        On platforms for which systemd support for MySQL is installed,
+        scripts such as <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> and the System V
+        initialization script are unnecessary and are not installed. For
+        example, <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> can handle server
+        restarts, but systemd provides the same capability, and does so
+        in a manner consistent with management of other services rather
+        than by using an application-specific program.
+      </p><p>
+        One implication of the non-use of <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a>
+        on platforms that use systemd for server management is that use
+        of <code class="literal">[mysqld_safe]</code> or
+        <code class="literal">[safe_mysqld]</code> sections in option files is not
+        supported and might lead to unexpected behavior.
+      </p><p>
+        Because systemd has the capability of managing multiple MySQL
+        instances on platforms for which systemd support for MySQL is
+        installed, <a class="link" href="mysqld-multi.html" title="4.3.4 mysqld_multi — Manage Multiple MySQL Servers"><span class="command"><strong>mysqld_multi</strong></span></a> and
+        <span class="command"><strong>mysqld_multi.server</strong></span> are unnecessary and are
+        not installed.
+      </p></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="systemd-overview"></a>Overview of systemd</h4></div></div></div><p>
+        systemd provides automatic MySQL server startup and shutdown. It
+        also enables manual server management using the
+        <span class="command"><strong>systemctl</strong></span> command. For example:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>systemctl <em class="replaceable"><code>{start|stop|restart|status}</code></em> mysqld</code></strong>
+</pre><p>
+        Alternatively, use the <span class="command"><strong>service</strong></span> command (with
+        the arguments reversed), which is compatible with System V
+        systems:
+      </p><pre class="programlisting">$&gt; <strong class="userinput"><code>service mysqld <em class="replaceable"><code>{start|stop|restart|status}</code></em></code></strong>
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          For the <span class="command"><strong>systemctl</strong></span> command (and the
+          alternative <span class="command"><strong>service</strong></span> command), if the MySQL
+          service name is not <code class="literal">mysqld</code> then use the
+          appropriate name. For example, use <code class="literal">mysql</code>
+          rather than <code class="literal">mysqld</code> on Debian-based and SLES
+          systems.
+        </p></div><p>
+        Support for systemd includes these files:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="filename">mysqld.service</code> (RPM platforms),
+            <code class="filename">mysql.service</code> (Debian platforms):
+            systemd service unit configuration file, with details about
+            the MySQL service.
+          </p></li><li class="listitem"><p>
+            <code class="filename">mysqld@.service</code> (RPM platforms),
+            <code class="filename">mysql@.service</code> (Debian platforms): Like
+            <code class="filename">mysqld.service</code> or
+            <code class="filename">mysql.service</code>, but used for managing
+            multiple MySQL instances.
+          </p></li><li class="listitem"><p>
+            <code class="filename">mysqld.tmpfiles.d</code>: File containing
+            information to support the <code class="literal">tmpfiles</code>
+            feature. This file is installed under the name
+            <code class="filename">mysql.conf</code>.
+          </p></li><li class="listitem"><p>
+            <code class="filename">mysqld_pre_systemd</code> (RPM platforms),
+            <code class="filename">mysql-system-start</code> (Debian platforms):
+            Support script for the unit file. This script assists in
+            creating the error log file only if the log location matches
+            a pattern (<code class="literal">/var/log/mysql*.log</code> for RPM
+            platforms, <code class="literal">/var/log/mysql/*.log</code> for
+            Debian platforms). In other cases, the error log directory
+            must be writable or the error log must be present and
+            writable for the user running the <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a>
+            process.
+          </p></li></ul></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="systemd-mysql-configuration"></a>Configuring systemd for MySQL</h4></div></div></div><p>
+        To add or change systemd options for MySQL, these methods are
+        available:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Use a localized systemd configuration file.
+          </p></li><li class="listitem"><p>
+            Arrange for systemd to set environment variables for the
+            MySQL server process.
+          </p></li><li class="listitem"><p>
+            Set the <code class="literal">MYSQLD_OPTS</code> systemd variable.
+          </p></li></ul></div><p>
+        To use a localized systemd configuration file, create the
+        <code class="filename">/etc/systemd/system/mysqld.service.d</code>
+        directory if it does not exist. In that directory, create a file
+        that contains a <code class="literal">[Service]</code> section listing the
+        desired settings. For example:
+      </p><pre class="programlisting">[Service]
+LimitNOFILE=<em class="replaceable"><code>max_open_files</code></em>
+Nice=<em class="replaceable"><code>nice_level</code></em>
+LimitCore=<em class="replaceable"><code>core_file_limit</code></em>
+Environment="LD_PRELOAD=<em class="replaceable"><code>/path/to/malloc/library</code></em>"
+Environment="TZ=<em class="replaceable"><code>time_zone_setting</code></em>"
+</pre><p>
+        The discussion here uses <code class="filename">override.conf</code> as
+        the name of this file. Newer versions of systemd support the
+        following command, which opens an editor and permits you to edit
+        the file:
+      </p><pre class="programlisting">systemctl edit mysqld  # RPM platforms
+systemctl edit mysql   # Debian platforms
+</pre><p>
+        Whenever you create or change
+        <code class="filename">override.conf</code>, reload the systemd
+        configuration, then tell systemd to restart the MySQL service:
+      </p><pre class="programlisting">systemctl daemon-reload
+systemctl restart mysqld  # RPM platforms
+systemctl restart mysql   # Debian platforms
+</pre><p>
+        With systemd, the <code class="filename">override.conf</code>
+        configuration method must be used for certain parameters, rather
+        than settings in a <code class="literal">[mysqld]</code>,
+        <code class="literal">[mysqld_safe]</code>, or
+        <code class="literal">[safe_mysqld]</code> group in a MySQL option file:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            For some parameters, <code class="filename">override.conf</code> must
+            be used because systemd itself must know their values and it
+            cannot read MySQL option files to get them.
+          </p></li><li class="listitem"><p>
+            Parameters that specify values otherwise settable only using
+            options known to <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> must be
+            specified using systemd because there is no corresponding
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> parameter.
+          </p></li></ul></div><p>
+        For additional information about using systemd rather than
+        <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a>, see
+        <a class="xref" href="using-systemd.html#mysqld-safe-to-systemd-migration" title="Migrating from mysqld_safe to systemd">Migrating from mysqld_safe to systemd</a>.
+      </p><p>
+        You can set the following parameters in
+        <code class="filename">override.conf</code>:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            To set the number of file descriptors available to the MySQL
+            server, use <code class="literal">LimitNOFILE</code> in
+            <code class="filename">override.conf</code> rather than the
+            <a class="link" href="server-system-variables.html#sysvar_open_files_limit"><code class="literal">open_files_limit</code></a> system
+            variable for <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> or
+            <a class="link" href="mysqld-safe.html#option_mysqld_safe_open-files-limit"><code class="option">--open-files-limit</code></a>
+            option for <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a>.
+          </p></li><li class="listitem"><p>
+            To set the maximum core file size, use
+            <code class="literal">LimitCore</code> in
+            <code class="filename">override.conf</code> rather than the
+            <a class="link" href="mysqld-safe.html#option_mysqld_safe_core-file-size"><code class="option">--core-file-size</code></a> option
+            for <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a>.
+          </p></li><li class="listitem"><p>
+            To set the scheduling priority for the MySQL server, use
+            <code class="literal">Nice</code> in
+            <code class="filename">override.conf</code> rather than the
+            <a class="link" href="mysqld-safe.html#option_mysqld_safe_nice"><code class="option">--nice</code></a> option for
+            <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a>.
+          </p></li></ul></div><p>
+        Some MySQL parameters are configured using environment
+        variables:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="literal">LD_PRELOAD</code>: Set this variable if the
+            MySQL server should use a specific memory-allocation
+            library.
+          </p><a id="idm45829056289984" class="indexterm"></a><a id="idm45829056288896" class="indexterm"></a><a id="idm45829056287808" class="indexterm"></a></li><li class="listitem"><p>
+            <code class="literal">NOTIFY_SOCKET</code>: This environment variable
+            specifies the socket that <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> uses to
+            communicate notification of startup completion and service
+            status change with systemd. It is set by systemd when the
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> service is started. The
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> service reads the variable setting
+            and writes to the defined location.
+          </p><p>
+            In MySQL 8.0, <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> uses
+            the <code class="literal">Type=notify</code> process startup type.
+            (<code class="literal">Type=forking</code> was used in MySQL 5.7.)
+            With <code class="literal">Type=notify</code>, systemd automatically
+            configures a socket file and exports the path to the
+            <code class="literal">NOTIFY_SOCKET</code> environment variable.
+          </p><a id="idm45829056276160" class="indexterm"></a><a id="idm45829056275072" class="indexterm"></a></li><li class="listitem"><p>
+            <code class="literal">TZ</code>: Set this variable to specify the
+            default time zone for the server.
+          </p><a id="idm45829056272000" class="indexterm"></a><a id="idm45829056270928" class="indexterm"></a></li></ul></div><p>
+        There are multiple ways to specify environment variable values
+        for use by the MySQL server process managed by systemd:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Use <code class="literal">Environment</code> lines in the
+            <code class="filename">override.conf</code> file. For the syntax, see
+            the example in the preceding discussion that describes how
+            to use this file.
+          </p></li><li class="listitem"><p>
+            Specify the values in the
+            <code class="filename">/etc/sysconfig/mysql</code> file (create the
+            file if it does not exist). Assign values using the
+            following syntax:
+          </p><pre class="programlisting">LD_PRELOAD=<em class="replaceable"><code>/path/to/malloc/library</code></em>
+TZ=<em class="replaceable"><code>time_zone_setting</code></em>
+</pre><p>
+            After modifying <code class="filename">/etc/sysconfig/mysql</code>,
+            restart the server to make the changes effective:
+          </p><pre class="programlisting">systemctl restart mysqld  # RPM platforms
+systemctl restart mysql   # Debian platforms
+</pre></li></ul></div><a id="idm45829056260208" class="indexterm"></a><a id="idm45829056259120" class="indexterm"></a><p>
+        To specify options for <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> without
+        modifying systemd configuration files directly, set or unset the
+        <code class="literal">MYSQLD_OPTS</code> systemd variable. For example:
+      </p><pre class="programlisting">systemctl set-environment MYSQLD_OPTS="--general_log=1"
+systemctl unset-environment MYSQLD_OPTS
+</pre><p>
+        <code class="literal">MYSQLD_OPTS</code> can also be set in the
+        <code class="filename">/etc/sysconfig/mysql</code> file.
+      </p><p>
+        After modifying the systemd environment, restart the server to
+        make the changes effective:
+      </p><pre class="programlisting">systemctl restart mysqld  # RPM platforms
+systemctl restart mysql   # Debian platforms
+</pre><p>
+        For platforms that use systemd, the data directory is
+        initialized if empty at server startup. This might be a problem
+        if the data directory is a remote mount that has temporarily
+        disappeared: The mount point would appear to be an empty data
+        directory, which then would be initialized as a new data
+        directory. To suppress this automatic initialization behavior,
+        specify the following line in the
+        <code class="filename">/etc/sysconfig/mysql</code> file (create the file
+        if it does not exist):
+      </p><pre class="programlisting">NO_INIT=true
+</pre></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="systemd-multiple-mysql-instances"></a>Configuring Multiple MySQL Instances Using systemd</h4></div></div></div><p>
+        This section describes how to configure systemd for multiple
+        instances of MySQL.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          Because systemd has the capability of managing multiple MySQL
+          instances on platforms for which systemd support is installed,
+          <a class="link" href="mysqld-multi.html" title="4.3.4 mysqld_multi — Manage Multiple MySQL Servers"><span class="command"><strong>mysqld_multi</strong></span></a> and
+          <span class="command"><strong>mysqld_multi.server</strong></span> are unnecessary and are
+          not installed.
+        </p></div><p>
+        To use multiple-instance capability, modify the
+        <code class="filename">my.cnf</code> option file to include configuration
+        of key options for each instance. These file locations are
+        typical:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="filename">/etc/my.cnf</code> or
+            <code class="filename">/etc/mysql/my.cnf</code> (RPM platforms)
+          </p></li><li class="listitem"><p>
+            <code class="filename">/etc/mysql/mysql.conf.d/mysqld.cnf</code>
+            (Debian platforms)
+          </p></li></ul></div><p>
+        For example, to manage two instances named
+        <code class="literal">replica01</code> and <code class="literal">replica02</code>,
+        add something like this to the option file:
+      </p><p>
+        RPM platforms:
+      </p><pre class="programlisting">[mysqld@replica01]
+datadir=/var/lib/mysql-replica01
+socket=/var/lib/mysql-replica01/mysql.sock
+port=3307
+log-error=/var/log/mysqld-replica01.log
+
+[mysqld@replica02]
+datadir=/var/lib/mysql-replica02
+socket=/var/lib/mysql-replica02/mysql.sock
+port=3308
+log-error=/var/log/mysqld-replica02.log
+</pre><p>
+        Debian platforms:
+      </p><pre class="programlisting">[mysqld@replica01]
+datadir=/var/lib/mysql-replica01
+socket=/var/lib/mysql-replica01/mysql.sock
+port=3307
+log-error=/var/log/mysql/replica01.log
+
+[mysqld@replica02]
+datadir=/var/lib/mysql-replica02
+socket=/var/lib/mysql-replica02/mysql.sock
+port=3308
+log-error=/var/log/mysql/replica02.log
+</pre><p>
+        The replica names shown here use <code class="literal">@</code> as the
+        delimiter because that is the only delimiter supported by
+        systemd.
+      </p><p>
+        Instances then are managed by normal systemd commands, such as:
+      </p><pre class="programlisting">systemctl start mysqld@replica01
+systemctl start mysqld@replica02
+</pre><p>
+        To enable instances to run at boot time, do this:
+      </p><pre class="programlisting">systemctl enable mysqld@replica01
+systemctl enable mysqld@replica02
+</pre><p>
+        Use of wildcards is also supported. For example, this command
+        displays the status of all replica instances:
+      </p><pre class="programlisting">systemctl status 'mysqld@replica*'
+</pre><p>
+        For management of multiple MySQL instances on the same machine,
+        systemd automatically uses a different unit file:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            <code class="filename">mysqld@.service</code> rather than
+            <code class="filename">mysqld.service</code> (RPM platforms)
+          </p></li><li class="listitem"><p>
+            <code class="filename">mysql@.service</code> rather than
+            <code class="filename">mysql.service</code> (Debian platforms)
+          </p></li></ul></div><p>
+        In the unit file, <code class="literal">%I</code> and
+        <code class="literal">%i</code> reference the parameter passed in after
+        the <code class="literal">@</code> marker and are used to manage the
+        specific instance. For a command such as this:
+      </p><pre class="programlisting">systemctl start mysqld@replica01
+</pre><p>
+        systemd starts the server using a command such as this:
+      </p><pre class="programlisting">mysqld --defaults-group-suffix=@%I ...
+</pre><p>
+        The result is that the <code class="literal">[server]</code>,
+        <code class="literal">[mysqld]</code>, and
+        <code class="literal">[mysqld@replica01]</code> option groups are read and
+        used for that instance of the service.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          On Debian platforms, AppArmor prevents the server from reading
+          or writing <code class="filename">/var/lib/mysql-replica*</code>, or
+          anything other than the default locations. To address this,
+          you must customize or disable the profile in
+          <code class="filename">/etc/apparmor.d/usr.sbin.mysqld</code>.
+        </p></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+          On Debian platforms, the packaging scripts for MySQL
+          uninstallation cannot currently handle
+          <code class="literal">mysqld@</code> instances. Before removing or
+          upgrading the package, you must stop any extra instances
+          manually first.
+        </p></div></div><div class="simplesect"><div class="titlepage"><div><div><h4 class="title"><a id="mysqld-safe-to-systemd-migration"></a>Migrating from mysqld_safe to systemd</h4></div></div></div><p>
+        Because <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> is not installed on
+        platforms that use systemd to manage MySQL, options previously
+        specified for that program (for example, in an
+        <code class="literal">[mysqld_safe]</code> or
+        <code class="literal">[safe_mysqld]</code> option group) must be specified
+        another way:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+            Some <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> options are also
+            understood by <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> and can be moved
+            from the <code class="literal">[mysqld_safe]</code> or
+            <code class="literal">[safe_mysqld]</code> option group to the
+            <code class="literal">[mysqld]</code> group. This does
+            <span class="emphasis"><em>not</em></span> include
+            <a class="link" href="mysqld-safe.html#option_mysqld_safe_pid-file"><code class="option">--pid-file</code></a>,
+            <a class="link" href="mysqld-safe.html#option_mysqld_safe_open-files-limit"><code class="option">--open-files-limit</code></a>, or
+            <a class="link" href="mysqld-safe.html#option_mysqld_safe_nice"><code class="option">--nice</code></a>. To specify those
+            options, use the <code class="filename">override.conf</code> systemd
+            file, described previously.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><div class="admon-title">Note</div><p>
+              On systemd platforms, use of
+              <code class="literal">[mysqld_safe]</code> and
+              <code class="literal">[safe_mysqld]</code> option groups is not
+              supported and may lead to unexpected behavior.
+            </p></div></li><li class="listitem"><p>
+            For some <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> options, there are
+            alternative <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> procedures. For
+            example, the <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> option for
+            enabling <code class="literal">syslog</code> logging is
+            <a class="link" href="mysqld-safe.html#option_mysqld_safe_syslog"><code class="option">--syslog</code></a>, which is
+            deprecated. To write error log output to the system log, use
+            the instructions at <a class="xref" href="error-log-syslog.html" title="5.4.2.8 Error Logging to the System Log">Section 5.4.2.8, “Error Logging to the System Log”</a>.
+          </p></li><li class="listitem"><p>
+            <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a> options not understood by
+            <a class="link" href="mysqld.html" title="4.3.1 mysqld — The MySQL Server"><span class="command"><strong>mysqld</strong></span></a> can be specified in
+            <code class="filename">override.conf</code> or environment variables.
+            For example, with <a class="link" href="mysqld-safe.html" title="4.3.2 mysqld_safe — MySQL Server Startup Script"><span class="command"><strong>mysqld_safe</strong></span></a>, if the
+            server should use a specific memory allocation library, this
+            is specified using the
+            <a class="link" href="mysqld-safe.html#option_mysqld_safe_malloc-lib"><code class="option">--malloc-lib</code></a> option. For
+            installations that manage the server with systemd, arrange
+            to set the <code class="literal">LD_PRELOAD</code> environment
+            variable instead, as described previously.
+          </p></li></ul></div></div></div><div class="navigation"><ul><li class="navLinkPrevious"><a title="Go To Previous Page" href="linux-installation-juju.html">Previous <span class="navHint"> Installing MySQL on Linux with Juju </span></a></li><li class="navLinkHome"><a title="Go To Home Page" href="performance-schema">Home <span class="navHint"> MySQL 8.0 Reference Manual Including MySQL NDB Cluster 8.0 </span></a></li><li class="navLinkUp"><a title="Go Up A Level In The Navigation" href="linux-installation.html">Up <span class="navHint"> Installing MySQL on Linux </span></a></li><li class="navLinkNext"><a title="Go To Next Page" href="uln-installation.html">Next <span class="navHint"> Installing MySQL Using Unbreakable Linux Network (ULN) </span></a></li></ul></div><div class="dochomelink-footer"><a title="Go to MySQL Doc Library" href="https://docs.oracle.com/cd/E17952_01/index.html">
+        MySQL Documentation Library
+      </a></div><div class="copyright-footer"></div></body></html>
